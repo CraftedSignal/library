@@ -26,6 +26,14 @@ jobs:
         env:
           UPSTREAM_REFRESH_TOKEN: ${{ secrets.UPSTREAM_REFRESH_TOKEN }}
 
+      - name: Rotate refresh token
+        if: ${{ hashFiles('.new-refresh-token') != '' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          TOKEN_FILE: ${{ github.workspace }}/.new-refresh-token
+        run: gh secret set UPSTREAM_REFRESH_TOKEN --repo "$REPO" < "$TOKEN_FILE"
+
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
           commit_message: 'sync: update community detections'
