@@ -61,9 +61,7 @@ type apiRule struct {
 	Version     any         `json:"version"` // can be int or string
 	Tags        []string    `json:"tags"`
 	Metadata    apiMetadata `json:"metadata"`
-	Contributor *struct {
-		Slug string `json:"slug"`
-	} `json:"contributor"`
+	Contributor json.RawMessage `json:"contributor"`
 }
 
 type apiMetadata struct {
@@ -148,7 +146,8 @@ func main() {
 	log.Printf("Fetching detections (types: %s)...", strings.Join(types, ", "))
 	rules, err := fetchAllRules(accessToken, types)
 	if err != nil {
-		log.Fatalf("Failed to fetch detections: %v", err)
+		log.Printf("Failed to fetch detections: %v", err)
+		os.Exit(1)
 	}
 	log.Printf("Fetched %d total detections", len(rules))
 
@@ -156,7 +155,7 @@ func main() {
 	var filtered []apiRule
 	excluded := 0
 	for _, r := range rules {
-		if r.Contributor != nil && excludeSet[strings.ToLower(r.Contributor.Slug)] {
+		if slug := contributorSlug(r); slug != "" && excludeSet[strings.ToLower(slug)] {
 			excluded++
 			continue
 		}
@@ -269,6 +268,25 @@ func fetchPage(accessToken string, ruleTypes []string, page, size int) ([]apiRul
 	}
 
 	return discoverResp.Data, nil
+}
+
+func contributorSlug(r apiRule) string {
+	if len(r.Contributor) == 0 || string(r.Contributor) == "null" {
+		return ""
+	}
+	// Try object: {"slug": "..."}
+	var obj struct {
+		Slug string `json:"slug"`
+	}
+	if json.Unmarshal(r.Contributor, &obj) == nil && obj.Slug != "" {
+		return obj.Slug
+	}
+	// Try plain string: "some-slug"
+	var s string
+	if json.Unmarshal(r.Contributor, &s) == nil {
+		return s
+	}
+	return ""
 }
 
 func convertRule(r apiRule) libraryEntry {
