@@ -1,0 +1,27 @@
+name: Sync upstream
+on:
+  schedule:
+    - cron: '0 */6 * * *'
+  workflow_dispatch: {}
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve Go version
+        id: go-version
+        run: echo "version=$(grep -oP '(?<=golang:)\S+' .github/go/Dockerfile)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ steps.go-version.outputs.version }}
+
+      - run: go run ./.github/mirror --output-dir .
+        env:
+          UPSTREAM_REFRESH_TOKEN: ${{ secrets.UPSTREAM_REFRESH_TOKEN }}
+
+      - uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: 'sync: update community detections'
