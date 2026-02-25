@@ -48,10 +48,7 @@ type discoverOptions struct {
 }
 
 type discoverResponse struct {
-	Data struct {
-		Rules []apiRule `json:"rules"`
-		Total int       `json:"total"`
-	} `json:"data"`
+	Data []apiRule `json:"data"`
 }
 
 type apiRule struct {
@@ -217,15 +214,15 @@ func fetchAllRules(accessToken string, ruleTypes []string) ([]apiRule, error) {
 	page := 1
 
 	for {
-		rules, total, err := fetchPage(accessToken, ruleTypes, page, maxPageSize)
+		rules, err := fetchPage(accessToken, ruleTypes, page, maxPageSize)
 		if err != nil {
 			return nil, fmt.Errorf("fetching page %d: %w", page, err)
 		}
 
 		allRules = append(allRules, rules...)
-		log.Printf("  Page %d: got %d rules (total so far: %d/%d)", page, len(rules), len(allRules), total)
+		log.Printf("  Page %d: got %d rules (total so far: %d)", page, len(rules), len(allRules))
 
-		if len(allRules) >= total || len(rules) == 0 {
+		if len(rules) < maxPageSize {
 			break
 		}
 		page++
@@ -237,7 +234,7 @@ func fetchAllRules(accessToken string, ruleTypes []string) ([]apiRule, error) {
 	return allRules, nil
 }
 
-func fetchPage(accessToken string, ruleTypes []string, page, size int) ([]apiRule, int, error) {
+func fetchPage(accessToken string, ruleTypes []string, page, size int) ([]apiRule, error) {
 	body := discoverRequest{
 		Filters: discoverFilters{RuleTypes: ruleTypes},
 		Options: discoverOptions{Page: page, Size: size},
@@ -245,33 +242,33 @@ func fetchPage(accessToken string, ruleTypes []string, page, size int) ([]apiRul
 
 	bodyBytes, err := json.Marshal(body)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
 	req, err := http.NewRequest("POST", baseURL+discoverPath, strings.NewReader(string(bodyBytes)))
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+accessToken)
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
 		respBody, _ := io.ReadAll(resp.Body)
-		return nil, 0, fmt.Errorf("discover returned status %d: %s", resp.StatusCode, string(respBody))
+		return nil, fmt.Errorf("discover returned status %d: %s", resp.StatusCode, string(respBody))
 	}
 
 	var discoverResp discoverResponse
 	if err := json.NewDecoder(resp.Body).Decode(&discoverResp); err != nil {
-		return nil, 0, err
+		return nil, err
 	}
 
-	return discoverResp.Data.Rules, discoverResp.Data.Total, nil
+	return discoverResp.Data, nil
 }
 
 func convertRule(r apiRule) libraryEntry {
