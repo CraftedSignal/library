@@ -1,0 +1,13 @@
+id: 019ada76-6a78-73db-b4b5-9217efe29626
+name: Newly Observed .CFD Domain Access
+description: The .cfd Top-Level Domain (TLD) is often linked to malicious activities such as phishing, malware distribution, and command-and-control (C2) operations. This query detects new allowed network connections to .cfd domains that have appeared for the first time in your environment within the past 24 hours. Monitoring these connections can serve as an early warning sign of potential security breaches or users being targeted by phishing attacks. The query also provides valuable context for each newly observed domain, including its first-ever occurrence within a 30-day window, the total recent access count, and the users involved—enabling analysts to quickly evaluate the associated risk.
+query: "let total_scan_period   = 30d;   // lookback window for \"ever\" seen\r\nlet new_domain_lookback = 24h;   // window for \"new\" domains and stats\r\nlet base = materialize(\r\n    ProxyLogSource  // <-- replace with your proxy table name if different\r\n    | where TimeGenerated between (ago(total_scan_period) .. now())\r\n    | where DeviceAction == \"Allowed\"\r\n    | where isnotempty(DestinationHostName)\r\n    | extend domain = tolower(DestinationHostName)\r\n    | where isnotempty(domain)\r\n    | where domain endswith \".cfd\" //Domain EndsWith CFD domain\r\n    | project TimeGenerated, domain, SourceIP, SourceUserName\r\n);\r\nbase\r\n| summarize FirstSeenEver = min(TimeGenerated), FirstSeenInPeriod = minif(TimeGenerated, TimeGenerated >= ago(new_domain_lookback)), LastSeenInPeriod = maxif(TimeGenerated, TimeGenerated >= ago(new_domain_lookback)),\r\nTotalAccesses = countif(TimeGenerated >= ago(new_domain_lookback)), Users = make_set_if(SourceUserName, TimeGenerated >= ago(new_domain_lookback), 100) by domain\r\n| where FirstSeenInPeriod > ago(new_domain_lookback)  // keep only domains newly seen in the window\r\n| project domain, FirstSeenEver, FirstSeenInPeriod, LastSeenInPeriod, TotalAccesses, Users\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+    - T1071
+tags:
+    - kql
+author: Navdeep Sharma
+version: "2"

@@ -1,0 +1,11 @@
+id: ee46ec99-0710-4389-b552-9ce33c66cdc1
+name: Murky Panda lateral movement to downstream victim detection
+description: KQL Query
+query: "let WhitelistApp = dynamic([\"AppID1\",\"AppID2\"]);\r\nlet QueryPeriod = 1h;\r\nlet OAuthAppAccessMail =\r\nGraphAPIAuditEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where RequestMethod == \"GET\"\r\n| where RequestUri has_all (\"https://graph.microsoft.com\", \"/users/\", \"/messages\")\r\n| where ResponseStatusCode in (\"200\")\r\n| distinct ApplicationId;\r\nOAuthAppInfo\r\n| join OAuthAppAccessMail on $left.OAuthAppId == $right.ApplicationId\r\n| where AppOrigin == \"External\"\r\n| where not (ApplicationId has_any(WhitelistApp))"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.crowdstrike.com/en-us/blog/murky-panda-trusted-relationship-threat-in-cloud/

@@ -1,0 +1,42 @@
+id: 019bec86-7881-746b-aee6-3f8fbe7e6450
+name: Inetutils Telnetd Authentication Bypass Exploitation Attempt
+description: This rule detects exploitation attempts targeting Inetutils Telnetd's authentication bypass vulnerability. It specifically looks for patterns in network data during Telnet negotiation (destination port 23, TELNET protocol) that indicate an attempt to inject '-f' into the USER environment variable. This can occur either directly during Telnet negotiation or through a combination of IAC (Interpret As Command) negotiation for environment variables and subsequent USER variable injection with the '-f' flag, potentially alongside specific terminal configurations like 'XTERM-256COLOR' or 'screen-256color' and common baud rates.
+query: |
+    title: Inetutils Telnetd Authentication Bypass Exploitation
+    id: e23503e2-6ecb-47b4-a522-7d7dbd28ac18
+    status: experimental
+    description: Detection of Inetutils Telnetd -f authentication bypass exploitation via USER environment variable injection during Telnet IAC negotiation
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://www.labs.greynoise.io/grimoire/2026-01-22-f-around-and-find-out-18-hours-of-unsolicited-houseguests/
+    tags:
+        - attack.initial_access
+        - attack.defense_evasion
+        - attack.t1078
+        - attack.t1190
+    logsource:
+        category: network_connection
+        product: linux
+    detection:
+        selection_telnet_negotiation:
+            DestinationPort: 23
+            Protocol: 'TELNET'
+            NetworkData|re: '(?i)(USER\.-f|USER=-f|ENVIRON.*USER.*-f)'
+        selection_iac_negotiation:
+            DestinationPort: 23
+            Protocol: 'TELNET'
+            NetworkData|re: '(?i)(IAC.*SB.*ENVIRON|IAC.*WILL.*ENVIRON)'
+            NetworkData|re: '(?i)(USER.*-f\s+(root|nobody|daemon))'
+        selection_terminal_config:
+            DestinationPort: 23
+            Protocol: 'TELNET'
+            NetworkData|re: '(?i)(9600,9600|38400,38400|0,0).*USER.*-f'
+            NetworkData|re: '(?i)(XTERM-256COLOR|xterm-256color|screen-256color)'
+        condition: selection_telnet_negotiation or (selection_iac_negotiation and selection_terminal_config)
+    falsepositives:
+        - Legitimate Telnet connections (check for -f flag in USER variable)
+        - Network scanners probing Telnet services
+    level: critical
+query_type: sigma
+version: "2"

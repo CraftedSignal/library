@@ -1,0 +1,17 @@
+id: 019c9586-53d1-76ce-a360-28b09ea245eb
+name: Contagious Interview Staging Infrastructure Network Connections
+description: Detects network connections to domains and URLs known to be used by the 'Contagious Interview' campaign for staging malicious batch scripts and PyArmor payloads. This rule specifically looks for connections to hardcoded malicious domains and URL paths identified with the campaign.
+query: "// Name: Contagious Interview Staging Infrastructure\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects network connections to domains and URLs known to be used by the 'Contagious Interview' campaign for staging malicious batch scripts and PyArmor payloads.\r\n// MITRE ATT&CK Tactic(s): Command and Control\r\n// MITRE ATT&CK Technique(s): T1105, T1071.001\r\n// References: https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains\r\nlet knownDomains = dynamic([\r\n    \"camdriver.pro\",\r\n    \"nomgwenya.co.za\",\r\n    \"postprocesser.com\",\r\n    \"josehub88.vercel.app\"\r\n]);\r\nlet knownUrlPaths = dynamic([\r\n    \"/well-known/pki-validation/go/python3.zip\",\r\n    \"/js/bootstrap?win=32\",\r\n    \"/js/settings?win=32\"\r\n]);\r\nDeviceNetworkEvents\r\n// Filter for network connections where the remote URL contains known malicious domains or specific URL paths\r\n| where RemoteUrl has_any (knownDomains) or RemoteUrl has_any (knownUrlPaths)\r\n// FP Tuning: These indicators are specific to this campaign. False positives are unlikely unless the domains are sinkholed or repurposed.\r\n// If FPs occur, investigate the initiating process to determine if the activity is expected.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    ActionType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains

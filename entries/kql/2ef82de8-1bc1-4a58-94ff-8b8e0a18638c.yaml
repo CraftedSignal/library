@@ -1,0 +1,6 @@
+id: 2ef82de8-1bc1-4a58-94ff-8b8e0a18638c
+name: Short-Lived Account Creation and Deletion Detection
+description: Detects accounts that are created and subsequently deleted within 24 hours, which may indicate malicious activity such as temporary account creation by attackers.
+query: "#### Look for accounts created and then deleted in under 24 hours. Attackers may create an account for their use, and then remove the account when no longer needed.\n## MITRE ATT&CK\n### Initial Access\n### T1078-Valid Accounts\n\n#### Query:\n```KQL\nlet AccountCreationEvents = \n    IdentityDirectoryEvents\n    | where ActionType == \"User Account Created\"\n    | project AccountName, CreationTime = TimeGenerated;\nlet AccountDeletionEvents = \n    IdentityDirectoryEvents\n    | where ActionType == \" Account deleted\"\n    | project AccountName, DeletionTime = TimeGenerated;\nAccountCreationEvents\n| join kind=inner (AccountDeletionEvents) on AccountName\n| extend TimeDifference = DeletionTime-CreationTime\n| where TimeDifference <= 1d\n| project AccountName, CreationTime, DeletionTime\n| order by CreationTime desc\n```\n\n"
+query_type: kql
+version: "1"

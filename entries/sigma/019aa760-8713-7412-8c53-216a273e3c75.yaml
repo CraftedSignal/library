@@ -1,0 +1,25 @@
+id: 019aa760-8713-7412-8c53-216a273e3c75
+name: AWS Network Firewall JA4 No SNI Detection
+description: This rule identifies and blocks TLS connections using JA4 fingerprints without SNI, as they may indicate suspicious, potentially malicious encrypted traffic.
+query: "title: AWS Network Firewall - JA4 No SNI Detection\nid: 1297713-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that blocks TLS connections with JA4 fingerprints\n  indicating no Server Name Indication (SNI) field. JA4 is a newer TLS fingerprinting method that improves upon JA3.\n  TLS connections without SNI are suspicious as they may indicate malware attempting to hide its destination or\n  evade detection. This is a typical security control that customers configure to identify and block potentially\n  malicious encrypted traffic. AWS Network Firewall uses Suricata as its underlying engine. The rule checks the\n  JA4 hash structure to identify connections without SNI.\n  \n  Suricata Rule:\n  reject tls $HOME_NET any -> any any (ja4.hash; content:\"_\"; startswith; content:!\"d\"; offset:3; depth:1; msg:\"JA4 No SNI Reject\"; sid:1297713;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://github.com/FoxIO-LLC/ja4\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071.001\n  - attack.defense_evasion\n  - attack.t1573\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n    ja4_hash|startswith: '_'\n  filter:\n    ja4_hash|contains: 'd'  # Position check for SNI indicator\n  condition: selection and not filter\nfalsepositives:\n  - Some legitimate applications may not use SNI\n  - Older TLS implementations\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1573
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.defense_evasion
+    - attack.t1573
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://github.com/FoxIO-LLC/ja4
+data_sources:
+    - firewall
+    - aws_network_firewall

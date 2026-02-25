@@ -1,0 +1,52 @@
+id: 1d08c56c-0f32-480b-8cc9-54e47ebc06fc
+name: AiTM Phishing with QR Code to Bypass FIDO
+description: Detects successful Okta authentication using the FIDO/WebAuthn cross-device (hybrid) sign-in feature. This technique is abused by attackers in Adversary-in-the-Middle (AiTM) phishing campaigns, like those conducted by PoisonSeed, to bypass FIDO MFA by tricking a user into scanning a malicious QR code.
+query: |+
+    title: AiTM Phishing with QR Code to Bypass FIDO
+    id: ff285587-3a5d-4b58-a03c-5517b7b069b1
+    status: experimental
+    description: Detects successful Okta authentication using the FIDO/WebAuthn cross-device (hybrid) sign-in feature. This technique is abused by attackers in Adversary-in-the-Middle (AiTM) phishing campaigns, like those conducted by PoisonSeed, to bypass FIDO MFA by tricking a user into scanning a malicious QR code.
+    references:
+      - https://expel.com/blog/poisonseed-bypassing-fido-keys-to-fetch-user-accounts/
+    author: detections.ai
+    date: 2025-07-18
+    tags:
+      - attack.t1550.002
+      - attack.t1566.002
+      - attack.credential_access
+    logsource:
+      product: okta
+      category: iam
+    detection:
+      selection:
+            # Catches successful single sign-on events.
+        eventType: 'user.authentication.sso'
+        outcome.result: 'SUCCESS'
+            # This field indicates the cross-device/QR code flow was used for FIDO/WebAuthn.
+        debugContext.debugData.authenticators|contains: 'transportTypes":["hybrid"]'
+      condition: selection
+    falsepositives:
+      - Legitimate use of the cross-device sign-in feature (e.g., a user signing into a new computer using their phone as a passkey) is a primary source of false positives.
+      - To increase fidelity, this alert should be correlated with other signals, such as impossible travel, logins from suspicious ASNs (e.g., hosting providers, TOR), or prior alerts for the user accessing a known phishing page.
+    level: medium
+
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+    - TA0001
+techniques:
+    - T1557
+    - T1566.002
+tags:
+    - attack.t1550.002
+    - attack.t1566.002
+    - attack.credential_access
+author: detections.ai
+version: "1"
+references:
+    - https://expel.com/blog/poisonseed-bypassing-fido-keys-to-fetch-user-accounts/
+data_sources:
+    - iam
+    - okta

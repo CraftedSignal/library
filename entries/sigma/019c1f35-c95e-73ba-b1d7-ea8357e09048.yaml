@@ -1,0 +1,53 @@
+id: 019c1f35-c95e-73ba-b1d7-ea8357e09048
+name: Exfiltration to Temp.sh Using Curl
+description: Detects the use of curl.exe to upload data to the anonymous file-sharing service temp.sh. This technique has been observed being used by threat actors for reconnaissance data exfiltration, notably after gaining initial access through a compromised Notepad++ updater.
+query: |
+    title: Exfiltration to Temp.sh Using Curl
+    id: 41b200ee-92bb-4669-9636-bdf856c80ddd
+    status: experimental
+    description: Detects the use of curl.exe to upload data to the anonymous
+      file-sharing service temp.sh. This technique has been observed being used by
+      threat actors for reconnaissance data exfiltration, notably after gaining
+      initial access through a compromised Notepad++ updater.
+    references:
+      - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.exfiltration
+      - attack.t1567.002
+      - attack.discovery
+      - attack.t1082
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\curl.exe' # Detects the execution of the native Windows curl utility
+        CommandLine|contains|all:
+          - 'temp.sh' # Checks for the target exfiltration domain
+          - '-F ' # The -F or --form flag is used to submit form data, which is indicative of a file upload. A space is added to avoid matching other flags.
+      condition: selection
+    falsepositives:
+      - Legitimate use of temp.sh by developers or system administrators for sharing
+        files. This activity is often disallowed by corporate policy and should be
+        investigated.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.002
+tags:
+    - attack.exfiltration
+    - attack.t1567.002
+    - attack.discovery
+    - attack.t1082
+author: detections.ai
+version: "2"
+references:
+    - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+data_sources:
+    - process_creation
+    - windows

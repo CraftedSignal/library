@@ -1,0 +1,17 @@
+id: 0199bb35-f72d-76e9-b663-44cbdff4b174
+name: Suspicious Outbound HTTP UserAgent
+description: |-
+    This detection monitors the CommonSecurityLog (which adheres to the Common Event Format - CEF) for indications of malicious network activity. Specifically, it flags outgoing HTTP requests originating from system utilities such as curl, wget, and PowerShell. These requests are often leveraged by attackers for data theft (exfiltration) or establishing command-and-control channels.
+
+    Review the full user agent string and destination hostname. Investigate the source IP and user context. Check whether the tool usage aligns with expected behavior for the host or user. Correlate with other indicators such as unusual process execution, file access, or authentication anomalies. Escalate if the destination is unknown or suspicious. Remove the KQL summarise line to view more details.
+
+    UA_Check and SafeHosts will require tuning for your specific environment setup and traffic.
+query: "let UA_Check = dynamic([\r\n    'microsoft bits',\r\n    'certutil',\r\n    'powershell',\r\n    'python-requests',\r\n    'curl',\r\n    'wget',\r\n    'mshta',\r\n    'rclone'\r\n]);\r\nlet SafeHosts = dynamic([\r\n    'aka.ms'\r\n]);\r\nCommonSecurityLog\r\n| where isnotempty(AdditionalExtensions)\r\n| extend kv_pairs = extract_all(@\"(\\w+)=(\"\"[^\"\"]*\"\"|[^;]+)\", AdditionalExtensions)\r\n| extend\r\n    Agent = tostring(\r\n        extract(@\"agent=(\"\"[^\"\"]*\"\"|[^;]+)\", 1, AdditionalExtensions)\r\n    ),\r\n    HttpMethod = tostring(\r\n        extract(@\"httpmethod=(\"\"[^\"\"]*\"\"|[^;]+)\", 1, AdditionalExtensions)\r\n    ),\r\n    Start = tostring(\r\n        extract(@\"start=(\"\"[^\"\"]*\"\"|[^;]+)\", 1, AdditionalExtensions)\r\n    ),\r\n    Direction = tostring(\r\n        extract(@\"direction=(\"\"[^\"\"]*\"\"|[^;]+)\", 1, AdditionalExtensions)\r\n    )\r\n| where isnotempty(Agent)\r\n| where Agent has_any (UA_Check)\r\n| where Direction == 'outgoing'\r\n| where DestinationHostName !in (SafeHosts)\r\n| project-reorder TimeGenerated, Agent, Direction, HttpMethod, DestinationHostName\r\n| summarize count() by DestinationHostName, Agent "
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+tags:
+    - kql
+author: Rory Wagner
+version: "3"

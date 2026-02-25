@@ -1,0 +1,15 @@
+id: e30b5fe0-d244-4a1b-afa6-6c3454175d60
+name: 'Threat Hunt: Successful Rogue Device Registration'
+description: "This rule detects successful device registrations to the 'Device Registration Service' in Azure Entra. It specifically looks for sign-in events where the ResourceDisplayName is 'Device Registration Service', the ErrorCode is '0' (indicating success), and the ConditionalAccessStatus is not '1' (which typically means that conditional access did not block the authentication flow for device registration). \n\nThe rule is pivotal for hunting devices registered for persistence, post-successful phishing campaign execution, where >= 1 accounts were compromised."
+query: "union AADSignInEventsBeta,AADSignInEventsBeta\r\n| where AccountUpn contains @\"@\"\r\n| where ResourceDisplayName ==\"Device Registration Service\" and ErrorCode == \"0\" and ConditionalAccessStatus != 1\r\n//Exclude your Organization's Proxy / Public CIDR\r\n//| where not(ipv4_is_in_any_range(IPAddress,dynamic([\"1.1.0.0/16\", \"0.0.0.0/16\"])))\r\n| where isnotempty(DeviceName) or isnotempty(AadDeviceId)\r\n|summarize by AccountDisplayName,AccountUpn,IPAddress,Country,Application,ResourceDisplayName,CorrelationId,SessionId,DeviceAdded=DeviceName,AadDeviceId,OSPlatform,DeviceTrustType,AuthenticationRequirement,AuthenticationProcessingDetails"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.005
+tags:
+    - kql
+author: Aamir Muhammad
+version: "1"

@@ -1,0 +1,38 @@
+id: 80f886da-0801-45ba-b91e-69e29f69e12d
+name: Hunting DragonForce with ANY.RUN Threat Intelligence
+description: 'KQL Query from file: Hunting DragonForce with ANY.RUN Threat Intelligence'
+query: |
+    // Hunting DragonForce with ANY.RUN Threat Intelligence
+
+    let WeeklyOSINT=externaldata(Type:string, Value:string, Source:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/DragonForce_AnyRun.csv'];
+    let OSINTSHA256 =
+    WeeklyOSINT
+    | where Type == "hash_sha256"
+    | project Value;
+    let ScanEmailAttachments =
+    EmailAttachmentInfo
+    | where Timestamp > ago(30d)
+    | where SHA256 has_any(OSINTSHA256);
+    let ScanEndpointFiles =
+    DeviceFileEvents
+    | where Timestamp > ago(30d)
+    | where ActionType == "FileCreated"
+    | where SHA256 has_any(OSINTSHA256);
+    union ScanEmailAttachments, ScanEndpointFiles
+query_type: kql
+tactics:
+    - TA0042
+    - TA0001
+    - TA0009
+    - TA0005
+    - TA0002
+techniques:
+    - T1586.002
+    - T1566.001
+    - T1114
+    - T1070.004
+    - T1204.002
+tags:
+    - kql
+version: "1"

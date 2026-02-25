@@ -1,0 +1,17 @@
+id: 019c9585-951d-74fe-bda4-1df2cd62aeb1
+name: Certutil Self-Decoding Batch Script
+description: Detects the use of certutil.exe to decode a batch script that is referencing itself as the source file. This is a 'fileless' technique used by attackers to hide and extract embedded payloads, as seen in the 'Contagious Interview' campaign.
+query: "// Name: Certutil Self-Decoding Batch Script\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects the use of certutil.exe to decode a batch script that is referencing itself as the source file. This is a 'fileless' technique used by attackers to hide and extract embedded payloads, as seen in the 'Contagious Interview' campaign.\r\n// MITRE ATT&CK Tactic(s): Defense Evasion\r\n// MITRE ATT&CK Technique(s): T1140, T1027\r\n// References: https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains\r\nDeviceProcessEvents\r\n// Look for certutil.exe being executed\r\n| where FileName =~ \"certutil.exe\"\r\n// Check for the decode switch and the self-reference variable '%~f0' in the command line\r\n| where ProcessCommandLine has \"-decode\" and ProcessCommandLine contains \"%~f0\"\r\n// FP Tuning: This behavior is highly anomalous. Legitimate use of certutil to decode the script that is currently executing is extremely rare.\r\n// Further tuning could involve checking the parent process (cmd.exe) or looking for the output file being written to a temporary directory.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1140
+    - T1027
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains

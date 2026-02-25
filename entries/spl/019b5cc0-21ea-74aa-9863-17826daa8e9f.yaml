@@ -1,0 +1,20 @@
+id: 019b5cc0-21ea-74aa-9863-17826daa8e9f
+name: Okta User Session Impersonation Grant
+description: |-
+    This detects events in Okta where there is the eventType of "user.session.impersonation.grant".
+    This grants access in the context of the user. This could be high privilege admin access.
+query: " ``` Detection: Okta User Session Impersonation Grant - High Privilege Access\n\n This detects events in Okta where there is the eventType of \"user.session impersonation.grant\". This grants access in the context of the user. This could be high privilege admin access. The only legitimate use case here is an Okta support engineer actively working with an internal Okta Admin. This access is temporary and should be revoked once done with support case.\n```\n\nindex=okta\neventType=\"user.session.impersonation.grant\" NOT (alternateId IN (\"system@okta.com*\", \"*@company_domain.com*\"))\n| iplocation ipAddress\n| eval event_time=strftime(_time,\"%Y-%m-%dT%H:%M:%S.%Q\")\n| rex field=alternateId \"^(?P<username>[^@]+)[@|$]\"\n| rename client.ipAddress as src_ip \n| stats count by username\n| table event_time, username, count, eventType, displayMessage, src_ip, City, Country\n\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0004
+techniques:
+    - T1484.002
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://www.beyondtrust.com/blog/entry/okta-support-unit-breach
+    - https://developer.okta.com/docs/reference/system-log-query/
+    - https://attack.mitre.org/techniques/T1484/002/

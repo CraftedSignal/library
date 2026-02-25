@@ -1,0 +1,16 @@
+id: 019c2e9e-a2ba-71fb-be01-b34b63199dcc
+name: Security Tool Process Kill-Loop Detection
+description: Detects a rapid, repeated termination of known security tool processes within a short time frame. This behavior is indicative of an "EDR killer" malware attempting to disable security controls in a continuous loop.
+query: "// Name: Security Tool Process Kill-Loop\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-05\r\n// Description: Detects a rapid, repeated termination of known security tool processes within a short time frame. This behavior is indicative of an \"EDR killer\" malware attempting to disable security controls in a continuous loop.\r\n// MITRE TTPs: T1562.001\r\n// References: https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html\r\n// False Positive Sensitivity: Medium. Legitimate software uninstallers or updates might terminate security processes, but are unlikely to do so multiple times within a few seconds. The high frequency of termination is key to this detection's fidelity.\r\n// Define a list of common security product process names. This list can be customized for your environment.\r\nlet security_processes = dynamic([\r\n    \"MsSense.exe\", \"SentinelServiceHost.exe\", \"Cybereason.exe\", \"CylanceSvc.exe\", \"CbDefense.exe\",\r\n    \"CSFalconService.exe\", \"carbonblack.exe\", \"cb.exe\", \"tanium.exe\", \"firesvc.exe\", \"firetray.exe\",\r\n    \"sophos.exe\", \"savservice.exe\", \"healthservice.exe\", \"mbam.exe\", \"mbamservice.exe\", \"rtvscan.exe\",\r\n    \"ccsvchst.exe\", \"symantec.exe\", \"windefend.exe\", \"msmpeng.exe\", \"nissrv.exe\", \"nis.exe\"\r\n]);\r\n// Define the time window for detecting the loop. The intel mentions a 1-second interval, but a slightly larger window can account for telemetry delays.\r\nlet time_window = 5s;\r\n// Define the minimum number of terminations to trigger an alert.\r\nlet termination_threshold = 2;\r\nDeviceProcessEvents\r\n// Filter for process termination events only.\r\n| where ActionType == \"ProcessTerminated\"\r\n// Check if the terminated process is a known security tool.\r\n| where FileName in~ (security_processes)\r\n// Group events by device, file name, and a short time window to find loops.\r\n| summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime = max(Timestamp),\r\n    TerminationCount = count(),\r\n    TerminatingProcesses = make_set(InitiatingProcessCommandLine, 10)\r\n    by DeviceName, FileName, bin(Timestamp, time_window)\r\n// Alert if a security process is terminated multiple times within the time window.\r\n| where TerminationCount >= termination_threshold\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    DeviceName,\r\n    TerminatedProcess = FileName,\r\n    TerminationCount,\r\n    TerminatingProcesses\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html

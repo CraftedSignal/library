@@ -1,0 +1,32 @@
+id: 6e683e0c-a3ee-4a61-a1e9-00a52e53aeb1
+name: SharePoint Webshell Execution via Encoded PowerShell from w3wp.exe
+description: |
+    Detects suspicious PowerShell execution via cmd.exe spawned by w3wp.exe (IIS worker process),
+    using encoded payloads that decode to indicators like 'spinstall0', '.aspx', or SharePoint layouts paths.
+    This technique has been observed in post-exploitation of SharePoint CVEs (CVE-2025-53770).
+query: "title: SharePoint Webshell Execution via Encoded PowerShell from w3wp.exe\r\nid: 46a17355-d1d2-478f-a99f-df0125dfcba1\r\nstatus: experimental\r\ndescription: |\r\n  Detects suspicious PowerShell execution via cmd.exe spawned by w3wp.exe (IIS worker process),\r\n  using encoded payloads that decode to indicators like 'spinstall0', '.aspx', or SharePoint layouts paths.\r\n  This technique has been observed in post-exploitation of SharePoint CVEs (CVE-2025-53770).\r\nauthor: smavrakis\r\ndate: 2025-07-21\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\n  service: sysmon\r\ndetection:\r\n  selection:\r\n    InitiatingProcessImage|endswith: '\\w3wp.exe'\r\n    InitiatingProcessCommandLine|contains|all:\r\n      - 'w3wp.exe'\r\n    InitiatingProcessCommandLine|contains|none:\r\n      - 'DefaultAppPool'\r\n    Image|endswith: '\\cmd.exe'\r\n    CommandLine|contains|all:\r\n      - 'cmd.exe'\r\n      - 'powershell'\r\n    CommandLine|contains|any:\r\n      - '-EncodedCommand'\r\n      - '-ec'\r\n      - '/enc'\r\n      - '/EncodedCommand'\r\n  decoded_indicators:\r\n    CommandLine|contains|any:\r\n      - 'spinstall0'\r\n      - 'C:\\PROGRA~1\\COMMON~1\\MICROS~1\\WEBSER~1\\15\\TEMPLATE\\LAYOUTS'\r\n      - 'C:\\PROGRA~1\\COMMON~1\\MICROS~1\\WEBSER~1\\16\\TEMPLATE\\LAYOUTS'\r\n      - '/LAYOUTS/spinstall0'\r\n      - 'webshell'\r\n      - '.aspx'\r\n  condition: selection and decoded_indicators\r\nfalsepositives:\r\n  - Developers or admin scripts using encoded PowerShell legitimately under IIS\r\nlevel: high\r\ntags:\r\n  - attack.execution\r\n  - attack.t1059.001\r\n  - attack.defense_evasion\r\n  - attack.t1140\r\n  - sharepoint\r\n  - cve.2025.53770\r\n  - webshell\r\n  - detection.lolbin\r\nreferences:\r\n  - https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/\r\nfields:\r\n  - Timestamp\r\n  - DeviceName\r\n  - FileName\r\n  - FolderPath\r\n  - ProcessCommandLine\r\n  - InitiatingProcessFileName\r\n  - InitiatingProcessCommandLine\r\n  - ReportId\r\nx_mitre_data_sources:\r\n  - Process command-line parameters\r\n  - Process metadata\r\n  - Base64-decoded PowerShell payloads (custom extraction)\r\n\r\nquery:\r\n  DeviceProcessEvents\r\n  | where InitiatingProcessFileName =~ \"w3wp.exe\"\r\n    and InitiatingProcessCommandLine !has \"DefaultAppPool\"\r\n    and FileName =~ \"cmd.exe\"\r\n    and ProcessCommandLine has_all (\"cmd.exe\", \"powershell\")\r\n    and ProcessCommandLine has_any (\"-EncodedCommand\", \"-ec\", \"/enc\", \"/EncodedCommand\")\r\n  | extend CommandArgs = extract_all(@\"([A-Za-z0-9+/=]{15,})\", dynamic([1]), ProcessCommandLine)\r\n  | mv-expand EncodedSegment = CommandArgs\r\n  | extend Decoded = base64_decodestring(tostring(EncodedSegment))\r\n  | extend DecodedClean = replace(@\"\\x00\", \"\", Decoded)\r\n  | where DecodedClean has_any (\r\n        \"spinstall0\", \r\n        @\"C:\\PROGRA~1\\COMMON~1\\MICROS~1\\WEBSER~1\\15\\TEMPLATE\\LAYOUTS\",\r\n        @\"C:\\PROGRA~1\\COMMON~1\\MICROS~1\\WEBSER~1\\16\\TEMPLATE\\LAYOUTS\",\r\n        \"/LAYOUTS/spinstall0\",\r\n        \"webshell\",\r\n        \".aspx\"\r\n    )\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1140
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense_evasion
+    - attack.t1140
+    - sharepoint
+    - cve.2025.53770
+    - webshell
+    - detection.lolbin
+author: smavrakis
+version: "1"
+references:
+    - https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

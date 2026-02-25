@@ -1,0 +1,75 @@
+id: 019c0791-f7db-7488-86ea-cc287dfdbba3
+name: Suspicious ClawdBot VS Code Extension Payload Execution
+description: |
+    Detects the execution of a process named 'code.exe' or 'lightshot.exe' from a temporary directory.
+    This behavior was observed in a campaign involving a malicious VS Code extension, "ClawdBot Agent", which impersonates a legitimate AI coding assistant.
+    The extension drops and executes a weaponized ScreenConnect payload, masquerading it as a legitimate VS Code or Lightshot process to evade detection.
+    The execution is often spawned by the legitimate VS Code process.
+query: |
+    title: Suspicious ClawdBot VS Code Extension Payload Execution
+    id: c262e6a7-5c0f-499e-8282-e5c15ac7898c
+    status: experimental
+    description: |
+      Detects the execution of a process named 'code.exe' or 'lightshot.exe' from a temporary directory.
+      This behavior was observed in a campaign involving a malicious VS Code extension, "ClawdBot Agent", which impersonates a legitimate AI coding assistant.
+      The extension drops and executes a weaponized ScreenConnect payload, masquerading it as a legitimate VS Code or Lightshot process to evade detection.
+      The execution is often spawned by the legitimate VS Code process.
+    references:
+      - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware
+    author: tim@detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1204.002
+      - attack.t1036.005
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_process:
+        Image|endswith:
+          # Detects payloads masquerading as legitimate applications
+          - '\code.exe'
+          - '\Lightshot.exe'
+        Image|contains:
+          # Payloads are staged in common temporary directories
+          - '\AppData\Local\Temp\'
+          - '\ProgramData\'
+          - '\Users\Public\'
+          - '\Windows\Temp\'
+          - '\Temp\Lightshot\'
+      selection_parent:
+        # The malicious payload is spawned by the VS Code extension host
+        ParentImage|endswith: '\Code.exe'
+      condition: selection_process and selection_parent
+    falsepositives:
+      - Legitimate VS Code extensions may, in rare cases, spawn processes from
+        temporary directories. However, the combination of the specific process
+        names, temporary path, and parent process is highly indicative of malicious
+        activity. If false positives occur, consider adding more specific parent
+        process paths or command-line arguments if known legitimate behavior is
+        identified.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1036.005
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1204.002
+    - attack.t1036.005
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

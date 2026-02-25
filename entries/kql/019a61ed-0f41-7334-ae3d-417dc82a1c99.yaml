@@ -1,0 +1,75 @@
+id: 019a61ed-0f41-7334-ae3d-417dc82a1c99
+name: Windows Password Manager Discovery via Command Line
+description: Detects command-line activity aimed at discovering password manager processes or database files. This technique is often used by attackers during the reconnaissance phase to find stored credentials.
+query: |
+    // Name: Windows Password Manager Discovery
+    // Author: AJ
+    // Date: 2025-11-08
+    // Description: Detects command-line activity aimed at discovering password manager processes or database files. This technique is often used by attackers during the reconnaissance phase to find stored credentials.
+    // Tactic: Discovery
+    // Technique: T1082 (System Information Discovery), T1083 (File and Directory Discovery)
+    // False Positive Sensitivity: Medium
+    // References:
+    // - https://attack.mitre.org/techniques/T1082/
+    // - https://attack.mitre.org/techniques/T1083/
+    // Define keywords for common password managers and their database files.
+    let passwordManagerKeywords = dynamic([
+        "keepass",
+        ".kdbx",
+        "lastpass",
+        "1password",
+        "bitwarden",
+        "dashlane",
+        "roboform",
+        "enpass"
+    ]);
+    // Define common discovery commands.
+    let discoveryCommands = dynamic([
+        "tasklist",
+        "dir",
+        "findstr",
+        "find",
+        "get-process",
+        "ps",
+        "get-childitem",
+        "gci"
+    ]);
+    DeviceProcessEvents
+    // Focus on process creation events.
+    | where ActionType == "ProcessCreated"
+    // The command line should contain both a discovery command and a password manager keyword.
+    | where ProcessCommandLine has_any (discoveryCommands) and ProcessCommandLine has_any (passwordManagerKeywords)
+    // Focus on interactive shells or script interpreters, which are common ways to run these commands.
+    | where InitiatingProcessFileName in~ ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe")
+    // Exclude cases where the password manager itself is the parent process, which could be part of a legitimate update or self-check.
+    | where not(InitiatingProcessFileName has_any (passwordManagerKeywords) and InitiatingProcessFileName has ".exe")
+    // Potential False Positives:
+    // - Administrators running scripts to inventory software, including password managers.
+    // - Users legitimately searching for their password database files.
+    // To reduce noise, consider filtering by specific parent processes, command-line patterns, or user accounts.
+    // Example placeholder for tuning:
+    // | where not (InitiatingProcessFolderPath has "AdminScripts" or AccountName in ("admin_user1", "service_account"))
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1082
+    - T1083
+tags:
+    - kql
+author: AJ
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1082/
+    - https://attack.mitre.org/techniques/T1083/

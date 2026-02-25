@@ -1,0 +1,65 @@
+id: 019c89ce-2604-7232-bda2-998fec9fa3a1
+name: BeyondTrust Exploitation Child Processes (CVE-2026-1731)
+description: This detection identifies when the BeyondTrust Remote Support process (bomgar-scc) spawns common post-exploitation or reconnaissance tools. This activity is a strong indicator of successful remote code execution via CVE-2026-1731, as detailed by Unit 42.
+query: |
+    // Name: BeyondTrust Exploitation Child Processes (CVE-2026-1731)
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: This detection identifies when the BeyondTrust Remote Support process (bomgar-scc) spawns common post-exploitation or reconnaissance tools. This activity is a strong indicator of successful remote code execution via CVE-2026-1731, as detailed by Unit 42.
+    // MITRE ATT&CK: T1190 (Exploit Public-Facing Application), T1059.004 (Command and Scripting Interpreter: Unix Shell)
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    // False Positive Sensitivity: Medium.
+    // Comment: Legitimate administrators may use these tools during remote support sessions. To reduce potential false positives, consider filtering for unusual command-line arguments or correlating with subsequent suspicious network connections from the spawned process.
+
+    let suspiciousChildProcesses = pack_array(
+        // Reconnaissance and download tools
+        "curl",
+        "wget",
+        "whoami",
+        "nslookup",
+        "hostname",
+        "nltest.exe",
+        "quser.exe",
+        "dsquery.exe",
+        // Shells and scripting interpreters
+        "bash",
+        "sh",
+        "zsh",
+        "python",
+        "php",
+        "powershell.exe",
+        "cmd.exe",
+        // Networking tools
+        "nc",
+        "netcat",
+        "socat"
+    );
+    DeviceProcessEvents
+    // Identifies process creation events where the parent is the BeyondTrust/Bomgar process.
+    | where InitiatingProcessFileName has "bomgar-scc"
+    // Checks if the spawned process is on the list of suspicious tools. Using 'in~' for case-insensitivity.
+    | where FileName in~ (suspiciousChildProcesses)
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        SHA256,
+        InitiatingProcessId,
+        ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

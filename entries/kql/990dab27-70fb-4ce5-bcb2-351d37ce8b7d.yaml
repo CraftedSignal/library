@@ -1,0 +1,16 @@
+id: 990dab27-70fb-4ce5-bcb2-351d37ce8b7d
+name: Scheduled Tasks with unsigned Binaries
+description: This rule detects scheduled tasks that execute unsigned binaries. It specifically looks for processes initiated by 'svchost.exe -k netsvcs -p -s Schedule', which is indicative of a scheduled task, and then filters for binaries that are not signed and have low global prevalence. This can help identify malicious code executed via scheduled tasks that attempts to evade detection by using unsigned executables.
+query: "//Exclude false postive Filenames here\r\n//please be aware that this query will need some whitelisting otherwise you will get a lot of f/p\r\nlet whitelistedBinaries = dynamic([\"Qsync.exe\"]);\r\n//Exclude false poitive Filehashes here\r\nlet whitelistedSHA1Hashes = dynamic([ \"9bb7c81dfae65eaf6abb743ba5b73451133c2791\"]);\r\nlet scheduled_binaries = DeviceProcessEvents\r\n| where InitiatingProcessCommandLine == \"svchost.exe -k netsvcs -p -s Schedule\"\r\n| where not(ProcessCommandLine has_any (whitelistedBinaries))\r\n| where not(SHA1 has_any (whitelistedSHA1Hashes))\r\n| distinct SHA1;\r\nlet untrusted_binaries = scheduled_binaries\r\n| join kind=leftanti (DeviceFileCertificateInfo | summarize max_trusted=max(IsTrusted) by SHA1 | where max_trusted==1) on SHA1;\r\nuntrusted_binaries\r\n| invoke FileProfile(SHA1,1000)\r\n| where IsCertificateValid != 1 // Exclude signed binaries\r\n| where GlobalPrevalence < 1000\r\n| join (DeviceProcessEvents | where InitiatingProcessCommandLine == \"svchost.exe -k netsvcs -p -s Schedule\") on SHA1\r\n| summarize arg_max(Timestamp, *) by SHA1 // Give last execution with all details per SHA1"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

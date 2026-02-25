@@ -1,0 +1,76 @@
+id: cecd41d1-ef30-477e-8d5f-fba7ab3626f9
+name: Secret Blizzard - ApolloShadow Malware Activity
+description: This query detects multiple behaviors associated with the ApolloShadow malware, used by the Secret Blizzard threat actor. It looks for the creation of a specific administrator account, installation of root certificates using certutil, modification of Firefox settings to trust new certificates, and changes to network profiles to relax firewall rules.
+query: |
+    // Name: Secret Blizzard - ApolloShadow Malware Activity
+    // Author: detections.ai
+    // Date: 2025-08-04
+    // Description: This query detects multiple behaviors associated with the ApolloShadow malware, used by the Secret Blizzard threat actor. It looks for the creation of a specific administrator account, installation of root certificates using certutil, modification of Firefox settings to trust new certificates, and changes to network profiles to relax firewall rules.
+    // References: https://www.microsoft.com/en-us/security/blog/2025/07/31/frozen-in-transit-secret-blizzards-aitm-campaign-against-diplomats/
+    // False Positive Sensitivity: Medium
+
+    let lookback = 7d;
+
+    // Part 1: Detect creation of the specific 'UpdatusUser' administrator account via command line
+    let userCreation = DeviceProcessEvents
+    | where Timestamp > ago(lookback)
+    | where FileName in ("net.exe", "net1.exe")
+    // The malware creates a user named 'UpdatusUser' and adds it to the local administrators group
+    | where ProcessCommandLine has_all ("user", "UpdatusUser", "/add") or ProcessCommandLine has_all ("localgroup", "administrators", "UpdatusUser", "/add")
+    | project Timestamp, DeviceId, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Activity="Suspicious Admin Account Creation", Tactic="Persistence", Technique="T1098.002", Details=ProcessCommandLine;
+
+    // Part 2: Detect suspicious root certificate installation via certutil.exe
+    let certInstall = DeviceProcessEvents
+    | where Timestamp > ago(lookback)
+    | where FileName =~ "certutil.exe"
+    // The malware uses certutil to add certificates to the Root and intermediate (ca) stores
+    | where (ProcessCommandLine has_all ("-addstore", "root") or ProcessCommandLine has_all ("-addstore", "ca"))
+        and ProcessCommandLine has "-f" // The force flag was noted in the report
+    | project Timestamp, DeviceId, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Activity="Suspicious Root Certificate Installation", Tactic="Defense Evasion", Technique="T1553.004", Details=ProcessCommandLine;
+
+    // Part 3: Detect creation of the Firefox preference file to trust system root certs
+    let firefoxMod = DeviceFileEvents
+    | where Timestamp > ago(lookback)
+    // The malware creates 'wincert.js' to make Firefox trust the newly installed root certificates
+    | where FileName =~ "wincert.js"
+    | where FolderPath has @"\Mozilla\Firefox\Profiles\"
+    // FP-Note: Enterprise management solutions might deploy custom preference files to Firefox. The filename 'wincert.js' is specific to this threat, but the general behavior could overlap.
+    | project Timestamp, DeviceId, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Activity="Firefox Certificate Trust Modification", Tactic="Defense Evasion", Technique="T1553.004", Details=strcat("File created: ", FolderPath, FileName);
+
+    // Part 4: Detect modification of network profiles to 'Private' via registry
+    let networkMod = DeviceRegistryEvents
+    | where Timestamp > ago(lookback)
+    // The malware modifies the 'Category' value to 0 (Private) to relax firewall rules
+    | where RegistryKey has @"\Microsoft\Windows NT\CurrentVersion\NetworkList\Profiles\" and RegistryValueName =~ "Category" and RegistryValueData == "0"
+    // FP-Note: Legitimate network management tools or scripts might perform this action. Consider adding known tools to the exclusion list below.
+    | where not(InitiatingProcessFileName in~ ("explorer.exe", "SystemSettings.exe", "powershell.exe", "powershell_ise.exe", "svchost.exe"))
+    | project Timestamp, DeviceId, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, Activity="Network Profile Changed to Private", Tactic="Defense Evasion", Technique="T1562.004", Details=strcat("Registry key modified: ", RegistryKey);
+
+    // Union all detected activities and summarize results per device
+    union userCreation, certInstall, firefoxMod, networkMod
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        Activities = make_set(Activity),
+        Tactics = make_set(Tactic),
+        Techniques = make_set(Technique),
+        Details = make_set(Details),
+        InitiatingProcesses = make_set(InitiatingProcessFileName)
+        by DeviceId, DeviceName, AccountName
+    | extend NumActivities = array_length(Activities)
+    // A higher number of distinct activities on one host increases the confidence of a true positive.
+    | order by NumActivities desc, StartTime desc
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1098.002
+    - T1553.004
+    - T1562.004
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/31/frozen-in-transit-secret-blizzards-aitm-campaign-against-diplomats/

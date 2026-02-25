@@ -1,0 +1,75 @@
+id: 019c4cfe-36c6-708e-9fbf-43c1a9a1909b
+name: Suspicious Access to VMware Virtual Disk File
+description: |
+    Detects access to VMware virtual disk files (.vmdk). This technique was
+    observed being used by the Muddled Libra (Scattered Spider) threat group,
+    where they would power down Domain Controllers, mount their disks to a rogue
+    VM, and steal the NTDS.dit and SYSTEM hives for offline credential extraction.
+    This method bypasses security monitoring that would typically occur on the
+    Domain Controller itself.
+query: |
+    title: Suspicious Access to VMware Virtual Disk File
+    id: 86bd7e34-d4ce-4dac-9215-900ed31579de
+    status: experimental
+    description: |
+      Detects access to VMware virtual disk files (.vmdk). This technique was
+      observed being used by the Muddled Libra (Scattered Spider) threat group,
+      where they would power down Domain Controllers, mount their disks to a rogue
+      VM, and steal the NTDS.dit and SYSTEM hives for offline credential extraction.
+      This method bypasses security monitoring that would typically occur on the
+      Domain Controller itself.
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    author: tim@detections.ai
+    date: 2026-02-11
+    tags:
+      - attack.t1003.003
+      - attack.t1021.002
+      - attack.g1015
+    logsource:
+      product: windows
+      service: security
+      category: file_access
+    detection:
+      selection:
+        EventID: 4663
+        ObjectType: File
+        ObjectName|endswith: '.vmdk'
+        AccessList|contains: '%%4416'
+      filter:
+        ProcessName|endswith:
+          - '\vmware-vmx.exe'
+          - '\vmware.exe'
+          - '\vmplayer.exe'
+          - '\vboxsvc.exe'
+          - '\VBoxHeadless.exe'
+          - '\veeam.agent.service.exe'
+          - '\VeeamAgent.exe'
+          - '\BackupExec.exe'
+      condition: selection and not filter
+    falsepositives:
+      - Legitimate backup software not included in the filter list may cause false
+        positives.
+      - System administrators performing legitimate maintenance, recovery, or
+        migration tasks. It is recommended to tune the 'filter' selection by adding
+        legitimate backup and virtualization management tools used in your
+        environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.003
+    - T1003
+tags:
+    - attack.t1003.003
+    - attack.t1021.002
+    - attack.g1015
+author: tim@detections.ai
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+data_sources:
+    - windows
+    - security

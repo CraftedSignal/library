@@ -1,0 +1,57 @@
+id: 19ff94c9-98fb-455d-8002-ac37951fab63
+name: RDP shadow session started (command)
+description: Detects scenarios where an attacker would attempt to shadow a RDP session.
+query: |-
+    title: RDP shadow session started (command)
+    description: Detects scenarios where an attacker would attempt to shadow a RDP session.
+    references:
+    - http://woshub.com/rds-shadow-how-to-connect-to-a-user-session-in-windows-server-2012-r2/
+    - https://www.elastic.co/guide/en/security/current/potential-remote-desktop-shadowing-activity.html
+    - https://bitsadm.in/blog/spying-on-users-using-rdp-shadowing
+    - https://swarm.ptsecurity.com/remote-desktop-services-shadowing/
+    tags:
+    - attack.lateral_movement
+    - attack.t1021.001 # remote services: RDP
+    - attack.collection
+    - attack.t1113 # screen capture
+    - attack.t1125 # video capture
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      category: process_creation
+    detection: # full command: mstsc /shadow:1 /v:<computer_name> /control /noConsentPrompt
+      selection:
+        NewProcessName|endswith: \mstsc.exe
+        CommandLine|contains|all:
+        - mstsc
+        - '/shadow'
+      condition: selection
+    falsepositives:
+    - administrative source host used for shadowing
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0008
+techniques:
+    - T1021.001
+    - T1113
+    - T1125
+tags:
+    - attack.lateral_movement
+    - attack.t1021.001
+    - attack.collection
+    - attack.t1113
+    - attack.t1125
+author: mdecrevoisier
+version: "1"
+references:
+    - http://woshub.com/rds-shadow-how-to-connect-to-a-user-session-in-windows-server-2012-r2/
+    - https://www.elastic.co/guide/en/security/current/potential-remote-desktop-shadowing-activity.html
+    - https://bitsadm.in/blog/spying-on-users-using-rdp-shadowing
+    - https://swarm.ptsecurity.com/remote-desktop-services-shadowing/
+data_sources:
+    - process_creation
+    - windows

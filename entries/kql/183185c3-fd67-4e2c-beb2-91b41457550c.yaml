@@ -1,0 +1,45 @@
+id: 183185c3-fd67-4e2c-beb2-91b41457550c
+name: KrbRelayUp Tool Usage Detected
+description: This detection identifies the use of KrbRelayUp, exploiting Kerberos relay attacks for local privilege escalation to SYSTEM.
+query: |-
+    # KrbRelayUp Tool Detection
+
+    ## Description
+    This detection identifies the use of KrbRelayUp, a tool that exploits Kerberos relay attacks for local privilege escalation. It abuses default domain controller settings to escalate privileges from a low-privileged domain user to SYSTEM.
+
+    ## Detection Logic
+    The query detects:
+    - Direct execution of `KrbRelayUp.exe`
+    - Command line patterns specific to KrbRelayUp operations:
+      - `relay` command with domain and computer parameters
+      - `krbscm` command for service manipulation
+      - `spawn` command for process creation
+
+    ## Query
+    ```kusto
+    SecurityEvent
+    | where EventID == 1
+    | where (NewProcessName endswith @'\KrbRelayUp.exe' or OriginalFilename =~ 'KrbRelayUp.exe'
+    or (CommandLine contains ' relay ' and CommandLine contains ' -Domain ' and CommandLine contains ' -ComputerName ')
+    or (CommandLine contains ' krbscm ' and CommandLine contains ' -sc ') or (CommandLine contains ' spawn '
+    and CommandLine contains ' -d ' and CommandLine contains ' -cn ' and CommandLine contains ' -cp '))
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Privilege Escalation
+    - **Technique**: T1134 - Access Token Manipulation
+    - **Technique**: T1558 - Steal or Forge Kerberos Tickets
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Identify the user account that executed KrbRelayUp
+    2. Check if the system was recently compromised
+    3. Review what actions were taken after privilege escalation
+    4. Look for service creation or modification
+    5. Check for persistence mechanisms established
+    6. Review domain controller logs for relay attacks
+    7. Patch systems against PetitPotam and other relay vulnerabilities
+query_type: kql
+version: "1"

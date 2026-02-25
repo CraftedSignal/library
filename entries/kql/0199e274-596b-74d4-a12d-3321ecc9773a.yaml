@@ -1,0 +1,73 @@
+id: 0199e274-596b-74d4-a12d-3321ecc9773a
+name: Successful Authentication from a New Country
+description: This detection identifies when a user successfully authenticates from a country for the first time within a given period. It establishes a baseline of known countries for each user and alerts on any successful login originating from a country not present in that baseline. This behavior can indicate compromised credentials being used from an unusual location, or a legitimate user traveling to a new country.
+query: |
+    // Name: Successful Authentication from a New Country
+    // Author: detections.ai
+    // Date: 2025-10-14
+    // Description: This detection identifies when a user successfully authenticates from a country for the first time in a given period.
+    // It builds a baseline of known countries for each user and alerts on any successful login from a country not in that baseline. Monitors only for Successful authentication from a new country, no Failed attempt
+    // False Positive Sensitivity: Medium
+    // Tags:
+    // - T1078 (Valid Accounts)
+    // - T1110 (Brute Force)
+    // References:
+    // - https://attack.mitre.org/techniques/T1078/
+
+    // Set the timeframes for the detection.
+    let lookback_period = 14d; // Timeframe to build the baseline of known countries.
+    let detection_window = 1d;  // Timeframe to check for new country logins.
+    // Create a baseline of countries each user has successfully logged in from.
+    let country_baseline =
+        SigninLogs
+        | where TimeGenerated between (ago(lookback_period) .. ago(detection_window))
+        | where ResultType == 0 // Filter for successful authentications to build the baseline.
+        | where isnotempty(UserPrincipalName) and isnotempty(LocationDetails.countryOrRegion)
+        // Exclude authentications without a user context (service principal sign-ins).
+        | where AADTenantId != ServicePrincipalId
+        | summarize KnownCountries = make_set(tostring(LocationDetails.countryOrRegion)) by UserPrincipalName, AADTenantId;
+    // Find recent successful authentications and compare them against the baseline.
+    SigninLogs
+    | where TimeGenerated > ago(detection_window)
+    | where ResultType == 0 // Filter for successful authentications to detect new country events.
+    | where isnotempty(UserPrincipalName) and isnotempty(LocationDetails.countryOrRegion)
+    // Join recent authentications with the user's baseline.
+    | join kind=inner country_baseline on UserPrincipalName, AADTenantId
+    // Check if the country from the recent authentication is NOT in the user's baseline set of countries.
+    | where not(set_has_element(KnownCountries, tostring(LocationDetails.countryOrRegion)))
+    // FP Tuning: The following filters can be used to reduce false positives.
+    // Consider excluding accounts that are expected to log in from multiple locations (e.g., admin, service accounts).
+    // | where UserPrincipalName !~ "service_account@contoso.com"
+    // Consider excluding logins from specific applications that may use proxies or backend services in different countries.
+    // | where AppDisplayName !~ "Microsoft Teams Services"
+    | project
+        TimeGenerated,
+        UserPrincipalName,
+        NewCountry = LocationDetails.countryOrRegion,
+        NewCity = LocationDetails.city,
+        NewState = LocationDetails.state,
+        IPAddress,
+        AppDisplayName,
+        UserAgent,
+        KnownCountries,
+        AADTenantId
+    | extend
+        AccountCustomEntity = UserPrincipalName,
+        IPCustomEntity = IPAddress,
+        HostCustomEntity = AADTenantId
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - kql
+author: Tech Creaatives
+version: "4"
+references:
+    - https://attack.mitre.org/techniques/T1078/

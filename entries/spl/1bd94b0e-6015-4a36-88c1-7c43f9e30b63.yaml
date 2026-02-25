@@ -1,0 +1,66 @@
+id: 1bd94b0e-6015-4a36-88c1-7c43f9e30b63
+name: Unusual Azure Operation by Identity
+description: This rule identifies statistically unusual or first-time Azure operations performed by a principal (user or service principal). It uses a risk-based alerting model, assigning a higher risk score to operations defined as high-risk. The rule establishes a baseline of normal activity over 30 days and alerts when current activity significantly deviates from this baseline or when an operation is observed for the very first time for a given identity.
+query: |
+    `comment("This rule uses a Risk-Based Alerting (RBA) model to identify when a principal performs any Azure operation at a statistically unusual rate, or for the very first time. A risk score is assigned based on the operation type.", "medium")`
+    `comment("Define the macro 'azure_activity_logs' in Splunk settings to specify the index and sourcetype for your Azure Activity data, e.g., 'index=azure sourcetype=azure:activity'", "medium")`
+    `comment("IMPORTANT: The field names used here ('OperationNameValue', 'Properties.servicePrincipalId', 'identity.userPrincipalName', 'Caller', 'CallerIpAddress') are common placeholders. You must validate and update them to match the fields in your specific Azure Event Hub logs.", "high")`
+
+    `azure_activity_logs` earliest=-24h@h
+    `comment("Create a consistent identity field. This logic prioritizes Service Principal ID, then UPN, then the generic Caller field.", "medium")`
+    | eval Identity = case(isnotnull('Properties.servicePrincipalId'), 'Properties.servicePrincipalId', isnotnull('identity.userPrincipalName'), 'identity.userPrincipalName', isnotnull(Caller), Caller)
+    | where isnotnull(Identity)
+
+    `comment("Look up all operations to see if they are defined as high-risk. Assign a risk score of 25 for high-risk operations and 10 for all others.", "medium")`
+    | lookup azure-highriskactions.csv riskyoperationName as OperationNameValue OUTPUT highrisk
+    | eval BaseRiskScore = case(highrisk=="yes", 25, 1=1, 10)
+
+    `comment("Aggregate the activity count and risk score over the last 24 hours for each identity and operation.", "medium")`
+    | stats count as current_day_count, values(CallerIpAddress) as IpAddresses, values(BaseRiskScore) as BaseRiskScore by OperationNameValue, Identity
+
+    `comment("Join the 24-hour activity with a subsearch that calculates the 30-day historical average and standard deviation for each identity and operation.", "medium")`
+    | join type=left OperationNameValue, Identity [
+        search `azure_activity_logs` earliest=-30d@d latest=-1d@d
+        `comment("The subsearch must create the same Identity field to ensure the join keys match. It analyzes all operations to build a comprehensive baseline.", "medium")`
+        | eval Identity = case(isnotnull('Properties.servicePrincipalId'), 'Properties.servicePrincipalId', isnotnull('identity.userPrincipalName'), 'identity.userPrincipalName', isnotnull(Caller), Caller)
+        | where isnotnull(Identity)
+        `comment("Calculate daily counts for the past 30 days.", "medium")`
+        | bin _time span=1d
+        | stats count by _time, OperationNameValue, Identity
+        `comment("Calculate the average and standard deviation from those daily counts.", "medium")`
+        | stats avg(count) as avg_daily_count, stdev(count) as stdev_daily_count by OperationNameValue, Identity
+    ]
+
+    `comment("Handle principals with no prior history by setting their historical average/stdev to 0.", "medium")`
+    | fillnull value=0 avg_daily_count, stdev_daily_count
+
+    `comment("Define the dynamic threshold. An alert is triggered if the current count exceeds the average plus a number of standard deviations. FP Tuning: Adjust the stdev_multiplier (e.g., to 3 for fewer alerts) or the min_threshold.", "medium")`
+    | eval stdev_multiplier = 2.0
+    | eval min_threshold = 5
+    | eval dynamic_threshold = avg_daily_count + (stdev_multiplier * stdev_daily_count)
+    | eval alert_threshold = max(dynamic_threshold, min_threshold)
+
+    `comment("ALERTING LOGIC: Alert if the current count exceeds the dynamic threshold OR if this is the first time this action has ever been seen for this identity (historical average is 0).", "medium")`
+    `comment("FP Tuning: The 'OR avg_daily_count == 0' clause will alert on every first-time action. If this is too noisy, consider adding a minimum count (e.g., '...OR (avg_daily_count == 0 AND current_day_count > 2)') or filtering to only high-risk operations.", "medium")`
+    | where current_day_count > alert_threshold OR avg_daily_count == 0
+
+    `comment("Format the final summary table for alerting. This table shows principals who have deviated from their normal behavior and the associated risk.", "medium")`
+    | eval HistoricalAvg = round(avg_daily_count, 2)
+    | eval AlertThreshold = round(alert_threshold, 2)
+    | rename OperationNameValue as OperationName, current_day_count as CurrentCount
+    | fields OperationName, Identity, BaseRiskScore, CurrentCount, HistoricalAvg, AlertThreshold, IpAddresses
+    | sort -BaseRiskScore, -CurrentCount
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0009
+    - TA0005
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - spl
+version: "1"

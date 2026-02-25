@@ -1,0 +1,11 @@
+id: 019bc5d4-1cb9-7572-bc68-383b8ac17299
+name: Detect Conditional Access Policies Operations
+description: The detection looks for unauthorized or suspicious changes to the policies that control who can access your cloud resources and under what conditions. Correlate this change data with other signals, like a subsequent spike in risky sign-ins from a newly permitted location, to confirm a potential attack sequence as outlined in MITRE's analytics.
+query: "AuditLogs\r\n| where TimeGenerated > ago(7d)\r\n| where Category == \"Policy\"\r\n| where OperationName in (\"Add conditional access policy\", \"Update conditional access policy\", \"Delete conditional access policy\")\r\n| extend Initiator = tostring(InitiatedBy.user.userPrincipalName)\r\n| extend PolicyName = tostring(TargetResources[0].displayName)\r\n| extend PolicyId = tostring(TargetResources[0].id)\r\n| extend Changes = TargetResources[0].modifiedProperties\r\n| project TimeGenerated, OperationName, Initiator, PolicyName, PolicyId, Result, Changes, AdditionalDetails\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1556.009
+tags:
+    - kql
+version: "2"

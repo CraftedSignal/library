@@ -1,0 +1,78 @@
+id: 019a08ba-f3eb-71c9-855d-6ccfd162337d
+name: TOLLBOOTH IIS Module Deployment
+description: Detects the deployment or activity of the TOLLBOOTH IIS module. This is achieved by identifying the creation of its specific DLLs by the IIS worker process (w3wp.exe), or by detecting outbound C2 communication from the IIS worker process to known TOLLBOOTH infrastructure.
+query: |
+    title: TOLLBOOTH IIS Module Deployment
+    id: 3edbc71e-019e-4fbc-a159-7b2a27bac9b0
+    status: experimental
+    description: Detects the deployment or activity of the TOLLBOOTH IIS module.
+      This is achieved by identifying the creation of its specific DLLs by the IIS
+      worker process (w3wp.exe), or by detecting outbound C2 communication from the
+      IIS worker process to known TOLLBOOTH infrastructure.
+    references:
+      - https://www.elastic.co/security-labs/tollbooth
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.persistence
+      - attack.t1505.003
+    logsource:
+      category:
+        - file_creation
+        - network_connection
+        - dns
+        - proxy
+      product: windows
+    detection:
+      file_deployment:
+        # Detects the IIS worker process creating TOLLBOOTH module files. Requires file creation logs.
+        Image|endswith: '\w3wp.exe'
+        TargetFilename|endswith:
+          - '\caches.dll'
+          - '\scripts.dll'
+          - '\CustomIISModule.dll'
+      network_from_w3wp:
+        # Detects network connections from the IIS worker process to TOLLBOOTH C2 domains. Requires EDR-style network logs.
+        Image|endswith: '\w3wp.exe'
+        destination.domain|endswith:
+          - 'c.cseo99.com'
+          - 'f.fseo99.com'
+          - 'api.aseo99.com'
+          - 'mlxya.oss-accelerate.aliyuncs.com'
+          - 'asf-sikkeiyjga.cn-shenzhen.fcapp.run'
+          - 'ask-bdtj-selohjszlw.cn-shenzhen.fcapp.run'
+      network_generic:
+        # Detects DNS queries or proxy traffic to TOLLBOOTH C2 domains from any source.
+        - dns.question.name|endswith:
+            - 'c.cseo99.com'
+            - 'f.fseo99.com'
+            - 'api.aseo99.com'
+            - 'mlxya.oss-accelerate.aliyuncs.com'
+            - 'asf-sikkeiyjga.cn-shenzhen.fcapp.run'
+            - 'ask-bdtj-selohjszlw.cn-shenzhen.fcapp.run'
+        - url.domain|endswith:
+            - 'c.cseo99.com'
+            - 'f.fseo99.com'
+            - 'api.aseo99.com'
+            - 'mlxya.oss-accelerate.aliyuncs.com'
+            - 'asf-sikkeiyjga.cn-shenzhen.fcapp.run'
+            - 'ask-bdtj-selohjszlw.cn-shenzhen.fcapp.run'
+      condition: file_deployment or network_from_w3wp or network_generic
+    falsepositives:
+      - The filenames 'caches.dll' and 'scripts.dll' could potentially be used by
+        legitimate applications. However, their creation by the IIS worker process
+        is highly suspicious. The C2 domains are specific to this threat and are
+        unlikely to cause false positives.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1505.003
+    - T1071.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/tollbooth

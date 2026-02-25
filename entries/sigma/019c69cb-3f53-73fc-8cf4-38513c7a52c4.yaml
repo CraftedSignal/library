@@ -1,0 +1,49 @@
+id: 019c69cb-3f53-73fc-8cf4-38513c7a52c4
+name: Yellow Cockatoo RAT Patterns
+description: This rule detects patterns associated with the Yellow Cockatoo RAT, specifically looking for process creation events where an interpreter is executed with command-line arguments containing both XOR encoding indicators and references to shortcut files ('.lnk') for potential persistence or execution.
+query: |-
+    title: Yellow Cockatoo RAT Patterns
+    id: 3170acbc-3a42-42a5-96b4-e34bce3f8fd5
+    description: This rule detects patterns associated with the Yellow Cockatoo RAT, specifically looking for process creation events where an interpreter is executed with command-line arguments containing both XOR encoding indicators and references to shortcut files ('.lnk') for potential persistence or execution.
+    author: zendannyy
+    references:
+      - https://redcanary.com/blog/threat-intelligence/yellow-cockatoo/
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_interpreter:
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\pwsh'
+      selection_xor:
+        CommandLine|contains:
+          - '-bxor'
+          - 'bxor'
+      selection_startup_shortcut:
+        CommandLine|contains:
+          - '.lnk'
+      condition: 1 of selection_interpreter and 1 of selection_xor and 1 of selection_startup_shortcut
+    level: medium
+    falsepositives:
+      - Custom scripts or administrative tools that utilize XOR encoding for obfuscation and interact with shortcut files for system management or deployment.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0003
+techniques:
+    - T1059
+    - T1027.002
+    - T1547.001
+author: zendannyy
+version: "1"
+references:
+    - https://redcanary.com/blog/threat-intelligence/yellow-cockatoo/
+data_sources:
+    - process_creation
+    - windows
+    - security

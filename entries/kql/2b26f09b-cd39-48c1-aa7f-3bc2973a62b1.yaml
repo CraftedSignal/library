@@ -1,0 +1,14 @@
+id: 2b26f09b-cd39-48c1-aa7f-3bc2973a62b1
+name: TinkyWinkey Keylogger Suspicious Service Installation
+description: Detects the creation of a new Windows service configured to start automatically from a suspicious file path. This behavior is indicative of persistence mechanisms used by malware like the Tinky Winkey keylogger.
+query: "let suspiciousPaths = dynamic([\r\n    @\"C:\\Users\\\",\r\n    @\"C:\\ProgramData\\\",\r\n    @\"\\AppData\\\",\r\n    @\"\\Downloads\\\",\r\n    @\"\\PerfLogs\\\",\r\n    @\"\\Temp\\\",\r\n    @\"C:\\Windows\\Temp\\\"\r\n]);\r\nDeviceEvents\r\n| where ActionType == \"ServiceInstalled\"\r\n//EventID == 4697 ActionType == \"ServiceInstalled\"\r\n| where tostring(AdditionalFields) == \"2\"\r\n| where FileName has_any (suspiciousPaths) or FolderPath has_any (suspiciousPaths)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    ServiceName = tostring(AdditionalFields),\r\n    ServiceFilePath = FolderPath,\r\n    ServiceFileName = FileName,\r\n    StartType = tostring(AdditionalFields),\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1543.003
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://media.licdn.com/dms/document/media/v2/D561FAQG_8uEvBs-w4Q/feedshare-document-pdf-analyzed/B56Zjw7d9VHQAc-/0/1756388781468?e=1757548800&v=beta&t=iHOOQiFgAYWEZeGdztTlCS84DTlx1AFSgytz7vvpTw8

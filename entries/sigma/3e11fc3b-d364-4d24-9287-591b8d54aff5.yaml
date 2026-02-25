@@ -1,0 +1,24 @@
+id: 3e11fc3b-d364-4d24-9287-591b8d54aff5
+name: Waiting Thread Hijacking
+description: Detects a process opening a handle to a thread with rights to set the thread's context. This is a key indicator of thread hijacking techniques, where an adversary manipulates a waiting thread in a legitimate process to execute malicious code.
+query: "title: Waiting Thread Hijacking\r\nid: 02f8e415-ce42-44a6-8d74-3b3e3a77dc25\r\nstatus: experimental\r\ndescription: Detects a process opening a handle to a thread with rights to set the thread's context. This is a key indicator of thread hijacking techniques, where an adversary manipulates a waiting thread in a legitimate process to execute malicious code.\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1055/003/\r\n  - https://www.elastic.co/guide/en/security/current/waiting-thread-hijacking.html\r\nauthor: detections.ai\r\ndate: 2025-08-12\r\ntags:\r\n  - attack.defense_evasion\r\n  - attack.privilege_escalation\r\n  - attack.t1055.003\r\nlogsource:\r\n  category: process_access\r\n  product: windows\r\ndetection:\r\n  selection:\r\n        # Detects request for THREAD_SET_CONTEXT access right\r\n    GrantedAccess|contains: '0x0010'\r\n  filter_legit_procs:\r\n        # Filter for common debuggers and diagnostic tools\r\n    SourceImage|endswith:\r\n      - '\\procexp.exe'\r\n      - '\\procexp64.exe'\r\n      - '\\procmon.exe'\r\n      - '\\procmon64.exe'\r\n      - '\\windbg.exe'\r\n      - '\\msvsmon.exe'\r\n  condition: selection and not filter_legit_procs\r\nfalsepositives:\r\n  - Legitimate debuggers, performance monitoring tools, or security software (EDR/AV) may perform this action. It is recommended to baseline and filter legitimate tools used in your environment.\r\nlevel: high\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.003
+    - T1055
+tags:
+    - attack.defense_evasion
+    - attack.privilege_escalation
+    - attack.t1055.003
+author: detections.ai
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1055/003/
+    - https://www.elastic.co/guide/en/security/current/waiting-thread-hijacking.html
+data_sources:
+    - process_access
+    - windows

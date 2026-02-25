@@ -1,0 +1,12 @@
+id: 949eae56-2129-495e-af8b-35b7892131ec
+name: ServiceNow - Large Amount of Tickets Updated by Single User Within Short Time Period
+description: An attacker has gained access to internal systems, and is now closing large amounts of tickets to cover their tracks. This could indicate account compromise, especially if paired with alerts for logins from new IP addresses or a successful login after a brute force attack. By identifying an influx of closed tickets
+query: "let ReqItems =\r\nCloudAppEvents\r\n| where Application == \"ServiceNow\"\r\n| where AccountId != \"0\"\r\n| where ActionType == \"sc_req_item.change.stage\"\r\n| where RawEventData.parm1 has_any (\"complete\", \"approved\");\r\nlet TaskStateChanges = \r\n    CloudAppEvents\r\n    | where Application == \"ServiceNow\"\r\n    | where ActionType == \"sc_task.state.changed\"\r\n    | project TimeGenerated, ActionType, AccountDisplayName, RawEventData, Sys_id=tostring(RawEventData.Sys_id);\r\nunion ReqItems, TaskStateChanges\r\n| summarize \r\n    TicketsChanged = dcount(Sys_id), \r\n    StartTime = min(TimeGenerated), \r\n    EndTime = max(TimeGenerated)\r\n    by ActionType, AccountDisplayName, bin(TimeGenerated, 5m)\r\n| where TicketsChanged > 7\r\n| order by TicketsChanged desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1070
+    - T1565
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,59 @@
+id: 019ac6ec-5e21-73ac-a41d-4ab95c2c7592
+name: Cloudflare Tunnel Payload Download by SERPENTINE#CLOUD
+description: This rule detects command-line activity indicative of downloading payloads from a Cloudflare Tunnel (`.trycloudflare.com`). This technique is used by the SERPENTINE#CLOUD threat actor to deliver malicious stages of their attack chain. The rule looks for common download utilities or specific WebDAV paths being invoked by command-line interpreters such as cmd.exe, powershell.exe, or pwsh.exe.
+query: |
+    # Name: SERPENTINE#CLOUD Cloudflare Tunnel Payload Download
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This search detects command-line activity indicative of downloading payloads from a Cloudflare Tunnel (`.trycloudflare.com`).
+    # This technique is used by the SERPENTINE#CLOUD threat actor to deliver malicious stages of their attack chain.
+    # The rule looks for common download utilities or specific WebDAV paths being invoked by command-line interpreters.
+    #
+    # Data Source:
+    # This search requires process creation logs, such as Sysmon (Event Code 1) or other EDR data.
+    # The macro `process_creation_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., process_name, process_command_line, parent_process_name).
+    #
+    # References:
+    # - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Command and Control
+    # - Technique: T1071.001 (Application Layer Protocol: Web Protocols)
+    # - Technique: T1572 (Protocol Tunneling)
+    #
+    # False Positives:
+    # Legitimate developers may use trycloudflare.com for testing purposes, which could lead to false positives.
+    # Investigation should focus on the parent process, user context, and the nature of the downloaded file to determine legitimacy.
+    # Tuning may be required to exclude known developer activities or specific parent processes.
+
+    `process_creation_events`
+
+    # Filter for command-line interpreters executing a command containing the trycloudflare.com domain.
+    | search process_name IN ("cmd.exe", "powershell.exe", "pwsh.exe") AND process_command_line="*.trycloudflare.com*"
+
+    # Filter for commands indicative of file download or remote execution.
+    # This includes common download utilities and the specific WebDAV path pattern seen in the SERPENTINE#CLOUD campaign.
+    | search (
+        process_command_line IN ("*certutil*", "*bitsadmin*", "*Invoke-WebRequest*", "*iwr*", "*wget*") OR
+        process_command_line LIKE "%robocopy%\\\\%.trycloudflare.com@SSL%"
+    )
+
+    # Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, parent_process_name, process_name, process_command_line
+    | `serpentine_cloud_cloudflare_tunnel_payload_download_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1572
+    - T1105
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/

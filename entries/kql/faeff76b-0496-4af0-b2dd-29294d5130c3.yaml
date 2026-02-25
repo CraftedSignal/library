@@ -1,0 +1,22 @@
+id: faeff76b-0496-4af0-b2dd-29294d5130c3
+name: Processes Running as PPL (Protected Process Light) — Ransomware / Privilege Abuse
+description: |-
+    This rule detects suspicious activities related to Protected Process Light (PPL) and driver loading that could indicate privilege escalation, defense evasion, or impact. Specifically, it looks for:
+    1. Processes running with 'System' integrity that were initiated by a process with a lower integrity level, which could suggest an attempt to elevate privileges.
+    2. Driver image load events where 'ntoskrnl.exe' is the initiating process, but the driver is loaded from a location outside of the standard 'System32' or 'System32\drivers' directories. This could indicate an adversary attempting to load malicious drivers to evade detection or persist.
+    3. DriverLoad actions initiated by 'ntoskrnl.exe' from outside the standard 'System32' or 'System32\drivers' directories, similar to the image load events, pointing to potential malicious driver activity.
+query: "// ============================================================================\r\n// Microsoft Sentinel KQL Detections & Hunting Queries\r\n// Author: KillBillKill98\r\n// Last Updated: 2025-09-12\r\n// ============================================================================\r\n// Each section includes:\r\n// - Title\r\n// - MITRE ATT&ATT&CK tactic & technique\r\n// - Description & rationale\r\n// ============================================================================\r\n// ============================================================================\r\n// Processes Running as PPL (Protected Process Light) — Ransomware / Privilege Abuse\r\n// Tactic(s): Privilege Escalation (TA0004), Defense Evasion (TA0005), Impact (TA0040)\r\n// Techniques:\r\n//  - Exploitation for Privilege Escalation (T1068)\r\n//  - Impair Defenses / Modify System (T1562)\r\n//  - Data Encrypted for Impact (T1486)\r\n// Description & Rationale:\r\n//  - PPL protects high-integrity processes (kernel/antimalware) from tampering. Adversaries\r\n//    may attempt to spawn or coerce processes to run with PPL/System integrity or load\r\n//    drivers from non-standard locations to evade detection and persist.\r\n// ============================================================================\r\n\r\nunion isfuzzy = true\r\n(\r\n    // 1) Suspicious process at System integrity where the initiating process has lower integrity\r\n    DeviceProcessEvents\r\n    | where isnotempty(InitiatingProcessIntegrityLevel)\r\n    | where InitiatingProcessIntegrityLevel != \"Invalid\"\r\n    | where ProcessIntegrityLevel =~ \"System\"\r\n    | where InitiatingProcessIntegrityLevel != ProcessIntegrityLevel\r\n    | extend DetectionType = \"PPL Integrity Mismatch\"\r\n    | project Timestamp,\r\n              DeviceId, DeviceName,\r\n              InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessIntegrityLevel,\r\n              FileName, ProcessCommandLine, ProcessIntegrityLevel,\r\n              ReportId, DetectionType\r\n),\r\n(\r\n    // 2) Driver image load events initiated by ntoskrnl.exe from outside System32\r\n    DeviceImageLoadEvents\r\n    | where InitiatingProcessFileName =~ \"ntoskrnl.exe\"\r\n    | where not(FolderPath has_any (\"Windows\\\\System32\", \"Windows\\\\System32\\\\drivers\"))\r\n    | where FileName endswith \".sys\"\r\n    | extend DetectionType = \"Driver Image Loaded Outside System32\"\r\n    | project Timestamp,\r\n              DeviceId, DeviceName,\r\n              InitiatingProcessFileName, InitiatingProcessFolderPath,\r\n              FileName, FolderPath, SHA256, ReportId, DetectionType\r\n),\r\n(\r\n    // 3) DriverLoad actions initiated by ntoskrnl.exe from outside System32\r\n    DeviceEvents\r\n    | where ActionType == \"DriverLoad\"\r\n    | where InitiatingProcessFileName =~ \"ntoskrnl.exe\"\r\n    | where not(FolderPath has_any (\"Windows\\\\System32\", \"Windows\\\\System32\\\\drivers\"))\r\n    | where FileName endswith \".sys\"\r\n    | extend DetectionType = \"DriverLoad Outside System32\"\r\n    | project Timestamp,\r\n              DeviceId, DeviceName,\r\n              InitiatingProcessFileName, InitiatingProcessFolderPath,\r\n              FileName, FolderPath, AdditionalFields, ReportId, DetectionType\r\n)\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+    - TA0040
+techniques:
+    - T1068
+    - T1562
+    - T1486
+tags:
+    - kql
+author: KillBillKill98
+version: "1"

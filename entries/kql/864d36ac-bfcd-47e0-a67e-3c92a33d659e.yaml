@@ -1,0 +1,32 @@
+id: 864d36ac-bfcd-47e0-a67e-3c92a33d659e
+name: RID Hijacking Technique and Detection
+description: 'KQL Query from file: RID Hijacking Technique and Detection'
+query: |+
+    // RID Hijacking Technique and Detection
+
+    // https://asec.ahnlab.com/en/85942/
+
+    let EPwithNewLocalAccount =
+    DeviceEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "UserAccountCreated" and AccountName has "$"
+    | distinct DeviceName;
+    DeviceRegistryEvents
+    | where RegistryKey has "HKEY_LOCAL_MACHINE\\SAM\\SAM\\Domains\\Account\\Users"
+    | where DeviceName has_any(EPwithNewLocalAccount)
+
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0006
+techniques:
+    - T1098
+    - T1136
+    - T1112
+    - T1098.003
+    - T1003.002
+tags:
+    - kql
+version: "1"

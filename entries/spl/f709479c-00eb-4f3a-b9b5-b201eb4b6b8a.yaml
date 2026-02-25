@@ -1,0 +1,26 @@
+id: f709479c-00eb-4f3a-b9b5-b201eb4b6b8a
+name: Detection of Skynet Tor Process Creation
+description: Detects the creation of the Tor process from a specific directory using command line arguments indicative of controlling and logging ports.
+query: |-
+    (index=* OR index=main)
+    (sourcetype=WinEventLog:Microsoft-Windows-Sysmon/Operational OR sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR sourcetype=sysmon_process_creation OR sourcetype=edr_process_creation)
+    (EventCode=1 OR (action="create" AND objecttype="process") OR (event_type="process" AND subtype="create"))
+    Image="*\\Temp\\skynet\\tor.exe"
+    CommandLine="*--ControlPort 127.0.0.1:24616*"
+    CommandLine="*--SocksPort 127.0.0.1:24615*"
+    CommandLine="*--Log \"notice stdout\"*"
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, Image, CommandLine, ParentImage, ParentCommandLine, User
+    | convert timeformat="%Y-%m-%dT%H:%M:%S" ctime(firstTime) ctime(lastTime)
+    | rename Image as process_path, CommandLine as process, ParentImage as parent_process_path, ParentCommandLine as parent_process
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1090
+    - T1090.001
+    - T1090.002
+tags:
+    - spl
+author: Rajshekar Vijay
+version: "1"

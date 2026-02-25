@@ -1,0 +1,11 @@
+id: 0199c10c-bc94-723b-968f-d2c7e25db6b3
+name: Apple iCloud Private Relay IP Range Check
+description: This rule identifies if a given IP address falls within the known IP ranges used by Apple's iCloud Private Relay service. It retrieves a list of IPv4 and IPv6 ranges from a public GitHub repository and then checks if a specified IP address is contained within any of these ranges. This can be used to identify traffic potentially obfuscated by iCloud Private Relay.
+query: "let AppleiCloudPrivateRelayRanges = externaldata(IPRange: string, Country: string, LanguageCode: string, City: string, AddressFamily: string) [\r\n    @\"https://raw.githubusercontent.com/f-bader/AzSentinelQueries/master/ExternalData/iCloudPrivateRelayIPRanges.csv\"]\r\n    with(format=\"csv\", ignoreFirstRecord=true)\r\n    | summarize IPRange=make_set(IPRange) by AddressFamily;\r\nlet AppleiCloudPrivateRelayRangesIPv4 = toscalar(AppleiCloudPrivateRelayRanges\r\n    | where AddressFamily == \"InterNetwork\"\r\n    | project IPRange);\r\nlet AppleiCloudPrivateRelayRangesIPv6 = toscalar(AppleiCloudPrivateRelayRanges\r\n    | where AddressFamily == \"InterNetworkV6\"\r\n    | project IPRange);\r\nprint \"2a09:bac3:2a10:2c8::47:2e8\"\r\n| project-rename IPAddress = print_0\r\n| extend IsInAppleiCloudv4Range = ipv4_is_in_any_range(IPAddress, AppleiCloudPrivateRelayRangesIPv4)\r\n| extend IsInAppleiCloudv6Range = ipv6_is_in_any_range(IPAddress, AppleiCloudPrivateRelayRangesIPv6)\r\n| extend IsInAppleiCloudRange = coalesce(IsInAppleiCloudv4Range, IsInAppleiCloudv6Range)\r\n| project-away IsInAppleiCloudv4Range, IsInAppleiCloudv6Range"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://raw.githubusercontent.com/f-bader/AzSentinelQueries/master/ExternalData/iCloudPrivateRelayIPRanges.csv

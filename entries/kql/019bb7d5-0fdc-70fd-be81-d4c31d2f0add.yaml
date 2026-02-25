@@ -1,0 +1,18 @@
+id: 019bb7d5-0fdc-70fd-be81-d4c31d2f0add
+name: 'Certificate issued to Privileged User '
+description: This rule detects when a certificate is issued to a privileged user. It identifies privileged users by checking their group membership against a predefined list of administrative groups such as 'Domain Admins', 'Enterprise Admins', and 'Administrators'. The rule then looks for Windows Security Event ID 4886, which indicates a certificate services operation, and extracts the principal name from the Subject Alternative Name field. Finally, it joins this information with the identified privileged users to flag any certificate issuance to them.
+query: "// Define high privileged AD groups\r\nlet AdminGroups = dynamic([\r\n\"Domain Admins\",\r\n\"Enterprise Admins\",\r\n\"Administrators\",\r\n\"Schema Admins\",\r\n\"Account Operators\",\r\n\"Backup Operators\",\r\n\"Server Operators\"\r\n]);\r\n// Collect privileged users based on group membership\r\nlet PrivUsers =\r\nIdentityInfo\r\n| where Type == \"User\"\r\n| mv-apply GroupMembership on (where GroupMembership in~ (AdminGroups))\r\n| project PrincipalName = tostring(AccountUpn);\r\n// Parse certificate request events (Event ID 4886)\r\nSecurityEvent\r\n| where EventID == 4886\r\n| extend XmlData = parse_xml(EventData)\r\n| mv-expand DataNode = XmlData.EventData.Data\r\n| extend FieldName = tostring(DataNode['@Name']), FieldValue = tostring(DataNode['#text'])\r\n| summarize\r\n    SubjectAlternativeName = anyif(FieldValue, FieldName == \"SubjectAlternativeName\"),\r\n    RequestClientInfo = anyif(FieldValue, FieldName == \"RequestClientInfo\"),\r\n    TimeGenerated = any(TimeGenerated),\r\n    Computer = any(Computer),\r\n    EventID = any(EventID)\r\n  by _ResourceId\r\n| extend SubjectAlternativeName = tostring(SubjectAlternativeName)\r\n| extend RequesterMachine = extract(@\"Machine:\\s*([A-Za-z0-9\\-\\_]+)\", 1, RequestClientInfo)\r\n| extend PrincipalName = extract(@\"Principal Name=([^ ]+)\", 1, SubjectAlternativeName)\r\n| extend HasSTU = iff(SubjectAlternativeName has \"URL=ID:STU\", true, false)\r\n| project-away SubjectAlternativeName, _ResourceId\r\n| join kind=inner PrivUsers on PrincipalName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0004
+techniques:
+    - T1649
+    - T1098
+    - DS0037
+    - DS0002
+tags:
+    - kql
+version: "2"

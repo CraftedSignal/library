@@ -1,0 +1,24 @@
+id: 79ac92be-1b69-4ae9-a04a-374ad72addb2
+name: Suspicious Process Execution by Browser (i.e. FileFix)
+description: This rule detects the execution of common Windows utilities (PowerShell, Regsvr32, BITSAdmin, Certutil, MSHTA) when initiated by a web browser. This behavior can indicate an attempt to execute malicious code or download additional payloads after a user clicks a malicious link or visits a compromised website. Adversaries often leverage these utilities for various purposes, including code execution, file transfer, and bypassing security controls.
+query: "// Filefix and browser initiated execution\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessFileName in~ (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"iexplore.exe\", \"brave.exe\")\r\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\",\"regsvr32.exe\",\"bitsadmin.exe\",\"certutil.exe\", \"mshta.exe\")\r\n| project Timestamp,InitiatingProcessFileName,ProcessCommandLine, AccountName, DeviceName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0003
+    - TA0011
+techniques:
+    - T1204.001
+    - T1059.001
+    - T1197
+    - T1105
+    - T1218.009
+    - T1059.007
+tags:
+    - kql
+author: LindenSec
+version: "1"
+references:
+    - https://www.lindensec.com/post/filefix-another-deceptive-attack-vector-demo-and-detections

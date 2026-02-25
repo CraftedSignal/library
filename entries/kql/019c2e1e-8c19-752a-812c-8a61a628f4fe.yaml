@@ -1,0 +1,16 @@
+id: 019c2e1e-8c19-752a-812c-8a61a628f4fe
+name: Windows Credential Guard Disabled - Registry
+description: Detects the modification of registry keys to disable Windows Defender Credential Guard. Disabling this security feature can expose credentials to theft and is a common precursor to lateral movement.
+query: "// Name: Credential Guard Disabled via Registry\r\n// Author: Andre Zeemering\r\n// Date: 2026-02-05\r\n// Description: Detects the modification of registry keys to disable Windows Defender Credential Guard. Disabling this security feature can expose credentials to theft and is a common precursor to lateral movement.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1562.001\r\n// References: https://woshub.com/disable-credential-guard-windows/\r\n// False Positive Sensitivity: Medium. Legitimate administrative changes for software compatibility (e.g., VMWare Workstation) may trigger this alert. Consider excluding authorized administrator accounts or changes tied to change management tickets.\r\n\r\n\r\nDeviceRegistryEvents\r\n// Look for the specific registry value being set.\r\n| where ActionType == \"RegistryValueSet\"\r\n| where (\r\n    RegistryKey endswith @\"\\DeviceGuard\"\r\n    or RegistryKey endswith @\"\\Lsa\"\r\n)\r\n// These are the two primary locations for the Credential Guard configuration.\r\n| where RegistryValueName in (\r\n    \"EnableVirtualizationBasedSecurity\",\r\n    \"LsaCfgFlags\"\r\n)\r\n// A value of 0 disables the feature.\r\n| where RegistryValueData == 0\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    RegistryValueData,\r\n    ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Andre Zeemering
+version: "3"
+references:
+    - https://woshub.com/disable-credential-guard-windows/

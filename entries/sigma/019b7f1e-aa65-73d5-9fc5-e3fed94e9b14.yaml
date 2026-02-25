@@ -1,0 +1,66 @@
+id: 019b7f1e-aa65-73d5-9fc5-e3fed94e9b14
+name: Discord Process Hijacking or Restart
+description: |
+    Detects the termination of Discord processes or a restart using Update.exe with the '--processStart' argument. This behavior is characteristic of the VVS Stealer, which uses this technique to inject malicious JavaScript for session hijacking.
+query: |
+    title: Discord Process Hijacking or Restart
+    id: 766e093d-985d-44d1-bfb1-d5819388ee23
+    status: experimental
+    description: >
+      Detects the termination of Discord processes or a restart using Update.exe
+      with the '--processStart' argument. This behavior is characteristic of the VVS
+      Stealer, which uses this technique to inject malicious JavaScript for session
+      hijacking.
+    references:
+      - https://unit42.paloaltonetworks.com/vvs-stealer/
+    author: tim@detections.ai
+    date: 2026-01-02
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.t1055
+      - attack.t1574
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      # Detects the forceful termination of Discord processes using taskkill
+      selection_kill:
+        Image|endswith: '\taskkill.exe'
+        CommandLine|contains|all:
+          - ' /f '
+          - ' /im '
+          - 'Discord.exe'
+        # Detects the restart of Discord via its updater with a specific command-line switch
+      selection_restart:
+        ParentImage|endswith: '\Update.exe'
+        Image|endswith: '\Discord.exe'
+        CommandLine|contains: ' --processStart'
+      condition: selection_kill or selection_restart
+    falsepositives:
+      - Legitimate Discord update or repair processes.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1055
+    - T1574
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.t1055
+    - attack.t1574
+author: tim@detections.ai
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/vvs-stealer/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

@@ -1,0 +1,38 @@
+id: 019c9199-55fa-737a-85fc-17621a787c94
+name: UNC6201 RecoverPoint VM CVE-2026-22769
+description: 'This rule detects activities associated with UNC6201 exploitation of Dell RecoverPoint VM, specifically looking for three distinct phases: Tomcat Manager WAR file deployment, modification of a persistence script on Linux, and communication with a GRIMBOLT C2 endpoint. The first part identifies WAR file deployments via Tomcat Manager. The second part looks for modifications to a specific persistence script file. The third part identifies network connections to a known GRIMBOLT C2 IP address or URL pattern.'
+query: |+
+    ## UNC6201 RecoverPoint VM CVE-2026-22769 hunts (Tomcat deploy + persistence + C2)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day
+
+    ### Web logs: Tomcat Manager WAR deploy
+    (index=web OR index=proxy OR index=waf) (uri_path="/manager/text/deploy" OR url="*/manager/text/deploy*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(src) as src values(user) as users by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Linux file events: persistence script modified
+    (index=os OR index=edr OR index=auditd) (file_path="/home/kos/kbox/src/installation/distribution/convert_hosts.sh" OR TargetFilename="/home/kos/kbox/src/installation/distribution/convert_hosts.sh")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(_raw) as examples by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Network: GRIMBOLT C2 endpoint
+    (index=proxy OR index=netflow OR index=firewall) (dest_ip=149.248.11.71 OR url="*149.248.11.71/rest/apisession*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(dest_port) as ports by src_ip, dest_ip
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0002
+techniques:
+    - T1610
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day

@@ -1,0 +1,40 @@
+id: 1d5801e5-1d82-40af-8376-50d0acfb0ac7
+name: Kerberos Golden Ticket Attack Detection
+description: This detection identifies potential Golden Ticket attacks leveraging forged Kerberos TGTs for domain administrator access through suspicious logon patterns.
+query: |-
+    # Kerberos Golden Ticket Detection
+
+    ## Description
+    This detection identifies potential Golden Ticket attacks where attackers forge Kerberos Ticket Granting Tickets (TGTs) to gain domain administrator access. The detection focuses on suspicious logon patterns characteristic of Golden Ticket usage.
+
+    ## Detection Logic
+    The query identifies:
+    - Network logons (Type 3) using Kerberos authentication
+    - Connections from localhost (127.0.0.1)
+    - Target user SID ending in -500 (domain administrator)
+    - These patterns together indicate potential Golden Ticket usage
+
+    ## Query
+    ```kusto
+    SecurityEvent
+    | where (EventID == 4624 and LogonType == "3" and AuthenticationPackageName =~ 'Kerberos'
+    and IpAddress =~ '127.0.0.1' and TargetUserSid startswith 'S-1-5-21-' and TargetUserSid endswith '-500')
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Credential Access, Persistence
+    - **Technique**: T1558.001 - Steal or Forge Kerberos Tickets: Golden Ticket
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Immediately investigate the source of the authentication
+    2. Check for compromise of domain controller or KRBTGT account
+    3. Review all recent domain admin activities
+    4. Look for Pass-the-Ticket or Mimikatz usage
+    5. Check for unusual domain controller access patterns
+    6. Consider resetting KRBTGT password twice (with time gap)
+    7. Review all privileged account usage in the timeframe
+query_type: kql
+version: "1"

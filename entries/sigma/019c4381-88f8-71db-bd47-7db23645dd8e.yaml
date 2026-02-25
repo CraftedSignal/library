@@ -1,0 +1,60 @@
+id: 019c4381-88f8-71db-bd47-7db23645dd8e
+name: SolarWinds Web Help Desk Exploitation - Defender and Firewall Disable
+description: This rule detects attempts to disable Windows Defender and Windows Firewall via registry modifications using the 'reg add' command. Specifically, it looks for command-line arguments that include 'add', 'REG_DWORD', and keywords related to disabling Defender features (DisableAntiSpyware, DisableBehaviorMonitoring, DisableRealTimeMonitoring, DisableOAVProtection) or the 'mpssvc' service, along with setting the value to '4' or '1'. This activity is often associated with malware attempting to evade security controls.
+query: |
+    title: SolarWinds Web Help Desk Exploitation - Defender and Firewall Disable
+    id: a1b2c3d4-e5f6-4a5b-8c9d-solarwinds004
+    status: experimental
+    description: |
+        In this attack, after establishing access via exploited Web Help Desk, threat actors disable Windows Defender and Windows Firewall via registry modifications. The reg add commands set DisableAntiSpyware, DisableBehaviorMonitoring, DisableOAVProtection, DisableOnAccessProtection, DisableRealTimeMonitoring, and mpssvc Start to 4. This pattern is commonly used by malware to evade detection before deploying additional payloads.
+    references:
+        - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+        - attack.defense_evasion
+        - attack.t1562.001
+        - attack.t1112
+        - cve.2025.26399
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_reg:
+            Image|endswith: '\reg.exe'
+            CommandLine|contains|all:
+                - 'add'
+                - 'REG_DWORD'
+        selection_defender:
+            CommandLine|contains|any:
+                - 'DisableAntiSpyware'
+                - 'DisableBehaviorMonitoring'
+                - 'DisableRealTimeMonitoring'
+                - 'mpssvc'
+                - 'DisableOAVProtection'
+                - '/d 4'
+                - '/d 1'
+        condition: selection_reg and selection_defender
+    falsepositives:
+        - Legitimate security policy configuration
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1562.001
+    - T1112
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.t1112
+    - cve.2025.26399
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+data_sources:
+    - process_creation
+    - windows

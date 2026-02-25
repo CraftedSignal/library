@@ -1,0 +1,12 @@
+id: 019bf907-1aea-702b-8e85-c6a052b8c1e2
+name: Automate Investigation by Domain
+description: There are simpler versions of this when investigating manually, this is not for manual use on your day to day activities, this is for automation.
+query: "//\r\n/////  PLATFORM: Microsoft Exchange Online (Email Security Gateway)\r\n/////  AUTHOR: IGOR OLIVEIRA (#IO)\r\n/////  LOCATION: Microsoft Sentinel | Logs\r\n/////  TITLE: KQL to automate investigation by Domain\r\n//\r\nlet SampleTenantId = \"d3676cia-cbb2-4278-5921-4868cb08f129\";\r\nlet senderDomain = \"outlook.com\";\r\nlet Domain_Lookup =\r\nEmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderFromDomain == senderDomain\r\n    | summarize \r\n        emailCount = count(),\r\n        FirstEmailDate = min(TimeGenerated),\r\n        LastEmailDate = max(TimeGenerated)\r\n    by RecipientEmailAddress, SenderFromDomain;\r\nlet EmailSample =\r\n    EmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderFromDomain contains senderDomain\r\n    | summarize arg_max(TimeGenerated, NetworkMessageId) by RecipientEmailAddress, SenderFromDomain;\r\nDomain_Lookup\r\n| join kind=inner (EmailSample) on RecipientEmailAddress, SenderFromDomain\r\n| extend\r\n    EmailDetails = strcat(\r\n    \"https://security.microsoft.com/emailentity?f=summary&startTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&endTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&id=\",\r\n    NetworkMessageId,\r\n    \"&recipient=\",\r\n    RecipientEmailAddress,\r\n    \"&tid=\",\r\n    SampleTenantId\r\n)\r\n| project FirstEmailDate, LastEmailDate, SenderFromDomain, RecipientEmailAddress, emailCount, EmailDetails\r\n| order by emailCount desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Igor Oliveira
+version: "2"

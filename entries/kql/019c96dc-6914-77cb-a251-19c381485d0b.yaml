@@ -1,0 +1,58 @@
+id: 019c96dc-6914-77cb-a251-19c381485d0b
+name: Cisco SD-WAN SSH Persistence and Config Tampering
+description: Monitors for command-line activity indicating the addition of SSH keys to authorized_keys files or the modification of the SSH daemon configuration to permit root login on Cisco SD-WAN devices. This is a common persistence technique used by attackers after gaining initial access, such as through CVE-2026-20127.
+query: |
+    // Name: Cisco SD-WAN SSH Persistence and Config Tampering
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: Monitors for command-line activity indicating the addition of SSH keys to authorized_keys files or the modification of the SSH daemon configuration to permit root login on Cisco SD-WAN devices. This is a common persistence technique used by attackers after gaining initial access, such as through CVE-2026-20127.
+    // MITRE ATT&CK: T1098.004 (SSH Authorized Keys), T1543.002 (Create or Modify System Process: Systemd Service)
+    // References: https://www.bleepingcomputer.com/news/security/critical-cisco-sd-wan-bug-exploited-in-zero-day-attacks-since-2023/
+    // False Positive Sensitivity: Medium. Legitimate administrators may perform these actions. It is recommended to add known administrative tools (e.g., Ansible, Puppet) or user accounts to an exclusion list to reduce noise from routine maintenance.
+    let lookback = 1d;
+    let auth_keys_files = dynamic(['/home/vmanage-admin/.ssh/authorized_keys', '/root/.ssh/authorized_keys']);
+    let ssh_config_file = "/etc/ssh/sshd_config";
+    // This query uses process command-line logging to detect suspicious modifications to SSH configuration.
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Pre-filter for performance to commands that reference the sensitive files.
+    | where ProcessCommandLine has_any (auth_keys_files) or ProcessCommandLine has ssh_config_file
+    | where
+        // Condition 1: Detects commands that add or modify SSH authorized keys.
+        (
+            ProcessCommandLine has_any (auth_keys_files) and
+            // Looks for shell redirection or common file writing commands.
+            ProcessCommandLine has_any (">", "tee", "sed", "awk", "echo")
+        )
+        or
+        // Condition 2: Detects commands modifying sshd_config to enable root login.
+        (
+            ProcessCommandLine has ssh_config_file and
+            ProcessCommandLine has "PermitRootLogin" and
+            ProcessCommandLine has "yes"
+        )
+    // False Positive Tuning: Exclude known configuration management tools or admin scripts if they cause noise.
+    // | where InitiatingProcessFileName !in ("ansible", "puppet", "chef")
+    // Exclude simple read commands that are not modifications.
+    | where not (FileName in~ ("grep", "cat") and ProcessCommandLine !has ">")
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.004
+    - T1543.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/critical-cisco-sd-wan-bug-exploited-in-zero-day-attacks-since-2023/

@@ -1,0 +1,61 @@
+id: 019a816a-8902-7175-a13d-876974da62c3
+name: Contagious Interview Persistence via Scheduled Task
+description: Detects the creation or modification of scheduled tasks that execute Python scripts or masquerade as legitimate system processes. This behavior is used by threat actors in the 'Contagious Interview' campaign to establish persistence.
+query: |
+    title: Contagious Interview Persistence via Scheduled Task
+    id: 32817a19-0d19-4077-9b39-224f20ba122a
+    status: experimental
+    description: >-
+      Detects the creation or modification of scheduled tasks that execute Python
+      scripts or masquerade as legitimate system processes. This behavior is used by
+      threat actors in the 'Contagious Interview' campaign to establish persistence.
+    references:
+      - >-
+        https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/
+    author: detections.ai
+    date: 2025-11-14T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+      - attack.t1543.003
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_schtasks:
+        Image|endswith: \schtasks.exe
+        CommandLine|contains:
+          - /create
+          - /change
+      selection_payload:
+        CommandLine|contains:
+          - python.exe
+          - pythonw.exe
+          - Runtime Broker.exe
+          - Windows Update Script.pyw
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts, especially those written in Python, may
+        be scheduled, causing potential false positives.
+      - It is unusual to schedule the legitimate 'Runtime Broker.exe', but if a
+        legitimate use case exists, it should be filtered.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - attack.t1543.003
+author: detections.ai
+version: "3"
+references:
+    - https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/
+data_sources:
+    - process_creation
+    - windows

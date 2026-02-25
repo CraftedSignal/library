@@ -1,0 +1,10 @@
+id: f45d0aef-986e-4b3d-8042-3211161d4914
+name: 'IOC Hunting: Domain & URL Activity Sweep'
+description: This hunt identifies activity related to known malicious domains or URLs across network, email, and messaging telemetry over the past 30 days. It searches for domain-based IOCs within device network events, emails, and Microsoft Teams messages to highlight potential indicators of compromise (IOCs). It tracks delivery actions and recipients for further investigation.
+query: "let IOC = dynamic([\"domain\", \"domain\"]);\r\nlet DeviceNetworkHunt = (\r\n    DeviceNetworkEvents\r\n    | where Timestamp > ago(30d) \r\n    | where RemoteUrl has_any (IOC)\r\n    | project Table = Type, Timestamp, DeviceName, UrlDomain = RemoteUrl);\r\nlet EmailHunt = (\r\n    EmailUrlInfo\r\n    | where Timestamp > ago(30d)\r\n    | where UrlDomain has_any (IOC)\r\n    | project Table = Type, Timestamp, NetworkMessageId , UrlDomain, FullURLPath = Url\r\n    | join EmailEvents on NetworkMessageId\r\n    | project Table = Type, Timestamp, UrlDomain, FullURLPath, Recipient = RecipientEmailAddress, DeliveryLocation, DeliveryAction);\r\nlet MassageHunt = (\r\n    MessageUrlInfo\r\n    | where Timestamp > ago(30d)\r\n    | where UrlDomain has_any (IOC)\r\n    | project Table = Type, Timestamp, TeamsMessageId, UrlDomain, FullURLPath = Url\r\n    | join MessageEvents on TeamsMessageId\r\n    | project Table = Type, Timestamp, UrlDomain, FullURLPath, tostring(Recipient = RecipientDetails), DeliveryLocation, DeliveryAction);\r\nunion isfuzzy=true DeviceNetworkHunt, EmailHunt, MassageHunt"
+query_type: kql
+severity: medium
+tags:
+    - IOC Hunting
+    - kql
+version: "1"

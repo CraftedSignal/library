@@ -1,0 +1,8 @@
+id: 019c48f9-5ef1-727f-9394-e2ad95957fd4
+name: Attempt to Modify Active Directory Object Permissions
+description: This rule detects attempts to modify or access sensitive Active Directory objects by monitoring Windows Security Event Code 4662 (An operation was performed on an object). Specifically, it looks for an Access Mask of 0x100, which indicates a 'Write Property' operation. The rule then filters for specific Object Types (GUIDs) that correspond to sensitive Active Directory objects, such as those related to domain controllers, group policy objects, or other critical infrastructure. To reduce false positives, it excludes activity from known system accounts like 'Window Manager', 'NT AUT*', 'MSOL_*', and machine accounts ending with '$'.
+query: "index=windows source=WinEventLog:Security EventCode=4662 Access_Mask=0x100\r\n| search (Object_Type=\"*1131f6ad-9c07-11d1-f79f-00c04fc2dcd2*\" OR Object_Type=\"*1131f6aa-9c07-11d1-f79f-00c04fc2dcd2*\" OR Object_Type=\"*9923a32a-3607-11d2-b9be-0000f87a36b2*\" OR Object_Type=\"*89e95b76-444d-4c62-991a-0facbeda640c*\" OR Object_Type=\"*19195a5b-6da0-11d0-afd3-00c04fd930c9*\")\r\n| search NOT (Account_Domain=\"Window Manager\" OR Account_Name=\"NT AUT*\" OR Account_Name=\"MSOL_*\" OR Account_Name=\"*$\")\r\n| table _time, ComputerName, Account_Name, Account_Domain, Object_Type, Access_Mask"
+query_type: spl
+tags:
+    - spl
+version: "1"

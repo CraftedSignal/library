@@ -1,0 +1,32 @@
+id: d8b6977b-7462-4af5-a69c-63e23a5ea2db
+name: Critical Vulnerability in Elastic Kibana
+description: 'KQL Query from file: Critical Vulnerability in Elastic Kibana'
+query: |
+    // Critical Vulnerability in Elastic Kibana
+    // https://www.csa.gov.sg/alerts-and-advisories/alerts/al-2025-022
+
+    // Locate internet facing Elastic Kibana with upmost priority
+
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(90d)
+    | where InitiatingProcessCommandLine has "kibana"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where DeviceId has_any(InternetFacing)
+query_type: kql
+tactics:
+    - TA0007
+    - TA0008
+    - TA0043
+    - TA0042
+techniques:
+    - T1016.001
+    - T1534
+    - T1595.002
+    - T1588.006
+tags:
+    - kql
+version: "1"

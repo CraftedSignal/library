@@ -1,0 +1,13 @@
+id: 019b925c-aa6e-757f-861b-ead75508fd7b
+name: MSBuild Executing from Suspicious Paths
+description: Detects instances where msbuild.exe is used to execute project files (.proj) from suspicious or uncommon directories. Adversaries may abuse MSBuild to proxy execution of malicious code, often placing these project files in temporary or public user directories to evade detection.
+query: "let suspiciousPaths = dynamic([\r\n    @\"\\ProgramData\\\",\r\n    @\"\\Users\\Public\\\",\r\n    @\"\\PerfLogs\\\",\r\n    @\"\\Windows\\Temp\\\",\r\n    @\"\\AppData\\Local\\Temp\"\r\n]);\r\nDeviceProcessEvents\r\n| where FileName =~ \"msbuild.exe\"\r\n| where ProcessCommandLine has \".proj\"\r\n| where ProcessCommandLine has_any (suspiciousPaths) or ProcessCommandLine has \"v.proj\"\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    AccountName,\r\n    FolderPath,\r\n    SHA1\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1127.001
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,11 @@
+id: f58a355a-b023-49d9-9446-ff508acbab3d
+name: High SharePoint Downloads
+description: This rule detects when a high number of downloads have been performed by a user from SharePoint. This could indicate an insider threat collecting data before sending it outside of the company.
+query: "let HighDownloadUsers =\r\n    CloudAppEvents\r\n    | where ActionType == \"FileDownloaded\" or ActivityType == \"Download\"\r\n    | where Application in (\"Microsoft SharePoint Online\", \"Microsoft OneDrive for Business\", \"OneDrive for Business\")\r\n    | where RawEventData.UserId endswith \"companyorg\"\r\n    | extend FileName = coalesce(tostring(RawEventData.ObjectName), tostring(ObjectName))\r\n    | summarize DistinctFileDownloads = dcount(FileName) by AccountDisplayName, HourStart = bin(TimeGenerated, 5m)\r\n    | where DistinctFileDownloads > 10\r\n    | project AccountDisplayName, HourStart, HourEnd = datetime_add('hour', 1, HourStart);\r\nCloudAppEvents\r\n| where ActionType == \"FileDownloaded\"\r\n| where Application in (\"Microsoft SharePoint Online\", \"Microsoft OneDrive for Business\", \"OneDrive for Business\")\r\n| extend\r\n    BrowserName = tostring(RawEventData.BrowserName),\r\n    UserAgent = tostring(RawEventData.UserAgent),\r\n    FileName = coalesce(tostring(RawEventData.ObjectName), tostring(ObjectName))\r\n| where isnotempty(BrowserName)\r\n    or UserAgent contains \"OneDrive\"\r\n    or UserAgent contains \"Transform_Zip\"\r\n| join kind=inner HighDownloadUsers on AccountDisplayName\r\n| where TimeGenerated >= HourStart and TimeGenerated < HourEnd\r\n| summarize\r\n    TotalDistinctFiles = dcount(FileName),\r\n    FilesDownloaded = make_set(FileName, 1000)\r\n    by\r\n    AccountDisplayName,\r\n    Application,\r\n    IPAddress,\r\n    UserAgent,\r\n    MinuteBucket = bin(TimeGenerated, 1m)\r\n| where TotalDistinctFiles > 10\r\n| project\r\n    MinuteBucket,\r\n    AccountDisplayName,\r\n    Application,\r\n    IPAddress,\r\n    UserAgent,\r\n    TotalDistinctFiles,\r\n    FilesDownloaded\r\n| sort by MinuteBucket desc, TotalDistinctFiles desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1530
+tags:
+    - kql
+version: "2"

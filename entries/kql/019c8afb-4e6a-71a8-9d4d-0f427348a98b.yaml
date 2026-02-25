@@ -1,0 +1,18 @@
+id: 019c8afb-4e6a-71a8-9d4d-0f427348a98b
+name: PowerShell Adding Defender Exclusion for ValleyRAT
+description: This rule detects PowerShell being used to add Windows Defender exclusions for file paths and processes associated with the ValleyRAT malware campaign. Specifically, it looks for `Add-MpPreference` command-line arguments that include `-ExclusionPath` with "trvePath" or `-ExclusionProcess` with "WavesSvc64.exe".
+query: "// Name: PowerShell Adding Defender Exclusion for ValleyRAT\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: This rule detects PowerShell being used to add Windows Defender exclusions for file paths and processes associated with the ValleyRAT malware campaign.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1562.001, T1059.001\r\n// References: https://www.malwarebytes.com/blog/scams/2026/02/huorong\r\nDeviceProcessEvents\r\n// Looks for PowerShell execution events.\r\n| where FileName =~ \"powershell.exe\"\r\n// Filters for the specific command used to add Defender exclusions.\r\n| where ProcessCommandLine has \"Add-MpPreference\"\r\n// Searches for the specific exclusion patterns used by ValleyRAT.\r\n| where\r\n    (ProcessCommandLine has \"-ExclusionPath\" and ProcessCommandLine contains \"trvePath\")\r\n    or (ProcessCommandLine has \"-ExclusionProcess\" and ProcessCommandLine contains \"WavesSvc64.exe\")\r\n// FP Tuning: WavesSvc64.exe is a legitimate process name for Waves Audio components.\r\n// If this is common in your environment, consider adding filters for the parent process or file path to reduce noise.\r\n| project AccountName, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine, ProcessId, InitiatingProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong

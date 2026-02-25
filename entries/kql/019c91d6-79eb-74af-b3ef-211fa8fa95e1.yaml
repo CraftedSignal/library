@@ -1,0 +1,30 @@
+id: 019c91d6-79eb-74af-b3ef-211fa8fa95e1
+name: TA584 XWorm RegSvcs Process Hollowing
+description: Detects PowerShell launching RegSvcs.exe, a technique used by TA584 to deliver the 'P0WER' variant of XWorm via process hollowing. The 'P0WER' variant of XWorm uses a custom .NET loader that starts RegSvcs.exe in a suspended state, which is a strong indicator of process hollowing. Legitimate use of RegSvcs.exe by developers is possible but uncommon from PowerShell.
+query: |
+    // Name: TA584 XWorm RegSvcs Process Hollowing
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects PowerShell launching RegSvcs.exe, a technique used by TA584 to deliver the 'P0WER' variant of XWorm via process hollowing.
+    // False Positive Sensitivity: Medium
+    // References: https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access
+    // MITRE ATT&CK: T1055.012, T1127.001
+    DeviceProcessEvents
+    // Look for PowerShell launching RegSvcs.exe
+    | where InitiatingProcessFileName in~ ("powershell.exe", "pwsh.exe") and FileName =~ "RegSvcs.exe"
+    // The 'P0WER' variant of XWorm uses a custom .NET loader that starts RegSvcs.exe in a suspended state.
+    // This is a strong indicator of process hollowing. Legitimate use of RegSvcs.exe by developers is possible but uncommon from PowerShell.
+    | project-reorder TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.012
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access

@@ -1,0 +1,24 @@
+id: dd2cc706-f766-4750-9fc9-cf682417121e
+name: Impacket SMB Server Detection via NTLM Authentication
+description: |-
+    This detection identifies outbound NTLM authentication attempts to remote SMB servers with suspicious characteristics consistent with the use of impacket-smbserver, a tool commonly used by adversaries for lateral movement and data exfiltration. The detection looks for RemotePort 445 traffic where:
+
+    - The server version is the anomalous string 255.255 65535 255
+    - Server identity fields (DNS and NetBIOS names) are exactly 8 characters long, which is typical for randomly generated names by impacket-smbserver
+
+    This pattern strongly indicates impersonation or malicious SMB hosting by an attacker within the network.
+query: "DeviceNetworkEvents\n| where ActionType == \"NtlmAuthenticationInspected\"\n| where AdditionalFields.direction == \"Out\"\n| where RemotePort == 445\n| extend hostname_ = tostring(AdditionalFields.hostname)\n| extend server_dns_computer_name_ = tostring(AdditionalFields.server_dns_computer_name)\n| extend server_dns_domain_name_ = tostring(AdditionalFields.server_dns_domain_name)\n| extend server_nb_computer_name_ = tostring(AdditionalFields.server_nb_computer_name)\n| extend server_nb_domain_name_ = tostring(AdditionalFields.server_nb_domain_name)\n| extend server_version_ = tostring(AdditionalFields.server_version)\n| where server_version_ == \"255.255 65535 255\"\n| extend ts_ = tostring(AdditionalFields.ts)\n| extend uid_ = tostring(AdditionalFields.uid)\n| extend username_ = tostring(AdditionalFields.username)\n| where  strlen(server_dns_computer_name_) == 8 \n| where  strlen(server_dns_domain_name_) == 8 \n| where  strlen(server_nb_computer_name_) == 8 \n| where  strlen(server_nb_domain_name_) == 8 "
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0011
+techniques:
+    - T1021.002
+    - T1071.002
+tags:
+    - kql
+author: Mahmoud Elfawair
+version: "1"
+references:
+    - https://mahmoudelfawair.me/posts/theazurelabdiarieshuntingcommonfiletransferactivity/

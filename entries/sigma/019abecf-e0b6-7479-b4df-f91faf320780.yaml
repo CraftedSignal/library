@@ -1,0 +1,58 @@
+id: 019abecf-e0b6-7479-b4df-f91faf320780
+name: FlexibleFerret Go Runtime Execution Detection
+description: Detects Go runtime executing scripts from temporary directories, indicative of FlexibleFerret backdoor.
+query: |+
+    ---
+    title: FlexibleFerret Go Runtime Execution from Temp Directory
+    id: a1b2c3d4-8888-4e5f-8a9b-0c1d2e3f4a5b
+    status: experimental
+    description: Detects Go runtime executing scripts from temporary directories, indicative of FlexibleFerret backdoor
+    author: Claude Opus 4.5
+    date: 2025/11/26
+    references:
+        - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    tags:
+        - attack.execution
+        - attack.t1059
+        - attack.defense_evasion
+        - attack.t1036
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_go:
+            Image|endswith:
+                - '/go'
+                - '/go run'
+            CommandLine|contains: 'run'
+        selection_path:
+            CommandLine|contains:
+                - '/var/tmp/'
+                - '/tmp/'
+                - 'CDrivers'
+                - 'driv.go'
+        condition: selection_go and selection_path
+    falsepositives:
+        - Developers running Go scripts from temp directories
+    level: high
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059
+    - T1036
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.defense_evasion
+    - attack.t1036
+author: Claude Opus 4.5
+version: "1"
+references:
+    - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+data_sources:
+    - process_creation
+    - macos

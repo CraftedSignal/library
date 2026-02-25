@@ -1,0 +1,97 @@
+id: 019c7f0d-06f3-767d-852b-71c8dfb07f95
+name: Detect Notepad++ LOLC2
+description: This rule detects a multi-stage attack chain. The first rule identifies the Notepad++ updater (GUP.exe) spawning curl.exe to upload reconnaissance output to 'temp.sh/upload', indicating a potential supply-chain attack. The second rule detects the execution of 'ProShow.exe' from an unusual location within the AppData\Roaming\ProShow directory, which is part of a described execution chain. The third rule identifies the execution of 'script.exe' with 'alien.ini' from the AppData\Roaming\Adobe\Scripts directory, matching another stage of the supply-chain attack.
+query: |+
+    title: Notepad++ Updater (GUP.exe) Using curl.exe to Upload Recon Output to temp.sh
+    id: 0c2d3a7b-8f8b-4cc0-b2f7-b2c9a7f14c5c
+    status: experimental
+    description: Detects the high-fidelity chain where Notepad++ updater (GUP.exe) spawns curl.exe to upload system reconnaissance output to temp.sh/upload (LOLC2), as described in the Notepad++ supply-chain attack.
+    author: Daniel Jeremiah
+    date: 2026-02-21
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_parent:
+        ParentImage|endswith: '\GUP.exe'
+      selection_child:
+        Image|endswith: '\curl.exe'
+      selection_upload:
+        CommandLine|contains:
+          - 'temp.sh/upload'
+      selection_useragent_pattern:
+        CommandLine|contains|all:
+          - '--user-agent'
+          - 'temp.sh/'
+      condition: selection_parent and selection_child and (selection_upload or selection_useragent_pattern)
+    falsepositives:
+      - Unlikely: Notepad++ updater legitimately using curl to temp.sh
+    level: high
+    tags:
+      - attack.execution
+      - attack.command_and_control
+
+    ---
+
+    title: ProShow.exe Executed from AppData Roaming ProShow Directory
+    id: 62c2c739-1e3f-46d5-8d68-0a17b56e98e3
+    status: experimental
+    description: Detects execution of ProShow.exe from %APPDATA%\\ProShow\\ which is an unusual location and was used as part of the described execution chain.
+    author: Daniel Jeremiah
+    date: 2026-02-21
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith: '\ProShow.exe'
+        Image|contains: '\AppData\Roaming\ProShow\'
+      condition: selection
+    falsepositives:
+      - Rare: users running portable/relocated ProShow from AppData
+    level: medium
+    tags:
+      - attack.defense_evasion
+
+    ---
+
+    title: Lua Interpreter Payload Launched from AppData Adobe Scripts (alien.ini)
+    id: 6dd8d3d6-6b6a-4b6b-b7b0-7acb66b64f52
+    status: experimental
+    description: Detects execution of script.exe with alien.ini from %APPDATA%\\Adobe\\Scripts\\, matching a described stage of the supply-chain attack.
+    author: Daniel Jeremiah
+    date: 2026-02-21
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith: '\script.exe'
+        CommandLine|contains|all:
+          - '\AppData\Roaming\Adobe\Scripts\script.exe'
+          - '\AppData\Roaming\Adobe\Scripts\alien.ini'
+      condition: selection
+    falsepositives:
+      - Unknown; path+pairing is uncommon
+    level: high
+    tags:
+      - attack.execution
+      - attack.t1059
+
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1195.002
+    - T1059
+version: "2"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

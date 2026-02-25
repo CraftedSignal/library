@@ -1,0 +1,20 @@
+id: 019a08c5-cd09-74ab-8594-963c22ecf82a
+name: Suspicious File Creation in Windows Defender Folder
+description: This rule detects the creation of new files within the Microsoft Windows Defender program data folder. It specifically looks for file creation events where the initiating process is not a known, whitelisted Defender process. This behavior could indicate an attempt to tamper with or exploit Windows Defender, potentially to impair its defensive capabilities or to hide malicious activity.
+query: "| inputlookup MDE.csv \n| fields DWLProcess \n| rename DWLProcess as MDEProcess \n| map search=\"index=windows sourcetype=wineventlog earliest=-1h latest=now \n| where ActionType = \\\"FileCreated\\\" \n| where like(FolderPath, \\\"%\\\\ProgramData\\\\Microsoft\\\\Windows Defender%\\\") \n| where isnotnull(InitiatingProcessFileName) \n| where NOT [| inputlookup MDE.csv | fields DWLProcess | format]\" \n``` \nThis search detects file creation events in the Windows Defender folder, excluding those initiated by known Defender processes from an external CSV list. \nSource: https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/MDE.csv \nMITRE ATT&CK: T1070, T1562 \nDescription: Detects suspicious file creation in Defender folder not initiated by known Defender processes. \n```"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.003
+    - T1211
+    - T1562
+    - T1070
+tags:
+    - kql
+author: Steven Lim
+version: "3"
+references:
+    - https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/MDE.csv
+    - https://www.zerosalarium.com/2025/10/defenderwrite-abusing-whitelisted-programs-arbitrary-write.html

@@ -1,0 +1,43 @@
+id: 019c8a8d-f0ba-73fc-8bf5-8ad606b749cf
+name: SimpleHelp RMM Persistence via BeyondTrust Exploit
+description: Detects the execution of a renamed SimpleHelp RMM binary from the C:\ProgramData directory. This is a TTP associated with the exploitation of CVE-2026-1731 in BeyondTrust appliances, where threat actors drop the RMM tool for persistence.
+query: |
+    // Name: AD Discovery via AdsiSearcher
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects PowerShell commands using AdsiSearcher to count computer objects in Active Directory. This is a specific discovery technique observed in the BeyondTrust CVE-2026-1731 exploitation campaign where it was executed via a malicious RMM tool dropped in C:\ProgramData.
+    // References: https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
+    // MITRE TTPs: T1018, T1087.002
+    // False Positive Sensitivity: Medium
+
+    DeviceProcessEvents
+    // Look for PowerShell execution, the tool used for this discovery technique.
+    | where FileName =~ "powershell.exe"
+    // The specific command syntax observed in the threat campaign.
+    | where ProcessCommandLine has "adsiSearcher" and ProcessCommandLine has "ObjectClass=computer" and ProcessCommandLine has "FindAll().count"
+    // FP-Tip: This command can be used by administrators. The line below adds context from the campaign (execution via SimpleHelp RMM from C:\ProgramData) to increase fidelity.
+    // Consider removing or tuning this line if legitimate tools in your environment exhibit this parent-child relationship.
+    | where InitiatingProcessFolderPath startswith "C:\\ProgramData\\"
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/

@@ -1,0 +1,67 @@
+id: 48a09c86-c3a8-40fd-bb4c-e86a94cde362
+name: DragonForce Ransomware Execution
+description: Detects the execution of DragonForce ransomware binary or its associated event log clearing batch script, as observed in attacks leveraging SimpleHelp vulnerabilities.
+query: |
+    title: DragonForce Ransomware Execution
+    id: f8e7d6c5-4b3a-2e1f-0d9c-8b7a6f5e4d3c
+    description: >-
+      Detects the execution of DragonForce ransomware binary or its associated event
+      log clearing batch script, as observed in attacks leveraging SimpleHelp
+      vulnerabilities.
+    author: Aaron Mog - detections.ai
+    date: 2025-06-30
+    references:
+      - >-
+        https://rhisac.org/threat-intelligence/dragonforce-actors-target-simplehelp-vulnerabilities-to-attack-msp-customers/
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_ransomware_hash:
+        Image|endswith: \win.exe
+        Hashes|contains: SHA256=cee6a7661fad90c807c9f5ea8f689afd0e4ece04f8c55d7a047a7215db6be210
+      selection_ransomware_path:
+        Image|contains: C:\ProgramData\JWrapper-Remote Access\JWApps\SharedConfig\working\toolbox-
+        Image|endswith: \win.exe
+      selection_batch_script_path:
+        Image|contains: C:\Users\
+        Image|endswith: \Videos\PUSH PUSh PUUUUUSH.bat
+      selection_batch_script_filename:
+        Image|endswith: \PUSH PUSh PUUUUUSH.bat
+      condition: 1 of selection_*
+    falsepositives:
+      - Unknown
+    level: high
+    tags:
+      - attack.impact
+      - attack.t1486
+      - attack.defense_evasion
+      - attack.t1070.001
+      - malware.dragonforce
+      - ransomware
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0005
+    - TA0002
+techniques:
+    - T1486
+    - T1070.001
+    - T1070
+    - T1059
+tags:
+    - attack.impact
+    - attack.t1486
+    - attack.defense_evasion
+    - attack.t1070.001
+    - malware.dragonforce
+    - ransomware
+author: Detections.ai
+version: "1"
+references:
+    - https://rhisac.org/threat-intelligence/dragonforce-actors-target-simplehelp-vulnerabilities-to-attack-msp-customers/
+data_sources:
+    - process_creation
+    - windows

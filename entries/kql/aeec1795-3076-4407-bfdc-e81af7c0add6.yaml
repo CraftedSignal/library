@@ -1,0 +1,30 @@
+id: aeec1795-3076-4407-bfdc-e81af7c0add6
+name: Cookie-Bite Detection
+description: 'KQL Query from file: Cookie-Bite Detection'
+query: |+
+    // https://www.varonis.com/blog/cookie-bite
+    // https://www.bleepingcomputer.com/news/security/cookie-bite-attack-poc-uses-chrome-extension-to-steal-session-tokens/
+
+    let EPwithNewExt =
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    | where FileName endswith ".crx"
+    | distinct DeviceName;
+    DeviceProcessEvents
+    | where FileName =~ "powershell.exe" or InitiatingProcessFileName =~"powershell.exe"
+    | where ProcessCommandLine has_any ("load-extension")
+    | where DeviceName has_any(EPwithNewExt)
+
+query_type: kql
+tactics:
+    - TA0003
+    - TA0002
+techniques:
+    - T1176.001
+    - T1086
+    - T1059.001
+    - T1176
+    - T1059
+tags:
+    - kql
+version: "1"

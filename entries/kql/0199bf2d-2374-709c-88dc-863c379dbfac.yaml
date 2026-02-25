@@ -1,0 +1,18 @@
+id: 0199bf2d-2374-709c-88dc-863c379dbfac
+name: Script Execution from Temporary Directory by Common Processes
+description: Detects the execution of PowerShell, VBScript, PHP, JavaScript, or WSF scripts from the 'AppData\Local\Temp' directory by common Windows processes like explorer.exe or svchost.exe. This behavior can indicate malicious activity where scripts are dropped into temporary locations and then executed.
+query: "//based on a YARA Detection Rule from Georg L. https://www.linkedin.com/posts/activity-7381310616310837248-qvh9?utm_source=share&utm_medium=member_desktop&rcm=ACoAAA3PxAIBcfr6M0unx3xMtHTyCNuehMi3uNQ\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName in~ (\"explorer.exe\", \"svchost.exe\")\r\n| where FileName in~ (\"powershell.exe\", \"powershell_ise.exe\", \"pwsh.exe\", \"wscript.exe\", \"cscript.exe\")\r\n| where ProcessCommandLine has @\"\\AppData\\Local\\Temp\\\"\r\n    and ProcessCommandLine matches regex @\"\\\\AppData\\\\Local\\\\Temp\\\\[~a-zA-Z0-9\\.]+\\.(ps1|vbs|php|js|jse|wsf)\"\r\n| extend Hostname = coalesce(DeviceName, \"N/A\")\r\n| project Timestamp, Hostname, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName, DeviceId, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.005
+    - T1059.007
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.linkedin.com/posts/activity-7381310616310837248-qvh9?utm_source=share&utm_medium=member_desktop&rcm=ACoAAA3PxAIBcfr6M0unx3xMtHTyCNuehMi3uNQ

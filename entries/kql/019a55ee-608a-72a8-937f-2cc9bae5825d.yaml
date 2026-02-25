@@ -1,0 +1,16 @@
+id: 019a55ee-608a-72a8-937f-2cc9bae5825d
+name: Suspicious Rundll32/Svchost Execution via LNK with Malicious Payload Indicators
+description: This detection identifies instances where Rundll32.exe or svchost.exe are executed by processes initiated through .lnk (shortcut) files, particularly those masquerading as PDFs or containing suspicious keywords like "申報物品清單" (Declaration of Items List). It further filters for command lines referencing potentially malicious file types such as .dll, .dat, .jpg, .zip, or .png, and checks for execution from common user or system directories often abused by malware (e.g., Temp, AppData, Public). This behavior is indicative of initial access or execution stages of malware campaigns, such as those involving the ToughProgress malware family.
+query: "DeviceProcessEvents\r\n| where FileName in~ (\"Rundll32.exe\", \"svchost.exe\")\r\n\r\n| where (InitiatingProcessFileName endswith \".lnk\" or InitiatingProcessCommandLine has \".lnk\")\r\n\r\n| where InitiatingProcessCommandLine has_any (\".pdf\", \".申報物品清單\") //Translates to \"Declaration of Items List\" \r\n\r\n| where ProcessCommandLine has_any (\".dll\", \".dat\", \".jpg\", \".zip\", \".png\")\r\n\r\n| where FolderPath has_any (@\"C:\\Users\", @\"C:\\Windows\\System32\", \"Temp\", \"Appdata\", \"Public\")\r\n         or InitiatingProcessFolderPath  has_any (@\"C:\\Users\", @\"C:\\Windows\\System32\", \"Temp\", \"Appdata\", \"Public\")\r\n         or ProcessCommandLine has_any (\"Document\", \"Temp\", \"Appdata\", \"Public\")\r\n         \r\n| project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, FolderPath\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.001
+    - T1059.003
+    - T1218.011
+    - T1102.003
+tags:
+    - kql
+version: "6"
+references:
+    - https://www.resecurity.com/blog/article/apt-41-threat-intelligence-report-and-malware-analysis

@@ -1,0 +1,62 @@
+id: 019c62fb-9764-7772-8536-9e9272f209e8
+name: OysterLoader Scheduled Task Persistence
+description: Detects the creation of a scheduled task characteristic of OysterLoader persistence. The malware creates a task to execute its dropped DLL in the AppData\Roaming directory using rundll32.exe and the DllRegisterServer export.
+query: |
+    title: OysterLoader Scheduled Task Persistence
+    id: 7b41a42d-77be-4474-9c88-67c33f5625b4
+    status: experimental
+    description: Detects the creation of a scheduled task characteristic of
+      OysterLoader persistence. The malware creates a task to execute its dropped
+      DLL in the AppData\Roaming directory using rundll32.exe and the
+      DllRegisterServer export.
+    author: rushikesh gaikwad
+    references:
+      - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+    date: 2026-02-16
+    tags:
+      - attack.persistence
+      - attack.execution
+      - attack.t1053.005
+      - attack.t1547.001
+      - attack.t1218.011
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/Create' # Identifies the action of creating a new scheduled task.
+          - '/TR' # Specifies the task run command.
+          - 'rundll32.exe' # The binary used by OysterLoader to execute its malicious DLL.
+          - 'AppData\Roaming' # The directory where the malicious DLL is typically dropped.
+          - 'DllRegisterServer' # The specific export called for execution as part of the persistence mechanism.
+      condition: selection
+    falsepositives:
+      - While legitimate software may create scheduled tasks that run components
+        from AppData, the combination of `rundll32.exe` and the `DllRegisterServer`
+        export is highly indicative of malicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.005
+    - T1218.011
+tags:
+    - attack.persistence
+    - attack.execution
+    - attack.t1053.005
+    - attack.t1547.001
+    - attack.t1218.011
+author: rushikesh gaikwad
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+data_sources:
+    - process_creation
+    - windows

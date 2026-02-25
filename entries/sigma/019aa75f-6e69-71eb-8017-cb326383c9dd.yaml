@@ -1,0 +1,25 @@
+id: 019aa75f-6e69-71eb-8017-cb326383c9dd
+name: AWS Firewall TLS Port/Protocol Enforcement
+description: This rule enforces standard port/protocol alignment for TLS traffic to detect anomalies and maintain network hygiene using AWS Network Firewall. The rule is valid.
+query: "title: AWS Network Firewall - TLS Port/Protocol Enforcement\nid: 202501030-202501031-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that enforces port/protocol alignment for TLS traffic.\n  It blocks both scenarios: TCP port 443 traffic that is not TLS, and TLS traffic that is not using port 443. While TLS\n  can technically operate on any port (SMTPS, IMAPS, LDAPS use different ports), enforcing standard HTTPS port usage helps\n  detect protocol tunneling, evasion techniques, covert channels, and malicious command-and-control traffic attempting to\n  blend in with legitimate encrypted traffic. This is a typical security control that customers configure to enforce proper\n  protocol usage and detect anomalous behavior. AWS Network Firewall uses Suricata as its underlying engine with deep packet\n  inspection capabilities. This is not a specific threat detection but rather a protocol enforcement rule to maintain network\n  hygiene.\n  \n  Suricata Rules:\n  reject tcp $HOME_NET any -> any 443 (msg:\"Egress Port TCP/443 but not TLS\"; app-layer-protocol:!tls; flow:to_server; sid:202501030;)\n  reject tls $HOME_NET any -> any !443 (msg:\"Egress TLS but not port TCP/443\"; flow:to_server; sid:202501031;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1571/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1571\n  - attack.defense_evasion\n  - attack.t1090\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_port443_not_tls:\n    protocol: tcp\n    destination_port: 443\n    direction: outbound\n    source_network: internal\n  filter_port443:\n    app_protocol: tls\n  selection_tls_not_port443:\n    app_protocol: tls\n    direction: outbound\n    source_network: internal\n  filter_tls:\n    destination_port: 443\n  condition: (selection_port443_not_tls and not filter_port443) or (selection_tls_not_port443 and not filter_tls)\nfalsepositives:\n  - SMTPS on port 465 or 587\n  - IMAPS on port 993\n  - LDAPS on port 636\n  - Custom applications using TLS on non-standard ports\n  - Misconfigured applications\n  - SSH tunneling over port 443\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1571
+    - T1090
+tags:
+    - attack.command_and_control
+    - attack.t1571
+    - attack.defense_evasion
+    - attack.t1090
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1571/
+data_sources:
+    - firewall
+    - aws_network_firewall

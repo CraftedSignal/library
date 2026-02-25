@@ -1,0 +1,14 @@
+id: 019c03a2-c2dd-7409-9170-a17ef5e8831d
+name: NTDS.dit Access or Credential Dumping Activity
+description: This rule detects suspicious activity related to accessing or dumping the NTDS.dit file, which contains Active Directory credential information. It looks for process creation events involving tools commonly used for NTDS.dit extraction (e.g., ntdsutil, secretsdump), file access events on NTDS.dit paths, and privilege use (SeBackupPrivilege, SeRestorePrivilege, SeDebugPrivilege) often associated with credential dumping.
+query: "let NTDS_Paths = dynamic([\r\n    @\"\\windows\\ntds\\ntds.dit\",\r\n    @\"\\windows\\ntds\\\",\r\n    @\"\\system32\\config\\system\"\r\n]);\r\nlet NTDS_Tools = dynamic([\r\n    \"ntdsutil\",\r\n    \"esentutl\",\r\n    \"diskshadow\",\r\n    \"vssadmin\",\r\n    \"wmic\",\r\n    \"powershell\",\r\n    \"cmd.exe\",\r\n    \"secretsdump\",\r\n    \"impacket\",\r\n    \"reg save\",\r\n    \"copy\"\r\n]);\r\nSecurityEvent\r\n| where EventID in (4688, 4663, 4672, 4673, 4674)\r\n| extend Cmd = tolower(CommandLine)\r\n| extend Proc = tolower(NewProcessName)\r\n| extend Obj = tolower(ObjectName)\r\n| where\r\n    (EventID == 4688 and (\r\n        Cmd has_any (NTDS_Tools) or\r\n        Cmd has_any (NTDS_Paths)\r\n    ))\r\n    or\r\n    (EventID == 4663 and Obj has_any (NTDS_Paths))\r\n    or\r\n    (EventID in (4672, 4673, 4674) and PrivilegeList has_any (\r\n        \"SeBackupPrivilege\",\r\n        \"SeRestorePrivilege\",\r\n        \"SeDebugPrivilege\"\r\n    ))\r\n| project\r\n    TimeGenerated,\r\n    Computer,\r\n    EventID,\r\n    SubjectUserName,\r\n    SubjectDomainName,\r\n    Account,\r\n    NewProcessName,\r\n    CommandLine,\r\n    ObjectName,\r\n    PrivilegeList\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003
+    - T1003.003
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,20 @@
+id: 0d2197aa-d490-41f0-b125-29bc5287355c
+name: 'Threat Hunt: Suspicious Scheduled Task - FoxKitten'
+description: |-
+    This query detects potential Fox Kitten threat actor activity by analyzing ScheduledTaskCreated events.
+    It filters for suspicious task names (e.g., "update", "sync", "\Microsoft\Windows\EnterpriseMgmt"), non-system accounts, and risky commands (e.g., powershell, certutil). It also extracts task details, assigns risk levels (HIGH, MEDIUM, LOW) based on command patterns, and orders results by risk and timestamp for prioritized investigation.
+query: "DeviceEvents\r\n| where ActionType == \"ScheduledTaskCreated\" and isnotempty(AdditionalFields)\r\n| extend ParsedFields = parse_json(AdditionalFields)\r\n| extend \r\n    TaskName = tostring(ParsedFields.TaskName),\r\n    CreatorAccount = tostring(ParsedFields.SubjectUserName),\r\n    TaskContent = tostring(ParsedFields.TaskContent)\r\n| where \r\n    (TaskName has_any (\"update\", \"maintask\", \"sync\", \"backup\", \"logon\") \r\n     or TaskName contains \"\\\\Microsoft\\\\Windows\\\\EnterpriseMgmt\")\r\n    and CreatorAccount !endswith \"$\"\r\n| extend Command = extract(@\"Command\"\":\"\"([^\"\"]+)\", 1, TaskContent)\r\n| where isnotempty(Command)\r\n| where Command has_any (\"powershell\", \"cmd\", \"certutil\", \"bitsadmin\", \"mshta\", \"rundll32\", \"wscript\", \"cscript\")\r\n| project \r\n    Timestamp, \r\n    DeviceName, \r\n    TaskName, \r\n    CreatorAccount, \r\n    Command, \r\n    CommandLine = extract(@\"Arguments\"\":\"\"([^\"\"]+)\", 1, TaskContent),\r\n    RiskIndicator = case(\r\n        Command contains \"powershell\" and TaskContent contains \"-enc\", \"HIGH\",\r\n        Command has_any (\"certutil\", \"bitsadmin\"), \"MEDIUM\",\r\n        \"LOW\"\r\n    )\r\n| order by RiskIndicator desc, Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: AwaisMunir
+version: "1"
+references:
+    - https://www.cisa.gov/sites/default/files/2024-08/aa24-241a-iran-based-cyber-actors-enabling-ransomware-attacks-on-us-organizations_0.pdf

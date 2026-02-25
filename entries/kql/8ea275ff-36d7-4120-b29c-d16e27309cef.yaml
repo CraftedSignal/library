@@ -1,0 +1,17 @@
+id: 8ea275ff-36d7-4120-b29c-d16e27309cef
+name: File Upload to Suspicious Cloud Storage/Tunneling Domain
+description: This rule detects the upload of files to cloud storage services that are known to be used for data exfiltration or are associated with suspicious tunneling activities. It leverages a list of suspicious domains (LOTTunnels) to identify potentially malicious file uploads.
+query: "let LOTTunnels = externaldata(Row: string)[@\"https://raw.githubusercontent.com/LOTTunnels/LOTTunnels.github.io/refs/heads/main/_lottunnels/CSVs/domains.csv\"] with (format=\"csv\", ignoreFirstRecord=True);\r\nlet TargetDomainsRegex = @'\\.?([a-zA-Z0-9\\.\\-\\/]+\\.\\w+)';\r\nlet SuspiciousTargetDomains = materialize (\r\n    LOTTunnels\r\n    | extend Tunnel = extract(TargetDomainsRegex, 1, Row)\r\n    | where isnotempty(Tunnel)\r\n    | summarize by Tunnel\r\n    );\r\nCloudAppEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"FileUploadedToCloud\"\r\n| extend Parsed = parse_json(RawEventData)\r\n| extend DeviceName = tostring(Parsed.DeviceName),\r\n\tApplication = tostring(Parsed.Application),\r\n\tTargetDomain = tostring(Parsed.TargetDomain),\r\n\tFolderPath = tostring(Parsed.ObjectId),\r\n\tAccountUpn = tostring(Parsed.UserId)\r\n| extend FileName = extract(@\"(?i)([^\\\\\\/]+\\.\\w+)\", 1, FolderPath)\r\n| where TargetDomain has_any (SuspiciousTargetDomains)\r\n| project-reorder Timestamp, DeviceName, ActionType, Application, FileName, FolderPath, TargetDomain, AccountUpn, AccountDisplayName, IPAddress, CountryCode, City\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.002
+    - T1567
+tags:
+    - kql
+author: Lof1
+version: "1"
+references:
+    - https://raw.githubusercontent.com/LOTTunnels/LOTTunnels.github.io/refs/heads/main/_lottunnels/CSVs/domains.csv

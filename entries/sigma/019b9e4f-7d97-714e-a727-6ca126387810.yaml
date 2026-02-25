@@ -1,0 +1,24 @@
+id: 019b9e4f-7d97-714e-a727-6ca126387810
+name: Critical System Process Spawning Suspicious Child Processes
+description: Detects critical Windows system processes spawning unusual child processes. While these processes rarely spawn command shells or scripting interpreters legitimately, this behavior could indicate PPID spoofing, process injection, or other malicious process manipulation techniques.
+query: "title: Critical System Process Spawning Suspicious Child Processes\r\nid: 7bf51608-4a26-4459-874a-18ac226d7ae1\r\nstatus: test\r\ndescription: >-\r\n  Detects critical Windows system processes spawning unusual child processes. While these processes rarely spawn command shells or scripting interpreters legitimately, this behavior could indicate PPID spoofing, process injection, or other malicious process manipulation techniques.\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1134/004/\r\nauthor: SimSpace\r\ndate: 2026-01-01T00:00:00.000Z\r\ntags:\r\n  - attack.defense-evasion\r\n  - attack.t1134.004\r\n  - attack.privilege-escalation\r\n  - attack.t1134\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection_parent:\r\n    ParentImage|endswith:\r\n      - \\winlogon.exe\r\n      - \\lsass.exe\r\n      - \\services.exe\r\n      - \\csrss.exe\r\n  selection_child:\r\n    Image|endswith:\r\n      - \\cmd.exe\r\n      - \\powershell.exe\r\n      - \\pwsh.exe\r\n      - \\schtasks.exe\r\n      - \\wscript.exe\r\n      - \\cscript.exe\r\n      - \\mshta.exe\r\n      - \\regsvr32.exe\r\n      - \\rundll32.exe\r\n  filter_legitimate_svchost:\r\n    ParentImage|endswith: \\services.exe\r\n    Image|endswith: \\svchost.exe\r\n  filter_cloud_management:\r\n    ParentImage|contains:\r\n      - CloudManagedDesktop\r\n      - Intune\r\n      - ServiceShell.exe\r\n      - SCCM\r\n      - WorkspaceONE\r\n  condition: selection_parent and selection_child and not 1 of filter_*\r\nfalsepositives:\r\n  - Cloud management agents (Intune, SCCM, Workspace ONE)\r\n  - Enterprise device management software\r\n  - System management tools\r\nlevel: high\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1134.004
+    - T1134
+tags:
+    - attack.defense-evasion
+    - attack.t1134.004
+    - attack.privilege-escalation
+    - attack.t1134
+author: SimSpace
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1134/004/
+data_sources:
+    - process_creation
+    - windows

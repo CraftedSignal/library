@@ -1,0 +1,49 @@
+id: 019bd6a3-299a-7118-b5ff-93d970f0418b
+name: VoidLink ICMP Covert Channel Trigger
+description: Detects ICMP Echo Request packets where the Identification field is set to the specific magic value 0xC0DE (49374). This value is used by the VoidLink rootkit as a trigger for its covert, out-of-band C2 channel, which can bypass standard firewall rules.
+query: |
+    title: VoidLink ICMP Covert Channel Trigger
+    id: e5d43ce7-6526-4912-a4d4-a39aea98a50c
+    status: experimental
+    description: >-
+      Detects ICMP Echo Request packets where the Identification field is set to the
+      specific magic value 0xC0DE (49374). This value is used by the VoidLink
+      rootkit as a trigger for its covert, out-of-band C2 channel, which can bypass
+      standard firewall rules.
+    references:
+      - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits
+    author: tim@detections.ai
+    date: 2026-01-19
+    tags:
+      - attack.t1095
+      - attack.t1102.003
+    logsource:
+      category: network_traffic # Generic category for logs from firewalls, IDS, or packet capture tools.
+      # The field names below are common but may need to be adapted to your specific log source (e.g., Suricata, Zeek).
+    detection:
+      selection:
+        proto: 'icmp' # Protocol is ICMP. This field might be 'Network.Protocol' or similar in other schemas.
+        icmp_type: 8 # Corresponds to an ICMP Echo Request (ping).
+        icmp_id: 49374 # The magic value 0xC0DE used by VoidLink as a C2 trigger.
+      condition: selection
+    falsepositives:
+      - The ICMP ID field is typically populated with a sequence number or the
+        process ID of the sending application. It is highly unlikely that a
+        legitimate application would use the static magic value 0xC0DE (49374).
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0011
+techniques:
+    - T1095
+    - T1102.003
+tags:
+    - attack.t1095
+    - attack.t1102.003
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits
+data_sources:
+    - network_traffic

@@ -1,0 +1,29 @@
+id: 9047c099-4caa-47a8-9ee9-3b079a39201d
+name: Detect privilege escalation to The Most Dangerous Entra Admin Role via compromised service principal
+description: KQL Query
+query: "// Detect privilege escalation to The Most Dangerous Entra Admin Role via compromised service principal\n// https://www.linkedin.com/posts/activity-7223370832763351040-TieO/\n\n// Hourly Sentinel Analytics Rule:\n\nlet PTS = dynamic(['PTS1@acme.com', 'PTS2@acme.com', 'PTS3@acme.com']);\nAuditLogs \n| where TimeGenerated > ago(1h)\n| where Category == \"RoleManagement\"\n| where ActivityDisplayName == \"Add member to role\"\n| where TargetResources contains \"Partner Tier2 Support\"\n| extend UPN = tostring(TargetResources[0].userPrincipalName)\n| where not (UPN has_any(PTS))\n\n// Custom DefenderXDR KQL (Exposure Management) detecting this dangerous role activation: \n\nlet DangerousAdmin =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| extend AccountUPN = NodeProperties.rawData.accountUpn\n| extend AdminRoles = NodeProperties.rawData.assignedRoles\n| where AdminRoles contains \"Partner Tier2 Support\"\n| project AccountUPN;\nIdentityLogonEvents\n| where AccountUpn has_any(DangerousAdmin)\n\n// MITRE ATT&CK Mapping\n\n// T1078 - Valid Accounts:\n// Description: Adversaries may use valid accounts to gain access to and maintain persistence on systems.\n// Relevance: The query detects the addition of members to a high-privilege role, which could indicate the use of valid accounts for privilege escalation.\n// T1098 - Account Manipulation:\n// Description: Adversaries may manipulate accounts to maintain access to credentials and permissions.\n// Relevance: The detection of adding members to a role aligns with account manipulation activities.\n// T1071 - Application Layer Protocol:\n// Description: Adversaries may use application layer protocols to communicate with remote systems.\n// Relevance: The logon events detection part of the query can help identify suspicious logon activities using valid accounts.\n// T1110 - Brute Force:\n// Description: Adversaries may use brute force techniques to attempt to gain access to accounts.\n// Relevance: Although not directly related to brute force, monitoring logon events for high-privilege accounts can help detect potential brute force attempts.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0006
+    - TA0002
+    - TA0043
+    - TA0008
+techniques:
+    - T1078
+    - T1098
+    - T1071
+    - T1110
+    - T1102
+    - T1501
+    - T1047
+    - T1591.004
+    - T1556.007
+    - T1021.006
+tags:
+    - kql
+version: "1"

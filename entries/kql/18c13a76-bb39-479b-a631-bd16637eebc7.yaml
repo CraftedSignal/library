@@ -1,0 +1,15 @@
+id: 18c13a76-bb39-479b-a631-bd16637eebc7
+name: psexecsvc.py detection
+description: 'KQL Query from file: psexecsvc.py detection'
+query: "// Detecting psexecsvc.py\n// https://sensepost.com/blog/2025/psexecing-the-right-way-and-why-zero-trust-is-mandatory/\n// https://github.com/sensepost/susinternals\n\nlet QueryPeriod = 1h;\nlet DeviceWithPSEXECSVC =\nDeviceFileEvents\n| where Timestamp > ago(QueryPeriod)\n| where FolderPath has \"\\\\ADMIN$\"\n| where ActionType == \"FileCreated\"\n| where FileName has \"PSEXECSVC\"\n| project DeviceId;\nDeviceEvents\n| where Timestamp > ago(QueryPeriod)\n| where ActionType == \"ServiceInstalled\"\n| where parse_json(AdditionalFields)[\"ServiceName\"] has \"PSEXECSVC\" \nor InitiatingProcessVersionInfoOriginalFileName == \"PSEXECSVC1.9.exe\"\n| where DeviceId has_any(DeviceWithPSEXECSVC)\n\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0008
+techniques:
+    - T1569.002
+    - T1021.002
+    - T1570
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,17 @@
+id: 019c8a84-4701-765b-8a31-40739ba98fce
+name: Unauthorized RDP Enablement via Netsh with Output Redirection
+description: Detects the execution of netsh.exe to enable the Remote Desktop (RDP) service in the Windows Firewall, with command output redirected to a file in the Temp directory. This specific command pattern was used by Obscura ransomware for persistence.
+query: "// Title: Unauthorized RDP Enablement via Netsh\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects the execution of netsh.exe to enable the Remote Desktop (RDP) service in the Windows Firewall, with command output redirected to a file in the Temp directory. This specific command pattern was used by Obscura ransomware for persistence.\r\n// References: https://www.huntress.com/blog/obscura-ransomware-variant\r\n// MITRE ATT&CK: T1562.004, T1021.001\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for netsh.exe process execution\r\n| where FileName =~ \"netsh.exe\"\r\n// Filter for command line arguments used to enable RDP in the firewall\r\n| where ProcessCommandLine has \"firewall\"\r\n    and ProcessCommandLine has \"set\"\r\n    and ProcessCommandLine has \"service\"\r\n    and ProcessCommandLine has \"remotedesktop\"\r\n    and ProcessCommandLine has \"enable\"\r\n// Key part of the logic: check for output redirection to the Windows Temp directory\r\n| where ProcessCommandLine has \">\" and ProcessCommandLine contains @\"\\Windows\\Temp\\\"\r\n// FP Tuning: While enabling RDP via netsh can be legitimate, redirecting the output to a temp file is less common.\r\n// Consider excluding known administrative scripts or parent processes if this generates noise in your environment.\r\n// For example: | where InitiatingProcessFileName !in (\"legit_admin_tool.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0008
+techniques:
+    - T1562.004
+    - T1021.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/obscura-ransomware-variant

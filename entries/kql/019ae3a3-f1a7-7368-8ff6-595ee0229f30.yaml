@@ -1,0 +1,53 @@
+id: 019ae3a3-f1a7-7368-8ff6-595ee0229f30
+name: Shai-Hulud 2.0 Malicious Payload Hashes Detection
+description: Detects the creation or modification of files with SHA256 hashes known to be associated with the Shai-Hulud 2.0 npm supply chain attack campaign. This rule specifically looks for file creation or renaming events where the SHA256 hash of the file matches a predefined list of malicious hashes.
+query: |
+    // Name: Shai-Hulud 2.0 Malicious Payload Hashes
+    // Author: detections.ai
+    // Date: 2025-12-03
+    // Description: Detects the creation of malicious files associated with the Shai-Hulud 2.0 npm supply chain attack campaign by their unique SHA256 hashes.
+    // MITRE ATT&CK: T1195.002 (Compromise Software Supply Chain), T1059.003 (Command and Scripting Interpreter: JavaScript/Node.js)
+    // References: https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    // False Positive Sensitivity: Medium
+    let malicious_hashes = dynamic([
+        // bundle.js from September 2025 attack
+        "46faab8ab153fae6e80e7cca38eab363075bb524edd79e42269217a083628f09",
+        // bun_environment.js from November 2025 attack
+        "62ee164b9b306250c1172583f138c9614139264f889fa99614903c12755468d0",
+        "f099c5d9ec417d4445a0328ac0ada9cde79fc37410914103ae9c609cbc0ee068",
+        "cbb9bc5a8496243e02f3cc080efbe3e4a1430ba0671f2e43a202bf45b05479cd",
+        // setup_bun.js from November 2025 attack
+        "a3894003ad1d293ba96d77881ccd2071446dc3f65f434669b49b3da92421901a",
+        // Additional hashes from IoC list
+        "b74caeaa75e077c99f7d44f46daaf9796a3be43ecf24f2a1fd381844669da777",
+        "dc67467a39b70d1cd4c1f7f7a459b35058163592f4a9e8fb4dffcbba98ef210c",
+        "4b2399646573bb737c4969563303d8ee2e9ddbd1b271f1ca9e35ea78062538db"
+    ]);
+    DeviceFileEvents
+    // Filter for file creation or modification events where a hash is available.
+    | where ActionType in ("FileCreated", "FileRenamed") and isnotempty(SHA256)
+    // Match against the list of known malicious SHA256 hashes.
+    | where SHA256 in (malicious_hashes)
+    // FP Tuning: This is a high-fidelity detection based on known malicious file hashes. False positives are extremely unlikely.
+    // Any match should be investigated as a confirmed compromise.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

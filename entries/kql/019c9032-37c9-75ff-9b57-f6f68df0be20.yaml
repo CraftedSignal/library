@@ -1,0 +1,83 @@
+id: 019c9032-37c9-75ff-9b57-f6f68df0be20
+name: Muddled Libra Tool Execution Detection
+description: Detects the execution or presence of files associated with the Muddled Libra threat actor's toolkit. This includes tools for tunneling (Chisel), Active Directory reconnaissance (ADRecon, ADExplorer), and the initial tool archive (goon.zip). The rule identifies process execution by hash, filename, or command line arguments, and file creation events for specific hashes.
+query: |
+    // Name: Muddled Libra Tool Execution
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects the execution or presence of files associated with the Muddled Libra threat actor's toolkit. This includes tools for tunneling (Chisel), Active Directory reconnaissance (ADRecon, ADExplorer), and the initial tool archive (goon.zip).
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    // MITRE TTPs: T1572, T1087.002
+    // Tags: Muddled Libra, Scattered Spider, UNC3944, Chisel, ADRecon, Goon
+    // List of known SHA256 hashes for Muddled Libra tools and files.
+    let tool_hashes = dynamic([
+        "996e68f2fe1c8bb091f34e9bf39fd34d95c3e21508def1f54098a1874bfb825e", // chisel.exe
+        "e451287843b3927c6046eaabd3e22b929bc1f445eec23a73b1398b115d02e4fb", // ADExplorer64.exe
+        "088f2aced9ed60c2ce853b065f57691403459e1e0d167891d6849e1b58228173"  // goon.zip
+    ]);
+    // List of known filenames. Detection by filename can be broader but may require tuning.
+    let tool_filenames = dynamic([
+        "chisel.exe",
+        "ADExplorer64.exe"
+    ]);
+    // Detect process execution by hash, filename, or command line argument
+    let process_events = DeviceProcessEvents
+    | where
+        // High-fidelity match on file hash for executables
+        SHA256 in (tool_hashes)
+        // Broader match on filename. ADExplorer is a legitimate Sysinternals tool, so its execution may be common.
+        // FP Tuning: Consider filtering for execution from unusual paths (e.g., Downloads, Temp) or by non-admin users.
+        or FileName in (tool_filenames)
+        // Detect execution of the ADRecon PowerShell script via command line
+        or (ProcessCommandLine has "ADRecon.ps1")
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        SHA256,
+        InitiatingProcessCommandLine,
+        DetectionType = "ProcessExecution";
+    // Detect the creation of the 'goon.zip' archive file by its hash
+    let file_events = DeviceFileEvents
+    | where ActionType == "FileCreated" and SHA256 == "088f2aced9ed60c2ce853b065f57691403459e1e0d167891d6849e1b58228173" // goon.zip
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine = "N/A",
+        SHA256,
+        InitiatingProcessCommandLine = InitiatingProcessFileName,
+        DetectionType = "FileCreation";
+    // Combine process and file events for a comprehensive view
+    union process_events, file_events
+    | summarize
+        make_set(DetectionType),
+        arg_max(TimeGenerated, *) by DeviceName, SHA256, FileName, FolderPath
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        SHA256,
+        InitiatingProcessCommandLine,
+        DetectionTypes = set_DetectionType,
+        Description = strcat("Muddled Libra related tool/file observed: '", FileName, "' on host '", DeviceName, "'.")
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0007
+techniques:
+    - T1572
+    - T1087.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/

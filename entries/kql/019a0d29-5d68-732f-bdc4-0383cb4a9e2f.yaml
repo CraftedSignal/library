@@ -1,0 +1,70 @@
+id: 019a0d29-5d68-732f-bdc4-0383cb4a9e2f
+name: Jingle Thief Phishing URL with Embedded Credentials
+description: Detects URLs that use the `https://user@host` syntax where the 'user' part is crafted to look like a legitimate domain (e.g., `https://example.com@malicious-site.net`). This is a technique used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to craft convincing phishing links.
+query: |
+    // Name: Jingle Thief Phishing URL with Embedded Credentials
+    // Description: Detects URLs that use the `https://user@host` syntax where the 'user' part is crafted to look like a legitimate domain (e.g., `https://example.com@malicious-site.net`). This is a technique used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to craft convincing phishing links.
+    //
+    // MITRE ATT&CK: T1566.002
+    // Reference: https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    //
+    // False Positives: Legitimate, though rare, use of this URL syntax for authentication where the username is an email address. These should be investigated and can be excluded if found to be legitimate.
+    //
+    // Data Source: CommonSecurityLog, DeviceNetworkEvents, UrlClickEvents
+    //
+    // Version: 1.0
+    // Author: detections.ai
+    // Date: 2025-10-22
+
+    (union isfuzzy=true
+        (
+            // This part of the query targets web proxy logs
+            CommonSecurityLog
+            | where isnotempty(RequestURL)
+            // Key detection component: Use regex to find URLs with a domain-like structure in the user-info part.
+            | where RequestURL matches regex @"https?:\/\/[^@\/]+\.[^@\/]+@.+"
+            | extend Url = RequestURL, Account = SourceUserName, Device = SourceHostName, Process = ""
+        ),
+        (
+            // This part of the query targets MDE network events
+            DeviceNetworkEvents
+            | where isnotempty(Url)
+            // Key detection component: Use regex to find URLs with a domain-like structure in the user-info part.
+            | where Url matches regex @"https?:\/\/[^@\/]+\.[^@\/]+@.+"
+            | extend Account = InitiatingProcessAccountName, Device = DeviceName, Process = InitiatingProcessCommandLine
+        ),
+        (
+            // This part of the query targets Defender for Office 365 URL clicks
+            UrlClickEvents
+            | where isnotempty(Url)
+            // Key detection component: Use regex to find URLs with a domain-like structure in the user-info part.
+            | where Url matches regex @"https?:\/\/[^@\/]+\.[^@\/]+@.+"
+            | extend Account = UserPrincipalName, Device = "", Process = ""
+        )
+    )
+    // The user-info part of the URL is extracted for easier analysis.
+    | extend UserInfo = extract(@"https?:\/\/([^@]+)@.*", 1, Url)
+    // The actual destination host is extracted for analysis.
+    | extend DestinationHost = extract(@"https?:\/\/.*@([^:\/]+)", 1, Url)
+    // False Positive Tuning: Legitimate services might use an email address as a username.
+    // Consider excluding known-good destination hosts if they are found to be legitimate.
+    // For example: | where DestinationHost !in ("legit-service.com", "another-ok-host.net")
+    | project-reorder
+        TimeGenerated,
+        Url,
+        UserInfo,
+        DestinationHost,
+        Account,
+        Device,
+        Process
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/

@@ -1,0 +1,17 @@
+id: 1eb966ca-366f-4827-8038-1b48e85027d2
+name: Hunt for Specific CVE on Onboarded Defender Devices
+description: This rule identifies devices onboarded to Microsoft Defender that are vulnerable to a specific CVE (CVE-2024-38063) by querying the DeviceTvmSoftwareVulnerabilities table and joining it with DeviceInfo to filter for onboarded devices. It aims to help identify the presence of a known vulnerability across the environment's devices.
+query: |
+    #### In defender, in Threat Analytics you can see the latest known vulnerability details. With this Query you can check if latest vulnerability from the Threat Analytics list are vulnerable to the onboarded devices in your environment. To summarize, idea of this query is to find out if any latest discovered vulnerability is vulnerable to the devices that are in your environment.
+    #### Query:
+    ```KQL
+    DeviceTvmSoftwareVulnerabilities
+    | where CveId == "CVE-2024-38063" \\ Specify the specific CVEID that you want to check
+    | join kind=leftouter (DeviceInfo | project DeviceName, OnboardingStatus, DeviceId) on DeviceId
+    | where OnboardingStatus == "Onboarded"  // Filter for Onboarded devices
+    | distinct DeviceName, DeviceId, OnboardingStatus, SoftwareName, SoftwareVersion, CveId, VulnerabilitySeverityLevel, RecommendedSecurityUpdate, RecommendedSecurityUpdateId, OSPlatform
+    ```
+query_type: kql
+tags:
+    - kql
+version: "1"

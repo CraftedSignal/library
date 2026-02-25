@@ -1,0 +1,70 @@
+id: be9764d7-4aad-4c66-a818-31d1abc00bd6
+name: GrayAlpha (FIN7) Fake Update Payload Download Attempt
+description: Detects network connections to domains used by GrayAlpha (FIN7) for distributing malicious payloads via fake browser/software update pages, specifically targeting the 'cdnXX.click' pattern and '/download.php' endpoint. This activity is associated with the initial access phase, leading to the deployment of loaders like PowerNet or MaskBat.
+query: |-
+    title: GrayAlpha (FIN7) Fake Update Payload Download Attempt
+    id: 00000000-0000-0000-0000-000000000001
+    status: stable
+    description: Detects network connections to domains used by GrayAlpha (FIN7) for distributing malicious payloads via fake browser/software update pages, specifically targeting the 'cdnXX.click' pattern and '/download.php' endpoint. This activity is associated with the initial access phase, leading to the deployment of loaders like PowerNet or MaskBat.
+    author: Detections.ai
+    date: 2025-06-24
+    references:
+      - https://www.recordedfuture.com/research/grayalpha-uses-diverse-infection-vectors-deploy-powernet-loader-netsupport-rat
+    logsource:
+      category: network_connection
+      product: any
+    detection:
+      selection:
+        # Look for HTTP/HTTPS requests to domains matching the cdnXX.click pattern
+        # and containing the /download.php or similar paths, as described in the report.
+        Url|re: 'https?://cdn\d+\.click/(?:download\.php|download/download\.php|download2\.php)'
+      condition: selection
+    falsepositives:
+      - Legitimate CDN traffic that coincidentally matches the specific domain pattern and download paths (highly unlikely given the unique pattern).
+    level: high
+    tags:
+      - attack.initial_access
+      - attack.t1566.002 # Phishing: Spearphishing Link
+      - attack.t1566.003 # Phishing: Spearphishing via Service
+      - attack.execution
+      - attack.t1059.001 # PowerShell (indirectly, as it leads to PowerShell loaders)
+      - attack.command_and_control
+      - attack.t1071.001 # Application Layer Protocol: Web Protocols
+      - detection.threat.grayalpha
+      - detection.threat.fin7
+      - detection.behavior.download
+      - detection.payload.netsupport_rat
+      - detection.loader.powernet
+      - detection.loader.maskbat
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.002
+    - T1566.003
+    - T1059.001
+    - T1071.001
+tags:
+    - attack.initial_access
+    - attack.t1566.002
+    - attack.t1566.003
+    - attack.execution
+    - attack.t1059.001
+    - attack.command_and_control
+    - attack.t1071.001
+    - detection.threat.grayalpha
+    - detection.threat.fin7
+    - detection.behavior.download
+    - detection.payload.netsupport_rat
+    - detection.loader.powernet
+    - detection.loader.maskbat
+author: Detections.ai
+version: "1"
+references:
+    - https://www.recordedfuture.com/research/grayalpha-uses-diverse-infection-vectors-deploy-powernet-loader-netsupport-rat
+data_sources:
+    - network_connection
+    - any

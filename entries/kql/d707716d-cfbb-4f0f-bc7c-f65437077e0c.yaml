@@ -1,0 +1,12 @@
+id: d707716d-cfbb-4f0f-bc7c-f65437077e0c
+name: 'Threat Hunt: Event Log Manipulation Attempts'
+description: This KQL query hunts for suspicious activities in Microsoft Defender for Endpoint that may indicate attempts to disable or manipulate Windows Event Logging, such as clearing logs, stopping the Event Log service, or modifying audit policies. It targets processes and commands associated with MITRE ATT&CK technique T1562.002 to identify potential defense evasion tactics.
+query: "// Hunt for activities that may indicate disabling or tampering with Windows Event Logging\r\nlet legituser = dynamic([\"system\"]);\r\nlet expectedcommands = dynamic([\"...\"]);\r\nlet suspiciousCommands = dynamic([\r\n    \"wevtutil cl\", \"net stop eventlog\", \"sc stop eventlog\", \"auditpol /clear\",\r\n    \"auditpol /set /category\",\r\n    \"reg add HKLM\\\\SYSTEM\\\\CurrentControlSet\\\\Services\\\\EventLog\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where InitiatingProcessAccountName !in~ (legituser)\r\n| where ProcessCommandLine !in~ (expectedcommands)\r\n| where ProcessCommandLine has_any (suspiciousCommands)\r\n   or (InitiatingProcessFileName  has_any (\"wevtutil.exe\", \"auditpol.exe\", \"net.exe\", \"sc.exe\")\r\n       and ProcessCommandLine has_any (\"stop\", \"clear\", \"cl\", \"eventlog\", \"/clear\", \"/set\"))\r\n| project Timestamp, DeviceName, FileName, InitiatingProcessFileName, ProcessCommandLine, InitiatingProcessCommandLine, InitiatingProcessParentFileName, InitiatingProcessAccountName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1562.002
+tags:
+    - kql
+author: AwaisM
+version: "1"

@@ -1,0 +1,84 @@
+id: 5a6e7544-99df-4203-bf6f-db7374862aba
+name: SharePoint CVE-2025-53770 ToolShell Exploitation Attempt
+description: 'This rule detects exploitation attempts against SharePoint servers, specifically targeting CVE-2025-53770 (ToolShell). It has two parts: one for suspicious process creation (cmd.exe spawning powershell.exe from w3wp.exe) and another for malicious web request patterns in IIS logs (POST requests to /_layouts/15/ToolPane.aspx with specific query parameters and referrer).'
+query: |
+    // This KQL query is divided into two parts.
+    // Part 1: Detects suspicious process creation from the SharePoint worker process, a primary indicator of compromise.
+    // Part 2: Detects the specific malicious web request pattern in IIS logs associated with the exploit.
+    // Run the query relevant to your available data sources (e.g., EDR for Part 1, IIS logs for Part 2).
+
+    //
+    // Part 1: Suspicious Process Creation from SharePoint
+    //
+    let suspicious_processes = dynamic(["cmd.exe", "powershell.exe", "pwsh.exe"]);
+    DeviceProcessEvents
+    // Look for processes spawned by the SharePoint IIS worker process (w3wp.exe).
+    | where InitiatingProcessFileName =~ "w3wp.exe"
+    // Filter for the creation of command shells or PowerShell, which is highly anomalous for w3wp.exe.
+    | where FileName in~ (suspicious_processes)
+    // The exploit chain involves cmd.exe launching powershell.exe. This join finds that specific sequence.
+    | join kind=inner (
+        DeviceProcessEvents
+        | where InitiatingProcessFileName =~ "cmd.exe"
+        | where FileName in~ ("powershell.exe", "pwsh.exe")
+        | project PowerShellProcessId = DeviceProcessId, InitiatingProcessId, PowerShellCommandLine = ProcessCommandLine
+    ) on $left.DeviceProcessId == $right.InitiatingProcessId
+    | project
+        Timestamp,
+        DeviceName,
+        ParentProcess = InitiatingProcessFileName,
+        ParentCommandLine = InitiatingProcessCommandLine,
+        ChildProcess = FileName,
+        ChildCommandLine = ProcessCommandLine,
+        GrandChildProcess = "powershell.exe",
+        GrandChildCommandLine = PowerShellCommandLine
+    | extend
+        RuleTitle = "SharePoint CVE-2025-53770 ToolShell Exploitation Attempt",
+        RuleDescription = "A command shell (cmd.exe) was spawned by the SharePoint worker process (w3wp.exe), which then launched PowerShell. This is a strong indicator of the ToolShell exploit (CVE-2025-53770).",
+        MITRE_ATTACK_Tactic = "Initial Access",
+        MITRE_ATTACK_Technique = "T1190";
+
+    //
+    // Part 2: Malicious Web Request in IIS Logs
+    //
+    // Note: This query assumes IIS logs are ingested into the 'W3CIISLog' table. Adjust the table name if necessary.
+    W3CIISLog
+    // Filter for POST requests, the method used by the exploit.
+    | where csMethod == "POST"
+    // The exploit targets a specific SharePoint page.
+    | where csUriStem =~ "/_layouts/15/ToolPane.aspx"
+    // The specific query parameters are a key indicator of the exploit.
+    | where csUriQuery has_all ("DisplayMode=Edit", "a=/ToolPane.aspx")
+    // The referrer is also a specific indicator noted in the threat intelligence.
+    | where csReferer has "/_layouts/SignOut.aspx"
+    // Successful requests or redirects are expected.
+    | where scStatus in (200, 302)
+    // Potential for false positives is low but could occur with unusual administrative actions.
+    // Further filtering on source IP (c-ip) may be required if legitimate traffic matches this pattern.
+    | project
+        Timestamp = TimeGenerated,
+        ClientIP = c_ip,
+        Host = s_computername,
+        RequestMethod = csMethod,
+        UriStem = csUriStem,
+        UriQuery = csUriQuery,
+        Referer = csReferer,
+        HttpStatus = scStatus,
+        UserAgent = csUserAgent
+    | extend
+        RuleTitle = "SharePoint CVE-2025-53770 ToolShell Web Exploitation",
+        RuleDescription = "Detected a web request pattern in IIS logs matching the ToolShell exploit (CVE-2025-53770) against a SharePoint server.",
+        MITRE_ATTACK_Tactic = "Initial Access",
+        MITRE_ATTACK_Technique = "T1190"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059
+    - T1059.003
+    - T1059.001
+tags:
+    - kql
+version: "1"

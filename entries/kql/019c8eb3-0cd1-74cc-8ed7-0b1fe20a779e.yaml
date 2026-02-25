@@ -1,0 +1,16 @@
+id: 019c8eb3-0cd1-74cc-8ed7-0b1fe20a779e
+name: New Local Account Created or Added to Administrators Group
+description: This rule detects the creation of new local user accounts or the addition of existing accounts to the local Administrators group on Windows systems. It specifically looks for Windows Security Event IDs 4720 (A user account was created) and 4732 (A member was added to a security-enabled local group) or 4728 (A member was added to a security-enabled global group) or 4756 (A member was added to a security-enabled universal group), filtering for 'User' account types and ensuring that for Event ID 4732, the group is the 'Administrators' group (identified by SID S-1-5-32-544 or group name). This activity can indicate an adversary establishing persistence or escalating privileges.
+query: "// Detection: New Local Account Created or Added to Administrators Group\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1136.001 - Create Account: Local Account\r\n\r\nSecurityEvent\r\n| where TimeGenerated > ago(1d)\r\n| where EventID in (4720, 4732, 4728, 4756)\r\n| where AccountType == \"User\"\r\n| extend\r\n    NewAccount   = TargetUserName,\r\n    AddedBy      = SubjectUserName,\r\n    AddedByDomain = SubjectDomainName\r\n| where (EventID == 4732 and (MemberSid has \"S-1-5-32-544\" or GroupName =~ \"Administrators\"))\r\n    or EventID == 4720\r\n| project TimeGenerated, EventID, Activity, Computer,\r\n          NewAccount, AddedBy, AddedByDomain, IpAddress\r\n| extend AlertDescription =\r\n    \"New local account created or added to Administrators group — verify legitimacy\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1136.001
+    - T1098
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

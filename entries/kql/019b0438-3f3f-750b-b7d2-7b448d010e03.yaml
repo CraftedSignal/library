@@ -1,0 +1,49 @@
+id: 019b0438-3f3f-750b-b7d2-7b448d010e03
+name: 'RCE: Web Shell Creation by Next.js/Node.js'
+description: Detects the creation of suspicious files (e.g., web shells, executables) by a Node.js or Next.js server process. This activity is a common post-exploitation step after a successful RCE, such as from exploiting CVE-2025-55182 (React2Shell), where an attacker drops a backdoor for persistence.
+query: |
+    // Name: RCE: Web Shell Creation by Next.js
+    // Description: Detects the creation of suspicious files (e.g., web shells, executables) by a Node.js or Next.js server process. This activity is a common post-exploitation step after a successful RCE, such as from exploiting CVE-2025-55182 (React2Shell), where an attacker drops a backdoor for persistence.
+    // Author: detections.ai
+    // Date: 2025-12-09
+    // Mitre ATT&CK: T1505.003 (Server Software Component: Web Shell)
+    // References: https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/
+    // False Positive Sensitivity: Medium. Applications may legitimately write files with these extensions to web-accessible directories (e.g., plugins, updates). Exclude known benign processes and file paths.
+
+    // --- Tuning Parameters ---
+    let parentProcesses = dynamic(["node.exe", "next-server"]); // Parent processes for Node.js/Next.js applications. Adjust if your process has a different name.
+    let suspiciousExtensions = dynamic([".aspx", ".asp", ".jsp", ".jspx", ".php", ".sh", ".exe", ".bat"]); // File extensions commonly used for web shells or backdoors.
+    let targetFolders = dynamic(["temp", "tmp", "uploads", "public", "wwwroot"]); // Common web-writable directories. Adjust to match your environment.
+
+    // --- Query ---
+    DeviceFileEvents
+    // Filter for file creation events.
+    | where ActionType == "FileCreated"
+    // Focus on files created by the Node.js or Next.js server process.
+    | where InitiatingProcessFileName in~ (parentProcesses) or InitiatingProcessCommandLine has "next-server"
+    // Look in common web-writable or temporary directories.
+    // FP-TUNING: This may need to be scoped to specific application directories to reduce noise.
+    | where FolderPath has_any (targetFolders)
+    // Identify files with suspicious extensions indicative of a web shell or backdoor.
+    | where FileName has_any_suffix (suspiciousExtensions)
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        FolderPath,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/

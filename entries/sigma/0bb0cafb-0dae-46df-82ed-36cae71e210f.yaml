@@ -1,0 +1,126 @@
+id: 0bb0cafb-0dae-46df-82ed-36cae71e210f
+name: Malicious Driver Installation for EDR Evasion
+description: |-
+    Summary
+    Sophisticated EDR (Endpoint Detection and Response) killer tools are increasingly being used by various ransomware groups to disable security solutions, allowing them to operate undetected during multi-stage attacks. These tools, often packed with services like HeartCrypt, leverage compromised code-signing certificates and vulnerable drivers to gain kernel-level access and terminate security processes.
+
+    What's New
+    A significant new finding is the widespread adoption and apparent sharing of these EDR killer tools, often customized and packed with HeartCrypt, across numerous competing ransomware groups including RansomHub, Blacksuit, Medusa, Qilin, Dragonforce, Crytox, Lynx, and INC. This suggests a concerning trend of technical knowledge transfer and tool sharing within the ransomware ecosystem, making these attacks more pervasive and challenging to defend against.
+
+    Actionable Threat Data
+    T1562.001 - Impair Defenses: Disable or Modify Tools: Monitor for the creation of new services with randomly generated five-character names, especially those associated with .sys files, as these are indicative of malicious driver installation for EDR evasion.
+    T1036.005 - Masquerading: Match Legitimate Name or Location: Look for executables that masquerade as legitimate software (e.g., by injecting malicious code into legitimate utilities like Beyond Compare) and attempt to load drivers signed with revoked or expired certificates from entities like "Changsha Hengxiang Information Technology Co., Ltd." or "Fuzhou Dingxin Trade Co., Ltd.".
+    T1562.001 - Impair Defenses: Disable or Modify Tools: Detect attempts to terminate security-related processes such as MsMpEng.exe, SophosHealth.exe, SAVService.exe, sophosui.exe, sepwscsvc64Exe, sepagentExe, SophosOsqueryExtension.exe, SophosNetFilter.exe, SophosScanCoordinator.exe, SophosUpdate.exe, HitmanPro.Alert.exe, HitmanPro.exe, HmpschedExe, mpcmdrunExe, and NissrvExe.
+    T1055 - Process Injection: Identify instances of process hollowing or other forms of process injection, particularly when observed in conjunction with heavily protected or obfuscated executables, as this is a common technique used by HeartCrypt-packed EDR killers.
+    T1068 - Exploitation for Privilege Escalation: Monitor for the loading of drivers with random names (e.g., mraml.sys, noedt.sys) that are designed to achieve kernel-level privileges, often as part of a "Bring Your Own Vulnerable Driver" (BYOVD) attack.
+query: |
+    title: Malicious Driver Installation for EDR Evasion
+    id: 9867eacf-4ca6-4647-b5ce-ab02055e0d95
+    status: experimental
+    description: >-
+      Summary
+
+      Sophisticated EDR (Endpoint Detection and Response) killer tools are
+      increasingly being used by various ransomware groups to disable security
+      solutions, allowing them to operate undetected during multi-stage attacks.
+      These tools, often packed with services like HeartCrypt, leverage compromised
+      code-signing certificates and vulnerable drivers to gain kernel-level access
+      and terminate security processes.
+
+
+      What's New
+
+      A significant new finding is the widespread adoption and apparent sharing of
+      these EDR killer tools, often customized and packed with HeartCrypt, across
+      numerous competing ransomware groups including RansomHub, Blacksuit, Medusa,
+      Qilin, Dragonforce, Crytox, Lynx, and INC. This suggests a concerning trend of
+      technical knowledge transfer and tool sharing within the ransomware ecosystem,
+      making these attacks more pervasive and challenging to defend against.
+
+
+      Actionable Threat Data
+
+      T1562.001 - Impair Defenses: Disable or Modify Tools: Monitor for the creation
+      of new services with randomly generated five-character names, especially those
+      associated with .sys files, as these are indicative of malicious driver
+      installation for EDR evasion.
+
+      T1036.005 - Masquerading: Match Legitimate Name or Location: Look for
+      executables that masquerade as legitimate software (e.g., by injecting
+      malicious code into legitimate utilities like Beyond Compare) and attempt to
+      load drivers signed with revoked or expired certificates from entities like
+      "Changsha Hengxiang Information Technology Co., Ltd." or "Fuzhou Dingxin Trade
+      Co., Ltd.".
+
+      T1562.001 - Impair Defenses: Disable or Modify Tools: Detect attempts to
+      terminate security-related processes such as MsMpEng.exe, SophosHealth.exe,
+      SAVService.exe, sophosui.exe, sepwscsvc64Exe, sepagentExe,
+      SophosOsqueryExtension.exe, SophosNetFilter.exe, SophosScanCoordinator.exe,
+      SophosUpdate.exe, HitmanPro.Alert.exe, HitmanPro.exe, HmpschedExe,
+      mpcmdrunExe, and NissrvExe.
+
+      T1055 - Process Injection: Identify instances of process hollowing or other
+      forms of process injection, particularly when observed in conjunction with
+      heavily protected or obfuscated executables, as this is a common technique
+      used by HeartCrypt-packed EDR killers.
+
+      T1068 - Exploitation for Privilege Escalation: Monitor for the loading of
+      drivers with random names (e.g., mraml.sys, noedt.sys) that are designed to
+      achieve kernel-level privileges, often as part of a "Bring Your Own Vulnerable
+      Driver" (BYOVD) attack.
+    references:
+      - https://news.sophos.com/en-us/2025/08/06/shared-secret-edr-killer-in-the-kill-chain/
+    author: detections.ai
+    date: 2025-08-13
+    tags:
+      - attack.t1562.001
+      - attack.t1036.005
+      - attack.t1068
+      - attack.defense_evasion
+      - attack.privilege_escalation
+    logsource:
+      product: windows
+    detection:
+      selection_signer:
+        # Detects drivers signed by known abused certificate authorities
+        category: driver_load
+        Signature|contains:
+          - 'Changsha Hengxiang Information Technology Co., Ltd.'
+          - 'Fuzhou Dingxin Trade Co., Ltd.'
+      selection_random_svc:
+        # Detects creation of a service with a 5-character random name pointing to a driver file
+        category: service_creation
+        ImagePath|endswith: '.sys'
+        ServiceName: '?????'
+      selection_masquerade:
+        # Detects drivers masquerading as legitimate CrowdStrike drivers
+        category: driver_load
+        Description: 'CrowdStrike Falcon Sensor Driver'
+        Signature|ne: 'CrowdStrike, Inc.'
+      condition: 1 of them
+    falsepositives:
+      - The 'selection_random_svc' may trigger on legitimate software that uses
+        short, generated service names for drivers. Tuning by excluding known
+        legitimate service names or ImagePaths may be necessary.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.001
+    - T1036.005
+    - T1068
+tags:
+    - attack.t1562.001
+    - attack.t1036.005
+    - attack.t1068
+    - attack.defense_evasion
+    - attack.privilege_escalation
+author: detections.ai
+version: "1"
+references:
+    - https://news.sophos.com/en-us/2025/08/06/shared-secret-edr-killer-in-the-kill-chain/
+data_sources:
+    - windows

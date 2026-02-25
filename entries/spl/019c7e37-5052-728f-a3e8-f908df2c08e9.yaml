@@ -1,0 +1,18 @@
+id: 019c7e37-5052-728f-a3e8-f908df2c08e9
+name: GitHub Programmatic Repo Exfiltration
+description: Detects programmatic GitHub data exfiltration by identifying non-interactive repository exports, clones, artifact downloads, or gist staging performed using tokens, OAuth applications, or GitHub Apps. The detection focuses on bursty or multi-repository activity within a short time window, which can indicate automated source code collection, misuse of programmatic credentials, or post-compromise data extraction.
+query: "```\r\nAuthor: Tayvion P (@tayontech\r\nDescription: \r\nDetects programmatic GitHub data exfiltration by identifying non-interactive repository exports, clones, artifact downloads, or gist staging performed using tokens, OAuth applications, or GitHub Apps. \r\nThe detection focuses on bursty or multi-repository activity within a short time window, which can indicate automated source code collection, misuse of programmatic credentials, or post-compromise data extraction.\r\n```\r\nindex=\"github\" action IN (\"repo.download_zip\",\"git.clone\",\"artifact.download\",\"gist.create\")\r\n| where actor_is_bot=\"false\"\r\n| where isnotnull(programmatic_access_type) AND programmatic_access_type!=\"\"\r\n   OR isnotnull(token_id)\r\n   OR isnotnull(hashed_token)\r\n   OR isnotnull(oauth_application_id)\r\n\r\n| sort 0 actor _time\r\n\r\n| eval exfil_type=case(\r\n    action=\"repo.download_zip\",\"Repository ZIP export\",\r\n    action=\"git.clone\",\"Git clone\",\r\n    action=\"artifact.download\",\"CI artifact download\",\r\n    action=\"gist.create\",\"Gist staging\"\r\n  )\r\n\r\n| streamstats current=f last(_time) as prev_time by actor\r\n| eval gap=_time-prev_time\r\n| eval new_session=if(isnull(prev_time) OR gap>1800,1,0)\r\n| streamstats sum(new_session) as session_id by actor\r\n\r\n| stats\r\n    min(_time) as initial_detection_time\r\n    count as exfil_events\r\n    dc(repo) as repo_count\r\n    values(repo) as repos\r\n    values(exfil_type) as exfil_types\r\n    values(action) as actions\r\n    values(user_agent) as user_agents\r\n    values(programmatic_access_type) as programmatic_access_types\r\n    values(oauth_application_id) as oauth_app_ids\r\n    values(token_id) as token_ids\r\n    values(hashed_token) as hashed_tokens\r\n    values(org) as orgs\r\n  by actor session_id\r\n\r\n| where\r\n    exfil_events >= 2\r\n    OR repo_count >= 2\r\n    OR mvfind(exfil_types,\"CI artifact download\") >= 0\r\n    OR mvfind(exfil_types,\"Gist staging\") >= 0\r\n\r\n| eval risk_note=case(\r\n    mvfind(exfil_types,\"CI artifact download\")>=0,\"Programmatic artifact exfiltration\",\r\n    mvfind(exfil_types,\"Gist staging\")>=0,\"Programmatic data staging via Gist\",\r\n    repo_count>=2,\"Programmatic multi-repo data export\",\r\n    exfil_events>=5,\"High-volume programmatic data export\",\r\n    true(),\"Programmatic GitHub data exfiltration\"\r\n  )\r\n\r\n| eval initial_detection_time=strftime(initial_detection_time,\"%F %T %Z\")\r\n\r\n| stats\r\n    min(initial_detection_time) as initial_detection_time\r\n    values(actions) as action\r\n    values(risk_note) as risk\r\n    values(exfil_types) as exfil_type\r\n    values(repos) as repo\r\n    values(orgs) as org\r\n    values(user_agents) as user_agent\r\n    values(programmatic_access_types) as programmatic_access_type\r\n    values(oauth_app_ids) as oauth_app_ids\r\n    values(token_ids) as token_ids\r\n    values(hashed_tokens) as hashed_tokens\r\n    max(exfil_events) as exfil_events\r\n    max(repo_count) as repo_count\r\n  by actor"
+query_type: spl
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+techniques:
+    - T1119
+    - T1537
+    - T1020
+    - T1567
+    - T1074
+tags:
+    - spl
+version: "1"

@@ -1,0 +1,18 @@
+id: 019c425e-5791-71bd-95c8-3dd413ec92d9
+name: NAS or IoT Device Acting as an Outbound SSH/SFTP Relay
+description: Detects when a Network Attached Storage (NAS) or Internet of Things (IoT) device establishes multiple or high-volume outbound SSH/SFTP connections to an external IP address. This behavior can indicate that the device has been compromised and is being used as an 'Operational Relay Box' (ORB) to proxy malicious traffic, mask C2 communications, or exfiltrate data.
+query: "// Name: NAS or IoT Device Acting as an Outbound SSH/SFTP Relay\r\n// Author: detections.ai\r\n// Date: 2026-02-09\r\n// Description: Detects when a Network Attached Storage (NAS) or Internet of Things (IoT) device establishes multiple or high-volume outbound SSH/SFTP connections to an external IP address. This behavior can indicate that the device has been compromised and is being used as an 'Operational Relay Box' (ORB) to proxy malicious traffic, mask C2 communications, or exfiltrate data.\r\n//\r\n// MITRE ATT&CK Tactics: Command and Control, Exfiltration\r\n// MITRE ATT&CK Techniques: T1090.003 (Proxy: Relay Box), T1021.004 (Remote Services: SSH)\r\n// References: https://cybersecuritynews.com/apt-hackers-target-edge-devices/\r\n// False Positive Sensitivity: Medium\r\n\r\n// This rule may generate false positives where automated backup solutions use SFTP/SSH to connect to cloud services.\r\n// Tuning Suggestions:\r\n// - Populate the 'NASCandidateIPs' and 'IoTCandidateIPs' watchlists with the IP ranges of your known NAS and IoT devices for more accurate targeting.\r\n// - Add any known-good external destinations for SSH/SFTP traffic to the 'KnownGoodDestinations' watchlist to reduce noise.\r\n// - Adjust the 'ConnectionThreshold' and 'DataThresholdMB' based on your environmental baseline.\r\n\r\nlet ConnectionThreshold = 5;          // distinct remote IPs in the window\r\nlet TimeFrame = 1h;                   // aggregation window\r\n\r\n// Exact device IPs (single hosts)\r\nlet NAS_IoT_ExactIPs = dynamic([\r\n  \"192.168.1.50\"\r\n]);\r\n\r\n// Device subnets / CIDRs\r\nlet NAS_IoT_CIDRs = dynamic([\r\n  \"10.0.10.0/24\"\r\n]);\r\n\r\n// Known-good external SSH destinations (exact IPs)\r\nlet KnownGoodDestinations = dynamic([\r\n  \"203.0.113.88\"\r\n]);\r\n\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(24h)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemotePort in (22, 2222)\r\n| where RemoteIPType == \"Public\"\r\n| where not(RemoteIP in (KnownGoodDestinations))\r\n| where (LocalIP in (NAS_IoT_ExactIPs)) or (ipv4_is_in_any_range(LocalIP, NAS_IoT_CIDRs))\r\n| summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime   = max(Timestamp),\r\n    ConnectionCount = dcount(RemoteIP),\r\n    DestinationIPs  = make_set(RemoteIP, 50)\r\n  by DeviceName, LocalIP, bin(Timestamp, TimeFrame)\r\n| where ConnectionCount > ConnectionThreshold\r\n| project StartTime, EndTime, DeviceName, LocalIP, ConnectionCount, DestinationIPs\r\n| order by ConnectionCount desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0008
+techniques:
+    - T1090.003
+    - T1021.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://cybersecuritynews.com/apt-hackers-target-edge-devices/

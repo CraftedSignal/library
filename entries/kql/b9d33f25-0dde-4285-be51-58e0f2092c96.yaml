@@ -1,0 +1,31 @@
+id: b9d33f25-0dde-4285-be51-58e0f2092c96
+name: TA4557 drops More_Eggs
+description: 'KQL Query from file: TA4557 drops More_Eggs'
+query: |
+    // TA4557 drops More_Eggs
+    // https://www.proofpoint.com/au/blog/threat-insight/security-brief-ta4557-targets-recruiters-directly-email
+
+    let MonitoredCommands = dynamic(["ie4uinit","ie4uinit.exe"]);
+    DeviceEvents
+    | where Timestamp > ago(1hr)
+    | where ActionType == "ShellLinkCreateFileEvent"
+    | where tostring(AdditionalFields) contains "ShellLink"
+    | where parse_json(AdditionalFields)["ShellLinkShowCommand"] != 'SW_SHOWNORMAL'
+    | extend ShellLinkCommandLine = parse_json(AdditionalFields)["ShellLinkCommandLine"]
+    | extend ShellLinkIconPath = parse_json(AdditionalFields)["ShellLinkIconPath"]
+    | where ShellLinkCommandLine != ""
+    | where ShellLinkCommandLine has_any (MonitoredCommands)
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+    - TA0005
+techniques:
+    - T1547.001
+    - T1059.005
+    - T1218.001
+    - T1547.009
+tags:
+    - kql
+version: "1"

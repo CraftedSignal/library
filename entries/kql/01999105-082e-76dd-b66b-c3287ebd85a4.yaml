@@ -1,0 +1,20 @@
+id: 01999105-082e-76dd-b66b-c3287ebd85a4
+name: '[IA] - Detecting potential CA policy bypass by privileged accounts via private browser sessions'
+description: "When two accounts from the same Entra tenant are signed into the same browser app, the device authentication (the PRT) belonging to the primary account is implicitly applied to the second account. That means the second account can inherit device-based Conditional Access, effectively bypassing intended device checks and weakening protection for privileged accounts.\nBased on this behavior, I created a KQL query that detects any account assigned a privileged role signing in with private/incognito browser sessions on a device where potentially another account is already signed in — a pattern that helps to detect the mentioned PRT/device-trust bypass. Even lower-privileged accounts are concerning when they browse in private mode so I am not filtering by just admin ones. However, to target specific roles, add:\n| \U0001D638\U0001D629\U0001D626\U0001D633\U0001D626 \U0001D635\U0001D630\U0001D634\U0001D635\U0001D633\U0001D62A\U0001D62F\U0001D628(\U0001D608\U0001D634\U0001D634\U0001D62A\U0001D628\U0001D62F\U0001D626\U0001D625\U0001D619\U0001D630\U0001D62D\U0001D626\U0001D634) \U0001D624\U0001D630\U0001D62F\U0001D635\U0001D622\U0001D62A\U0001D62F\U0001D634 \"\U0001D622\U0001D625\U0001D62E\U0001D62A\U0001D62F\""
+query: "DeviceProcessEvents\n|where isnotempty(AccountUpn) and FileName in~ (\"chrome.exe\",\"msedge.exe\",\"firefox.exe\")\n| extend Navigation_Mode= iif(ProcessCommandLine has_any(\"--incognito\",\"--inprivate\",\"-private\",\"-private-window\"),\"\U0001F6A8Private\",\"Normal\")\n| join kind=inner (IdentityInfo) on $left.AccountUpn == $right.AccountUpn\n| summarize Navigation_Mode=make_set(Navigation_Mode),make_set(AccountUpn),Distinct_Upn=dcount(AccountUpn),AssignedRoles=make_set(AssignedRoles),Potential_Case=dcount(Navigation_Mode) by DeviceName\n| where Potential_Case > 1 and Distinct_Upn > 1 and (tostring(AssignedRoles) != \"[]\")\n//| where tostring(AssignedRoles) contains \"admin\" "
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0008
+techniques:
+    - T1556.009
+    - T1550
+tags:
+    - kql
+author: Sergio Albea
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/entra/identity/devices/concept-primary-refresh-token?tabs=windows-prt-issued%2Cwindows-prt-used%2Cwindows-prt-renewal%2Cwindows-prt-protection%2Cwindows-apptokens%2Cwindows-browsercookies%2Cwindows-mfa#how-is-a-prt-used

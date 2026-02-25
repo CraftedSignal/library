@@ -1,0 +1,62 @@
+id: 0a07935a-c6e0-47d1-b3c2-8fec1b7d16eb
+name: Windows Defender Folder Hijack via Symbolic Link
+description: |
+    Detects the creation of a symbolic link in the Windows Defender Platform directory. This is a technique used to hijack the execution flow of Windows Defender, forcing it to run from an attacker-controlled location upon service restart or update.
+query: |
+    title: Windows Defender Folder Hijack via Symbolic Link
+    id: b7dd529c-0308-42f4-b557-2f535f7548db
+    status: experimental
+    description: >
+      Detects the creation of a symbolic link in the Windows Defender Platform
+      directory. This is a technique used to hijack the execution flow of Windows
+      Defender, forcing it to run from an attacker-controlled location upon service
+      restart or update.
+    references:
+      - https://www.zerosalarium.com/2025/09/Break-Protective-Shell-Windows-Defender-Folder-Redirect-Technique-Symlink.html?m=1
+    author: detections.ai
+    date: 2025-09-09T00:00:00.000Z
+    tags:
+      - attack.t1562.001
+      - attack.t1574.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_mklink:
+        Image|endswith: \mklink.exe
+        CommandLine|contains:
+          - '\ProgramData\Microsoft\Windows Defender\Platform\'
+      selection_powershell:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+          - 'New-Item'
+          - '\ProgramData\Microsoft\Windows Defender\Platform\'
+        CommandLine|contains:
+          - 'SymbolicLink'
+          - 'Junction'
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate administrative or testing activities, although creating a
+        symbolic link in this specific directory is highly unusual and suspicious.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574
+    - T1562.001
+tags:
+    - attack.t1562.001
+    - attack.t1574.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.zerosalarium.com/2025/09/Break-Protective-Shell-Windows-Defender-Folder-Redirect-Technique-Symlink.html?m=1
+data_sources:
+    - process_creation
+    - windows

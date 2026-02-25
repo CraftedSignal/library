@@ -1,0 +1,13 @@
+id: 96637a90-bcc9-4d34-8e10-1444bc14fb26
+name: AWS CreateAccessKey
+description: 'SPL Query from file: AWS CreateAccessKey'
+query: "`cloudtrail` eventName = CreateAccessKey userAgent !=console.amazonaws.com errorCode = success \r\n| eval match=if(match(userIdentity.userName,requestParameters.userName),1,0) \r\n| search match=0 \r\n| rename user_name as user \r\n| stats count min(_time) as firstTime max(_time) as lastTime by signature dest user user_agent src vendor_account vendor_region vendor_product \r\n| `security_content_ctime(firstTime)` \r\n| `security_content_ctime(lastTime)` \r\n|`aws_createaccesskey_filter`"
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1136.003
+tags:
+    - spl
+version: "1"

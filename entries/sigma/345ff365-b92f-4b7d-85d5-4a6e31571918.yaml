@@ -1,0 +1,33 @@
+id: 345ff365-b92f-4b7d-85d5-4a6e31571918
+name: Encoded PowerShell payload deployed via process execution
+description: Detects scenarios where an attacker deployed an encoded PowerShell payload via a process execution. Some parameters are commented in case you would like to reduce false positives or make the rule more precise.
+query: "title: Encoded PowerShell payload deployed via process execution\ndescription: Detects scenarios where an attacker deployed an encoded PowerShell payload via a process execution. Some parameters are commented in case you would like to reduce false positives or make the rule more precise.\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1059.001-PowerShell\n- https://www.offensive-security.com/metasploit-unleashed/psexec-pass-hash/\n- https://www.fortinet.com/blog/threat-research/newly-discovered-function-in-darkside-ransomware-variant-targets-disk-partitions\n- https://www.huntress.com/blog/from-powershell-to-payload-an-analysis-of-weaponized-malware\n- https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1569.002/T1569.002.md\n- https://www.f5.com/labs/articles/threat-intelligence/vulnerabilities-exploits-and-malware-driving-attack-campaigns-in-october-2019\n- https://www.crowdstrike.com/blog/getting-the-bacon-from-cobalt-strike-beacon/\n- https://research.splunk.com/endpoint/8acbc04c-c882-11eb-b060-acde48001122/\ntags:\n- attack.execution\n- attack.t1059.003\n- attack.defense_evasion\n- attack.t1027\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection:\n    NewProcessName|endswith:\n      - \\cmd.exe\n      - \\powershell.exe\n      - \\pwsh.exe # PowerShell v6\n      - \\powershell_ise.exe # Development GUI\n    CommandLine|contains:\n      - '[System.Convert]::'\n      - 'FromBase64String'\n      - 'IO.StreamReader'\n      - 'IO.Compression.'\n  condition: selection\nfalsepositives:\n  - none\nlevel: high\n\n#Payload sample:\n#C:\\Windows\\system32\\cmd.exe /b /c start /b /min powershell.exe -nop -w hidden -noni -c \"if([IntPtr]::Size -eq 4){$b='powershell.exe'}else{$b=$env:windir+'\\syswow64\\WindowsPowerShell\\v1.0\\powershell.exe'};$s=New-Object System.Diagnostics.ProcessStartInfo;$s.FileName=$b;$s.Arguments='-noni -nop -w hidden -c &([scriptblock]::create((New-Object System.IO.StreamReader(New-Object System.IO.Compression.GzipStream((New-Object System.IO.MemoryStream(,[System.Convert]::FromBase64String(''H4sIA3+DTnHlctdCgAA''))),[System.IO.Compression.CompressionMode]::Decompress))).ReadToEnd()))';$s.UseShellExecute=$false;$s.RedirectStandardOutput=$true;$s.WindowStyle='Hidden';$s.CreateNoWindow=$true;$p=[System.Diagnostics.Process]::Start($s);\" "
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.003
+    - T1027
+    - T1059.001
+    - T1569.002
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.defense_evasion
+    - attack.t1027
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1059.001-PowerShell
+    - https://www.offensive-security.com/metasploit-unleashed/psexec-pass-hash/
+    - https://www.fortinet.com/blog/threat-research/newly-discovered-function-in-darkside-ransomware-variant-targets-disk-partitions
+    - https://www.huntress.com/blog/from-powershell-to-payload-an-analysis-of-weaponized-malware
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1569.002/T1569.002.md
+    - https://www.f5.com/labs/articles/threat-intelligence/vulnerabilities-exploits-and-malware-driving-attack-campaigns-in-october-2019
+    - https://www.crowdstrike.com/blog/getting-the-bacon-from-cobalt-strike-beacon/
+    - https://research.splunk.com/endpoint/8acbc04c-c882-11eb-b060-acde48001122/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,97 @@
+id: 91f10b65-15a3-4a3c-b36b-9e42a234b264
+name: Detect Spear Phishing using Copilot for Microsoft 365
+description: KQL Query
+query: |+
+    // Detect Spear Phishing using Copilot for Microsoft 365
+    // Linkedin Post: https://www.linkedin.com/posts/0x534c_phishing-is-dead-long-live-spear-phishing-activity-7228358230286950400-j0C_/
+
+    //At #BHUSA, Zenity Labs CTO Michael Bargury showcased how a compromised Copilot user account can be leveraged for spear phishing attacks using the user’s profiling data. For detailed steps on conducting these attacks, refer to the article “Phishing is Dead, Long Live Spear Phishing.”
+
+    //The following DefenderXDR custom detection KQL utilizes Microsoft Defender Cloud Apps (MDCA) User Entity and Behavior Analytics (UEBA) capabilities to detect unusual Copilot bizchat (user prompting) sessions and correlate them with Microsoft Defender for Office 365 (MDO) email sending activities. This approach aims to identify the abused Copilot spear phishing scenario mentioned in the article and immediately quarantine the email messages. After validation by SecOps, if deemed safe, SecOps can release the emails from quarantine.
+
+    // ** VERSION 1 **
+
+    let UncommonCopilotPromptUpn =
+    CloudAppEvents
+    | where Timestamp > ago(1h)
+    | where Application == @"Microsoft Copilot for Microsoft 365"
+    | where ActionType == @"CopilotInteraction"
+    | extend UserID = tostring(RawEventData.UserId)
+    | extend CopilotData = todynamic(RawEventData.CopilotEventData)
+    | extend CopilotAppHost = tostring(CopilotData.AppHost)
+    | where CopilotAppHost == "bizchat"
+    | where UncommonForUser has "ISP" or UncommonForUser has "CountryCode"
+    | distinct UserID;
+    EmailEvents
+    | where SenderFromAddress has_any (UncommonCopilotPromptUpn)
+    | where EmailDirection == "Outbound"
+    | where AttachmentCount > 0 or UrlCount > 0
+
+    // ** Version 2 - Improve detection on PowerPwn **
+
+    let UncommonCopilotPromptUpn =
+    CloudAppEvents
+    | where Application == @"Microsoft Copilot for Microsoft 365"
+    | where ActionType == @"CopilotInteraction"
+    | extend UserID = tostring(RawEventData.UserId)
+    | extend CopilotData = todynamic(RawEventData.CopilotEventData)
+    | extend CopilotAppHost = tostring(CopilotData.AppHost)
+    | where CopilotAppHost == "bizchat"
+    | where UncommonForUser has "ISP" or UncommonForUser has "CountryCode"
+    | distinct UserID;
+    let PowerPwnUpn =
+    AADSignInEventsBeta
+    | where AccountUpn has_any (UncommonCopilotPromptUpn)
+    | where ResourceDisplayName == "Office 365 Exchange Online"
+    | where UserAgent contains "python"
+    | distinct AccountUpn;
+    EmailEvents
+    | where SenderFromAddress has_any (PowerPwnUpn)
+    | where EmailDirection == "Outbound"
+    | where AttachmentCount > 0 or UrlCount > 0
+
+    // Reference Link:
+    // https://labs.zenity.io/p/phishing-dead-long-live-spear-phishing
+
+    // MITRE ATT&CK Mapping
+
+    // Initial Access:
+    // Technique T1078: Valid Accounts: The query looks for unusual user accounts interacting with Microsoft Copilot, which could indicate compromised accounts being used for initial access1.
+
+    // Execution:
+    // Technique T1059: Command and Scripting Interpreter: The use of python in the UserAgent field suggests script-based execution2.
+
+    // Persistence:
+    // Technique T1078: Valid Accounts: Continued use of valid accounts for maintaining access1.
+
+    // Defense Evasion:
+    // Technique T1078: Valid Accounts: Using legitimate credentials to avoid detection1.
+
+    // Credential Access:
+    // Technique T1078: Valid Accounts: Accessing accounts to gather credentials1.
+
+    // Discovery:
+    // Technique T1083: File and Directory Discovery: The query checks for outbound emails with attachments or URLs, which could be part of data discovery and exfiltration3.
+
+    // Exfiltration:
+    // Technique T1041: Exfiltration Over C2 Channel: Outbound emails with attachments or URLs could indicate data exfiltration3.
+
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+    - TA0007
+    - TA0010
+techniques:
+    - T1078
+    - T1059
+    - T1083
+    - T1041
+    - T1566.001
+    - T1566.002
+tags:
+    - kql
+version: "1"

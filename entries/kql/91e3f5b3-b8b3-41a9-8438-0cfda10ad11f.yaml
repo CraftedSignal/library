@@ -1,0 +1,64 @@
+id: 91e3f5b3-b8b3-41a9-8438-0cfda10ad11f
+name: HazyBeacon Backdoor C2 via AWS Lambda URL
+description: Detects the HazyBeacon backdoor, which leverages AWS Lambda URLs for C2 communication and uses custom tools for data exfiltration. The rule identifies known malicious file hashes, suspicious tool drops in C:\ProgramData, specific service creation commands for persistence, and network connections from the sideloaded host process (mscorsvw.exe) to AWS Lambda URLs.
+query: |
+    // title: HazyBeacon Backdoor C2 via AWS Lambda URL
+    // id: d77d8cb1-2078-42f5-a4ba-c0163d40b550
+    // status: experimental
+    // description: Detects the HazyBeacon backdoor, which leverages AWS Lambda URLs for C2 communication and uses custom tools for data exfiltration as described in Unit42's research on CL-STA-1020.
+    // references:
+    //   - https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/
+    // author: detections.ai
+    // date: 2025-07-15
+    // tags:
+    //   - attack.command_and_control
+    //   - attack.t1071.001
+    //   - attack.t1574.001
+    //   - attack.t1543.003
+    //   - attack.exfiltration
+    //   - attack.t1041
+    // level: high
+    // falsepositives:
+    //   - Legitimate applications may use AWS Lambda URLs for communication, though it is uncommon for mscorsvw.exe to do so.
+    //   - Legitimate tools with the same name could be placed in C:\ProgramData, although this combination of tools is highly suspicious. Consider adding exceptions for known good software updaters or installers.
+    let selection_hashes = materialize (union
+        // Check for known malicious file hashes in both file creation and process creation events
+        (DeviceFileEvents | where SHA256 in~ ('4931df8650521cfd686782919bda0f376475f9fc5f1fee9d7cf3a4e0d9c73e30', 'd20b536c88ecd326f79d7a9180f41a2e47a40fcf2cc6a2b02d68a081c89eaeaa', '304c615f4a8c2c2b36478b693db767d41be998032252c8159cc22c18a65ab498', 'f0c9481513156b0cdd216d6dfb53772839438a2215d9c5b895445f418b64b886', '3255798db8936b5b3ae9fed6292413ce20da48131b27394c844ecec186a1e92f', '279e60e77207444c7ec7421e811048267971b0db42f4b4d3e975c7d0af7f511e', 'd961aca6c2899cc1495c0e64a29b85aa226f40cf9d42dadc291c4f601d6e27c3')),
+        (DeviceProcessEvents | where SHA256 in~ ('4931df8650521cfd686782919bda0f376475f9fc5f1fee9d7cf3a4e0d9c73e30', 'd20b536c88ecd326f79d7a9180f41a2e47a40fcf2cc6a2b02d68a081c89eaeaa', '304c615f4a8c2c2b36478b693db767d41be998032252c8159cc22c18a65ab498', 'f0c9481513156b0cdd216d6dfb53772839438a2215d9c5b895445f418b64b886', '3255798db8936b5b3ae9fed6292413ce20da48131b27394c844ecec186a1e92f', '279e60e77207444c7ec7421e811048267971b0db42f4b4d3e975c7d0af7f511e', 'd961aca6c2899cc1495c0e64a29b85aa226f40cf9d42dadc291c4f601d6e27c3'))
+        );
+    let selection_payloads = materialize (
+        // Look for suspicious tools being dropped into C:\ProgramData
+        DeviceFileEvents
+        | where FolderPath startswith @"C:\ProgramData\" and FileName in~ ('7z.exe', 'igfx.exe', 'GoogleGet.exe', 'google.exe', 'GoogleDrive.exe', 'GoogleDriveUpload.exe', 'Dropbox.exe')
+        );
+    let selection_persistence = materialize (
+        // Detect the specific service creation command used for persistence
+        DeviceProcessEvents
+        | where FileName =~ "sc.exe" and ProcessCommandLine has "create" and ProcessCommandLine has "msdnetsvc"
+        );
+    let selection_c2 = materialize (
+        // Detect network connections from the sideloaded host process to an AWS Lambda URL
+        DeviceNetworkEvents
+        | where InitiatingProcessFileName =~ "mscorsvw.exe" and RemoteUrl has ".lambda-url." and RemoteUrl has ".on.aws"
+        );
+    union isfuzzy=true selection_hashes, selection_payloads, selection_persistence, selection_c2
+query_type: kql
+tactics:
+    - TA0010
+    - TA0011
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1071.001
+    - T1574.001
+    - T1543.003
+    - T1041
+    - T1569.002
+    - T1648
+tags:
+    - kql
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/

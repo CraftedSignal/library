@@ -1,0 +1,21 @@
+id: 3bfc7966-9b24-4269-84ee-96b40e50617d
+name: External Attack Surface Monitoring KQL
+description: 'KQL Query from file: External Attack Surface Monitoring KQL'
+query: "// External Attack Surface Monitoring (EASM) KQL\n// \"The one KQL query that unveils the entire external surface of your MDE device fleet\"\n\nlet InternetFacingDevices =\n   ExposureGraphNodes\n   | where NodeLabel == 'device' or (Categories has 'virtual_machine' and set_has_element(Categories, 'virtual_machine'))\n   | where NodeProperties.rawData.isInternetFacing == true\n   | distinct NodeName;\nDeviceNetworkEvents\n| where Timestamp > ago(30d)\n| where ActionType == \"ListeningConnectionCreated\"\n| where DeviceName has_any(InternetFacingDevices)\n| where LocalIP != @\"127.0.0.1\"\n| summarize ListeningPortExposed=dcount(LocalPort) by DeviceName\n| sort by ListeningPortExposed desc \n"
+query_type: kql
+tactics:
+    - TA0009
+    - TA0005
+    - TA0040
+    - TA0011
+    - TA0007
+techniques:
+    - T1562.010
+    - T1491.002
+    - T1090.002
+    - T1016.001
+    - T1114
+    - T1046
+tags:
+    - kql
+version: "1"

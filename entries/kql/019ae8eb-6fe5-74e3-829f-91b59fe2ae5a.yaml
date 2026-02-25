@@ -1,0 +1,50 @@
+id: 019ae8eb-6fe5-74e3-829f-91b59fe2ae5a
+name: FortiWeb Path Traversal Exploit Attempt (CVE-2025-64446)
+description: Detects attempts to exploit a path traversal vulnerability (CVE-2025-64446) in FortiWeb. Attackers send a crafted POST request to create a new administrative user by targeting a specific URI and including keywords in the request body indicative of new admin creation.
+query: |
+    // Name: FortiWeb Path Traversal Exploit Attempt (CVE-2025-64446)
+    // Author: detections.ai
+    // Date: 2025-11-15
+    // Description: Detects attempts to exploit a path traversal vulnerability (CVE-2025-64446) in FortiWeb. Attackers send a crafted POST request to create a new administrative user.
+    // Tactic: Initial Access, Persistence
+    // Technique: T1190, T1078.003
+    // References: https://isc.sans.edu/diary/rss/32486
+    // False Positive Sensitivity: Medium
+    // ---
+    // Specify the log source table. This may need to be changed to match your environment (e.g., WAFLogs, FortiWebLogs, etc.).
+    let LogSource = CommonSecurityLog;
+    let alertThreshold = 1; // Number of attempts from a single IP before alerting.
+    LogSource
+    // Filter for POST requests to the specific exploit path.
+    | where HttpMethod == "POST" and RequestUri has "/api/v2.0/cmdb/system/admin%3f/../../../../../cgi-bin/fwbcgi"
+    // Filter for keywords in the request body indicative of new admin creation.
+    // Note: The field containing the request body might vary (e.g., RequestBody, AdditionalExtensions). Adjust as needed.
+    | where isnotempty(AdditionalExtensions) and AdditionalExtensions has "prof_admin" and AdditionalExtensions has "\"op\":\"add\""
+    // Summarize attempts by source IP to identify scanners or attackers.
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), TotalAttempts = count(), UserAgents = make_set(HttpUserAgent, 5) by SourceIp, DestinationIP, RequestUri
+    // Alert if the number of attempts from a single IP meets or exceeds the threshold.
+    // FP Tuning: A single attempt is a strong indicator given the specificity, but you can raise the threshold to reduce noise from potential scanning activities.
+    | where TotalAttempts >= alertThreshold
+    | project
+        StartTime,
+        EndTime,
+        SourceIp,
+        DestinationIP,
+        RequestUri,
+        TotalAttempts,
+        UserAgents
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1190
+    - T1078.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://isc.sans.edu/diary/rss/32486

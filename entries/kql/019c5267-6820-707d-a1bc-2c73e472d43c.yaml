@@ -1,0 +1,20 @@
+id: 019c5267-6820-707d-a1bc-2c73e472d43c
+name: OysterLoader Persistence via Scheduled Task
+description: This rule detects the creation of a scheduled task characteristic of OysterLoader's persistence mechanism. The malware creates a task set to run every 13 minutes, which executes a malicious DLL from the AppData\Roaming directory using rundll32.exe.
+query: "// Name: OysterLoader Persistence via Scheduled Task\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Description: This rule detects the creation of a scheduled task characteristic of OysterLoader's persistence mechanism. The malware creates a task set to run every 13 minutes, which executes a malicious DLL from the AppData\\Roaming directory using rundll32.exe.\r\n// False Positives: Medium. While the 13-minute interval is unusual, other applications might use scheduled tasks with rundll32.exe. Tuning may be required by excluding legitimate task names or parent processes that create these tasks.\r\n// References: https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/\r\n// Tactic: Persistence, Execution\r\n// Technique: T1053.005, T1574.002, T1218.011\r\nDeviceProcessEvents\r\n// Look for schtasks.exe being used to create a new task.\r\n| where ProcessFileName =~ \"schtasks.exe\" and ProcessCommandLine has \"/create\"\r\n// OysterLoader uses a specific 13-minute recurrence pattern for its scheduled task.\r\n| where ProcessCommandLine has \"/sc minute\" and ProcessCommandLine has \"/mo 13\"\r\n// The task is configured to execute a DLL payload using rundll32.exe and calling the DllRegisterServer export.\r\n| where ProcessCommandLine has \"rundll32.exe\" and ProcessCommandLine contains \"DllRegisterServer\"\r\n// The malicious DLL is typically dropped in a subdirectory within AppData\\Roaming.\r\n| where ProcessCommandLine has \"AppData\\\\Roaming\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.005
+    - T1218.011
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/

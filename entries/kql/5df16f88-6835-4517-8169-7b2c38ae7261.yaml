@@ -1,0 +1,15 @@
+id: 5df16f88-6835-4517-8169-7b2c38ae7261
+name: Network Connection to Dynamic DNS Subdomain
+description: This rule detects network connections to known dynamic DNS (DDNS) subdomains. Adversaries often use dynamic DNS services to maintain persistent command and control (C2) communication channels, as these services allow them to frequently change the IP address associated with a static hostname, making it harder for defenders to block or track their infrastructure. These providers also have established domain reputation, and provide legitimate services making blanket IOC rules impossible. The rule identifies connections to specific DDNS providers such as DuckDNS, No-IP, PublicVM, and others.
+query: "// Title: Network Connection to Dynamic DNS Subdomain\r\n// Description: This rule detects network connections to known dynamic DNS (DDNS) subdomains.\r\n// Author: Dylan Evans (detections.ai/user/Decksy), https://github.com/dylanevans-cybersec/KQL-Queries\r\nDeviceNetworkEvents\r\n// | where ActionType in (\"ConnectionSuccess\", \"ConnectionRequest\", \"ConnectionAttempt\") //uncomment to see ONLY successful or partial connections\r\n| where RemoteUrl matches regex @\".*\\.(duckdns\\.org|publicvm\\.com|ddns\\.net|hopto\\.org|zapto\\.org|serveftp\\.com|servegame\\.com|myftp\\.org|myvnc\\.com|gotdns\\.ch|3utilities\\.com|bounceme\\.net|freedynamicdns\\.org|freedynamicdns\\.net|freeddns\\.org)$\" //hard coded, can come from external source as well provided its in the same format.\r\n| extend DynamicDNSProvider = case(\r\n    RemoteUrl contains \"duckdns.org\", \"DuckDNS\",\r\n    RemoteUrl contains \"publicvm.com\", \"PublicVM\", \r\n    RemoteUrl contains \"ddns.net\", \"DDNS.net\",\r\n    RemoteUrl contains \"hopto.org\", \"No-IP\",\r\n    RemoteUrl contains \"zapto.org\", \"No-IP\",\r\n    RemoteUrl contains \"serveftp.com\", \"No-IP\",\r\n    RemoteUrl contains \"servegame.com\", \"No-IP\",\r\n    RemoteUrl contains \"myftp.org\", \"No-IP\",\r\n    RemoteUrl contains \"myvnc.com\", \"No-IP\",\r\n    RemoteUrl contains \"gotdns.ch\", \"GotDNS\",\r\n    RemoteUrl contains \"3utilities.com\", \"3utilities\",\r\n    RemoteUrl contains \"bounceme.net\", \"BounceMe\",\r\n    RemoteUrl contains \"freedynamicdns.org\", \"FreeDynamicDNS\",\r\n    RemoteUrl contains \"freedynamicdns.net\", \"FreeDynamicDNS\",\r\n    RemoteUrl contains \"freeddns.org\", \"FreeDDNS\",\r\n    \"Other\"\r\n)\r\n| project Timestamp, DeviceName, DeviceId, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName, RemoteUrl, RemoteIP, RemotePort, LocalIP, LocalPort, Protocol, DynamicDNSProvider, ActionType\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1568.002
+    - T1071.004
+tags:
+    - kql
+author: Dylan Evans
+version: "1"

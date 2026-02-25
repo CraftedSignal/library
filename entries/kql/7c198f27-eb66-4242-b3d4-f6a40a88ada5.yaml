@@ -1,0 +1,13 @@
+id: 7c198f27-eb66-4242-b3d4-f6a40a88ada5
+name: DNS Query to Known Malicious Domain
+description: This rule detects DNS queries to known malicious domains by joining IdentityQueryEvents with ThreatIntelligenceIndicator data. It specifically looks for matches between the queried domain (QueryTarget) and known malicious domains (DomainName) from threat intelligence feeds.
+query: "####  This query Looks any DNS query traffic going to any known malicious domain by looking at the ThreatIngelligenceIndicator database that is ingested into sentinel/Defender via Data Connector.\n\n```KQL\nIdentityQueryEvents\n| where TimeGenerated > ago(1d)\n| where isnotempty(QueryTarget)  // Ensure we have non-empty QueryTarget values\n| join kind=inner (\n    ThreatIntelligenceIndicator \n    | where TimeGenerated > ago(1d)\n    | where isnotempty(DomainName)  // Ensure we have non-empty DomainName values\n    | project DomainName, Description, ConfidenceScore, ThreatType, ThreatSeverity, FileHashType, FileHashValue, Url\n) on $left.QueryTarget == $right.DomainName\n| project TimeGenerated, DeviceName, QueryTarget, Description, IPAddress, Port, DestinationDeviceName, DestinationIPAddress, DestinationPort\n```\n\n"
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1568
+    - T1071.001
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,25 @@
+id: 019af1b8-2cb8-7556-91af-cc644b4b5b8d
+name: BrickStorm C2 File Metadata Threat-Hunt query
+description: |-
+    Looks for Metadata IOCs as listed in the CISA report on BrickStorm C2 malware.
+    I don't recommend using this query on its own; rather, use it in conjunction with behavioural analysis to look for evidence of BrickStorm activity.
+
+    https://media.defense.gov/2025/Dec/04/2003834878/-1/-1/0/MALWARE-ANALYSIS-REPORT-BRICKSTORM-BACKDOOR.PDF
+query: "let filename = dynamic([\"vmsrc\",\"vnetd\",\"if-up\",\"viocli\",\"vts\",\"vmckd\"]);\r\nlet filesize = dynamic([\"769228\",\"26603668\",\"15511700\",\"6311936\",\"6303744\",\"6311936\",\"8332689\",\"8332689\"]);\r\nlet MD5_list = dynamic([\r\n\"8e4c88d00b6eb46229a1ed7001451320\",\r\n\"39111508bfde89ce6e0fe6abe0365552\",\r\n\"dbca28ad420408850a94d5c325183b28\",\r\n\"0a4fa52803a389311a9ddc49b7b19138\",\r\n\"82bf31e7d768e6d4d3bc7c8c8ef2b358\",\r\n\"18f895e24fe1181bb559215ff9cf6ce3\",\r\n\"a52e36a70b5e0307cbcaa5fd7c97882c\",\r\n\"a02469742f7b0bc9a8ab5e26822b3fa8\"\r\n]);\r\nlet SHA1_list = dynamic([\r\n\"9bf4c786ebd68c0181cfe3eb85d2fd202ed12c54\",\r\n\"f639d9404c03af86ce452db5c5e0c528b81dc0d7\",\r\n\"fb11c6caa4ea844942fe97f46d7eb42bc76911ab\",\r\n\"97001baaa379bcd83677dca7bc5b8048fdfaaddc\",\r\n\"de28546ec356c566cd8bca205101a733e9a4a22d\",\r\n\"c3549d4e5e39a11f609fc6fbf5cc1f2c0ec272b4\",\r\n\"44a3d3f15ef75d9294345462e1b82272b0d11985\",\r\n\"10d811029f6e5f58cd06143d6353d3b05bc06d0f\"\r\n]);\r\nlet SHA256_list = dynamic([\r\n\"aaf5569c8e349c15028bc3fac09eb982efb06eabac955b705a6d447263658e38\",\r\n\"013211c56caaa697914b5b5871e4998d0298902e336e373ebb27b7db30917eaf\",\r\n\"57bd98dbb5a00e54f07ffacda1fea91451a0c0b532cd7d570e98ce2ff741c21d\",\r\n\"b3b6a992540da96375e4781afd3052118ad97cfe60ccf004d732f76678f6820a\",\r\n\"22c15a32b69116a46eb5d0f2b228cc37cd1b5915a91ec8f38df79d3eed1da26b\",\r\n\"f7cda90174b806a34381d5043e89b23ba826abcc89f7abd520060a64475ed506\",\r\n\"39b3d8a8aedffc1b40820f205f6a4dc041cd37262880e5030b008175c45b0c46\",\r\n\"73fe8b8fb4bd7776362fd356fdc189c93cf5d9f6724f6237d829024c10263fe5\"\r\n]);\r\nlet SHA512_list = dynamic([\r\n\"5e654776e9c419e11e6f93a452415a601bd9a2079710f1074608570e498a9af37b81bb57c98cb8bb626c5ee4b3e35757d3ae8c1c3717f28d9f3fe7a4cebe0608\",\r\n\"74b4c6f7c7cae07c6f8edf3f2fb1e9206d4f1f9734e8e4784b15d192eec8cd8a4f59078fcc56dc4ad0856cdd792337b5c92ffd3d2240c8a287a776df4363bba\",\r\n\"659205fa2cfa85e484c091cc2e85a7ec4e332b196e423b1f39bafdc8fca33e3db712bbe07afcc091ff26d9b4f641fa9a73f2a66dce9a0ced54ebeb8c2be82a7f\",\r\n\"65ebf5dfafb8972ffead44271436ec842517cfaaf3d1f1f1237a32d66e1d280943bd3a69f1d539a1b7aca6152e96b29bc822e1047e2243f6aec8959595560147\",\r\n\"4c52caf2e5f114103ed5f60c6add3aa26c741b07869bb66e3c25a1dc290d4a8bf87c42c336e8ac8ebf82d9a9b23eaa18c31f7051a5970a8fe1125a2da890340f\",\r\n\"79276523a6a507e3fa1b12b96e09b10a01c783a53d58b9ae7f5780a379431639a80165e81154522649b8e2098e86d1a310efffebe32faafc7b3bc093eec60a64\",\r\n\"bbe18d32bef66ccfa931468511e8ba55b32943e47a1df1e68bb5c8f8ae97a5bf991201858ae9632fa24df5f6c674b6cb260297a1c11889ca61bda68513f440ce\",\r\n\"8e29aeb3603ffe307b2d60f7401bd9978bebe8883235eb88052ebf6b9e04ce6bf35667480cedea5712c1e13e8c6dcfb34d5fde0ddca6ca31328de0152509bf8f\"\r\n]);\r\nDeviceFileEvents\r\n| where FileName in (filename)\r\n   or tostring(FileSize) in (filesize)\r\n   or MD5 in (MD5_list)\r\n   or SHA1 in (SHA1_list)\r\n   or SHA256 in (SHA256_list)\r\n| join kind=leftouter (\r\n    DeviceProcessEvents\r\n    | project DeviceId,\r\n              AccountName,\r\n              SHA256,\r\n              InitiatingProcessFileName,\r\n              InitiatingProcessParentFileName,\r\n              InitiatingProcessCommandLine,\r\n              TimeGenerated\r\n) on DeviceId, SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0008
+techniques:
+    - T1071
+    - T1037
+    - T1027
+    - T1021.001
+    - T1078
+tags:
+    - kql
+author: Sam Harrison
+version: "4"
+references:
+    - https://media.defense.gov/2025/Dec/04/2003834878/-1/-1/0/MALWARE-ANALYSIS-REPORT-BRICKSTORM-BACKDOOR.PDF

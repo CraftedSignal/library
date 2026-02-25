@@ -1,0 +1,59 @@
+id: 488b5ae6-e750-40f1-b574-622cfb23284a
+name: Zephyr Cryptominer Activity via Deceptive Path
+description: Detects the creation of files in a deceptive directory 'C:\Windows \System32\' (with a space after 'Windows'). This technique is used by a Zephyr/XMRig cryptomining campaign to stage files for DLL search order hijacking of 'printui.exe'.
+query: |
+    title: Zephyr Cryptominer Activity via Deceptive Path
+    id: 1a8665f2-b9c7-45e6-a7d1-e0ebd38db71e
+    status: experimental
+    description: Detects the creation of files in a deceptive directory 'C:\Windows \System32\' (with a space after 'Windows'). This technique is used by a Zephyr/XMRig cryptomining campaign to stage files for DLL search order hijacking of 'printui.exe'.
+    references:
+      - https://www.cyberproof.com/blog/uncovering-a-multi-stage-usb-cryptomining-attack/
+    author: detections.ai
+    date: 2025-09-03
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.001
+      - attack.resource_development
+      - attack.t1496
+      - malware.zephyr
+      - malware.xmrig
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection:
+            # Detects file creation/modification in the deceptive path with a trailing space after "Windows"
+        TargetFilename|contains: 'C:\Windows \System32\'
+            # The malware uses xcopy.exe and cmd.exe to stage the malicious files
+        Image|endswith:
+          - '\xcopy.exe'
+          - '\cmd.exe'
+      condition: selection
+    falsepositives:
+      - This activity is highly anomalous. The creation of a directory named "Windows " with a trailing space in the C:\ root is not legitimate behavior. False positives are considered highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0042
+    - TA0003
+    - TA0004
+    - TA0040
+techniques:
+    - T1574.001
+    - T1496
+tags:
+    - attack.defense_evasion
+    - attack.t1574.001
+    - attack.resource_development
+    - attack.t1496
+    - malware.zephyr
+    - malware.xmrig
+author: detections.ai
+version: "1"
+references:
+    - https://www.cyberproof.com/blog/uncovering-a-multi-stage-usb-cryptomining-attack/
+data_sources:
+    - file_event
+    - windows

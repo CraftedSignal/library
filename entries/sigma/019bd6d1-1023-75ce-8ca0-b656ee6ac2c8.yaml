@@ -1,0 +1,63 @@
+id: 019bd6d1-1023-75ce-8ca0-b656ee6ac2c8
+name: Suspicious grpconv.exe Execution from Uncommon Directory
+description: Detects the execution of the Windows utility 'grpconv.exe' when it is spawned by a parent process located in a temporary or otherwise uncommon directory. This is an unusual parent-child relationship and is indicative of techniques like process hollowing used by malware such as the Evelyn Stealer's second-stage injector.
+query: |
+    title: Suspicious grpconv.exe Execution from Uncommon Directory
+    id: 8158ff24-d850-4acf-812c-c420ab927f7b
+    status: experimental
+    description: Detects the execution of the Windows utility 'grpconv.exe' when it
+      is spawned by a parent process located in a temporary or otherwise uncommon
+      directory. This is an unusual parent-child relationship and is indicative of
+      techniques like process hollowing used by malware such as the Evelyn Stealer's
+      second-stage injector.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/analysis-of-the-evelyn-stealer-campaign.html
+    author: tim@detections.ai
+    date: 2026-01-19
+    tags:
+      - attack.t1055.012
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith: '\grpconv.exe' # Detects the target process for hollowing
+        ParentImage|contains:
+          # Identifies parent process running from a suspicious or temporary location
+          - '\AppData\Local\Temp\'
+          - '\AppData\Roaming\'
+          - '\Desktop\'
+          - '\Downloads\'
+          - '\PerfLogs\'
+          - '\ProgramData\'
+          - '\temp\'
+          - '\Users\Public\'
+          - '\Windows\Fonts\'
+          - '\Windows\System32\Tasks\'
+          - '\Windows\Tasks\'
+          - '\Windows\Temp\'
+      condition: selection
+    falsepositives:
+      - While highly suspicious, some legitimate but poorly written software
+        installers or updaters might spawn processes from temporary or user-writable
+        directories. However, 'grpconv.exe' is an unlikely child process in most
+        legitimate scenarios. Scrutinize the parent process for legitimacy.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.012
+tags:
+    - attack.t1055.012
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analysis-of-the-evelyn-stealer-campaign.html
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

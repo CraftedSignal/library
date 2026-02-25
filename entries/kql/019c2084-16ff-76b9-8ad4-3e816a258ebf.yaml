@@ -1,0 +1,17 @@
+id: 019c2084-16ff-76b9-8ad4-3e816a258ebf
+name: Notepad++ The Chrysalis Backdoor
+description: 'This rule detects activity related to the Chrysalis Backdoor, which is associated with the Lotus Blossom threat group. It identifies malicious activity through three main components: 1. File and process events matching a list of known malicious SHA256 hashes. 2. Network connections to known malicious IP addresses or domains. 3. Suspicious execution of ''svchost.exe'' from non-standard Windows directories with specific command-line arguments, indicating potential masquerading or malicious execution.'
+query: "//https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/\r\n\r\nlet MaliciousHashes = dynamic([\r\n    \"a511be5164dc1122fb5a7daa3eef9467e43d8458425b15a640235796006590c9\",\r\n    \"8ea8b83645fba6e23d48075a0d3fc73ad2ba515b4536710cda4f1f232718f53e\",\r\n    \"2da00de67720f5f13b17e9d985fe70f10f153da60c9ab1086fe58f069a156924\",\r\n    \"77bfea78def679aa1117f569a35e8fd1542df21f7e00e27f192c907e61d63a2e\",\r\n    \"3bdc4c0637591533f1d4198a72a33426c01f69bd2e15ceee547866f65e26b7ad\",\r\n    \"9276594e73cda1c69b7d265b3f08dc8fa84bf2d6599086b9acc0bb3745146600\",\r\n    \"f4d829739f2d6ba7e3ede83dad428a0ced1a703ec582fc73a4eee3df3704629a\",\r\n    \"4a52570eeaf9d27722377865df312e295a7a23c3b6eb991944c2ecd707cc9906\",\r\n    \"831e1ea13a1bd405f5bda2b9d8f2265f7b1db6c668dd2165ccc8a9c4c15ea7dd\",\r\n    \"0a9b8df968df41920b6ff07785cbfebe8bda29e6b512c94a3b2a83d10014d2fd\",\r\n    \"4c2ea8193f4a5db63b897a2d3ce127cc5d89687f380b97a1d91e0c8db542e4f8\",\r\n    \"e7cd605568c38bd6e0aba31045e1633205d0598c607a855e2e1bca4cca1c6eda\",\r\n    \"078a9e5c6c787e5532a7e728720cbafee9021bfec4a30e3c2be110748d7c43c5\",\r\n    \"b4169a831292e245ebdffedd5820584d73b129411546e7d3eccf4663d5fc5be3\",\r\n    \"7add554a98d3a99b319f2127688356c1283ed073a084805f14e33b4f6a6126fd\",\r\n    \"fcc2765305bcd213b7558025b2039df2265c3e0b6401e4833123c461df2de51a\"\r\n]);\r\nunion DeviceProcessEvents,DeviceFileEvents\r\n| where SHA256 in (MaliciousHashes)\r\n   or InitiatingProcessSHA256 in (MaliciousHashes)\r\n| project Timestamp, DeviceName, FileName, FolderPath, SHA256, InitiatingProcessFileName\r\n| order by Timestamp desc\r\n\r\nlet MaliciousIPs = dynamic([\r\n    \"95.179.213.0\",\r\n    \"61.4.102.97\",\r\n    \"59.110.7.32\",\r\n    \"124.222.137.114\"\r\n]);\r\nlet MaliciousDomains = dynamic([\r\n    \"api.skycloudcenter.com\",\r\n    \"api.wiresguard.com\"\r\n]);\r\nDeviceNetworkEvents\r\n| where RemoteIP  in (MaliciousIPs)\r\n   or RemoteUrl has_any (MaliciousDomains)\r\n| project Timestamp, DeviceName, InitiatingProcessFileName, RemoteIp, RemoteUrl, RemotePort, Protocol\r\n| order by Timestamp desc\r\n\r\nlet SuspiciousArgs = dynamic([\"-nostdlib\", \"-run\"]);\r\nDeviceProcessEvents\r\n| where FileName =~ \"svchost.exe\"\r\n| where FolderPath !startswith @\"C:\\Windows\\System32\"\r\n| where FolderPath !startswith @\"C:\\Windows\\SysWOW64\"\r\n| where ProcessCommandLine has_all (SuspiciousArgs)\r\n| where ProcessCommandLine matches regex @\"\\.c(\\s|$)\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    ProcessId\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1036.003
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/

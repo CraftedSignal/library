@@ -1,0 +1,147 @@
+id: 7311ca1d-1077-450c-abe2-57d5249809a9
+name: Akira Ransomware Post-Exploitation Activity Following SonicWall Exploitation
+description: Detects a variety of post-exploitation techniques observed in attacks leveraging SonicWall vulnerabilities (CVE-2024-40766). These techniques are associated with the Akira ransomware group and include defense evasion, credential access, and data staging.
+query: |
+    title: Akira Ransomware Post-Exploitation Activity Following SonicWall Exploitation
+    id: 4faad186-6297-4c29-baed-5e327a32dadf
+    status: experimental
+    description: Detects a variety of post-exploitation techniques observed in attacks leveraging SonicWall vulnerabilities (CVE-2024-40766). These techniques are associated with the Akira ransomware group and include defense evasion, credential access, and data staging.
+    references:
+      - https://www.huntress.com/blog/exploitation-of-sonicwall-vpn
+    author: detections.ai
+    date: 2025-08-14
+    tags:
+      - attack.ta0001
+      - attack.t1190
+      - attack.ta0005
+      - attack.t1562.001
+      - attack.t1562.004
+      - attack.ta0003
+      - attack.t1133
+      - attack.t1053.005
+      - attack.ta0006
+      - attack.ta0008
+      - attack.t1003
+      - attack.t1021
+      - attack.ta0040
+      - attack.t1486
+      - attack.g0154
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_vssadmin:
+            # Detects deletion of all volume shadow copies using vssadmin
+        Image|endswith: '\vssadmin.exe'
+        CommandLine|contains|all:
+          - 'delete'
+          - 'shadows'
+          - '/all'
+          - '/quiet'
+      selection_vss_ps:
+            # Detects deletion of volume shadow copies via WMI using PowerShell
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains|all:
+          - 'Get-WmiObject'
+          - 'Win32_Shadowcopy'
+          - 'Remove-WmiObject'
+      selection_ntds_dump:
+            # Detects backup of the NTDS.dit file using wbadmin, a common credential access technique
+        Image|endswith: '\wbadmin.exe'
+        CommandLine|contains|all:
+          - 'start'
+          - 'backup'
+          - '-include:'
+          - 'NTDS.dit'
+      selection_akira_log_clear:
+            # Detects Akira's specific command to clear all Windows Event Logs
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains|all:
+          - 'Get-WinEvent'
+          - '-ListLog'
+          - 'ClearLog'
+          - 'EventLogSession'
+      selection_add_user_to_admin:
+            # Detects adding a user to a privileged group like Domain Admins or local Administrators
+        Image|endswith:
+          - '\net.exe'
+          - '\net1.exe'
+        CommandLine|contains|all:
+          - 'group'
+          - '/add'
+        CommandLine|contains:
+          - 'Domain Admins'
+          - 'Administrators'
+      selection_openssh_install:
+            # Detects silent installation of OpenSSH, used for persistence
+        Image|endswith: '\msiexec.exe'
+        CommandLine|contains|all:
+          - '/i'
+          - 'OpenSSHa.msi'
+      selection_winrar_staging:
+            # Detects specific WinRAR command line used for staging data for exfiltration
+        Image|endswith: '\WinRAR.exe'
+        CommandLine|contains|all:
+          - ' a '
+          - '-ep1'
+          - '-scul'
+      selection_akira_exec:
+            # Detects execution of Akira ransomware executable
+        Image|endswith:
+          - '\w.exe'
+          - '\win.exe'
+        CommandLine|contains:
+          - '-p='
+          - '-n='
+          - '-dellog'
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate administrative activity may trigger alerts for `vssadmin.exe`, `wbadmin.exe`, or `net.exe`. However, the specific command-line combinations are highly suspicious.
+      - Backup software may use similar commands to manage shadow copies. Context is key.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0006
+    - TA0008
+    - TA0040
+    - TA0002
+    - TA0004
+    - TA0009
+techniques:
+    - T1486
+    - T1003
+    - T1562.001
+    - T1053.005
+    - T1021
+    - T1133
+    - T1190
+    - T1560.001
+    - T1059.001
+    - T1006
+tags:
+    - attack.ta0001
+    - attack.t1190
+    - attack.ta0005
+    - attack.t1562.001
+    - attack.t1562.004
+    - attack.ta0003
+    - attack.t1133
+    - attack.t1053.005
+    - attack.ta0006
+    - attack.ta0008
+    - attack.t1003
+    - attack.t1021
+    - attack.ta0040
+    - attack.t1486
+    - attack.g0154
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/exploitation-of-sonicwall-vpn
+data_sources:
+    - process_creation
+    - windows

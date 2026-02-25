@@ -1,0 +1,22 @@
+id: 019a24fd-e07e-7755-a9e8-d0d7e39bc4fb
+name: Exif smuggling FileFix Detection
+description: |-
+    Detection based on: https://malwaretech.com/2025/10/exif-smuggling.html
+
+    This rule detects suspicious PowerShell execution patterns that might indicate an 'Exif smuggling FileFix Technique' or similar obfuscated command execution. It specifically looks for 'conhost.exe' launching PowerShell ('powershell.exe', 'pwsh.exe', 'pwsh.dll') with an encoded command ('-e' or '-EncodedCommand'), containing more than 5 spaces, and including a UNC path. This combination of indicators suggests an attempt to execute obfuscated PowerShell code, potentially from a remote source.
+query: "//Exif smuggling FileFix Technique\r\nDeviceProcessEvents\r\n| where ProcessCommandLine startswith \"conhost.exe --headless\"\r\n| where ProcessCommandLine has_any (\"powerhshell.exe\", \"pwsh.exe\", \"pwsh.dll\")\r\n//Checks for Encoded Command\r\n| where ProcessCommandLine has \"-e\" or ProcessCommandLine has \"-EncodedCommand\"\r\n//Checks if more than 5 Spaces are in the Command \r\n| where ProcessCommandLine matches regex \" {5,}\"\r\n//Checks if a UNC Path is in the Comand\r\n| where ProcessCommandLine matches regex @\"\\\\\\\\([a-zA-Z0-9\\-\\.]+)\\\\[a-zA-Z0-9\\-\\.$_]+\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027.010
+    - T1027.013
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://malwaretech.com/2025/10/exif-smuggling.html

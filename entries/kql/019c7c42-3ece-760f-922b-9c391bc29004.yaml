@@ -1,0 +1,75 @@
+id: 019c7c42-3ece-760f-922b-9c391bc29004
+name: Suspicious Registry RunMRU Entry with DNS Tools or Obfuscated Commands
+description: This rule detects suspicious entries in the RunMRU (Most Recently Used) registry key that indicate potential persistence mechanisms. It specifically looks for entries containing DNS-related tools (like nslookup, dig, host), other common system utilities (ping, tracert, ipconfig, powershell, cmd.exe, wmic, curl, wget, certutil, bitsadmin), or suspicious flags commonly associated with obfuscated or malicious commands (e.g., base64 encoding, web requests, common sensitive paths). The rule also correlates these registry modifications with subsequent process creations to confirm execution.
+query: |4
+    //Author: Daniel Jeremiah
+    //Purpose: Detect suspicious RunMRU values and correlate to process execution
+    //Date: 2026-02-22
+
+
+    let TimeRange = 30d;
+    let PostWindow = 5m;
+
+    let rx_word_boundary = @"(?i)(^|[^a-z0-9])";
+    let rx_non_alnum_gap = @"[^a-z0-9]{0,6}";
+    let rx_nslookup_obf =
+        strcat(rx_word_boundary,"n",rx_non_alnum_gap,"s",rx_non_alnum_gap,"l",rx_non_alnum_gap,"o",
+               rx_non_alnum_gap,"o",rx_non_alnum_gap,"k",rx_non_alnum_gap,"u",rx_non_alnum_gap,"p",rx_word_boundary);
+
+    let rx_dns_tools =
+        @"(?i)(^|[^a-z0-9])(nslookup|dig|host|whois|ping|tracert|pathping|ipconfig|netstat|arp|route|nltest|powershell|pwsh|cmd\\.exe|rundll32|reg\\.exe|wmic|curl|wget|certutil|bitsadmin)([^a-z0-9]|$)";
+
+    let rx_suspicious_flags =
+        @"(?i)(-enc\\s+|frombase64string\\(|iwr\\s+|invoke-webrequest|downloadstring\\(|http[s]?://|\\\\\\\\[a-z0-9\\.-]+\\\\|%appdata%|%temp%|\\bstartup\\b|\\brunonce\\b)";
+
+    let RunMRU =
+        DeviceRegistryEvents
+        | where Timestamp >= ago(TimeRange)
+        | where ActionType == "RegistryValueSet"
+        | where RegistryKey endswith @"\Microsoft\Windows\CurrentVersion\Explorer\RunMRU"
+        | where InitiatingProcessParentFileName =~ "userinit.exe"
+        | extend Data = tostring(RegistryValueData)
+        | extend Hit_NslookupObf = iff(Data matches regex rx_nslookup_obf, true, false)
+        | extend Hit_DnsTools    = iff(Data matches regex rx_dns_tools, true, false)
+        | extend Hit_SuspFlags   = iff(Data matches regex rx_suspicious_flags, true, false)
+        | where Hit_NslookupObf or Hit_DnsTools or Hit_SuspFlags
+        | project RunMRU_Time = Timestamp, DeviceId, DeviceName, RegistryKey, RegistryValueName, RegistryValueData,
+                  InitiatingProcessAccountName, InitiatingProcessLogonId, Hit_NslookupObf, Hit_DnsTools, Hit_SuspFlags, ReportId;
+
+    RunMRU
+    | join kind=leftouter (
+        DeviceProcessEvents
+        | where Timestamp >= ago(TimeRange)
+        | project Proc_Time = Timestamp, DeviceId, FileName, ProcessCommandLine, InitiatingProcessAccountName, InitiatingProcessLogonId, ReportId
+    ) on DeviceId, InitiatingProcessLogonId
+    | where Proc_Time between (RunMRU_Time .. RunMRU_Time + PostWindow)
+    | project
+        RunMRU_Time,
+        Proc_Time,
+        DeviceName,
+        RegistryValueName,
+        RegistryValueData,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessAccountName,
+        InitiatingProcessLogonId,
+        Hit_NslookupObf,
+        Hit_DnsTools,
+        Hit_SuspFlags
+    | order by RunMRU_Time desc, Proc_Time asc
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+    - TA0005
+techniques:
+    - T1547.001
+    - T1547
+    - T1059
+    - T1027
+    - T1036
+tags:
+    - kql
+version: "3"

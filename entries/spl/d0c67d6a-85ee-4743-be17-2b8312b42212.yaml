@@ -1,0 +1,12 @@
+id: d0c67d6a-85ee-4743-be17-2b8312b42212
+name: Mass Self Assignment of SaaS applications in Okta
+description: SPL Query
+query: "index=* sourcetype=\"OktaIM2:log\" ``` Adjust index and sourcetype to your environment```\n| where eventType=application.user_membership.add\n| rex field=outcome \"(?<result>SUCCESS|FAILURE)\"\n| where src_user_id = targetuserid AND isnotnull(src_user_id) AND src_user_id!=\"\"\n| eval user=src_user_id, application=targetAppDisplayName, ip=src_ip\n| bin _time span=15m\n| stats \n    dc(application) as num_apps_assigned, \n    values(application) as applications_assigned, \n    dc(ip) as num_ips, \n    values(ip) as principal_ip, \n    count as event_count, \n    first(user) as principal_user_userid \n    by user, _time\n| eval risk_score=65\n| where num_apps_assigned > 5\n```Detects a user self-assigning access to a large number of applications in Okta within a short time frame. This behavior is associated with the threat group UNC3944 (Scattered Spider) for privilege escalation and lateral movement across SaaS applications. Reference: https://cloud.google.com/blog/topics/threat-intelligence/unc3944-targets-saas-applications```"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Jamari Donovan
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc3944-targets-saas-applications

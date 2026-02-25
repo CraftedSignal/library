@@ -1,0 +1,98 @@
+id: e4cc464f-0336-4f3f-8f29-710f905ac026
+name: 'Fileless Execution : Remcos RAT K-Loader Activity'
+description: KQL Query
+query: |-
+    let timeframe = 7d;
+    let known_c2_domains = dynamic(["readysteaurants.com", "mytaxclientcopy.com"]);
+    let known_c2_ips = dynamic(["193.142.146.101", "162.254.39.129"]);
+    let suspicious_powershell_ports = dynamic([2025]);
+
+    // Detect MSHTA executing remote HTA files
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    | where FileName =~ "mshta.exe"
+    | where ProcessCommandLine has_any ("http://", "https://")
+    | where ProcessCommandLine has_any (".hta", ".html")
+    | where ProcessCommandLine has_any (known_c2_domains)
+    | extend DetectionType = "MSHTA Remote HTA Execution"
+    | project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+              FileName, ProcessCommandLine, ActionType,
+              ReportId, AdditionalFields,
+              AccountName = InitiatingProcessAccountName,
+              AccountSid = InitiatingProcessAccountSid,
+              ProcessId = InitiatingProcessId,
+              ParentProcessId = InitiatingProcessParentId,
+              ParentProcessName = InitiatingProcessParentFileName,
+              ParentProcessCommandLine = InitiatingProcessParentCommandLine,
+              DetectionType,
+              RemoteIP = "", RemotePort = int(null), RemoteUrl = "", // Placeholder for network fields
+              RegistryKey = "", RegistryValueName = "", RegistryValueData = "" // Placeholder for registry fields
+    | union (
+        // Detect PowerShell making suspicious network connections
+        DeviceNetworkEvents
+        | where TimeGenerated > ago(timeframe)
+        | where InitiatingProcessFileName =~ "powershell.exe"
+        | where RemotePort in (suspicious_powershell_ports) or RemoteIP in (known_c2_ips) or RemoteUrl has_any (known_c2_domains)
+        | extend DetectionType = "PowerShell Suspicious Network Connection"
+        | project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                  FileName = "", ProcessCommandLine = "", ActionType, // Placeholder for process fields
+                  ReportId, AdditionalFields,
+                  AccountName = InitiatingProcessAccountName,
+                  AccountSid = InitiatingProcessAccountSid,
+                  ProcessId = InitiatingProcessId,
+                  ParentProcessId = InitiatingProcessParentId,
+                  ParentProcessName = InitiatingProcessParentFileName,
+                  ParentProcessCommandLine = InitiatingProcessParentCommandLine,
+                  DetectionType,
+                  RemoteIP, RemotePort, RemoteUrl,
+                  RegistryKey = "", RegistryValueName = "", RegistryValueData = "" // Placeholder for registry fields
+    )
+    | union (
+        // Detect Registry Run Key Modification for persistence
+        DeviceRegistryEvents
+        | where TimeGenerated > ago(timeframe)
+        | where RegistryKey has_cs @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
+        | where ActionType =~ "RegistryValueSet" or ActionType =~ "RegistryKeyCreate"
+        | where InitiatingProcessFileName =~ "powershell.exe" or InitiatingProcessFileName =~ "mshta.exe"
+        | where RegistryValueData has_any ("powershell.exe", "mshta.exe", "C:\\Users\\Public\\")
+        | where RegistryValueName has_any ("windowsupdatd1webd1212", "windowsupdatedatas1")
+        | extend DetectionType = "Registry Run Key Persistence"
+        | project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                  FileName = "", ProcessCommandLine = "", ActionType, // Placeholder for process fields
+                  ReportId, AdditionalFields,
+                  AccountName = InitiatingProcessAccountName,
+                  AccountSid = InitiatingProcessAccountSid,
+                  ProcessId = InitiatingProcessId,
+                  ParentProcessId = InitiatingProcessParentId,
+                  ParentProcessName = InitiatingProcessParentFileName,
+                  ParentProcessCommandLine = InitiatingProcessParentCommandLine,
+                  DetectionType,
+                  RemoteIP = "", RemotePort = int(null), RemoteUrl = "", // Placeholder for network fields
+                  RegistryKey, RegistryValueName, RegistryValueData
+    )
+    | extend
+        Author = "Chaitanya AKA Mr.Alien",
+        Date = "2025-07-04",
+        Techniques = dynamic(["T1218.005", "T1059.001", "T1547.001", "T1105"]),
+        Tactics = dynamic(["Defense Evasion", "Execution", "Persistence", "Command and Control"]),
+        Severity = "High",
+        Description = "Detects potential Remcos RAT activity involving MSHTA proxy execution, PowerShell network connections to C2, and registry run key persistence. This activity is associated with the 'K-Loader' delivering Remcos RAT.",
+        RuleName = "Remcos RAT K-Loader Activity",
+        References = dynamic(["https://blog.qualys.com/vulnerabilities-threat-research/2025/05/15/fileless-execution-powershell-based-shellcode-loader-executes-remcos-rat"])
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1218.005
+    - T1059.001
+    - T1547.001
+    - T1105
+tags:
+    - kql
+author: Chaitanya AKA Mr.Alien
+version: "1"

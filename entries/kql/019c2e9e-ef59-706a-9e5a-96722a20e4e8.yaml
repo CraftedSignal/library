@@ -1,0 +1,17 @@
+id: 019c2e9e-ef59-706a-9e5a-96722a20e4e8
+name: Suspicious Kernel Driver Service Creation in Non-Standard Directory
+description: Detects the creation of a Windows kernel-mode driver service where the driver binary is located in a suspicious, non-standard directory like Temp, Public, or AppData. This is a common persistence technique for malware, including EDR killers that use vulnerable drivers.
+query: "// Name: Suspicious Kernel Driver Service Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-05\r\n// Description: Detects the creation of a Windows kernel-mode driver service where the driver binary is located in a suspicious, non-standard directory like Temp, Public, or AppData. This is a common persistence technique for malware, including EDR killers that use vulnerable drivers.\r\n// MITRE TTPs: T1543.003\r\n// References: https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html\r\n// False Positive Sensitivity: Medium. Some legitimate installers or software updaters may temporarily place drivers in these locations. Review the initiating process and the driver file itself to determine legitimacy. Consider adding known legitimate installer processes to an exclusion list.\r\n// Define suspicious locations for a driver binary.\r\nlet suspicious_paths = dynamic([\r\n    'C:\\\\Windows\\\\Temp\\\\',\r\n    'C:\\\\Users\\\\Public\\\\',\r\n    '\\\\AppData\\\\Local\\\\Temp\\\\' // Note: No C: prefix to catch any user profile\r\n]);\r\nDeviceProcessEvents\r\n// Filter for service creation commands via sc.exe or PowerShell.\r\n| where (ProcessCommandLine has \"sc\" and ProcessCommandLine has \"create\" and ProcessCommandLine contains \"type= kernel\")\r\n    or (ProcessCommandLine has \"New-Service\" and ProcessCommandLine contains \"-StartupType KernelDriver\")\r\n// Normalize the binary path argument from both sc.exe and PowerShell.\r\n| extend BinaryPath = case(\r\n    ProcessCommandLine has \"binPath=\", extract(\"binPath=\\\\s*\\\"?([^\\\"\\\\s]+|\\\"[^\\\"]+\\\")\", 1, ProcessCommandLine),\r\n    ProcessCommandLine has \"-BinaryPathName\", extract(\"-BinaryPathName\\\\s*\\\"?([^\\\"\\\\s]+|\\\"[^\\\"]+\\\")\", 1, ProcessCommandLine),\r\n    \"\"\r\n)\r\n| extend BinaryPath = trim('\"', BinaryPath)\r\n// Filter for events where the binary path points to a suspicious location.\r\n| where isnotempty(BinaryPath) and (\r\n    BinaryPath has_any (suspicious_paths) or\r\n    (BinaryPath startswith \"C:\\\\Users\\\\\" and BinaryPath contains \"\\\\AppData\\\\\")\r\n)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessCommandLine,\r\n    BinaryPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html

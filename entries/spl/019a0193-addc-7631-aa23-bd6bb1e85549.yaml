@@ -1,0 +1,23 @@
+id: 019a0193-addc-7631-aa23-bd6bb1e85549
+name: Potential DNS Poisoning
+description: |-
+    _ldap._tcp.dc._msdcs.ad.domain.com is a DNS query used by AD clients to locate Domain Controllers that can provide LDAP services for the ad.domain.com domain, ensuring users and computers can authenticate, query directory data, and function inside the AD forest.
+
+    This SPL query flags IP addresses returned by DNS for the AD DC-locator SRV query (_ldap._tcp.dc._msdcs.ad.domain.com.) that are not known/approved Domain Controllers in your inventory, and that show up frequently (more than 10 hits in the selected time range).
+
+    This can be for the use case where an attacker has compromised or poisoned a DNS server / resolver and is advertising their IP(s) as Domain Controllers (SRV/A glue in _msdcs) so clients attempt LDAP/Kerberos against attacker-controlled hosts.
+query: "index=crowdstrike event_simpleName=DnsRequest query=\"_ldap._tcp.dc._msdcs.ad.domain.com.\" IP4Records=* query_type=SRV\r\n| eval ip_list=split(replace(IP4Records,\";+$\",\"\"),\";\")\r\n| mvexpand ip_list\r\n| eval ip=trim(ip_list)\r\n| lookup LOOKUP-cs_dc_list.csv ip OUTPUT device_hostname product_type_desc is_cs_device is_dc\r\n| eval is_cs_device=coalesce(is_cs_device,\"no\")\r\n| eval is_dc=coalesce(is_dc,\"no\")\r\n| eval device_hostname   = coalesce(device_hostname,\"Unknown\")\r\n| eval product_type_desc = coalesce(product_type_desc,\"Not in CS inventory\")\r\n| stats count AS dns_hits \r\n        values(query) as dns_queries\r\n        values(query_type) AS query_type\r\n        values(reply_code) AS reply_code\r\n        values(aid_computer_name) as ComputerNames\r\n        values(device_hostname) AS device_hostname\r\n        values(product_type_desc) AS product_type_desc\r\n        values(is_cs_device) AS is_cs_device\r\n        values(is_dc) AS is_dc\r\n        min(_time) AS first_seen\r\n        max(_time) AS last_seen\r\n        by ip\r\n| convert ctime(first_seen) ctime(last_seen) \r\n| where is_dc==\"no\"\r\n| where dns_hits > 10\r\n| sort -dns_hits \r\n| eval aggregation_criteria=ip"
+query_type: spl
+severity: medium
+tactics:
+    - TA0042
+    - TA0005
+techniques:
+    - T1584.002
+    - T1207
+tags:
+    - spl
+author: Cyb3rSn0rlax
+version: "3"
+references:
+    - https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-adts/7fcdce70-5205-44d6-9c3a-260e616a2f04

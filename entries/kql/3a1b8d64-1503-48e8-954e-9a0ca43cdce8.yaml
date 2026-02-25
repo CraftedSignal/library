@@ -1,0 +1,29 @@
+id: 3a1b8d64-1503-48e8-954e-9a0ca43cdce8
+name: Critical Identities Privilege Escalation on Entra Service Principal
+description: KQL Query
+query: "// Critical Identities Privilege Escalation on Entra Service Principal\n// https://www.linkedin.com/posts/0x534c_defenderxdr-customdetection-exposuremanagement-activity-7182618135659692032-HsE5/\n\n//Custom DefenderXDR privilege escalation detection rule for critical identities marked by exposure management for adding Entra service principal credentials. It is vital for SecOps to monitor organization's critical identities for any potential privilege escalation in Entra service principals.\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) \nand NodeProperties.rawData.criticalityLevel.criticalityLevel < 4\n| extend AccountID = tostring(NodeProperties.rawData.accountObjectId)\n| distinct AccountID;\nCloudAppEvents\n| where ActivityType == \"Add\"\n| where ActionType == @\"Add service principal credentials.\"\n| where AccountId has_any(CriticalIdentities)\n\n\n// MITRE ATT&CK Mapping\n\n// The KQL query can be mapped to the following MITRE ATT&CK techniques:\n\n// T1078.004 - Valid Accounts: Cloud Accounts:\n// The query is looking for the addition of service principal credentials, which can be associated with the use of valid cloud accounts to gain unauthorized access.\n\n// T1098 - Account Manipulation:\n// Adding service principal credentials can be seen as a form of account manipulation, where adversaries modify accounts to maintain access.\n\n// T1078 - Valid Accounts:\n// The use of valid accounts, especially those with elevated privileges, is a common technique for maintaining persistence and accessing resources.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0043
+    - TA0006
+    - TA0011
+    - TA0002
+    - TA0008
+techniques:
+    - T1078.004
+    - T1098
+    - T1078
+    - T1589.001
+    - T1214
+    - T1102
+    - T1047
+    - T1021.006
+    - T1137.006
+    - T1098.001
+tags:
+    - kql
+version: "1"

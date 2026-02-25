@@ -1,0 +1,81 @@
+id: 019a9dff-2dee-74ab-9546-1b65ef70cd0c
+name: VBScript Process Network Connection to AI API Endpoints
+description: |
+    Detects Windows VBScript (wscript.exe or cscript.exe) processes establishing network connections to AI/LLM API endpoints. This behavior is highly anomalous as VBScript is typically used for local automation and rarely makes HTTPS API calls to external services. This pattern is consistent with PROMPTFLUX malware and jailbroken LLM variants like WormGPT. PROMPTFLUX uses Gemini's API to dynamically rewrite and obfuscate its own VBScript code at runtime. WormGPT variants use jailbroken Grok (xAI) or Mixtral (Mistral AI) APIs with manipulated system prompts to bypass guardrails. The malware queries AI models to generate new obfuscated versions of itself, creating a "just-in-time" metamorphic capability that constantly evolves to bypass static signature-based detection. Sysmon Event ID 3 is the best way to detect this behavior on endpoints.
+query: |
+    title: VBScript Process Network Connection to AI API Endpoints
+    id: 78bdeab6-e8ad-4693-a7c7-c50885bf375f
+    status: experimental
+    description: |
+      Detects Windows VBScript (wscript.exe or cscript.exe) processes establishing network connections to AI/LLM API endpoints. This behavior is highly anomalous as VBScript is typically used for local automation and rarely makes HTTPS API calls to external services. This pattern is consistent with PROMPTFLUX malware and jailbroken LLM variants like WormGPT. PROMPTFLUX uses Gemini's API to dynamically rewrite and obfuscate its own VBScript code at runtime. WormGPT variants use jailbroken Grok (xAI) or Mixtral (Mistral AI) APIs with manipulated system prompts to bypass guardrails. The malware queries AI models to generate new obfuscated versions of itself, creating a "just-in-time" metamorphic capability that constantly evolves to bypass static signature-based detection. Sysmon Event ID 3 is the best way to detect this behavior on endpoints.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/threat-actor-usage-of-ai-tools
+      - https://thehackernews.com/2025/11/google-uncovers-promptflux-malware-that.html
+      - https://www.theregister.com/2025/11/05/attackers_experiment_with_gemini_ai
+      - https://cybersecuritynews.com/promptflux-malware-using-gemini-api/
+      - https://github.com/bobby-tablez/FT-Sysmon-Config
+    author: detections.ai
+    date: 2025-11-19
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+      - attack.defense_evasion
+      - attack.t1027
+    logsource:
+      product: windows
+      category: network_connection
+    detection:
+      selection_process:
+        # Detects execution of the Windows Script Host or CScript
+        Image|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+      selection_destination:
+        # Detects connections to various AI/LLM provider API endpoints
+        DestinationHostname|contains:
+          - 'generativelanguage.googleapis.com' # Google Gemini (PROMPTFLUX)
+          - 'api.openai.com' # OpenAI GPT
+          - 'api.anthropic.com' # Anthropic Claude
+          - 'api.x.ai' # xAI Grok (WormGPT)
+          - 'api.mistral.ai' # Mistral Mixtral (WormGPT)
+          - 'api.cohere.ai' # Cohere
+          - 'api-inference.huggingface.co' # Hugging Face
+          - 'huggingface.co' # Hugging Face
+          - 'api.together.xyz' # Together AI
+          - 'api.replicate.com' # Replicate
+          - 'api.groq.com' # Groq
+          - 'api.perplexity.ai' # Perplexity
+          - 'api.ai21.com' # AI21 Labs
+      selection_port:
+        DestinationPort: 443 # Standard HTTPS port
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative or development scripts that use VBScript to
+        interact with AI APIs, although this is highly uncommon.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0005
+    - TA0002
+techniques:
+    - T1071.001
+    - T1027
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.defense_evasion
+    - attack.t1027
+author: detections.ai
+version: "6"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/threat-actor-usage-of-ai-tools
+    - https://thehackernews.com/2025/11/google-uncovers-promptflux-malware-that.html
+    - https://www.theregister.com/2025/11/05/attackers_experiment_with_gemini_ai
+    - https://cybersecuritynews.com/promptflux-malware-using-gemini-api/
+    - https://github.com/bobby-tablez/FT-Sysmon-Config
+data_sources:
+    - network_connection
+    - windows

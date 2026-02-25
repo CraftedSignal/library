@@ -1,0 +1,55 @@
+id: 019acab9-cc40-7204-833a-495b9932159e
+name: Unusual Microsoft Teams Invitation Volume
+description: Detects a high volume of Microsoft Teams invitation emails sent to multiple users within the organization. This could indicate a reconnaissance attempt or a widespread phishing campaign where an attacker is trying to lure users into a malicious external tenant, bypassing some internal security controls.
+query: |
+    // Name: Unusual Microsoft Teams Invitation Volume
+    // Author: detections.ai
+    // Date: 2025-11-28
+    // Description: Detects a high volume of Microsoft Teams invitation emails sent to multiple users within the organization. This could indicate a reconnaissance attempt or a widespread phishing campaign where an attacker is trying to lure users into a malicious external tenant, bypassing some internal security controls.
+    // False Positives: Legitimate, large-scale B2B collaboration setups, such as onboarding a new partner or starting a project with a large external team. The recipient count threshold may need tuning.
+    // Tactic: Reconnaissance, Initial Access
+    // Technique: T1598.003, T1566.002
+    // References: https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html
+
+    // Set the time window for the detection.
+    let timeframe = 1d;
+    // Set the threshold for the minimum number of unique recipients to trigger an alert.
+    // This value should be tuned based on your organization's normal collaboration patterns.
+    let recipient_threshold = 10;
+
+    // This query assumes email logs are in the EmailEvents table. Adjust if your data is in a different table (e.g., CommonSecurityLog).
+    EmailEvents
+    | where TimeGenerated > ago(timeframe)
+    // Filter for invitation emails sent from the Microsoft Teams service.
+    | where SenderFromAddress == "noreply@email.teams.microsoft.com"
+    // Filter for subjects that are characteristic of a Teams invitation.
+    | where Subject has "invited you to join Microsoft Teams"
+    // Summarize by the specific invitation to see how many users were targeted.
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        RecipientCount = dcount(RecipientEmailAddress),
+        TargetedUsers = makeset(RecipientEmailAddress, 50)
+        by Subject, SenderFromAddress
+    // Apply the threshold to find high-volume invitation events.
+    | where RecipientCount > recipient_threshold
+    | project
+        StartTime,
+        EndTime,
+        Subject,
+        SenderFromAddress,
+        RecipientCount,
+        TargetedUsers
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+    - TA0001
+techniques:
+    - T1598.003
+    - T1566.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html

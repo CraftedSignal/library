@@ -1,0 +1,9 @@
+id: 019c0a71-270a-7438-a8b3-a8a39a96aea8
+name: 'Microsoft XDR: Pending Items in Action Center'
+description: This rule will alert when a pending action is required by a Security Administrator in Defender XDR. XDR lacks integrations with common ITSM applications and can only natively email for notifications. This will allow you to create a Sentinel Incident which then you can use a logic app to alert to whatever platform you would like.
+query: "CloudAppEvents\n    | where \n        Application == \"Microsoft 365\"\n    | where \n        AccountId == \"airinvestigation\"\n    | extend \n        Status = extract(\"\\\"Status\\\":\\\"([^\\\"]+)\", 1, tostring(RawEventData))\n    | extend \n        DeepLinkUrl = extract(\"\\\"DeepLinkUrl\\\":\\\"([^\\\"]+)\", 1, tostring(RawEventData))\n    | extend \n        InvestigationId = substring(extract(\"\\\"InvestigationId\\\":\\\"([^\\\"]+)\", 1, tostring(RawEventData)),-6)\n    | where \n        Status == \"Pending Action\"\n    | project \n        TimeGenerated, DeepLinkUrl, InvestigationId"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "2"

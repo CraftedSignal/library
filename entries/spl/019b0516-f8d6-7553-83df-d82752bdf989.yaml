@@ -1,0 +1,17 @@
+id: 019b0516-f8d6-7553-83df-d82752bdf989
+name: AWS IAM Role Trust Policy Misconfiguration (Confused Deputy)
+description: |
+    Detects AWS IAM roles whose trust policies were newly created or updated to allow cross account AWS principals to assume the role without any confused deputy protections in place.
+query: "```\r\nAuthor: Tayvion P. (@tayontech)\r\nmodified: 2025/12/10\r\nmodified_reason:\r\nThe full policy assumeRolePolicyDocument has been parsed to individual statements to extract all principal values to assess aws:SourceAccount, aws:SourceArn, and sts:ExternalId for deuputy confused misconfigurations.\r\nDesription:\r\nDetects AWS IAM roles whose trust policies were newly created or updated to allow cross account AWS principals to assume the role without any confuseddeputy protections in place. \r\ntags:\r\n  - attack.privilege_escalation\r\n  - attack.defense_evasion\r\n  - attack.t1199 \r\n  - attack.t1562.001\r\n```\r\n\r\nindex=cloudtrail eventSource=\"iam.amazonaws.com\" eventName IN (\"CreateRole\",\"UpdateAssumeRolePolicy\")\r\n| search NOT userIdentity.arn = <service-account> // OIDC-based role assumptions (GitHub Actions, etc.) must be excluded here to avoid false positives.\r\n  eventName IN (\"CreateRole\",\"UpdateAssumeRolePolicy\")\r\n\r\n| eval assume_doc = urldecode(coalesce(\r\n    'requestParameters.assumeRolePolicyDocument',\r\n    'requestParameters.policyDocument'\r\n))\r\n\r\n| spath input=assume_doc path=Statement{} output=stmt\r\n| mvexpand stmt\r\n\r\n| spath input=stmt path=Principal output=principal\r\n| spath input=stmt path=Condition output=condition\r\n\r\n| spath input=principal path=AWS{} output=aws_principal\r\n| mvexpand aws_principal\r\n\r\n| eval aws_principal = coalesce(aws_principal, principal)\r\n| rex field=aws_principal \"arn:aws:iam::(?<principal_account_id>\\d{12}):(?<principal_suffix>[^\\\"}]+)\"\r\n\r\n| eval principal_account_id = coalesce(\r\n    principal_account_id,\r\n    if(match(aws_principal, \"^\\d{12}$\"), aws_principal, null())\r\n)\r\n| where isnotnull(principal_account_id)\r\n| where principal_account_id != aws_account_id\r\n\r\n| eval has_external_id    = if(like(stmt, \"%\\\"sts:ExternalId\\\"%\"), 1, 0)\r\n| eval has_source_account = if(like(stmt, \"%\\\"aws:SourceAccount\\\"%\"), 1, 0)\r\n| eval has_source_arn     = if(like(stmt, \"%\\\"aws:SourceArn\\\"%\"), 1, 0)\r\n| eval has_protection = if(\r\n    has_external_id=1 OR has_source_account=1 OR has_source_arn=1,\r\n    1,\r\n    0\r\n)\r\n| where has_protection = 0\r\n| stats\r\n    min(_time)                    as initial_detection_time\r\n    values(sourceIPAddress)       as src_ip\r\n    values(assume_doc)            as assumed_policy\r\n    values(user_agent)            as useragent\r\n    values(aws_account_id)        as cloudaccount\r\n    values(principal_account_id)  as external_account\r\n    values(awsRegion)             as awsregion\r\n  by userIdentity.arn,\r\n     requestParameters.roleName\r\n\r\n| rename userIdentity.arn as actor_arn,\r\n         requestParameters.roleName as role_name\r\n\r\n| eval initial_detection_time = strftime(initial_detection_time, \"%F %T %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0004
+    - TA0001
+    - TA0005
+techniques:
+    - T1199
+    - T1484.002
+tags:
+    - spl
+version: "2"

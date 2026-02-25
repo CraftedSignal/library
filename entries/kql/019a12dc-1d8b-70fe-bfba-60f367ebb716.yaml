@@ -1,0 +1,46 @@
+id: 019a12dc-1d8b-70fe-bfba-60f367ebb716
+name: Possible CVE-2024-49113 LDAPNightmare Exploitation
+description: Detects the crash of lsass.exe caused by WLDAP32.dll, which is a strong indicator of exploitation of the LDAPNightmare vulnerability (CVE-2024-49113). This exploit causes a denial of service on unpatched Windows Servers.
+query: |
+    // Name: Possible CVE-2024-49113 LDAPNightmare Exploitation
+    // Author: detections.ai
+    // Date: 2025-10-23
+    // Description: Detects the crash of lsass.exe caused by WLDAP32.dll, which is a strong indicator of exploitation of the LDAPNightmare vulnerability (CVE-2024-49113). This exploit causes a denial of service on unpatched Windows Servers.
+    // References:
+    // - https://www.safebreach.com/blog/ldapnightmare-safebreach-labs-publishes-first-proof-of-concept-exploit-for-CVE-2024-49113/
+    // - https://gist.github.com/travisbgreen/82b68bac499edbe0b17dcbfa0c5c71b7
+    // False Positives: Low. A legitimate crash of lsass.exe with this signature is rare but would still indicate a critical system stability issue requiring investigation.
+    // Data Source: Windows Events
+    Event
+    // Look for Application Error events from the Application log
+    | where EventLog == "Application" and EventID == 1000 and Source == "Application Error"
+    // Parse the XML event data to access individual fields
+    | extend EventData = parse_xml(EventData).Event.EventData.Data
+    // Filter for the specific crash signature of CVE-2024-49113
+    | where tostring(EventData[0]) has "lsass.exe" // Faulting application is lsass.exe
+        and tostring(EventData[3]) has "WLDAP32.dll" // Faulting module is WLDAP32.dll
+        and tostring(EventData[6]) == "c0000005" // Exception code is an access violation
+    | project
+        TimeGenerated,
+        Computer,
+        EventID,
+        RenderedDescription,
+        FaultingApplication = tostring(EventData[0]),
+        FaultingModule = tostring(EventData[3]),
+        ExceptionCode = tostring(EventData[6]),
+        FaultingProcessId = tostring(EventData[8]),
+        FaultingApplicationPath = tostring(EventData[10]),
+        FaultingModulePath = tostring(EventData[11])
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1499.004
+    - T1499
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.safebreach.com/blog/ldapnightmare-safebreach-labs-publishes-first-proof-of-concept-exploit-for-CVE-2024-49113/
+    - https://gist.github.com/travisbgreen/82b68bac499edbe0b17dcbfa0c5c71b7

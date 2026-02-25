@@ -1,0 +1,50 @@
+id: 290f5856-e080-4628-837f-d636eada239c
+name: '[IC] - Detecting attacks based on TCP Flags (DDOS, SYN Flood, and others) '
+description: |-
+    This KQL Query is oriented to extract the different bits of TCP Flags which helps to review the different state of the connections and identify possible threats associated.
+    In addition, it allows to filter by specific TCP Flag to detect specific threats based on every case.
+query: |-
+    //Sergio Albea
+    let binnary_codes = externaldata(Integer: string, binary: string)[@"https://raw.githubusercontent.com/Sergio-Albea-Git/Threat-Hunting-KQL-Queries/refs/heads/main/Security-Lists/binary_list.csv"] with (format="csv", ignoreFirstRecord=True);
+    DeviceNetworkEvents
+    | extend tags = parse_json( AdditionalFields)
+    | extend direction =  tags["direction"]
+    | where direction has "In"
+    | extend Geo_IP = tostring(geo_info_from_ip_address(RemoteIP).country)
+    | where isnotempty(Geo_IP)
+    | extend TCPFlags =  tostring(tags["Tcp Flags"])
+    | join kind=leftouter  ( binnary_codes) on $left.TCPFlags == $right.Integer
+    | extend  num0 = strcat(substring(binary,  0,1)),num1 = strcat(substring(binary,  1,1)),num2 = strcat(substring(binary,  2,1)),num3 = strcat(substring(binary,  3,1)),num4 = strcat(substring(binary,  4,1)),num5 = strcat(substring(binary,  5,1)),num6 = strcat(substring(binary,  6,1)),num7 = strcat(substring(binary,  7,1))
+    | summarize make_set(binary),FIN= countif(num7 == 1),SYN= countif(num6 == 1),RST = countif(num5 == 1),PSH = countif(num4 == 1),ACK = countif(num3 == 1),URG = countif(num2 == 1),ECE = countif(num1 == 1),CWR = countif(num0 == 1),  count() by RemoteIP, Geo_IP
+    //FIN Scan — Attackers send FIN packets to probe open ports and evade firewalls
+    // | where FIN > 0
+    //SYN Flood Attack — Attackers send numerous SYN packets without completing the handshake to exhaust server resources.
+    //| where SYN > 100 // Adjust threshold based on baseline
+    //RST Flood Attack — Attackers send excessive RST packets to disrupt ongoing connections.
+    //| where RST > 0
+    //PSH - Attackers use PSH flags to quickly transmit stolen data.
+    //| where PSH > 0
+    //ACK Flood Attack — Attackers flood a target with ACK packets to exhaust system resources.
+    //| where ACK > 100
+    //URG - Injection Attacks — Attackers manipulate urgent pointers to inject malicious payloads.
+    //| where URG > 0
+    //ECN-Based Attacks — Attackers abuse ECN to cause unnecessary congestion handling.
+    //| where ECE > 0
+    //CWR - Attackers manipulate congestion control mechanisms to disrupt network performance.
+    //| where CWR > 0
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0007
+techniques:
+    - T1498
+    - T1498.001
+    - T1046
+    - DS0029
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://medium.com/detect-fyi/detecting-attacks-based-on-tcp-flags-ddos-syn-flood-and-others-cc7d11425b24

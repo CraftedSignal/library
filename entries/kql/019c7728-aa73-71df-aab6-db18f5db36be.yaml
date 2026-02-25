@@ -1,0 +1,18 @@
+id: 019c7728-aa73-71df-aab6-db18f5db36be
+name: Grandstream Suspected Reverse Shell (Post-Exploitation)
+description: Detects potential reverse shell activity originating from a Grandstream VoIP device. This is a high-fidelity indicator of compromise following the successful exploitation of CVE-2026-2329. This version uses DeviceNetworkEvents.
+query: "// Name: Grandstream Suspected Reverse Shell (Post-Exploitation)\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// References: https://www.bleepingcomputer.com/news/security/flaw-in-grandstream-voip-phones-allows-stealthy-eavesdropping/\r\n// Description: Detects potential reverse shell activity originating from a Grandstream VoIP device. This is a high-fidelity indicator of compromise following the successful exploitation of CVE-2026-2329. This version uses DeviceNetworkEvents.\r\n// Tactic: Command and Control\r\n// Technique: T1059.004, T1090.001\r\n// Data Source: DeviceNetworkEvents\r\nlet timeframe = 1h;\r\n// Define the IP address ranges for your VoIP handsets. This is critical for accurate detection.\r\nlet voip_ip_range = dynamic([]); // e.g., dynamic([\"192.168.10.0/24\", \"10.1.1.0/24\"])\r\n// Define common reverse shell listener ports.\r\nlet suspicious_ports = dynamic([4444, 4445, 8888]);\r\n// FP Tuning: Define legitimate management servers or destinations for VoIP handsets to communicate with.\r\nlet legitimate_destinations = dynamic([]); // e.g., dynamic([\"1.2.3.4\", \"prov.grandstream.com\"])\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(timeframe)\r\n// Filter for network connections initiated by devices within the defined VoIP IP ranges.\r\n// NOTE: This detection requires the VoIP handset to be onboarded to Microsoft Defender for Endpoint, which is unlikely for most VoIP devices.\r\n| where isnotempty(LocalIP) and has_any_ipv4_prefix(LocalIP, voip_ip_range)\r\n// Look for connections to common C2 listener ports or standard remote admin protocols (which are unusual for a handset).\r\n| where RemotePort in (suspicious_ports) or RemotePort in (22, 23)\r\n// Exclude connections to known-good management servers or provisioning services.\r\n| where RemoteIP !in (legitimate_destinations)\r\n// Project relevant fields for investigation.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    LocalIP,\r\n    RemoteIP,\r\n    RemotePort,\r\n    InitiatingProcessFileName,\r\n    ActionType\r\n| extend\r\n    timestamp = Timestamp,\r\n    SrcIpAddr = LocalIP,\r\n    DstIpAddr = RemoteIP\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1059.004
+    - T1090.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/flaw-in-grandstream-voip-phones-allows-stealthy-eavesdropping/

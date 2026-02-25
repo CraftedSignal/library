@@ -1,0 +1,13 @@
+id: 0199e2e9-0da0-763b-9b98-5ca6d74140a5
+name: 'Threat Hunt: APT35 - Subtle Snail Scheduled Task Creation'
+description: Detects suspicious scheduled task creation (schtasks.exe /create) linked to known Subtle Snail file hashes, malicious payload filenames, and recruitment paths. Correlates with parent processes commonly abused (browsers, explorer) and excludes benign system processes and service accounts. Aggregates events to highlight clustered activity for effective threat hunting.
+query: "let SubtleSnailHashes = dynamic([\r\n    // Add latest known Subtle Snail file hashes here\r\n    \"41d60b7090607e0d4048a3317b45ec7af637d27e5c3e6e89ea8bdcad62c15bf9\",\r\n    \"4260328c81e13a65a081be30958d94b945fea6f2a483d051c52537798b100c69\",\r\n    \"5d832f1da0c7e07927dcf72d6a6f011bfc7737dc34f39c561d1457af83e04e70\"\r\n]);\r\nlet SuspiciousFiles = dynamic([\"setup.exe\", \"userenv.dll\", \"xmllite.dll\", \"SenseSampleUploader.exe\", \"MigAutoPlay.exe\", \"MiniBike.dll\", \"MiniJunk.exe\"]);\r\nlet SuspiciousPaths = dynamic([\"AppData\\\\Local\\\\Microsoft\\\\MigAutoPlay\\\\\", \"Downloads\\\\\"]);\r\nlet SuspiciousParents = dynamic([\"explorer.exe\", \"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"iexplore.exe\"]);\r\nlet BenignExclusions = dynamic([\"svchost.exe\", \"System\"]);\r\nDeviceProcessEvents\r\n| where FileName == \"schtasks.exe\"\r\n| where ProcessCommandLine contains \"/create\"\r\n// Look for known suspicious files or paths in command line\r\n| where ProcessCommandLine has_any (SuspiciousFiles)\r\n    or ProcessCommandLine has_any (SuspiciousPaths)\r\n    or SHA256 in (SubtleSnailHashes)\r\n    or InitiatingProcessFileName in~ (SuspiciousParents)\r\n// Exclude known benign system processes and accounts\r\n| where InitiatingProcessFileName !in~ (BenignExclusions)\r\n| where InitiatingProcessAccountName !contains_cs \"SYSTEM\" and InitiatingProcessAccountName !contains_cs \"LOCAL SERVICE\" and InitiatingProcessAccountName !contains_cs \"NETWORK SERVICE\"\r\n| summarize EventCount = count(),\r\n            FirstSeen = min(Timestamp),\r\n            LastSeen = max(Timestamp),\r\n            InvolvedDevices = make_set(DeviceName),\r\n            Indicators = make_set_if(SHA256, isnotempty(SHA256)),\r\n            Commands = make_set(ProcessCommandLine),\r\n            Accounts = make_set(InitiatingProcessAccountName)\r\n            by FileName\r\n| where EventCount >= 2\r\n| order by FirstSeen desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1053.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://catalyst.prodaft.com/public/report/modus-operandi-of-subtle-snail/overview

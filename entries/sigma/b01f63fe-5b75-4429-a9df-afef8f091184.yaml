@@ -1,0 +1,80 @@
+id: b01f63fe-5b75-4429-a9df-afef8f091184
+name: Malicious NPM Package Installation
+description: Detects the installation of specific malicious versions of several npm packages. Threat actors gained access to maintainer accounts via a phishing campaign and published compromised versions containing malware. The payloads ranged from a Windows-based information stealer (Scavenger) to a cross-platform JavaScript backdoor.
+query: |
+    title: Malicious NPM Package Installation
+    id: c9b3049b-7f21-4e4f-a183-e44575bd0306
+    status: experimental
+    description: >-
+      Detects the installation of specific malicious versions of several npm packages.
+      Threat actors gained access to maintainer accounts via a phishing campaign and published compromised versions
+      containing malware. The payloads ranged from a Windows-based information stealer (Scavenger) to a cross-platform
+      JavaScript backdoor.
+    references:
+      - https://thehackernews.com/2025/07/malware-injected-into-6-npm-packages.html
+    author: detections.ai
+    date: 2025-07-31
+    tags:
+      - attack.execution
+      - attack.t1059.007
+      - attack.persistence
+      - attack.t1574.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects common package manager processes and installation commands
+      selection_base:
+        Image|endswith:
+          - '\npm.cmd'
+          - '\npm'
+          - '\yarn.cmd'
+          - '\yarn'
+          - '\pnpm.cmd'
+          - '\pnpm'
+        CommandLine|contains:
+          # Common installation commands for npm, yarn, and pnpm
+          - 'install'
+          - ' i ' # Note: spaces are used to ensure 'i' is a standalone argument (e.g., npm i)
+          - 'add'
+      # Detects the specific malicious package and version strings in the command line
+      selection_malware:
+        CommandLine|contains:
+          - 'eslint-config-prettier@8.10.1'
+          - 'eslint-config-prettier@9.1.1'
+          - 'eslint-config-prettier@10.1.6'
+          - 'eslint-config-prettier@10.1.7'
+          - 'eslint-plugin-prettier@4.2.2'
+          - 'eslint-plugin-prettier@4.2.3'
+          - 'synckit@0.11.9'
+          - '@pkgr/core@0.2.8'
+          - 'napi-postinstall@0.3.1'
+          - 'got-fetch@5.1.11'
+          - 'got-fetch@5.1.12'
+          - 'is@3.3.1'
+          - 'is@5.0.0'
+      condition: selection_base and selection_malware
+    falsepositives:
+      - This detection is highly specific to known malicious versions and is therefore unlikely to generate false positives. A security researcher or developer could intentionally install one of these versions for analysis.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0001
+techniques:
+    - T1195.001
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.007
+    - attack.persistence
+    - attack.t1574.007
+author: detections.ai
+version: "1"
+references:
+    - https://thehackernews.com/2025/07/malware-injected-into-6-npm-packages.html
+data_sources:
+    - process_creation
+    - windows

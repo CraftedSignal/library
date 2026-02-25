@@ -1,0 +1,20 @@
+id: 019c48f5-20d0-72bd-8f1c-f44175f30105
+name: Windows Event Log Clearing via Command Line
+description: Detects command-line tools and scripts used to clear Windows Event Logs, indicating potential anti-forensics activity to hide evidence of malicious actions.
+query: "title: Windows Event Log Clearing via Command Line\r\nid: d0e1f2a3-b4c5-6789-d012-345678901234\r\nstatus: experimental\r\ndescription: Detects command-line tools and scripts used to clear Windows Event\r\n  Logs, indicating potential anti-forensics activity to hide evidence of\r\n  malicious actions.\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1070.001/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n  - attack.defense-evasion\r\n  - attack.t1070.001\r\nlogsource:\r\n  product: windows\r\n  category: process_creation\r\ndetection:\r\n  selection_wevtutil:\r\n    Image|endswith: '\\wevtutil.exe'\r\n    CommandLine|contains:\r\n      - ' cl '\r\n      - 'clear-log'\r\n  selection_powershell_cmdlet:\r\n    CommandLine|contains:\r\n      - 'Clear-EventLog'\r\n      - 'Remove-EventLog'\r\n  selection_powershell_dotnet:\r\n    CommandLine|contains|all:\r\n      - 'System.Diagnostics.EventLog'\r\n      - '.Clear()'\r\n  selection_powershell_wmi:\r\n    CommandLine|contains|all:\r\n      - 'Win32_NTEventlogFile'\r\n      - 'ClearEventLog'\r\n  selection_file_delete:\r\n    CommandLine|contains|all:\r\n      - '\\winevt\\Logs\\'\r\n      - '.evtx'\r\n    CommandLine|contains:\r\n      - 'Remove-Item'\r\n      - 'del '\r\n      - 'erase '\r\n      - 'rm '\r\n  condition: 1 of selection_*\r\nfields:\r\n  - CommandLine\r\n  - User\r\n  - Image\r\n  - ParentImage\r\nfalsepositives:\r\n  - Administrative maintenance and log rotation scripts\r\n  - IT policy-based log cleanup\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1070.001
+tags:
+    - attack.defense-evasion
+    - attack.t1070.001
+author: SimSpace
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1070.001/
+data_sources:
+    - process_creation
+    - windows

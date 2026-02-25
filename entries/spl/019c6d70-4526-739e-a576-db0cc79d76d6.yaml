@@ -1,0 +1,17 @@
+id: 019c6d70-4526-739e-a576-db0cc79d76d6
+name: Linux Log Records Tampering via Interpeters
+description: The following rule detects attempts to tamper with Linux log records by looking for interpreter processes, or common utility commands interacting with critical log files such as /var/log/wtmp, /var/log/btmp, or /var/run/utmp. It also includes scenarios where 'dd' or 'cp' might be used with /dev/null or /dev/zero to effectively clear or overwrite log content.
+query: "```Detection: Linux Log Records Tampering via Interpeters - \nAuthor: zendannyy - MITRE ATT&CK: T1070.002\nSPL equivalent version of existing Sigma rule.```\n\n| tstats count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where \n(Processes.process_path IN (\"*/perl\", \"*/powershell\", \"*/python\", \"*/python3\") AND Processes.process IN (\"*/var/log/wtmp*\", \"*/var/log/btmp*\", \"*/var/run/utmp*\")) \nOR (Processes.process_path IN (\"*/dd\", \"*/truncate\", \"*/cp\") AND Processes.process IN (\"*/var/log/wtmp*\", \"*/var/log/btmp*\", \"*/var/run/utmp*\", \"*if=/dev/null*\", \"*if=/dev/zero*\"))"
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.002
+    - T1070.004
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering

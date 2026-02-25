@@ -1,0 +1,65 @@
+id: 019c1e9d-d3f1-7168-9225-ffe9519552ff
+name: Suspicious Quest Agent Child Process
+description: Detects the Quest Desktop Authority agent service spawning suspicious child processes. This activity could be an indication of exploitation of CVE-2025-67813, where an attacker leverages the 'AdminExec' operation to achieve remote code execution as SYSTEM.
+query: |
+    title: Suspicious Quest Agent Child Process
+    id: a50be20d-7c22-47c6-a615-b05d0b8be7e1
+    status: experimental
+    description: Detects the Quest Desktop Authority agent service spawning
+      suspicious child processes. This activity could be an indication of
+      exploitation of CVE-2025-67813, where an attacker leverages the 'AdminExec'
+      operation to achieve remote code execution as SYSTEM.
+    references:
+      - https://www.netspi.com/blog/technical-blog/adversary-simulation/pipe-dreams-remote-code-execution-via-quest-desktop-authority-named-pipe/
+    author: tim@detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.execution
+      - attack.t1059.003
+      - attack.t1543.003
+      - cve.2025.67813
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      # Detects the parent process as the Quest Desktop Authority agent service
+      parent_process:
+        ParentImage|endswith: '\SLAgentService.exe'
+      parent_commandline:
+        ParentCommandLine|contains: 'ScriptLogic' # Catches legacy service names as mentioned in the research
+      child_process:
+        Image|endswith:
+          # Some Lolbins
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\cscript.exe'
+          - '\wscript.exe'
+          - '\mshta.exe'
+          - '\rundll32.exe'
+          - '\whoami.exe'
+      condition: (parent_process or parent_commandline) and child_process
+    falsepositives:
+      - Legitimate administrative activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059.003
+    - T1543.003
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.t1543.003
+    - cve.2025.67813
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.netspi.com/blog/technical-blog/adversary-simulation/pipe-dreams-remote-code-execution-via-quest-desktop-authority-named-pipe/
+data_sources:
+    - process_creation
+    - windows

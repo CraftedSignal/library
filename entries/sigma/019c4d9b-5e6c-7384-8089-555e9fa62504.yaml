@@ -1,0 +1,54 @@
+id: 019c4d9b-5e6c-7384-8089-555e9fa62504
+name: Webshell Execution from Web Server Process
+description: This rule detects the execution of known webshells such as Behinder, Neo-reGeorg, Godzilla, or reGeorg. The detection is specifically triggered when these webshells are found in the command line of a process whose parent process is a common web server application like w3wp.exe (IIS), httpd.exe (Apache), nginx.exe (Nginx), or java.exe (often used for Java-based web servers like Tomcat). This indicates potential webshell deployment and execution on a web server, which is a critical indicator of compromise, often associated with initial access or persistence by attackers.
+query: |
+    title: Shadow Campaigns Webshell Execution from Web Server
+    id: d3e4f5a6-b7c8-4d7e-1f20-shadow002
+    status: experimental
+    description: |
+        Behinder, Neo-reGeorg, Godzilla, or reGeorg in command line with parent w3wp.exe, httpd.exe, nginx.exe, or java.exe. Unit 42 TGR-STA-1030.
+    references:
+        - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.execution
+        - attack.t1059
+        - attack.web_shell
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_cmd:
+            CommandLine|contains|any:
+                - 'Behinder'
+                - 'Neo-reGeorg'
+                - 'Godzilla'
+                - 'reGeorg'
+        selection_parent:
+            ParentImage|endswith|any:
+                - '\w3wp.exe'
+                - '\httpd.exe'
+                - '\nginx.exe'
+                - '\java.exe'
+        condition: selection_cmd and selection_parent
+    falsepositives:
+        - Legitimate security testing with same tools
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.web_shell
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: 019c8ae8-5269-7718-a095-93766517eb97
+name: PowerShell In-Memory .NET Assembly Load
+description: Detects PowerShell commands that attempt to load a .NET assembly directly into memory using reflection. This is common in fileless malware delivery, such as the Remcos RAT campaign described in the provided intel, which uses reflection to load the final RAT stage from a steganographic JPEG, making disk-based detection ineffective.
+query: "// Name: PowerShell In-Memory .NET Assembly Load\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects PowerShell commands that attempt to load a .NET assembly directly into memory using reflection. This is common in fileless malware delivery, such as the Remcos RAT campaign described in the provided intel, which uses reflection to load the final RAT stage from a steganographic JPEG, making disk-based detection ineffective.\r\n// References: https://isc.sans.edu/diary/32738\r\n// Tactic: Execution, Defense Evasion\r\n// Technique: T1059.001, T1620\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceProcessEvents\r\n// Look for PowerShell execution events.\r\n| where FileName =~ \"powershell.exe\"\r\n// The core of the technique is loading a .NET assembly from a byte array directly into memory.\r\n| where ProcessCommandLine has \"[Reflection.Assembly]::Load\"\r\n// The assembly is typically stored as an encoded string (e.g., Base64) and decoded at runtime.\r\n| where ProcessCommandLine has_any (\"[System.Convert]::FromBase64String\", \"[System.Text.Encoding]::UTF8.GetString\", \"[System.Text.Encoding]::ASCII.GetString\")\r\n// The intel notes specific markers used to extract the payload from a steganographic image file.\r\n| where ProcessCommandLine has_any (\"BaseStart\", \"BaseEnd\")\r\n// FP Tuning: While the combination of these elements is highly suspicious, legitimate automation or security tools might use similar methods.\r\n// If false positives occur, consider excluding known safe scripts by their command line patterns, parent processes, or signing information.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1620
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://isc.sans.edu/diary/32738

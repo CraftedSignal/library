@@ -1,0 +1,16 @@
+id: 019c764e-9bbb-7069-b4fc-251c46f4bc48
+name: SimpleHelp Permission Weakening via icacls
+description: Detects the execution of icacls.exe to grant 'Full Control' permissions to the 'Everyone' group for the 'C:\ProgramData\SimpleHelp' directory. This tactic is used by the SimpleHelp RAT to ensure it can operate without permission restrictions and facilitate persistence.
+query: "// Name: SimpleHelp Permission Weakening\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the execution of icacls.exe to grant 'Full Control' permissions to the 'Everyone' group for the 'C:\\ProgramData\\SimpleHelp' directory. This tactic is used by the SimpleHelp RAT to ensure it can operate without permission restrictions and facilitate persistence.\r\n// References: https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware\r\n// MITRE ATT&CK: T1222.001 (File and Directory Permissions Modification)\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Filter for the execution of the icacls.exe utility\r\n| where FileName =~ \"icacls.exe\"\r\n// Look for the specific combination of arguments used to weaken permissions on the SimpleHelp directory\r\n| where ProcessCommandLine has_all (@\"C:\\ProgramData\\SimpleHelp\", \"/grant\", \"*S-1-1-0:(OI)(CI)F\")\r\n// Potential for False Positives: While granting 'Everyone' full control is highly suspicious, a legitimate administrator\r\n// could perform this action for troubleshooting. Review the initiating process and user context to determine legitimacy.\r\n// If your organization uses SimpleHelp legitimately, this activity should be correlated with change requests or admin activity.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1222.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware

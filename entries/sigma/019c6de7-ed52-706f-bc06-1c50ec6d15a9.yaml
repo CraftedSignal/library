@@ -1,0 +1,23 @@
+id: 019c6de7-ed52-706f-bc06-1c50ec6d15a9
+name: Interactive K8s Shell Execution in Production Namespaces
+description: "The following detects interactive shell execution within a container in a production K8s namespace. \nThis could be indicative of an attacker with a compromised user account attempting to control a container.\n"
+query: "title: Interactive K8s Shell Execution in Production Namespaces\nid: 12345678-1234-1234-1234-123456789012\nstatus: experimental\ndescription: >\n  The following detects interactive shell execution within a container in a\n  production K8s namespace. \n\n  This could be indicative of an attacker with a compromised user account\n  attempting to control a container.\ntags:\n  - attack.t1609\n  - attack.execution\n  - attack.resource.container\n  - container.kubernetes\n  - container.execution\nauthor: zendannyy\nreferences:\n  - https://attack.mitre.org/techniques/T1609\nlogsource:\n  product: kubernetes\n  service: audit\ndetection:\n  selection_verb_resource_subresource:\n    verb: create\n    objectRef.resource: pods\n    objectRef.subresource: exec\n  selection_interactive_session:\n    requestURI|contains:\n      - stdin=true\n      - tty=true\n  selection_prod_namespace:\n    objectRef.namespace:\n      - prod\n      - production\n      - default\n  selection_shell_executable:\n    requestObject.command|contains:\n      - /bin/sh\n      - sh\n      - /bin/bash\n      - bash\n      - powershell\n      - pwsh\n      - cmd\n  filter_authorized_users:\n    user.username|startswith:\n      - ci-admin\n      - 'system:'\n  condition: >-\n    selection_verb_resource_subresource and selection_interactive_session and\n    selection_prod_namespace and selection_shell_executable and not\n    filter_authorized_users\nfalsepositives:\n  - Legitimate administrative debugging by authorized users (SRE, etc).\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1609
+tags:
+    - attack.t1609
+    - attack.execution
+    - attack.resource.container
+    - container.kubernetes
+    - container.execution
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1609
+data_sources:
+    - kubernetes
+    - audit

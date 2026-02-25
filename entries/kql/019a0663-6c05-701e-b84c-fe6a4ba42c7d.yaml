@@ -1,0 +1,16 @@
+id: 019a0663-6c05-701e-b84c-fe6a4ba42c7d
+name: COLDRIVER MAYBEROBOT Obfuscated PowerShell for Persistence
+description: Detects the execution of heavily obfuscated PowerShell, characteristic of the MAYBEROBOT backdoor. COLDRIVER uses this script, often via a logon script for persistence, to download and execute further commands. The rule specifically looks for a combination of string replacement functions ('-replace', '\n', ';', '[^\x20-\x7E]') used by MAYBEROBOT for de-obfuscation before execution.
+query: "DeviceProcessEvents\r\n// Filter for PowerShell process execution\r\n| where ProcessFileName in~ (\"powershell.exe\", \"pwsh.exe\")\r\n| where ProcessCommandLine has \"-replace\"\r\n  and (ProcessCommandLine has \"'\\\\n', ';'\" or ProcessCommandLine has \"\\\"\\\\n\\\",\\\";\\\"\")\r\n  and (ProcessCommandLine has \"'[^\\\\x20-\\\\x7E]'\" or ProcessCommandLine has \"\\\"[^\\\\x20-\\\\x7E]\\\"\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/new-malware-russia-coldriver/

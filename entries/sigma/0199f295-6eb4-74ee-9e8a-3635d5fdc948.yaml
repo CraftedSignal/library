@@ -1,0 +1,62 @@
+id: 0199f295-6eb4-74ee-9e8a-3635d5fdc948
+name: UNC5142 In-Memory PowerShell Payload Execution
+description: Detects PowerShell scripts that contain decryption routines and in-memory execution commands, a technique used by UNC5142 to run final payloads while evading disk-based detection.
+query: |
+    title: UNC5142 In-Memory PowerShell Payload Execution
+    id: d3dd5068-f2d5-4627-a139-cc459cd81524
+    status: experimental
+    description: Detects PowerShell scripts that contain decryption routines and
+      in-memory execution commands, a technique used by UNC5142 to run final
+      payloads while evading disk-based detection.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/
+    author: detections.ai
+    date: 2025-10-17
+    tags:
+      - attack.t1027
+      - attack.t1059.001
+      - threat_actor.unc5142
+    logsource:
+      product: windows
+      category: powershell_script # Requires PowerShell Script Block Logging (Event ID 4104)
+    detection:
+      # This selection identifies keywords related to cryptographic operations, particularly decryption.
+      selection_decryption:
+        ScriptBlockText|contains:
+          - 'System.Security.Cryptography.AesCryptoServiceProvider'
+          - 'System.Security.Cryptography.TripleDESCryptoServiceProvider'
+          - 'CreateDecryptor'
+          - 'CryptoStreamMode.Read'
+          - 'FromBase64String' # Often used to decode the encrypted blob before decryption.
+      # This selection identifies keywords related to executing code directly in memory.
+      selection_execution:
+        ScriptBlockText|contains:
+          - 'Invoke-Expression'
+          - 'IEX'
+          - '[System.Reflection.Assembly]::Load'
+          - '[scriptblock]::Create'
+      condition: selection_decryption and selection_execution
+    falsepositives:
+      - Legitimate system administration, security, or software deployment scripts
+        may use decryption and in-memory execution. Tuning may be required to
+        exclude scripts from trusted sources or signed by legitimate vendors.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.t1027
+    - attack.t1059.001
+    - threat_actor.unc5142
+author: detections.ai
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/
+data_sources:
+    - powershell_script
+    - windows

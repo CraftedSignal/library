@@ -1,0 +1,18 @@
+id: 019b3104-c0f6-7499-b270-71be784b5d84
+name: M365 AiTM Phishing Domain Connection
+description: This detection identifies network connections to known first-stage Microsoft 365 phishing domains associated with an active Adversary-in-the-Middle (AiTM) campaign.
+query: "// Name: M365 AiTM Phishing Domain Connection\r\n// Date: 2025-12-18\r\n// Description: This detection identifies network connections to known first-stage Microsoft 365 phishing domains associated with an active Adversary-in-the-Middle (AiTM) campaign.\r\n// Tactics: Initial Access, Credential Access\r\n// Techniques: T1566.002, T1557\r\n// False Positive Sensitivity: Medium\r\n// References: https://securitylabs.datadoghq.com/articles/investigating-an-aitm-phishing-campaign-m365-okta/\r\n// Define the list of known malicious domains associated with the AiTM campaign.\r\nlet phishingDomains = dynamic([\r\n    \"employee-hr-portal.com\",\r\n    \"secure-hr-portal.com\",\r\n    \"corporate-hr-portal.com\",\r\n    \"mybenefits-portal.com\",\r\n    \"benefitsviewportal.com\",\r\n    \"benefitsgatewayportal.com\",\r\n    \"benefitshubportal.com\",\r\n    \"benefitsmemberportal.com\",\r\n    \"hrbenefitsportal.com\",\r\n    \"benefitsglobalportal.com\",\r\n    \"benefitssecureportal.com\",\r\n    \"benefitsadminportal.com\",\r\n    \"benefitscentralportal.com\",\r\n    \"benefitsdigitalportal.com\",\r\n    \"benefitsemployeeaccess.com\",\r\n    \"benefitsquickaccess.com\",\r\n    \"benefitsworkspace.com\",\r\n    \"securemailboxaccess.com\",\r\n    \"securemail-portal.com\",\r\n    \"businessemailportal.com\",\r\n    \"benefitsaccessportal.com\",\r\n    \"benefitsapp001.com\",\r\n    \"benefitsapp01.com\",\r\n    \"benefitsselfservice.com\",\r\n    \"benefitsnews.io\",\r\n    \"office365mailsecurity.com\"\r\n]);\r\n// Search for network events to the phishing domains.\r\n// This query can be run against DeviceNetworkEvents, CommonSecurityLog, or other network logging tables.\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (phishingDomains) or RemoteIP in ((find where RemoteUrl has_any (phishingDomains) | distinct RemoteIP))\r\n// FP Tuning: These domains are reported as malicious. However, if they are sinkholed or repurposed, this could lead to FPs.\r\n// Consider adding trusted processes to an exclusion list if legitimate activity is observed.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0009
+techniques:
+    - T1566.002
+    - T1557
+tags:
+    - kql
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/investigating-an-aitm-phishing-campaign-m365-okta/

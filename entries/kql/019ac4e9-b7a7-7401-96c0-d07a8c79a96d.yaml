@@ -1,0 +1,68 @@
+id: 019ac4e9-b7a7-7401-96c0-d07a8c79a96d
+name: LANDFALL Spyware C2 Communication Detection
+description: Detects network connections from Samsung Android devices that match the Command and Control (C2) patterns of the LANDFALL spyware. The rule identifies high-fidelity connections to known LANDFALL C2 IPs and domains, as well as lower-fidelity behavioral patterns, such as connections over HTTPS to non-standard ports.
+query: |
+    // Name: LANDFALL Spyware C2 Communication
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects network connections from Samsung Android devices that match the Command and Control (C2) patterns of the LANDFALL spyware. The rule identifies high-fidelity connections to known LANDFALL C2 IPs and domains, as well as lower-fidelity behavioral patterns, such as connections over HTTPS to non-standard ports.
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    // MITRE TTPs: T1071.001
+    // Data Source: DeviceNetworkEvents (Microsoft Defender for Endpoint for Android)
+    let Timeframe = 7d;
+    // Known C2 infrastructure from LANDFALL spyware analysis.
+    let LandfallC2_IPs = dynamic([
+        "194.76.224.127",
+        "91.132.92.35",
+        "92.243.65.240",
+        "192.36.57.56",
+        "46.246.28.75",
+        "45.155.250.158"
+    ]);
+    let LandfallC2_Domains = dynamic([
+        "brightvideodesigns.com",
+        "hotelsitereview.com",
+        "healthyeatingontherun.com",
+        "projectmanagerskills.com"
+    ]);
+    // Common ports used for HTTP/S traffic to exclude from the behavioral part of the detection.
+    let CommonWebPorts = dynamic([80, 443, 8080, 8443]);
+    DeviceNetworkEvents
+    | where Timestamp > ago(Timeframe)
+    // Focus on successful outbound connections from Samsung Android devices, as specified in the intel.
+    | where OSPlatform == "Android" and DeviceManufacturer == "samsung"
+    | where ActionType == "ConnectionSuccess" and RemoteIPType == "Public"
+    | where
+        // High-fidelity match: Connection to known LANDFALL C2 infrastructure.
+        RemoteIP in (LandfallC2_IPs) or RemoteUrl has_any (LandfallC2_Domains)
+        or
+        // Behavioral match: Connection to a non-standard web port, indicative of the described C2 pattern.
+        // Potential for False Positives: This may trigger on legitimate apps that use custom ports for their APIs.
+        // Review the initiating process and destination to determine if the traffic is expected.
+        (
+            RemotePort !in (CommonWebPorts)
+        )
+    // Further correlation: The intel notes the C2 beacon contains specific POST body parameters (e.g., source=bridge_head)
+    // and a specific User-Agent. While not typically available in DeviceNetworkEvents, these are strong indicators if found in proxy or DPI logs.
+    | project
+        Timestamp,
+        DeviceName,
+        OSPlatform,
+        DeviceManufacturer,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl,
+        InitiatingProcessFileName,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/

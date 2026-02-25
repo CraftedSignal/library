@@ -1,0 +1,16 @@
+id: 019c5268-c4fb-7705-9390-3102c69f4c79
+name: OysterLoader Mutex Suffix Detection
+description: Detects the creation of a mutex with a persistent suffix '!&fse?%AS!'. This string has been observed across multiple versions and campaigns of OysterLoader (also known as Broomstick/CleanUp).
+query: "// Name: OysterLoader Mutex Suffix Detection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Description: Detects the creation of a mutex with a persistent suffix '!&fse?%AS!'. This string has been observed across multiple versions and campaigns of OysterLoader (also known as Broomstick/CleanUp).\r\n// False Positives: Low. The mutex string is highly specific to this malware family.\r\n// References: https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/\r\n// Tactic: Defense Evasion\r\n// Technique: T1027\r\nDeviceEvents\r\n// Filter for mutex creation events, a common host-based artifact.\r\n| where ActionType == \"MutexCreated\"\r\n// Search for the unique suffix used by OysterLoader in the mutex name.\r\n// While the prefix may vary (e.g., 'h6p#dx', 's6p1dx'), the suffix has remained consistent.\r\n| where FileName has \"!&fse?%AS!\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName, // Contains the full Mutex Name\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessSHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/

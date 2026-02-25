@@ -1,0 +1,17 @@
+id: 019c8a31-ac95-7638-937c-308fc3fb94ee
+name: SolarWinds WHD Spawning PowerShell
+description: Detects instances of the SolarWinds Web Help Desk service (java.exe or tomcat) spawning PowerShell. This is a strong indicator of successful remote code execution exploitation, potentially related to vulnerabilities like CVE-2025-40551.
+query: "// Name: SolarWinds WHD Spawning PowerShell\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects instances of the SolarWinds Web Help Desk service (java.exe or tomcat) spawning PowerShell. This is a strong indicator of successful remote code execution exploitation (e.g., CVE-2025-40551).\r\n// Tactics: Initial Access, Execution\r\n// Techniques: T1190, T1059.001\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/\r\nDeviceProcessEvents\r\n// Filter for the specific SolarWinds WHD binary path.\r\n| where InitiatingProcessFolderPath has \"\\\\WebHelpDesk\\\\bin\\\\\"\r\n// The parent process is the WHD service itself, which runs as a Java or Tomcat process.\r\n| where InitiatingProcessFileName in~ (\"java.exe\", \"javaw.exe\") or InitiatingProcessFileName contains \"tomcat\"\r\n// Detects the spawning of PowerShell, a common post-exploitation tool.\r\n| where FileName =~ \"powershell.exe\"\r\n// Potential for False Positives: Legitimate administrative scripts might be launched from the WHD server.\r\n// To reduce noise, consider filtering by specific command-line arguments or excluding known administrative accounts if applicable.\r\n// For example: | where ProcessCommandLine has_any (\"-enc\", \"iex\", \"iwr\", \"bitsadmin\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/

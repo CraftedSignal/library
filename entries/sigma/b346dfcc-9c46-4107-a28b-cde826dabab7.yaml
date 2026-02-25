@@ -1,0 +1,64 @@
+id: b346dfcc-9c46-4107-a28b-cde826dabab7
+name: Suspicious Entra ID Token Request for Device Registration Service
+description: Detects a non-interactive sign-in using a refresh token for the Microsoft Authentication Broker client, targeting the Device Registration Service (DRS) with the 'adrs_access' scope. This specific combination of attributes is highly indicative of an adversary using tools like ROADtools to register a malicious device in the tenant following a successful OAuth phishing attack.
+query: |
+    title: Suspicious Entra ID Token Request for Device Registration Service
+    id: df379861-41d8-46e9-a3b7-767d6f656d9a
+    status: experimental
+    description: |
+      Detects a non-interactive sign-in using a refresh token for the Microsoft Authentication Broker client, targeting the Device Registration Service (DRS) with the 'adrs_access' scope.
+      This specific combination of attributes is highly indicative of an adversary using tools like ROADtools to register a malicious device in the tenant following a successful OAuth phishing attack.
+    references:
+      - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+      - https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    author: detections.ai
+    date: 2025-07-15
+    tags:
+      - attack.persistence
+      - attack.t1528
+      - attack.t1136.003
+    logsource:
+      product: azure
+      service: signinlogs
+    detection:
+      selection:
+        category: 'NonInteractiveUserSignInLogs' # This activity is typically non-interactive, as it's performed by a tool.
+        status:
+          error_code: 0 # A value of 0 indicates a successful sign-in.
+        user:
+          type: 'Member' # Focus on user accounts, which are the primary target of these phishing campaigns.
+        application:
+          id: '29d9ed98-a469-4536-ade2-f981bc1d605e' # Microsoft Authentication Broker App ID.
+        resource:
+          id: '01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9' # Device Registration Service (DRS) App ID.
+        authentication_details:
+          incoming_token_type: 'refreshToken' # Key indicator that a long-lived refresh token is being used for access.
+          scope|contains: 'adrs_access' # Specific scope required for Azure DRS access. Note: The field containing OAuth scopes may vary by SIEM.
+      condition: selection
+    falsepositives:
+      - While this combination of events is highly suspicious, some legitimate automated device enrollment or management processes could potentially trigger this rule. Investigate the context of the sign-in, such as the source IP address and user activity, to rule out legitimate behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0006
+    - TA0004
+    - TA0001
+techniques:
+    - T1528
+    - T1098.005
+    - T1566
+    - T1566.002
+tags:
+    - attack.persistence
+    - attack.t1528
+    - attack.t1136.003
+author: detections.ai
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    - https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+data_sources:
+    - azure
+    - signinlogs

@@ -1,0 +1,78 @@
+id: 019c6d04-f95d-763e-ad9f-1bb56938b9f3
+name: Password Manager Encryption Downgrade Attack
+description: Detects a potential attempt to downgrade a password manager client's encryption to a legacy, non-authenticated mode (e.g., AES-CBC). A malicious or compromised server can send a specially crafted response during login or synchronization that forces the client to use weaker cryptography. This can compromise the integrity and confidentiality of the user's vault, enabling further attacks like vault modification or padding oracles.
+query: |
+    title: Password Manager Encryption Downgrade Attack
+    id: 19db4294-2807-4c14-99a1-f1c3d1995246
+    status: experimental
+    description: >-
+      Detects a potential attempt to downgrade a password manager client's
+      encryption to a legacy, non-authenticated mode (e.g., AES-CBC). A malicious or
+      compromised server can send a specially crafted response during login or
+      synchronization that forces the client to use weaker cryptography. This can
+      compromise the integrity and confidentiality of the user's vault, enabling
+      further attacks like vault modification or padding oracles.
+    author: detections.ai
+    references:
+      - https://eprint.iacr.org/2026/058.pdf
+      - https://www.theregister.com/2026/02/16/password_managers/
+    date: 2026-02-17
+    tags:
+      - attack.t1562.001
+      - attack.t1005
+      - attack.credential_access
+    logsource:
+      # This detection is best implemented on a proxy, WAF, or EDR with deep packet/traffic inspection capabilities.
+      category: proxy
+      product: generic
+    detection:
+      # This logic requires a log source that can parse HTTP response bodies. The field names are placeholders.
+
+      # Detects Bitwarden server responses containing ciphertexts explicitly marked as legacy type 1 (AES-CBC).
+      selection_bitwarden:
+        http.hostname|endswith:
+          # Add your Bitwarden domain(s) here.
+          - 'bitwarden.com'
+          - 'vault.bitwarden.com'
+        response_body|contains:
+          # This looks for the 'Key' field in a user profile response, which contains the encrypted user key.
+          # A value starting with '1.' indicates the legacy AES-CBC encryption type.
+          - '"Key":"1.'
+
+      # Detects Dashlane server responses containing a transaction that sets the cipher mode to CBC-only.
+      selection_dashlane:
+        http.hostname|endswith:
+          # Add your Dashlane domain(s) here.
+          - 'dashlane.com'
+        response_body|contains:
+          # This looks for the specific string that sets the cipher mode to CBC-only within a transaction payload.
+          - 'CBC-only' # This is part of the 'Flexible' payload format described in the research.
+
+      condition: 1 of them
+    falsepositives:
+      - This detection should have a low false positive rate, as forcing legacy
+        encryption is not expected behavior for modern clients.
+      - It might trigger if a very old, legitimate client is still in use, but this
+        scenario itself represents a significant security risk and should be
+        investigated.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+techniques:
+    - T1562.010
+    - T1212
+tags:
+    - attack.t1562.001
+    - attack.t1005
+    - attack.credential_access
+author: detections.ai
+version: "2"
+references:
+    - https://eprint.iacr.org/2026/058.pdf
+    - https://www.theregister.com/2026/02/16/password_managers/
+data_sources:
+    - proxy
+    - generic

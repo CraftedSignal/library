@@ -1,0 +1,44 @@
+id: 019c5253-f22b-744b-8391-99d404e8c680
+name: Lazarus 'Graphalgo' Config Download from GitHub
+description: Identifies Node.js or Python processes attempting to download configuration-like files (e.g., .env, .env.example) from GitHub's raw content domain. This pattern is characteristic of the second-stage payload delivery in the Lazarus Group's Graphalgo campaign.
+query: |
+    // Name: Lazarus 'Graphalgo' Config Download from GitHub
+    // Author: detections.ai
+    // Date: 2026-02-12
+    // Description: Identifies Node.js or Python processes attempting to download configuration-like files (e.g., .env, .env.example) from GitHub's raw content domain. This pattern is characteristic of the second-stage payload delivery in the Lazarus Group's Graphalgo campaign.
+    // MITRE ATT&CK: T1105, T1567.002
+    // References: https://www.reversinglabs.com/blog/inside-graphalgo
+    // False Positive Sensitivity: Medium
+    // Tags: Lazarus, Graphalgo, T1105, T1567.002, GitHub
+    DeviceNetworkEvents
+    // Look for network connections initiated by Node.js or Python interpreters.
+    | where InitiatingProcessFileName in~ ("node.exe", "node", "python.exe", "python")
+    // The campaign uses GitHub's raw content domain to host payloads.
+    | where RemoteUrl has "raw.githubusercontent.com"
+    // The second-stage payload is often disguised as a configuration file.
+    | where RemoteUrl endswith ".env" or RemoteUrl endswith ".env.example"
+    // FP Mitigation: Legitimate developer activity or open-source tools might exhibit this behavior.
+    // If false positives occur, consider filtering for low-prevalence SHA256 hashes of the downloaded files
+    // or excluding connections related to known-good, high-reputation GitHub repositories.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        RemoteUrl,
+        RemoteIP,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessMD5,
+        InitiatingProcessSHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.reversinglabs.com/blog/inside-graphalgo

@@ -1,0 +1,47 @@
+id: dd2c4fe8-e0f4-441c-b13f-07a2d75eb814
+name: Rare Browser Extension Detected
+description: This query identifies browser extensions with a low global prevalence, which could indicate a malicious or unwanted extension. It specifically looks for .crx files created in "Webstore Downloads" folders and enriches the data with file prevalence information.
+query: |
+    // Name: Rare Browser Extension Detected
+    // Author: John Bambenek // jcb@bambenekconsulting.com
+    // Date: 2025-08-07
+    // Description: This query identifies browser extensions with a low global prevalence, which could indicate a malicious or unwanted extension.
+    // Tactic: Initial Access
+    // Technique: T1176 - Browser Extensions
+    // False Positives: Legitimate but niche or newly developed extensions, including internal corporate extensions, may be flagged.
+    // Modify this value to suit.
+    let GlobalPrevalenceThreshold = 50;
+    DeviceFileEvents
+    // These find installed extensions
+    | where FileName endswith ".crx"
+    | where FolderPath contains "Webstore Downloads"
+    // This creates a field with the URL directly to Chrome webstore to the extension in question
+    | extend extensionUrl = strcat("https://chrome.google.com/webstore/detail/", extract(@"^[a-zA-Z]+)"), 1, FileName)
+    | invoke FileProfile("SHA1", 100000)
+    | where GlobalPrevalence < GlobalPrevalenceThreshold
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        ActionType,
+        FolderPath,
+        extensionUrl,
+        SHA1,
+        InitiatingProcessAccountName,
+        InitiatingProcessAccountUpn,
+        InitiatingProcessFileName,
+        InitiatingProcessVersionInfoFileDescription,
+        GlobalPrevalence,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+techniques:
+    - T1176
+    - T1176.001
+tags:
+    - kql
+author: John Bambenek // jcb@bambenekconsulting.com
+version: "1"

@@ -1,0 +1,85 @@
+id: 019c8227-ad77-72d8-b384-072295e8883b
+name: ClickFix DNS Parsing Or Execution Chain Via Run Dialog
+description: |
+    Detects suspicious command lines executed via the Windows Run dialog that combine DNS lookup commands commonly seen in ClickFix-style staging activity.
+    An expansion of https://detections.ai/rules/019c774e-8cbc-70b0-91d6-3d2fb93c5a00
+query: |
+    title: ClickFix DNS Parsing Or Execution Chain Via Run Dialog
+    id: 0344ffd3-2d59-4bf4-8c5a-52c9735c8f5b
+    status: experimental
+    description: >
+      Detects suspicious command lines executed via the Windows Run dialog that
+      combine DNS lookup commands commonly seen in ClickFix-style staging activity.
+
+      An expansion of
+      https://detections.ai/rules/019c774e-8cbc-70b0-91d6-3d2fb93c5a00
+    references:
+      - https://thehackernews.com/2026/02/microsoft-discloses-dns-based-clickfix.html
+    author: zendannyy
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.command-and-control
+      - attack.t1071.004
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_parent:
+        ParentImage|endswith: \explorer.exe
+      selection_shell:
+        Image|endswith:
+          - \cmd.exe
+          - \powershell.exe
+          - \pwsh.exe
+      selection_dns:
+        CommandLine|contains:
+          - nslookup
+          - Resolve-DnsName
+          - certutil -dns
+          - dig
+      selection_execution:
+        CommandLine|contains:
+          - iex
+          - Invoke-Expression
+          - Invoke-Command
+          - iwr
+          - Invoke-WebRequest
+          - curl
+          - wget
+          - Start-BitsTransfer
+          - WebClient
+          - DownloadString
+          - DownloadFile
+          - Select-String
+      condition: >-
+        selection_parent and selection_shell and (selection_dns or
+        selection_execution)
+    falsepositives:
+      - Unknown
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1204.004
+    - T1059.001
+    - T1071.004
+tags:
+    - attack.execution
+    - attack.t1204.004
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.command-and-control
+    - attack.t1071.004
+author: zendannyy
+version: "5"
+references:
+    - https://thehackernews.com/2026/02/microsoft-discloses-dns-based-clickfix.html
+data_sources:
+    - process_creation
+    - windows

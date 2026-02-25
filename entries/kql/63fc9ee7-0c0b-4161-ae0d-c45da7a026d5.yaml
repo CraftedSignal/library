@@ -1,0 +1,24 @@
+id: 63fc9ee7-0c0b-4161-ae0d-c45da7a026d5
+name: CVE-2024-43451 Zero-Day (NTLM Hash Disclosure Spoofing Vulnerability)
+description: KQL Query
+query: "// CVE-2024-43451 Zero-Day (NTLM Hash Disclosure Spoofing Vulnerability)\n// https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2024-43451\n// In Microsoft’s November 2024 Patch Tuesday, one of the actively exploited zero-day vulnerabilities is CVE-2024-43451. This flaw exposes a user’s NTLMv2 hash, which is used for credential validation in Windows environments. Attackers can use these hashes to authenticate as legitimate users, gaining access to applications and data they have permissions for. The vulnerability affects all Windows versions and requires minimal user interaction to exploit. Simply selecting or inspecting a file could trigger the vulnerability, according to Microsoft.\n// This vulnerability was publicly disclosed by Israel Yeshurun of ClearSky Cyber Security. According to the Microsoft advisory FAQ, it relates to the underlying MSHTML, EdgeHTML, and scripting platforms, which are still supported despite the retirement of Internet Explorer 11 and Microsoft Edge Legacy.\n// Based on this advisory information, I have developed an advanced hunting DefenderXDR KQL to monitor MDE endpoints for NTLM hash activity and Edge WebView usage, along with NTLM over SMB connections to the internet. If this rule triggers, Defender should prompt the user to reset their credentials immediately. The KQL code can be downloaded from my SlimKQL GitHub Repository, which is featured on my LinkedIn profile. (Search for “CVE-2024-43451”)\n\nlet EndpointWithNTLMHash = \nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties.rawData.ntlmHash.ntlmHash == \"true\"\n// Endpoint with NTLM hash stored\n| distinct SourceNodeName;\nlet VulnerableEndpoint =\nDeviceTvmSoftwareInventory\n// https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2024-43451 FAQ\n| where SoftwareName == \"edge_webview2_runtime\" or\nSoftwareName == \"internet_explorer\"\n| where DeviceName has_any (EndpointWithNTLMHash)\n| distinct DeviceName;\nDeviceNetworkEvents\n// NTLM over SMB connection\n| where RemotePort == \"445\" and RemoteIPType == \"Public\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (VulnerableEndpoint)\n\n// Revised Version v2\n\nlet DeviceLNKCreation =\nDeviceFileEvents\n| where ActionType == @\"FileCreated\"\n| where FileName endswith \".lnk\"\n| distinct DeviceName;\nDeviceNetworkEvents\n// NTLM authentication over SMB connection\n| where RemotePort == \"445\" and RemoteIPType == \"Public\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (DeviceLNKCreation)\n\n// T1550.002: Use Alternate Authentication Material: Pass the Hash\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0008
+    - TA0002
+    - TA0006
+    - TA0009
+    - TA0040
+techniques:
+    - T1550.002
+    - T1075
+    - T1218.005
+    - T1170
+    - T1027.006
+    - T1021.002
+    - T1557.001
+    - T1496.003
+tags:
+    - kql
+version: "1"

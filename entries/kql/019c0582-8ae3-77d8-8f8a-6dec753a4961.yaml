@@ -1,0 +1,94 @@
+id: 019c0582-8ae3-77d8-8f8a-6dec753a4961
+name: Malicious File Written to Office Trusted Location
+description: Detects when a potentially malicious file (such as a macro-enabled document, executable, or script) is created within a directory configured as a Microsoft Office Trusted Location. Attackers may place malicious files in these locations to ensure they are opened by the user without security warnings (like Protected View or macro-blocking), facilitating code execution. This rule correlates file creation events with trusted paths dynamically enumerated from the device's registry.
+query: |
+    //
+    // Rule Title: Malicious File Written to Office Trusted Location
+    // Description: Detects when a potentially malicious file (such as a macro-enabled document, executable, or script) is created within a directory configured as a Microsoft Office Trusted Location. Attackers may place malicious files in these locations to ensure they are opened by the user without security warnings (like Protected View or macro-blocking), facilitating code execution. This rule correlates file creation events with trusted paths dynamically enumerated from the device's registry.
+    //
+    // Author: detections.ai
+    // Date: 2026-01-28
+    //
+    // MITRE ATT&CK:
+    // - T1105: Ingress Tool Transfer
+    // - T1204.002: User Execution: Malicious File
+    // - T1566.001: Phishing: Spearphishing Attachment
+    //
+    // References:
+    // - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations
+    //
+    // False Positive Sensitivity: Medium
+    // - This rule may trigger on legitimate user actions, such as saving a macro-enabled file from an Office application for valid business reasons.
+    // - The 'initiating_process_allowlist' is used to filter common "save-as" scenarios. This list may require tuning for your environment.
+    // - Investigate the source of the file (InitiatingProcessFileName) and the file itself to determine legitimacy.
+    //
+
+    // Define file extensions that are suspicious when dropped into a trusted location.
+    let suspicious_extensions = dynamic([
+        ".docm", ".dotm", // Word Macro-Enabled
+        ".xlsm", ".xltm", ".xlam", // Excel Macro-Enabled
+        ".pptm", ".potm", ".ppam", // PowerPoint Macro-Enabled
+        ".exe", ".dll", ".scr", ".com", // Executables
+        ".vbs", ".vbe", ".js", ".jse", ".ps1", ".bat", ".cmd" // Scripts
+    ]);
+    // Define an allowlist for processes that are expected to save files (e.g., a user saving their own work).
+    // This helps reduce noise from legitimate user activity.
+    let initiating_process_allowlist = dynamic([
+        "winword.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "msaccess.exe"
+    ]);
+    // Collect all configured Office Trusted Location paths from the last day.
+    let trusted_locations =
+        DeviceRegistryEvents
+        | where TimeGenerated > ago(1d)
+        // Target registry keys for trusted locations across different Office versions.
+        | where RegistryKey has_all (@"Software\Microsoft\Office", @"\Security\Trusted Locations")
+        // The 'Path' value holds the trusted directory path.
+        | where RegistryValueName == "Path" and isnotempty(RegistryValueData)
+        | summarize makeset(tostring(RegistryValueData)) by DeviceId
+        | mv-expand set_RegistryValueData
+        | project DeviceId, TrustedPath = tostring(set_RegistryValueData);
+    // Look for recent file creation events.
+    DeviceFileEvents
+    | where TimeGenerated > ago(1h)
+    // Filter for file creation events only.
+    | where ActionType == "FileCreated"
+    // Check if the created file has a suspicious extension.
+    | where FileName has_any (suspicious_extensions)
+    // Exclude processes that are expected to save these file types as part of normal operation.
+    | where not(InitiatingProcessFileName in~ (initiating_process_allowlist))
+    // Join with the collected trusted paths for the same device.
+    | join kind=inner (trusted_locations) on DeviceId
+    // Correlate by checking if the file was created inside a trusted path.
+    // Using 'startswith' accounts for subfolders if 'AllowSubfolders' is enabled for the trusted location.
+    | where FolderPath startswith TrustedPath
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        SHA1,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        TrustedPath,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0001
+techniques:
+    - T1105
+    - T1204.002
+    - T1566.001
+    - T1059.005
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations

@@ -1,0 +1,21 @@
+id: 019a20bc-8ddc-7779-af2a-13d25d199f86
+name: ROPC Single‑Factor Login from New Country or App (MFA Bypass Risk)
+description: |+
+    This detection identifies single-factor ROPC (Resource Owner Password Credentials) logins from new countries not seen in the last 14 days for a given user+app combination. ROPC authentication does not support MFA, making it a frequent vector for attackers to bypass MFA misconfigurations and gain initial access or escalate privileges in Azure AD.
+
+query: "// === Parameters ===\r\nlet lookback = 14d;          // Baseline window\r\nlet detectionWindow = 1h;    // Recent window to check for deviations\r\n\r\n// === Common filter & normalization ===\r\nlet baseFilter = materialize(\r\n    SigninLogs\r\n    | where AuthenticationRequirement == \"singleFactorAuthentication\"\r\n    | where AuthenticationProtocol =~ \"ropc\"\r\n    | where ResultSignature == \"SUCCESS\" or ResultType == 0\r\n    | extend Loc = todynamic(LocationDetails)\r\n    | extend Country = coalesce(tostring(Loc[\"countryOrRegion\"]), tostring(Location), \"Unknown\")\r\n    | extend App = iif(isempty(AppDisplayName), \"Unknown App\", AppDisplayName)\r\n    | project TimeGenerated, UserPrincipalName, App, Country, AADTenantId, CorrelationId, IPAddress, UserAgent\r\n);\r\n\r\n// === Baseline over last 14d (exclude the last 1h to avoid contaminating baseline) ===\r\nlet baselineTriples =\r\n    baseFilter\r\n    | where TimeGenerated >= ago(lookback) and TimeGenerated < ago(detectionWindow)\r\n    | summarize\r\n        BaselineFirst = min(TimeGenerated),\r\n        BaselineLast  = max(TimeGenerated),\r\n        BaselineCount = count()\r\n      by UserPrincipalName, App, Country;\r\n\r\nlet baselineByUserApp =\r\n    baseFilter\r\n    | where TimeGenerated >= ago(lookback) and TimeGenerated < ago(detectionWindow)\r\n    | summarize\r\n        BaselineCountries = make_set(Country, 100),\r\n        BaselineEvents    = count(),\r\n        BaselineFirstAny  = min(TimeGenerated),\r\n        BaselineLastAny   = max(TimeGenerated)\r\n      by UserPrincipalName, App;\r\n\r\n// === Recent events (last 1h) ===\r\nlet recent =\r\n    baseFilter\r\n    | where TimeGenerated >= ago(detectionWindow);\r\n\r\n// === Deviations = recent (user, app, country) NOT seen in baseline ===\r\nrecent\r\n| join kind=leftanti (\r\n    baselineTriples\r\n) on UserPrincipalName, App, Country\r\n// Enrich with what WAS normal for that user+app (countries set, counts, last seen)\r\n| join kind=leftouter (\r\n    baselineByUserApp\r\n) on UserPrincipalName, App\r\n| extend\r\n    DeviationReason = iff(isnull(BaselineCountries),\r\n                          \"NoBaselineForUserApp (first ever in 14d)\",\r\n                          strcat(\"NewCountryForUserApp: \", Country)),\r\n    BaselineSpanDays = iif(isnull(BaselineFirstAny) or isnull(BaselineLastAny),\r\n                           real(null),\r\n                           1.0 * datetime_diff('day', BaselineLastAny, BaselineFirstAny) + 1)\r\n// Optional: group multiple hits for same user/app/country within the hour\r\n| summarize\r\n    FirstSeenHit = min(TimeGenerated),\r\n    LastSeenHit  = max(TimeGenerated),\r\n    HitCount     = count(),\r\n    AnyIP        = make_set(IPAddress, 20),\r\n    AnyUA        = make_set(UserAgent, 20),\r\n    BaselineCountries = any(BaselineCountries),\r\n    BaselineEvents    = any(BaselineEvents),\r\n    BaselineFirstAny  = any(BaselineFirstAny),\r\n    BaselineLastAny   = any(BaselineLastAny),\r\n    BaselineSpanDays  = any(BaselineSpanDays),\r\n    DeviationReason   = any(DeviationReason)\r\n  by AADTenantId, UserPrincipalName, App, Country\r\n| order by LastSeenHit desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1078.004
+    - T1556.006
+    - T1110.001
+tags:
+    - kql
+author: Omar Zayed
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-oauth-ropc
+    - https://github.com/wunderwuzzi23/ropci
+    - https://www.zdnet.com/article/hackers-are-using-this-sneaky-trick-to-exploit-dormant-microsoft-cloud-accounts-and-bypass-multi-factor-authentication/
+    - https://datatracker.ietf.org/doc/html/draft-ietf-oauth-security-topics#page-9

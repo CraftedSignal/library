@@ -1,0 +1,13 @@
+id: 019c2a46-4a43-71fa-aead-487fd26e6706
+name: Direct Send Email Spoofing Detection
+description: This rule detects potential direct send email spoofing attempts where an email fails SPF, DKIM, and DMARC authentication checks, but passes Composite Authentication (CompAuth). Additionally, it looks for emails where the sender's local part (username before the @) matches the recipient's local part, suggesting an attempt to impersonate an internal user. The rule also filters out emails that were blocked and those sent via internal connectors, focusing on external spoofing attempts. It further excludes emails originating from specific countries (New Zealand, Australia) which can be customized.
+query: "// Direct send email spoofing T1672\r\nEmailEvents\r\n| where (AuthenticationDetails contains '\"SPF\":\"softfail\"' or AuthenticationDetails contains '\"SPF\":\"fail\"')\r\n| where AuthenticationDetails contains '\"DKIM\":\"none\"'\r\n| where AuthenticationDetails contains '\"DMARC\":\"fail\"'\r\n| where AuthenticationDetails !contains '\"CompAuth\":\"pass\"'\r\n| where DeliveryAction !in ('Blocked')\r\n| where isempty(Connectors)\r\n//Get email username (everything before the @)\r\n| extend SenderLocal    = tolower(split(SenderFromAddress, '@')[0])\r\n| extend RecipientLocal = tolower(split(RecipientEmailAddress, '@')[0])\r\n| where SenderLocal == RecipientLocal\r\n| extend IPAddress = coalesce(SenderIPv4, SenderIPv6)\r\n| extend geoinfo   = parse_json(geo_info_from_ip_address(IPAddress))\r\n| extend Country   = tostring(geoinfo.country)\r\n| where Country !in ('New Zealand','Australia') //you can exclude your own preffered country\r\n| project TimeGenerated, AuthenticationDetails, DeliveryAction, DeliveryLocation, EmailDirection, IPAddress, Country, Subject, SenderFromAddress, SenderMailFromAddress, RecipientEmailAddress, NetworkMessageId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1672
+tags:
+    - kql
+version: "4"

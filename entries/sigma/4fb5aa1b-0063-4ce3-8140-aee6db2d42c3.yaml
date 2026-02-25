@@ -1,0 +1,22 @@
+id: 4fb5aa1b-0063-4ce3-8140-aee6db2d42c3
+name: DoT (DNS over TLS) activation (command)
+description: Detects scenarios where an attacker attempts to enable DNS over TLS in order to evade detection for command and control purposes.
+query: "title: DoT (DNS over TLS) activation (command)\ndescription: Detects scenarios where an attacker attempts to enable DNS over TLS in order to evade detection for command and control purposes.\nreferences:\n- https://techcommunity.microsoft.com/t5/networking-blog/dns-over-tls-available-to-windows-insiders/ba-p/3565859\n- http://woshub.com/enable-dns-over-https-windows/\ntags:\n- attack.defense_evasion\n- attack.command_and_control\n- attack.t1071.004 \nauthor: mdecrevoisier\nstatus: stable\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_baseline:\n    EventID: 4688\n    NewProcessName|endswith: '\\netsh.exe' # Full path \"C:\\Windows\\system32\\netsh.exe\"\n    CommandLine|contains: add\n\n  selection_enable: # full command: \"netsh dns add global dot=yes\"\n    CommandLine|contains: 'dot=yes'\n\n  selection_add_server: # full command: \"netsh dns add encryption server=<resolver_ip> dothost=: autoupgrade=yes\"\n    CommandLine|contains: 'dothost='\n\n  condition: selection_baseline and (selection_enable OR selection_add_server)\nfalsepositives:\n- Legitimate DoT activation by administrators \nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - attack.defense_evasion
+    - attack.command_and_control
+    - attack.t1071.004
+author: mdecrevoisier
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/t5/networking-blog/dns-over-tls-available-to-windows-insiders/ba-p/3565859
+    - http://woshub.com/enable-dns-over-https-windows/
+data_sources:
+    - process_creation
+    - windows

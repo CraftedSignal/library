@@ -1,0 +1,14 @@
+id: d9a03a1d-9b38-4d49-b47c-5dbc04aba864
+name: Potential IP KVM Device Connection
+description: This rule detects the connection of specific USB devices that are commonly associated with IP KVM (Keyboard, Video, Mouse) devices. It identifies these devices by checking the 'Manufacturer' field for 'PiKVM' or 'tinypilot', the 'vendorid' for a specific hexadecimal string ('6b65796d696d6670690'), or the 'SerialNumber' for 'CAFEBABE'. The rule monitors various USB device connection events such as 'USBDeviceConnected', 'UsbDriveMounted', 'UsbDriveUnmounted', 'UsbDeviceDisconnected', 'DeviceDisplayConnected', and 'PnpDeviceConnected' within 'DeviceEvents'. The presence of such devices can indicate remote access or potential compromise, as IP KVMs allow network-based control of a computer.
+query: "DeviceEvents \r\n| where ActionType in (\"USBDeviceConnected\", \"UsbDriveMounted\", \"UsbDriveUnmounted\", \"UsbDeviceDisconnected\", \"DeviceDisplayConnected\", \"PnpDeviceConnected\") \r\n| extend Fields = parse_json(AdditionalFields) \r\n| extend Manufacturer = tostring(Fields.Manufacturer), ProductName = tostring(Fields.ProductName) \r\n| extend SerialNumber = tostring(Fields.SerialNumber), ProductName = tostring(Fields.ProductName) \r\n| extend vendorid = tostring(Fields.DeviceId) \r\n| where Manufacturer has_any (\"PiKVM\",\"tinypilot\") or vendorid contains \"6b65796d696d6570690\" or SerialNumber == \"CAFEBABE\" \r\n| project TimeGenerated, Manufacturer, SerialNumber, ProductName, ActionType, DeviceName, InitiatingProcessAccountUpn, InitiatingProcessCommandLine, vendorid"
+query_type: kql
+severity: medium
+techniques:
+    - T1219
+tags:
+    - kql
+author: '@Carepanda10'
+version: "1"
+references:
+    - https://blog.grumpygoose.io/hold-me-closer-tinypilot-f94455431921

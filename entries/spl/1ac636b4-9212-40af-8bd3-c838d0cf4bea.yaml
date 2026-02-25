@@ -1,0 +1,79 @@
+id: 1ac636b4-9212-40af-8bd3-c838d0cf4bea
+name: Consolidated Malspam Campaign Activity - Nova Infostealer
+description: This rule consolidates multiple detections related to a widespread malspam campaign delivering the Nova infostealer. It hunts for activity across email, network, DNS, and firewall logs associated with known malicious domains, IPs, and specific TTPs like suspicious archive attachments from impersonated brands.
+query: |
+    // Name: Consolidated Malspam Campaign Activity
+    // Author: detections.ai
+    // Date: 2025-08-12
+    // MITRE ATT&CK: T1566.001, T1071.001
+    // Description: This query consolidates multiple detections related to a widespread malspam campaign delivering the Nova infostealer. It hunts for activity across email, network, DNS, and firewall logs associated with known malicious domains, IPs, and specific TTPs like suspicious archive attachments from impersonated brands.
+    // False Positive Sensitivity: Medium. This is a broad query combining high-fidelity IOCs with more behavioral patterns. Legitimate activity could overlap, especially with the attachment detection. Tuning may be required by excluding trusted senders or specific internal processes.
+    // References: Provided user intel d651213dfb7b9bcbb0007b9094738c83505547e2730d748e276304536bbea221
+    // Required Data Models: Email, Network_Traffic, Network_Resolution, Endpoint
+
+    // Define IOCs in macros for easier management.
+    // Macro: `malicious_domains_spl` = `("windhym.site", "bioccon.com", "hanhanggroup.com", "sprinterstravels.co.uk")`
+    // Macro: `malicious_ips_spl` = `("79.141.165.17", "185.81.114.43", "185.117.90.49", "185.80.53.203")`
+    // Macro: `suspicious_extensions_spl` = `("*.rar", "*.7z", "*.gz")`
+    // Macro: `impersonated_keywords_spl` = `("*dhl*", "*docusign*")`
+
+    // Method 1: Suspicious Archive Attachments from impersonated brands
+    (index=* tag=email) (file_name IN `suspicious_extensions_spl`) (subject IN `impersonated_keywords_spl` OR src_user IN `impersonated_keywords_spl`)
+    | eval DetectionMethod="Suspicious Archive Attachment", DeviceName="N/A", AccountName=dest, Process=subject, CommandLine="N/A", Indicator=file_name, IndicatorType="Attachment", Details="Sender: " + src_user + ", Subject: " + subject
+    | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+
+    | append [
+        // Method 2: Network Connections to Malicious Domains/IPs (using Endpoint data for process context)
+        tstats `summariesonly` count from datamodel=Endpoint.Processes where (Processes.dest_name IN `malicious_domains_spl` OR Processes.dest_ip IN `malicious_ips_spl`) by _time, Processes.dest, Processes.user, Processes.process_name, Processes.process, Processes.dest_ip, Processes.dest_name
+        | `drop_dm_object_name("Processes")`
+        | eval DetectionMethod="Malicious Network Connection", DeviceName=dest, AccountName=user, Process=process_name, CommandLine=process
+        | eval Indicator=if(in(dest_name, `malicious_domains_spl`), dest_name, dest_ip), IndicatorType=if(in(dest_name, `malicious_domains_spl`), "Domain", "IP Address")
+        | eval Details="RemoteIP: " + dest_ip + ", RemoteUrl: " + dest_name
+        | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+    ]
+
+    | append [
+        // Method 3: DNS Activity for Malicious Domains/IPs
+        tstats `summariesonly` count from datamodel=Network_Resolution where (DNS.query IN `malicious_domains_spl` OR DNS.answer IN `malicious_ips_spl`) by _time, DNS.src, DNS.process, DNS.query, DNS.answer
+        | `drop_dm_object_name("DNS")`
+        | eval DetectionMethod="Malicious DNS Activity", DeviceName=src, AccountName="N/A", Process=process, CommandLine="N/A", Indicator=query, IndicatorType="Domain", Details="Query: " + query + ", Response: " + answer
+        | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+    ]
+
+    | append [
+        // Method 4: Emails from Malicious Senders/IPs
+        (index=* tag=email) (src_domain IN `malicious_domains_spl` OR src_ip IN `malicious_ips_spl`)
+        | eval DetectionMethod="Email from Malicious Infrastructure", DeviceName="N/A", AccountName=dest, Process=subject, CommandLine="N/A", Indicator=src_user, IndicatorType="Sender", Details="Sender: " + src_user + ", ConnectingIP: " + src_ip
+        | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+    ]
+
+    | append [
+        // Method 5: Malicious URLs in Emails
+        // This part is most effective with data sources that explicitly extract URLs, like Proofpoint TAP.
+        (index=* tag=email) (url IN ("*windhym.site*", "*bioccon.com*", "*hanhanggroup.com*", "*sprinterstravels.co.uk*"))
+        | eval DetectionMethod="Malicious URL in Email", DeviceName="N/A", AccountName=dest, Process=subject, CommandLine="N/A", Indicator=url, IndicatorType="URL", Details="Sender: " + src_user + ", Subject: " + subject
+        | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+    ]
+
+    | append [
+        // Method 6: Firewall Logs for Malicious IPs
+        tstats `summariesonly` count from datamodel=Network_Traffic where (All_Traffic.src_ip IN `malicious_ips_spl` OR All_Traffic.dest_ip IN `malicious_ips_spl`) by _time, All_Traffic.dvc, All_Traffic.src_ip, All_Traffic.dest_ip, All_Traffic.dest_port
+        | `drop_dm_object_name("All_Traffic")`
+        | eval DetectionMethod="Malicious IP in Firewall Log", DeviceName=dvc, AccountName="N/A", Process="Firewall Traffic", CommandLine="N/A"
+        | eval Indicator=if(in(src_ip, `malicious_ips_spl`), src_ip, dest_ip), IndicatorType="IP Address"
+        | eval Details="Source: " + src_ip + ", Destination: " + dest_ip + ", Port: " + dest_port
+        | fields _time, DetectionMethod, DeviceName, AccountName, Process, CommandLine, Indicator, IndicatorType, Details
+    ]
+query_type: spl
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.001
+    - T1071.001
+    - T1566.002
+tags:
+    - spl
+version: "1"
+references:
+    - Provided user intel d651213dfb7b9bcbb0007b9094738c83505547e2730d748e276304536bbea221

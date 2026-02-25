@@ -1,0 +1,64 @@
+id: 019b2c95-ba17-72c8-85ea-44fb5ba631fb
+name: RansomHouse Mario Encryptor File Renaming
+description: Detects the renaming of critical virtualization files by the RansomHouse 'Mario' encryptor, which appends an extension containing '.mario' (e.g., '.emario'). This activity is a strong indicator of a successful encryption event on an ESXi host.
+query: |
+    title: RansomHouse Mario Encryptor File Renaming
+    id: ae38d5e8-fede-4d9f-8b5d-9483d310170e
+    status: experimental
+    description: Detects the renaming of critical virtualization files by the
+      RansomHouse 'Mario' encryptor, which appends an extension containing '.mario'
+      (e.g., '.emario'). This activity is a strong indicator of a successful
+      encryption event on an ESXi host.
+    references:
+      - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+    author: detections.ai
+    date: 2025-12-17
+    tags:
+      - attack.impact
+      - attack.t1486
+    logsource:
+      category: file_event
+      product: linux
+    detection:
+      selection_ext:
+        # The Mario encryptor appends a new extension containing 'mario' to encrypted files.
+        TargetFileName|endswith:
+          - '.emario'
+          - '.marion'
+          - '.lmario'
+          - '.nmario'
+          - '.mmario'
+          - '.wmario'
+      selection_vfiles:
+        # The new filename will still contain the original virtualization file extension.
+        TargetFileName|contains:
+          - '.ova'
+          - '.ovf'
+          - '.vbk'
+          - '.vbm'
+          - '.vib'
+          - '.vmdk'
+          - '.vmem'
+          - '.vmsd'
+          - '.vmsn'
+          - '.vswp'
+      condition: all of selection_*
+    falsepositives:
+      - Unlikely
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - attack.impact
+    - attack.t1486
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+data_sources:
+    - file_event
+    - linux

@@ -1,0 +1,14 @@
+id: 019c4da1-c60c-77ad-a75c-270c2bed3cd7
+name: Possible ClickFix Encoded Payload Fetch
+description: This rule detects HTTP traffic that may indicate a ClickFix social engineering attack. Specifically, it looks for HTTP responses with a 'Content-Type' of 'text/plain' and content within the HTTP header that matches patterns associated with PowerShell, encoded commands, or 'iex' (Invoke-Expression), suggesting the delivery of an encoded PowerShell payload.
+query: |
+    # ClickFix/CrashFix - finger.exe fetch and encoded PowerShell delivery
+    # Author: Daniel Jeremiah | Date: 2026/02/11
+    # Ref: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+
+    # Alert on HTTP with typical ClickFix payload pattern (base64/encoded script fetch)
+    alert http any any -> any any (msg:"ET TROJAN Possible ClickFix Encoded Payload Fetch"; flow:established,to_client; content:"Content-Type"; http_header; content:"text/plain"; http_header; pcre:"/powershell|encodedcommand|iex/i"; reference:url,www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix; sid:25020901; rev:1;)
+query_type: kql
+tags:
+    - kql
+version: "2"

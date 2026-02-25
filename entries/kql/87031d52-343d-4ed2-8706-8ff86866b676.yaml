@@ -1,0 +1,18 @@
+id: 87031d52-343d-4ed2-8706-8ff86866b676
+name: MSBuild Process Injection – Possible Lumma Stealer Activity
+description: "This rule detects suspicious execution of MSBuild.exe from non-standard user-writable temporary or roaming directories. Adversaries often abuse MSBuild.exe, a legitimate Microsoft utility, to proxy execution of malicious code, bypassing application control defenses. The rule specifically looks for MSBuild.exe running from common temporary or user-controlled paths like AppData\\Local\\Temp, AppData\\Roaming, C:\\Temp, or C:\\Users\\Public, which is indicative of potential malicious activity such as process injection or execution of infostealers like Lumma Stealer.\n\nActions: \nReview the parent process (InitiatingProcess*) for suspicious names and command lines.\n Correlate with other indicators such as network connections, file writes, or registry changes. \nInvestigate the dropped files or payloads around the execution timestamp."
+query: "DeviceProcessEvents\r\n| where FileName == \"MSBuild.exe\" and FolderPath has @\"C:\\Windows\\Microsoft.NET\\Framework\\\"\r\n| where InitiatingProcessFolderPath has_any (@\"AppData\\Local\\Temp\", @\"AppData\\Roaming\", @\"C:\\Temp\", @\"C:\\Users\\Public\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1127.001
+    - T1055
+tags:
+    - kql
+version: "1"
+references:
+    - https://app.any.run/tasks/d75d7c30-dfde-40ce-9833-f5684f43c556
+    - https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/

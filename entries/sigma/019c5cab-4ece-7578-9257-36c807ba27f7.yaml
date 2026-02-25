@@ -1,0 +1,54 @@
+id: 019c5cab-4ece-7578-9257-36c807ba27f7
+name: OysterLoader C2 HTTP User-Agent and Endpoints
+description: This rule detects OysterLoader C2 communication based on specific HTTP User-Agent strings and URI paths. It looks for 'WordPressAgent' or 'FingerPrint' in the User-Agent field combined with URIs like '/reg', '/login', '/api/kcehc', '/api/v2/init', '/api/v2/facade', or '/api/jgfnsfnuefcnegfnehjbfncejfh'. This activity is indicative of OysterLoader's multi-stage evasion techniques as described in a Sekoia report.
+query: |
+    title: OysterLoader C2 HTTP User-Agent and Endpoints
+    id: c3d4e5f6-a7b8-4c9d-0e1f-oyster03
+    status: experimental
+    description: |
+        Stage 3 uses User-Agent WordPressAgent (/reg) then FingerPrint (/login). Stage 4 beacons to /api/kcehc or /api/v2/facade, /api/v2/init. Requires HTTP/URL logging. Sekoia report.
+    references:
+        - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+    author: Daniel Jeremiah
+    date: 2026/02/14
+    tags:
+        - attack.t1071.001
+        - attack.c2
+    logsource:
+        category: proxy
+        product: windows
+    detection:
+        selection_ua_reg:
+            c-useragent: 'WordPressAgent'
+        selection_ua_fingerprint:
+            c-useragent: 'FingerPrint'
+        selection_uri:
+            c-uri|contains|any:
+                - '/reg'
+                - '/login'
+                - '/api/kcehc'
+                - '/api/v2/init'
+                - '/api/v2/facade'
+                - '/api/jgfnsfnuefcnegfnehjbfncejfh'
+        condition: selection_uri and (selection_ua_reg or selection_ua_fingerprint)
+    falsepositives:
+        - Legitimate WordPress or fingerprinting tools with same UA
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1041
+tags:
+    - attack.t1071.001
+    - attack.c2
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+data_sources:
+    - proxy
+    - windows

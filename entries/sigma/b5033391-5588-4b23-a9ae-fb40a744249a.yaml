@@ -1,0 +1,113 @@
+id: b5033391-5588-4b23-a9ae-fb40a744249a
+name: Citrix NetScaler Command Injection Attempt
+description: |
+    Detects potential command injection attempts against Citrix NetScaler ADC and Gateway devices. This detection is based on the patterns described in a hypothetical proof-of-concept for CVE-2025-7775, which involves injecting shell commands and referencing sensitive system paths in HTTP requests.
+query: |
+    title: Citrix NetScaler Command Injection Attempt
+    id: af631ee3-0ff3-43b6-a10e-d03cd14b8dc0
+    status: experimental
+    description: >
+      Detects potential command injection attempts against Citrix NetScaler ADC and
+      Gateway devices. This detection is based on the patterns described in a
+      hypothetical proof-of-concept for CVE-2025-7775, which involves injecting
+      shell commands and referencing sensitive system paths in HTTP requests.
+    references:
+      - https://www.tenable.com/blog/cve-2025-7775-citrix-netscaler-adc-and-netscaler-gateway-zero-day-remote-code-execution
+    author: detections.ai
+    date: 2025-09-05
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - attack.t1059.004
+      - cve.2025.7775
+      - cve.2025.7776
+      - cve.2025.8424
+    logsource:
+      category: webserver
+    detection:
+      # This rule looks for indicators in the full URI (including query string) or in HTTP request headers.
+      # The field names used here (e.g., url.original, http.request.header) are generic and may need to be mapped to your specific log source.
+
+      # Selection for command injection characters
+      selection_chars:
+        url.original|contains:
+          - '; '
+          - ';&'
+          - '| '
+          - '||'
+          - '&&'
+        http.request.header|contains:
+          # This may require a field that contains all request headers as a single string
+          - '; '
+          - ';&'
+          - '| '
+          - '||'
+          - '&&'
+        # Selection for common shell commands
+      selection_commands:
+        url.original|contains:
+          - ' id'
+          - ' uname'
+          - ' cat '
+          - ' wget '
+          - ' curl '
+          - ' sh '
+          - ' nc '
+          - ' chmod '
+          - 'whoami'
+        http.request.header|contains:
+          - ' id'
+          - ' uname'
+          - ' cat '
+          - ' wget '
+          - ' curl '
+          - ' sh '
+          - ' nc '
+          - ' chmod '
+          - 'whoami'
+        # Selection for sensitive NetScaler paths
+      selection_paths:
+        url.original|contains:
+          - '/flash/nsconfig/ns.conf'
+          - '/var/vpn/'
+          - '/netscaler/logon/'
+          - '/var/tmp/'
+          - '/tmp/'
+        http.request.header|contains:
+          - '/flash/nsconfig/ns.conf'
+          - '/var/vpn/'
+          - '/netscaler/logon/'
+          - '/var/tmp/'
+          - '/tmp/'
+        # The condition requires a combination of indicators to fire, reducing false positives.
+      condition: (selection_chars and selection_commands) or (selection_commands and
+        selection_paths)
+    falsepositives:
+      - Legitimate application traffic could potentially contain strings that match
+        parts of this rule, although the combination of indicators is designed to be
+        specific to command injection.
+      - It's recommended to test this rule in a monitoring-only mode first and tune
+        it by excluding legitimate source IPs or user-agents if necessary.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+    - T1059.008
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.t1059.004
+    - cve.2025.7775
+    - cve.2025.7776
+    - cve.2025.8424
+author: detections.ai
+version: "2"
+references:
+    - https://www.tenable.com/blog/cve-2025-7775-citrix-netscaler-adc-and-netscaler-gateway-zero-day-remote-code-execution
+data_sources:
+    - webserver

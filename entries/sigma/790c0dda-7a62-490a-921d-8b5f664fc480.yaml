@@ -1,0 +1,95 @@
+id: 790c0dda-7a62-490a-921d-8b5f664fc480
+name: Eye Pyramid C2 Traffic Detection
+description: Detects network traffic containing the specific JSON error response observed from Eye Pyramid C2 servers when authentication is missing, or traffic to/from associated IP addresses. This infrastructure is linked to various ransomware and offensive tools.
+query: |-
+    title: Eye Pyramid C2 JSON Error Response or Associated IPs
+    id: 00000000-0000-0000-0000-000000000000 # Placeholder, replace with a unique ID
+    status: experimental
+    description: Detects network traffic containing the specific JSON error response observed from Eye Pyramid C2 servers when authentication is missing, or traffic to/from associated IP addresses. This infrastructure is linked to various ransomware and offensive tools.
+    author: Detections.ai
+    date: 2025-05-09
+    references:
+        - https://www.intrinsec.com/en/cyber-threat-intelligence-feeds/ # General reference to Intrinsec CTI
+        - https://github.com/naksyn/Pyramid/blob/main/Server/pyramid.py # Reference to the source code showing the response
+    logsource:
+        category: network_connection
+        product: zeek
+    detection:
+        # Detect the specific JSON error response in the response body
+        # This assumes the log source captures HTTP response bodies or content
+        # Adjust field names based on specific log source schema (e.g., http.resp_body_raw)
+        # The exact field name for response body varies greatly between log sources.
+        # Using a generic 'data' or 'payload' field if available, or specifying common ones.
+        # For Zeek HTTP logs, the 'resp_body_len' might indicate a body exists,
+        # but capturing the content itself requires specific configuration or a different log type (e.g., files).
+        # Given the limitation of standard network connection logs not always having full response bodies,
+        # this rule targets the specific string, assuming a log source that captures it.
+        selection_json:
+            data|contains: '{"success": false, "error": "No auth header received"}'
+
+        # Detect connections to/from known Eye Pyramid C2 IP addresses
+        # Based on the "Indicators of compromise" section in the provided CTI
+        selection_ips:
+            id.resp_h:
+                - '155.138.253.99'
+                - '93.82.24.249'
+                - '193.58.121.231'
+                - '194.102.104.24'
+                - '194.102.104.25'
+                - '195.20.18.146'
+                - '87.120.117.78'
+                - '146.80.87.141'
+                - '93.123.72.42'
+                - '62.76.251.43'
+                - '45.86.231.115'
+                - '54.38.94.225'
+                - '81.177.215.62'
+                - '172.96.139.82'
+                - '185.196.9.92'
+                - '45.79.218.7'
+                - '91.231.186.174'
+                - '195.177.95.163'
+                - '188.23.170.151'
+                - '195.208.25.141'
+                - '179.60.147.67'
+                - '212.87.222.84'
+                - '198.134.107.41'
+                - '93.82.29.21'
+
+        condition: 1 of selection_*
+
+    fields:
+        - id.orig_h
+        - id.orig_p
+        - id.resp_h
+        - id.resp_p
+        - http.method
+        - http.uri
+        - http.version
+        - http.status_code
+        - http.resp_mime_types
+    tags:
+        - attack.command_and_control
+        - attack.t1071.001 # Application Layer Protocol: Web Protocols
+        - detection.emerging_threats
+        - malware.eye_pyramid
+        - malware.ransomhub
+        - malware.rhysida
+        - malware.vicesociety
+        - malware.silent_skimmer
+        - malware.bumblebee
+    level: high
+query_type: sigma
+severity: medium
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - detection.emerging_threats
+    - malware.eye_pyramid
+    - malware.ransomhub
+    - malware.rhysida
+    - malware.vicesociety
+    - malware.silent_skimmer
+    - malware.bumblebee
+author: Detections.ai
+version: "1"

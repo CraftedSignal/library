@@ -1,0 +1,22 @@
+id: 019aa760-7712-77cd-b2ef-5a6f0ac5486e
+name: AWS Network Firewall JA3/JA3S Hash Log Enablement
+description: This rule enables logging of JA3 and JA3S hashes in AWS Network Firewall to enhance visibility into TLS connections, useful for identifying malicious activities.
+query: "title: AWS Network Firewall - JA3/JA3S Hash Logging Enablement\nid: 202501024-202501025-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that enables JA3 and JA3S hash logging for TLS connections.\n  JA3 is a fingerprinting method for TLS clients, while JA3S fingerprints TLS server responses. These hashes can help\n  identify malware, suspicious applications, and malicious infrastructure. This is not a specific threat detection but\n  rather a logging enablement rule that customers commonly configure to enhance visibility into TLS behavior. AWS Network\n  Firewall uses Suricata as its underlying engine. The rules silently log JA3/JA3S hashes without generating alerts,\n  providing forensic data for security analysis.\n  \n  Suricata Rules:\n  alert tls $HOME_NET any -> any any (ja3.hash; content:!\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"; noalert; flow:to_server; sid:202501024;)\n  alert tls any any -> $HOME_NET any (ja3s.hash; content:!\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"; noalert; flow:to_client; sid:202501025;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://github.com/salesforce/ja3\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_ja3:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n    ja3_hash: '*'\n  selection_ja3s:\n    protocol: tls\n    direction: inbound\n    destination_network: internal\n    ja3s_hash: '*'\n  condition: selection_ja3 or selection_ja3s\nfalsepositives:\n  - Legitimate TLS connections (this is a logging rule, not a blocking rule)\nlevel: informational\n"
+query_type: sigma
+severity: informational
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.t1071
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://github.com/salesforce/ja3
+data_sources:
+    - firewall
+    - aws_network_firewall

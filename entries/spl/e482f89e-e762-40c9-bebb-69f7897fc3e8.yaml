@@ -1,0 +1,54 @@
+id: e482f89e-e762-40c9-bebb-69f7897fc3e8
+name: Katz Stealer PowerShell Hidden Window Execution from Scripting Host
+description: Detects PowerShell being executed with the '-WindowStyle Hidden' flag from a Windows Scripting Host parent process (wscript.exe or cscript.exe). This is a common technique used by malware, such as Katz Stealer, to run malicious scripts stealthily after being dropped by JavaScript.
+query: |
+    --
+    -- Name: PowerShell Hidden Window Execution from Scripting Host
+    --
+    -- Date: 2025-07-23
+    --
+    -- References:
+    -- - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/
+    --
+    -- Description:
+    -- Detects PowerShell being executed with the '-WindowStyle Hidden' flag from a Windows Scripting Host parent process (wscript.exe or cscript.exe). This is a common technique used by malware, such as Katz Stealer, to run malicious scripts stealthily after being dropped by JavaScript.
+    --
+    -- False Positive Sensitivity: Medium
+    --
+    -- Tags:
+    -- - Tactic: Execution
+    -- - Tactic: Defense Evasion
+    -- - Technique: T1059.001
+    -- - Technique: T1564.003
+    -- - Malware: Katz Stealer
+    --
+    -- Recommended Scoping:
+    -- Update the initial search line with the appropriate index and sourcetypes for your environment's
+    -- endpoint process execution data (e.g., Sysmon EventCode 1, CrowdStrike Falcon, etc.).
+    --
+    (index=*) (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1) OR (sourcetype=crowdstrike:falcon:event:detailed event_simpleName=ProcessRollup2)
+    -- key: normalize common field names for process execution events
+    | eval process_name = coalesce(process_name, ProcessName), process_command_line = coalesce(CommandLine, process_command_line), parent_process_name = coalesce(ParentImage, parent_process_name), host = coalesce(Computer, host), user = coalesce(User, user)
+    -- key: filter for powershell.exe launched with a hidden window from a script host
+    | where (process_name = "powershell.exe" AND (lower(process_command_line) LIKE "%-windowstyle hidden%" OR lower(process_command_line) LIKE "%-w hidden%")) AND parent_process_name IN ("wscript.exe", "cscript.exe")
+    -- comment: While this is a strong indicator of malicious activity, some administrative scripts may use this combination. If false positives occur, consider excluding known-good script paths or specific parent command lines.
+    -- key: aggregate results to create a single alert per host and command
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, parent_process_name, process_command_line
+    -- key: convert epoch time to a human-readable format
+    | convert ctime(firstTime) ctime(lastTime)
+    -- key: rename fields for better readability in alerts
+    | rename host as source_host, process_command_line as command_line
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1564.003
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/

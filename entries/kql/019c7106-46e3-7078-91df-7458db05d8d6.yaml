@@ -1,0 +1,17 @@
+id: 019c7106-46e3-7078-91df-7458db05d8d6
+name: Jira Abuse With Suspicious Redirector Link
+description: Detects incoming emails from Atlassian Jira domains (atlassian.net) that contain suspicious link redirectors or known Traffic Distribution Systems (TDS) like Keitaro. This activity is associated with a campaign where threat actors abuse Jira's trusted domain to send spam and phishing emails.
+query: "// Name: Jira Abuse With Suspicious Redirector Link\n// Description: Detects incoming emails from Atlassian Jira domains (atlassian.net) that contain \n//   suspicious link redirectors or known Traffic Distribution Systems (TDS) like Keitaro. \n//   This activity is associated with a campaign where threat actors abuse Jira's trusted \n//   domain to send spam and phishing emails.\n//\n// Reference: https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html\n// Author: tim@detections.ai\n// Date: 2026-02-18\n// Severity: Medium\n//\n// MITRE ATT&CK:\n// - T1566.002: Phishing: Spearphishing Link\n//\n// Data Sources:\n// - EmailEvents\n// - EmailUrlInfo\n//\n// False Positives:\n// - The domain 'go.sparkpostmail1.com' belongs to the legitimate email delivery service SparkPost.\n//   While abused in this campaign, it may appear in legitimate Jira notifications.\n// - Legitimate Atlassian integrations may use redirectors for tracking purposes.\nlet suspiciousDomains = dynamic([\n    \"go.sparkpostmail1.com\",\n    \"adrinal.com\",\n    \"barankinyserialxud.online\",\n    \"archicad3d.com\",\n    \"luckyktdm24.com\"\n]);\n// Get URLs from emails sent by Jira\nlet JiraEmailsWithUrls = EmailEvents\n    | where Timestamp > ago(24h)\n    | where SenderMailFromDomain endswith \"atlassian.net\" \n        or SenderFromDomain endswith \"atlassian.net\"\n    | project \n        Timestamp,\n        NetworkMessageId,\n        Subject,\n        SenderMailFromAddress,\n        SenderFromAddress,\n        RecipientEmailAddress,\n        DeliveryAction,\n        ThreatTypes;\n// Join with URL info to get actual URLs in the email\nJiraEmailsWithUrls\n| join kind=inner (\n    EmailUrlInfo\n    | where Timestamp > ago(24h)\n    | where UrlDomain has_any (suspiciousDomains)\n    | project NetworkMessageId, Url, UrlDomain, UrlLocation\n) on NetworkMessageId\n| project\n    Timestamp,\n    NetworkMessageId,\n    Subject,\n    SenderMailFromAddress,\n    SenderFromAddress,\n    RecipientEmailAddress,\n    SuspiciousUrl = Url,\n    SuspiciousUrlDomain = UrlDomain,\n    UrlLocation,\n    DeliveryAction,\n    ThreatTypes\n// Deduplicate if same email has multiple suspicious URLs\n| summarize \n    SuspiciousUrls = make_set(SuspiciousUrl),\n    SuspiciousUrlDomains = make_set(SuspiciousUrlDomain),\n    UrlCount = dcount(SuspiciousUrl)\n    by \n    Timestamp,\n    NetworkMessageId,\n    Subject,\n    SenderMailFromAddress,\n    SenderFromAddress,\n    RecipientEmailAddress,\n    DeliveryAction,\n    ThreatTypes\n| extend\n    AccountCustomEntity = RecipientEmailAddress,\n    UrlCustomEntity = tostring(SuspiciousUrls[0])"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html

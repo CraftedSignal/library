@@ -1,0 +1,52 @@
+id: b3b029be-626f-4362-a679-6187b0821f5c
+name: Suspicious anonymous login (domain specified)
+description: Detects scenarios where a suspicious anonymous login is performed during discovery phases.
+query: |-
+    title: Suspicious anonymous login (domain specified)
+    description: Detects scenarios where a suspicious anonymous login is performed during discovery phases.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0007-Discovery/T1046-Network%20Service%20Scanning
+    - https://github.com/login-securite/DonPAPI
+    tags:
+    - attack.discovery
+    - attack.t1046
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection:
+        EventID: 4624
+        TargetUserSid: S-1-5-7 # ANONYMOUS LOGON
+        LogonType: 3
+        AuthenticationPackageName: NTLM
+      filter:
+        - IpAddress:
+          - '%vulnerability_scanners%'
+        - TargetDomainName:
+          - 'NT AUTHORITY'  # English
+          - 'AUTORITE NT'   # French
+          - 'NT AUTHORITÄT' # German
+          #- other localized language names for the NT AUTHORITY
+      condition: selection and not filter
+    falsepositives:
+    - None
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+techniques:
+    - T1046
+tags:
+    - attack.discovery
+    - attack.t1046
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0007-Discovery/T1046-Network%20Service%20Scanning
+    - https://github.com/login-securite/DonPAPI
+data_sources:
+    - windows
+    - security

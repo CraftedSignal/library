@@ -1,0 +1,15 @@
+id: 7d3d1a1a-d43f-4d34-b26d-6b9fd0d2341b
+name: 'Insider Threat - Monitor sensitive bulk download data email to external '
+description: KQL Query
+query: "// Insider Threat - Monitor sensitive bulk download data email to external \n// https://www.linkedin.com/posts/activity-7193119880718520320-RO72/\n\n// This scheduled hourly Sentinel analytic rule is particular useful in detecting O365/Azure/Entra admins performing bulk download of users/groups/devices information from portal and sending that piece of information out to external via email.\n\nlet BulkDataFileNames =\nAuditLogs\n| where TimeGenerated > ago(90d)\n| where OperationName == \"Download group members - finished (bulk)\" or  OperationName == \"Download devices - finished (bulk)\" or  OperationName == \"Download service principals - finished (bulk)\" or  OperationName == \"started (bulk)\"\n| where ResultDescription contains \"Filename\"\n| extend AccountUPN = tostring(InitiatedBy.user.userPrincipalName)\n| parse ResultDescription with * \"Filename:\" Filename \". Activity\" Blank\n| project Filename;\nEmailAttachmentInfo\n| where TimeGenerated > ago(1h)\n| where FileName has_any(BulkDataFileNames)\n| where RecipientEmailAddress !contains \"contoso.com\" // Corporate Domain\n\n\n// MITRE ATT&CK Mapping\n\n// Based on the operations and data involved, the following MITRE ATT&CK techniques are relevant:\n\n// Data from Information Repositories (T1213):\n// The query identifies bulk downloads of group members, devices, and service principals, which aligns with adversaries accessing data from information repositories1.\n// Exfiltration Over Web Service (T1567):\n// The query checks for email attachments sent outside the corporate domain, indicating potential data exfiltration via email2.\n// Automated Collection (T1119):\n// The use of automated scripts to download bulk data suggests automated collection techniques3.\n"
+query_type: kql
+tactics:
+    - TA0009
+    - TA0010
+techniques:
+    - T1213
+    - T1567
+    - T1119
+tags:
+    - kql
+version: "1"

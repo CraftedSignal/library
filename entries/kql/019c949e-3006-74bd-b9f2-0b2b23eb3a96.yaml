@@ -1,0 +1,14 @@
+id: 019c949e-3006-74bd-b9f2-0b2b23eb3a96
+name: Rare or Newly Observed Cloud Application Sign-ins (Anomaly Detection)
+description: "This query identifies rare or newly observed application sign-ins by comparing activity in the last 24 hours against a 30‑day historical baseline. \nIt highlights applications that are never used or seldom used in the tenant, helping detect anomalous or suspicious application activity that may indicate OAuth abuse, automation tools, or compromised accounts."
+query: "let historical = AADSignInEventsBeta\r\n| where Timestamp between (ago(30d) .. ago(1d))\r\n| summarize HistCount=count() by Application;\r\nAADSignInEventsBeta\r\n| where Timestamp >= ago(1d)\r\n| summarize TodayCount=count(), Users=make_set(AccountUpn, 25) by Application\r\n| join kind=leftouter historical on Application\r\n| extend HistCount = tolong(HistCount)\r\n| where isempty(HistCount) or HistCount < 20  // rarity threshold\r\n| order by TodayCount desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - kql
+version: "2"

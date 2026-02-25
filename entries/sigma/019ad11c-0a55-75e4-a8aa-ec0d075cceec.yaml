@@ -1,0 +1,57 @@
+id: 019ad11c-0a55-75e4-a8aa-ec0d075cceec
+name: RomCom Mythic C2 Network Activity
+description: Detects network traffic consistent with RomCom's Mythic C2 framework. This includes connections to known C2 domains or requests for specific URI paths that return a 403 Forbidden status with an Nginx server header, a known fingerprint of this infrastructure.
+query: |
+    title: RomCom Mythic C2 Network Activity
+    id: 1e346ee3-6a02-47d2-a01f-a4df27657e31
+    status: experimental
+    description: Detects network traffic consistent with RomCom's Mythic C2
+      framework. This includes connections to known C2 domains or requests for
+      specific URI paths that return a 403 Forbidden status with an Nginx server
+      header, a known fingerprint of this infrastructure.
+    references:
+      - https://arcticwolf.com/resources/blog/romcom-utilizing-socgholish-to-deliver-mythic-agent-to-usa-companies-supporting-ukraine/
+    author: detections.ai
+    date: 2025-11-29
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+    logsource:
+      category: proxy
+    detection:
+      selection_domains:
+        cs-host|endswith:
+          - 'orlandoscreenenclosure.net'
+          - 'basilic.info'
+          - 'ozivoice.com'
+          - 'solarrayes.com'
+          - 'imprimerie-agp.com'
+          - 'srlaptop.com'
+          - 'carnesmemdesa.com'
+      selection_path:
+        cs-uri|endswith:
+          - '/clarity.js'
+      selection_fingerprint:
+        cs-status: 403 # The C2 servers respond with a 403 Forbidden status.
+        cs-method: 'POST'
+      condition: selection_fingerprint and (selection_domains or selection_path)
+    falsepositives:
+      - Legitimate Nginx servers may be configured to return a 403 error. However,
+        the combination with the specific domains or URI path significantly reduces
+        the likelihood of false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: detections.ai
+version: "3"
+references:
+    - https://arcticwolf.com/resources/blog/romcom-utilizing-socgholish-to-deliver-mythic-agent-to-usa-companies-supporting-ukraine/
+data_sources:
+    - proxy

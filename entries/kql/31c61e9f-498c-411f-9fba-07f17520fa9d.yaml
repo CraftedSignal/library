@@ -1,0 +1,27 @@
+id: 31c61e9f-498c-411f-9fba-07f17520fa9d
+name: Crypto24 - Keylogger Log File Creation
+description: Detects the creation of keylogger output files by the WinMainSvc component, which is associated with the Crypto24 ransomware group. The keylogger runs as a service via svchost.exe and creates log files in the C:\Windows\tmp\ directory with a specific naming pattern.
+query: |-
+    DeviceFileEvents
+    // Look for file creation events.
+    | where ActionType == "FileCreated"
+    // The parent process is svchost.exe running the malicious WinMainSvc service, a keylogger used by Crypto24.
+    | where InitiatingProcessFileName =~ "svchost.exe"
+      and InitiatingProcessCommandLine has_all ("-k", "WinMainSvc")
+    // The keylogger creates log files with a specific pattern in the Windows temp directory.
+    // Example path: C:\Windows\tmp\some_file_name_1234.log
+    | where FolderPath matches regex @"[a-zA-Z]:\\Windows\\tmp\\.+\_\d{4}\.log"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0006
+    - TA0005
+techniques:
+    - T1056.001
+    - T1036.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.trendmicro.com/en_no/research/25/h/crypto24-ransomware-stealth-attacks.html

@@ -1,0 +1,68 @@
+id: 019bbee6-4c85-777c-9c7b-2e2d6e2ed822
+name: Browser Network Connection to Known C2 Domains for Malicious 'ChatGPTStealer' Extension
+description: This rule detects common chromium browser processes establishing outbound network connections to known C2 domains associated with malicious 'ChatGPTStealer' infostealer extension. Detections by this rule indicates a high likelihood that a malicious chromium infostealer extension is currently or had been installed on an endpoint.
+query: |
+    title: >-
+      Browser Network Connection to Known C2 Domains for Malicious 'ChatGPTStealer'
+      Extension
+    id: 054957a3-dc2b-4475-ae1b-9b3aed6e1e9e
+    status: experimental
+    description: >-
+      This rule detects common chromium browser processes establishing outbound
+      network connections to known C2 domains associated with malicious
+      'ChatGPTStealer' infostealer extension. Detections by this rule indicates a
+      high likelihood that a malicious chromium infostealer extension is currently
+      or had been installed on an endpoint.
+    author: Zachary McManus
+    date: 2026-01-14T23:48:41.000Z
+    references:
+      - >-
+        https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      chromium_browser_processes:
+        Image|endswith:
+          - chrome.exe
+          - opera.exe
+          - brave.exe
+          - msedge.exe
+          - vivaldi.exe
+          - duckduckgo.exe
+      malicious_c2_domains:
+        DestinationHostname|contains:
+          - deepaichats.com
+          - chatsaigpt.com
+      timeframe: 30d
+      condition: chromium_browser_processes and malicious_c2_domains
+    fields:
+      - UtcTime
+      - Computer
+      - User
+      - Image
+      - DestinationHostname
+      - DestinationIp
+    falsepositives:
+      - This rule is based on high-fidelity IOCs, making false positives highly
+        unlikely.
+    level: high
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: Zachary McManus
+version: "4"
+references:
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/
+data_sources:
+    - network_connection
+    - windows

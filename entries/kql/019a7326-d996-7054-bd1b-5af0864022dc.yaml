@@ -1,0 +1,14 @@
+id: 019a7326-d996-7054-bd1b-5af0864022dc
+name: Potential Quantum Route Redirect PhaaS Link Detection
+description: This rule detects emails or URL click events containing a specific pattern associated with 'quantum.php' within the URL. This pattern is often indicative of phishing attempts, particularly those designed to harvest credentials or deliver malware.
+query: "union withsource=SourceTable *\r\n| where SourceTable == \"EmailEvents\" or SourceTable == \"UrlClickEvents\"\r\n| where TimeGenerated > ago(30d) \r\n| extend UrlMatches = extract_all(@'([\\w\\d-]+\\.){2}[\\w]{,3}\\/quantum\\.php', tostring(parse_json(tostring(NetworkMessageId)))) \r\n| where array_length(UrlMatches) > 0\r\n| project TimeGenerated, Subject, SenderFromAddress, UrlMatches, SourceTable"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

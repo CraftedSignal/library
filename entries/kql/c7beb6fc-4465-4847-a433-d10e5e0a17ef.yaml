@@ -1,0 +1,47 @@
+id: c7beb6fc-4465-4847-a433-d10e5e0a17ef
+name: WindowsApps Directory Malware Detection
+description: This detection identifies suspicious executable and DLL files with the specific name "wjoiyyxzllm" in the WindowsApps directory, indicating possible malware masquerading as legitimate software.
+query: |-
+    # WindowsApps Malware Detection
+
+    ## Description
+    This detection identifies suspicious executable and DLL files in the WindowsApps directory with the specific name "wjoiyyxzllm". This is likely malware attempting to hide in a legitimate Windows directory.
+
+    ## Detection Logic
+    The query monitors for file events involving:
+    - Files in `\Program Files\WindowsApps\` directory
+    - Specific filenames:
+      - `wjoiyyxzllm.exe`
+      - `wjoiyyxzllm.dll`
+
+    ## Query
+    ```kusto
+    DeviceFileEvents
+    | where (FolderPath contains @"\Program Files\WindowsApps\wjoiyyxzllm.exe"
+    or FolderPath contains @"\Program Files\WindowsApps\wjoiyyxzllm.dll")
+    ```
+
+    ## Analysis
+    - **Location**: WindowsApps folder typically contains Microsoft Store applications
+    - **Filename**: Random-looking name suggests obfuscation attempt
+    - **File Types**: Both EXE and DLL suggest complete malware package
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Defense Evasion
+    - **Technique**: T1036.005 - Masquerading: Match Legitimate Name or Location
+    - **Technique**: T1027 - Obfuscated Files or Information
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Check if these files are part of a legitimate Windows Store app
+    2. Verify digital signatures on the files
+    3. Review file creation time and source
+    4. Check for associated registry entries
+    5. Look for network connections from these files
+    6. Review Windows Store installation logs
+    7. Analyze the files in a sandbox environment
+    8. Check for similar randomly-named files in WindowsApps
+query_type: kql
+version: "1"

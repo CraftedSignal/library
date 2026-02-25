@@ -1,0 +1,19 @@
+id: 14a5a61a-0443-4d78-820f-9e424bb59894
+name: DefenderXDR - Devman ransomware detection query (HUNTING VERSION)
+description: KQL Query
+query: "// DevMan Ransomware Detection Query\r\n// Based on IOCs from https://any.run/cybersecurity-blog/devman-ransomware-analysis/\r\n\r\n// Look for suspicious file creation/modification events\r\nDeviceFileEvents\r\n| where InitiatingProcessFileName has_any (\"hsfjuukjzloqu28oajh727190\", \"e47qfsnz2trbkhnt.devman\") or FileName has_any (\"hsfjuukjzloqu28oajh727190\", \"e47qfsnz2trbkhnt.devman\") or FolderPath has_any (\"hsfjuukjzloqu28oajh727190\", \"e47qfsnz2trbkhnt.devman\") or FileExtension == \".devman\" // Detect files post encryption with .devman extension\r\n| extend DetectionSource = \"File IOC\"\r\n// Look for registry key modifications\r\nunion DeviceRegistryEvents\r\n| where RegistryKey has \"HKEY_CURRENT_USER\\\\Software\\\\Microsoft\\\\RestartManager\\\\Session0000\"\r\n| extend DetectionSource = \"Registry IOC\"\r\n// Look for process activities related to mutexes (common for ransomware to prevent multiple instances)\r\nunion DeviceProcessEvents\r\n| where ProcessCommandLine has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\") or ProcessVersionInfoOriginalFileName has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\") or ProcessVersionInfoProductName has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\") or FileName has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\")\r\n| extend DetectionSource = \"Process Mutex Pattern\"\r\n// Combine results and project relevant columns for analysis\r\n| project Timestamp, DeviceId, DeviceName, ActionType, FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine, RegistryKey, RegistryValueData, DetectionSource, ReportId, SHA256\r\n| summarize arg_max(Timestamp, *) by ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0040
+techniques:
+    - T1112
+    - T1486
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://github.com/dylanevans-cybersec/KQL-Queries/blob/main/DefenderXDR/(Hunting%20Version)%20Dragonforce%20Devman%20ransomware%20detection

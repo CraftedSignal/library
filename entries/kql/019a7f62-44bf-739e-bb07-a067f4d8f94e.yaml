@@ -1,0 +1,16 @@
+id: 019a7f62-44bf-739e-bb07-a067f4d8f94e
+name: Maverick brazilian malware detection
+description: This query focuses on detecting the Brazilian banking trojan known as Maverick. This malware has recently gained attention due to its aggressive propagation methods, particularly through WhatsApp Web. By leveraging social engineering techniques, Maverick spreads malicious links and attachments disguised as legitimate messages, tricking users into executing harmful code. Once installed, the trojan is capable of intercepting banking credentials, manipulating transactions, and exfiltrating sensitive financial information. Detecting Maverick requires monitoring suspicious script executions, abnormal network traffic patterns, and unauthorized use of processes such as cscript.exe and wscript.exe, which are often abused by attackers to run malicious payloads. The query aims to identify indicators of compromise associated with Maverick’s activity, helping security teams mitigate its impact and protect users from financial fraud
+query: "let vbs=\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".vbs\"\r\n| project DeviceId,VBSTimestamp =Timestamp,VBSFolderPath=FolderPath,VBSFileName=FileName;\r\nlet pwsh =\r\nDeviceProcessEvents\r\n| where FileName == \"powershell.exe\"\r\n| where ProcessCommandLine has (\"Invoke-WebRequest\")\r\n| project DeviceId, PWSHTimestamp = Timestamp, DeviceName, AccountName, CommandLine_PS = ProcessCommandLine;\r\nvbs\r\n| join kind=inner (pwsh) on DeviceId\r\n| where PWSHTimestamp  between ( VBSTimestamp .. 5m)\r\n| project Timestamp_Zip = VBSTimestamp,Timestamp_PS = PWSHTimestamp,DeviceName,AccountName,VBSFileName,\r\nCommandLine_PS\r\n| summarize  count() by  DeviceName,AccountName,VBSFileName,CommandLine_PS\r\n "
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+    - T1204
+    - T1059
+tags:
+    - kql
+author: Enzima45
+version: "2"
+references:
+    - https://www.linkedin.com/posts/rkbr_whatsdaddy-malware-whatsapp-ugcPost-7394760346105872384-3pro/?utm_source=share&utm_medium=member_android&rcm=ACoAAEYX3c8BF6S_KSWAPxjK-nkdEwC5_W8r2uk

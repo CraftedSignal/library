@@ -1,0 +1,61 @@
+id: 0d703f40-ca7a-4f0a-be17-f9527897b3e6
+name: Tycoon/ODx Phishing Kit Network Indicators
+description: Detects network traffic associated with the Tycoon and ODx phishing kits, which are used in Attacker-in-the-Middle (AiTM) phishing campaigns to bypass MFA. The rule identifies connections to known malicious domains, IP addresses, and specific URLs used by these kits.
+query: |
+    title: Tycoon/ODx Phishing Kit Network Indicators
+    id: feda6745-3923-4090-916b-4859bb0a90fe
+    status: experimental
+    description: Detects network traffic associated with the Tycoon and ODx phishing kits. These kits are used in AiTM (Attacker-in-the-Middle) phishing campaigns to bypass MFA.
+    references:
+      - https://rhisac.org/threat-intelligence/microsoft-oauth-app-impersonation-leads-to-mfa-phishing/
+    author: detections.ai
+    date: 2025-08-14
+    tags:
+      - attack.t1566.002
+      - attack.initial_access
+      - kit.tycoon
+      - kit.odx
+    logsource:
+      category: proxy
+        # Can also be adapted for dns, network_connection, or webserver logs by mapping the fields below.
+    detection:
+      selection_domains:
+            # Detects connections to domains known to be associated with the Tycoon phishing kit
+        destination.domain|endswith:
+          - 'azureapplicationregistration.pages.dev'
+          - 'yrqwvevbjcfv.es'
+          - 'gmlygt.ru'
+          - 'pw5.haykovx.es'
+      selection_ip:
+            # Detects connections to a known Tycoon IP address
+        destination.ip:
+          - '2a00:b703:fff2:35::1'
+      selection_url:
+            # Detects specific malicious URLs hosted on a potentially compromised domain
+        url.original|contains:
+          - 'chikeukohandco.com/csi/index.html?redirect_mongo_id='
+          - 'chikeukohandco.com/saas/Index.html'
+      condition: selection_domains or selection_ip or selection_url
+    falsepositives:
+      - The domain `chikeukohandco.com` may be a legitimate, compromised website. Detections related to this domain should be reviewed to confirm malicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0006
+    - TA0009
+techniques:
+    - T1566.002
+    - T1557
+tags:
+    - attack.t1566.002
+    - attack.initial_access
+    - kit.tycoon
+    - kit.odx
+author: detections.ai
+version: "1"
+references:
+    - https://rhisac.org/threat-intelligence/microsoft-oauth-app-impersonation-leads-to-mfa-phishing/
+data_sources:
+    - proxy

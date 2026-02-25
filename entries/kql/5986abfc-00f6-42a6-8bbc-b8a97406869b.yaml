@@ -1,0 +1,41 @@
+id: 5986abfc-00f6-42a6-8bbc-b8a97406869b
+name: Unusual Volume of DNS Queries from a Single Device
+description: This rule detects an unusually high volume of DNS queries originating from a single device within a one-hour window. This behavior can be indicative of various malicious activities such as DNS tunneling for command and control, data exfiltration, or extensive reconnaissance.
+query: |
+    #### This query helps see if there is unusual amount of DNS queries.
+    #### Query:
+    ```KQL
+    IdentityQueryEvents
+    | where TimeGenerated > ago(1d)
+    | where ActionType == "DNS query"
+    | summarize queryCount = count()
+        by
+        QueryTarget,
+        bin(TimeGenerated, 1h),
+        DeviceName,
+        IPAddress,
+        Port,
+        DestinationDeviceName,
+        DestinationIPAddress,
+        DestinationPort
+    | where queryCount > 100 // Example threshold for unusual volume
+    | order by queryCount desc
+    | project
+        TimeGenerated,
+        QueryTarget,
+        queryCount,
+        DeviceName,
+        IPAddress,
+        Port,
+        DestinationDeviceName,
+        DestinationIPAddress,
+        DestinationPort
+    ```
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - kql
+version: "1"

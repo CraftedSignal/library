@@ -1,0 +1,35 @@
+id: c4857cfe-4ec3-4ceb-a629-b27bb43f0990
+name: Unusual Interactive Sign-In from New Country (30-Day Baseline)
+description: |
+    This detection identifies interactive sign-ins from countries that a user has not accessed from in the past 30 days, based on successful logins. It highlights unusual geographic access patterns, such as remote work via VPNs, possible account compromise, or other travel-related anomalies.
+
+    Only interactive sign-ins are included to reduce noise from background service logins and token refreshes.
+
+    Recommended Extensions:
+
+    1. Trusted Applications Watchlist
+       Use a Sentinel watchlist (e.g., `TrustedAppsWatchlist`) to maintain known or expected applications (like SAP Cloud Identity Services, Microsoft Teams, Outlook Mobile) that frequently authenticate across multiple countries or devices. This helps suppress expected behavior and avoids alert fatigue.
+
+    2. Workation / Remote User Watchlist
+       Create a watchlist (e.g., `WorkationUsers`) with UPNs or user aliases of employees who are temporarily working abroad or from rotating locations. This allows legitimate, location-shifting activity to be filtered out of alerting, reducing false positives during travel seasons or flexible remote work arrangements.
+query: "// 1. Baseline: Countries with at least 2 interactive successful sign-ins over the last 30 days\r\nlet BaselineCountries =\r\n    SigninLogs\r\n    | where TimeGenerated between (ago(30d) .. ago(1d))\r\n    | where ResultType == 0\r\n    | where IsInteractive == true   // Only user-driven interactive sign-ins\r\n    | extend Country = tostring(LocationDetails[\"countryOrRegion\"])\r\n    | summarize CountryCount = count() by UserPrincipalName, Country\r\n    | where CountryCount >= 2\r\n    | summarize KnownCountries = make_set(Country) by UserPrincipalName;\r\n// 2. Current: Interactive successful sign-ins in the last 24 hours\r\nSigninLogs\r\n| where TimeGenerated > ago(1d)\r\n| where ResultType == 0\r\n| where IsInteractive == true\r\n| extend Country = tostring(LocationDetails[\"countryOrRegion\"])\r\n// 3. Join baseline and identify new/unusual countries\r\n| join kind=leftouter BaselineCountries on UserPrincipalName\r\n| where not(set_has_element(KnownCountries, Country))\r\n// 4. Output results for investigation\r\n| project TimeGenerated, UserPrincipalName, Country, IPAddress, AppDisplayName, ClientAppUsed, UserAgent, LocationDetails\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - VPN
+    - UnusualLogin
+    - InteractiveSignIn
+    - SentinelDetection
+    - RemoteWork
+    - Workation
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - 'https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/signinlogs  '

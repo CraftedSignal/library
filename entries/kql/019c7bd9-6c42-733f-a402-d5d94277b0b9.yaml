@@ -1,0 +1,18 @@
+id: 019c7bd9-6c42-733f-a402-d5d94277b0b9
+name: Suspicious Execution from MIMICRAT ProgramData Staging Directory
+description: Detects the execution of an executable from a subdirectory under %ProgramData% that matches the 'knz_' naming convention used by the MIMICRAT loader. MIMICRAT uses this directory to stage its Lua-based loader (zbuild.exe). The rule specifically looks for unsigned executables to reduce false positives.
+query: "// Name: Suspicious Execution from MIMICRAT ProgramData Staging Directory\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects the execution of an executable from a subdirectory under %ProgramData% that matches the 'knz_' naming convention used by the MIMICRAT loader. MIMICRAT uses this directory to stage its Lua-based loader (zbuild.exe).\r\n// False Positives: Medium. It is uncommon for legitimate software to use this specific directory pattern ('knz_...'). However, to reduce potential false positives, the rule filters for unsigned executables. If legitimate software in your environment uses this path, consider adding exclusions for its file hash or signer.\r\n// References: https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks\r\n// Tactics: Persistence, Execution\r\n// Techniques: T1547.001, T1105.000\r\nDeviceProcessEvents\r\n// Look for process creation events where the executable path matches the MIMICRAT staging directory pattern.\r\n| where FolderPath matches regex @\"[a-zA-Z]:\\\\ProgramData\\\\knz_.*\" and FileName endswith \".exe\"\r\n// The MIMICRAT loader is expected to be unsigned. This helps filter out potential noise from legitimate, signed applications.\r\n| where InitiatingProcessSignatureStatus == \"unsigned\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks

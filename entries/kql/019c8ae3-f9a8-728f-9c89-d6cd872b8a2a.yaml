@@ -1,0 +1,18 @@
+id: 019c8ae3-f9a8-728f-9c89-d6cd872b8a2a
+name: WMI Spawning PowerShell via JScript
+description: Detects a Windows Script Host process (wscript.exe or cscript.exe) using WMI to spawn a PowerShell process. This technique is used by malware, such as in the Remcos RAT delivery chain, to break the parent-child process relationship and evade detections based on process ancestry.
+query: "// Name: WMI Spawning PowerShell via JScript\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects a Windows Script Host process (wscript.exe or cscript.exe) using WMI to spawn a PowerShell process. This technique is used by malware, such as in the Remcos RAT delivery chain, to break the parent-child process relationship and evade detections based on process ancestry.\r\n// References: https://isc.sans.edu/diary/32738\r\n// Tactic: Execution, Defense Evasion\r\n// Technique: T1047, T1059.001\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceProcessEvents\r\n// Look for PowerShell being launched by a Windows Script Host process.\r\n| where InitiatingProcessFileName in~ (\"wscript.exe\", \"cscript.exe\")\r\n    and FileName =~ \"powershell.exe\"\r\n// The parent command line must show evidence of using WMI's Win32_Process.Create method.\r\n// This is a key indicator that WMI is being used as an intermediary for process creation.\r\n| where InitiatingProcessCommandLine has \"Win32_Process\" and InitiatingProcessCommandLine has \"Create\"\r\n// The PowerShell command line often contains suspicious arguments for obfuscation or stealth, as seen in the intel.\r\n| where ProcessCommandLine has_any (\r\n        \"-WindowStyle Hidden\",\r\n        \"-NoProfile\",\r\n        \"-EncodedCommand\",\r\n        \"Invoke-Expression\",\r\n        \"FromBase64String\"\r\n    )\r\n// FP Tuning: Legitimate administrative scripts may use this technique, though it's uncommon from a .js file.\r\n// If false positives occur, consider excluding known safe scripts by their command line, hash, or parent process path.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    InitiatingProcessParentFileName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1047
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://isc.sans.edu/diary/32738

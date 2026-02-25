@@ -1,0 +1,21 @@
+id: 019c8b17-557f-709c-9538-685e71ad0d8e
+name: SANDWORM_MODE Control Environment Variables Detection
+description: This rule detects the presence of environment variables used to control the malicious SANDWORM_MODE payload in CI environments or on local systems. The presence of these variables in a process command line is a strong indicator of an active infection or a workflow being manipulated by the malware's control logic.
+query: "// Name: SANDWORM_MODE Control Environment Variables\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Tactic: Defense Evasion, Collection\r\n// Technique: T1047, Windows Management Instrumentation; T1552.001, Credentials In Files\r\n// Description: This rule detects the presence of environment variables used to control the malicious SANDWORM_MODE payload in CI environments or on local systems. The presence of these variables in a process command line is a strong indicator of an active infection or a workflow being manipulated by the malware's control logic.es\r\n// False Positive Sensitivity: Medium\r\n// References: https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning\r\n// Define the prefix for the malicious environment variables.\r\nlet VarPrefix = \"SANDWORM_\";\r\nDeviceProcessEvents\r\n// Look for process command lines that contain the specific variable prefix.\r\n// These variables are often set inline when a process is launched, especially in shell environments.\r\n| where ProcessCommandLine has VarPrefix\r\n// FP Tuning: The \"SANDWORM_\" prefix is distinctive. False positives are unlikely but could occur if a legitimate tool uses a similar naming convention.\r\n// If false positives occur, consider excluding specific legitimate processes or scripts by name or path.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0009
+    - TA0002
+    - TA0006
+techniques:
+    - T1047
+    - T1552.001
+    - T1480.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning

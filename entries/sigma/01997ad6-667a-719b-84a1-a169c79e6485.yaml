@@ -1,0 +1,59 @@
+id: 01997ad6-667a-719b-84a1-a169c79e6485
+name: Silver Fox APT Persistence Service Creation
+description: Detects the creation of Windows services used by the Silver Fox APT group to establish persistence for their loader and vulnerable driver. This activity is part of a campaign to deploy the ValleyRAT backdoor.
+query: |
+    title: Silver Fox APT Persistence Service Creation
+    id: d10068c0-0b9e-4eac-b396-f5483fab570c
+    status: experimental
+    description: Detects the creation of Windows services used by the Silver Fox APT
+      group to establish persistence for their loader and vulnerable driver. This
+      activity is part of a campaign to deploy the ValleyRAT backdoor.
+    references:
+      - https://research.checkpoint.com/2025/silver-fox-apt-vulnerable-drivers/
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.persistence
+      - attack.t1543.003
+      - apt.silver_fox
+      - malware.valleyrat
+    logsource:
+      product: windows
+      category: registry_set
+    detection:
+      selection_terminator_path:
+        # Detects the service for the main loader executable via its ImagePath registry value.
+        TargetObject|endswith: '\Services\Termaintor\ImagePath' # The service name 'Termaintor' is a typo for 'Terminator'.
+        Details|contains: 'C:\Program Files\RunTime\RuntimeBroker.exe'
+      selection_terminator_desc:
+        # Detects the service based on its unique Chinese description.
+        TargetObject|endswith: '\Services\Termaintor\Description'
+        Details: '停止对系统有害的行为进程。'
+      selection_amsdk_service:
+        # Detects the service created to load the vulnerable driver.
+        TargetObject|endswith: '\Services\Amsdk_Service\ImagePath'
+        Details|endswith: '\Amsdk_Service.sys'
+      condition: 1 of them
+    falsepositives:
+      - Extremely unlikely due to the unique service names (including a typo),
+        specific file paths, and a unique Chinese description string.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.003
+tags:
+    - attack.persistence
+    - attack.t1543.003
+    - apt.silver_fox
+    - malware.valleyrat
+author: detections.ai
+version: "4"
+references:
+    - https://research.checkpoint.com/2025/silver-fox-apt-vulnerable-drivers/
+data_sources:
+    - registry_set
+    - windows

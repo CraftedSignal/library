@@ -1,0 +1,20 @@
+id: d9cc4e98-96ac-4a4a-a33f-d8df6a344818
+name: Large Number of Git Repos Accessed in Rapid Succession
+description: |
+    This rule is designed to identify any non-bot user accessing an unusually high number of repositories in a short time window (30 mins), which may indicate credential abuse or insider threat activity.
+query: |-
+    title: Large Number of Git Repos Accessed in Rapid Succession
+    index=github
+    (vendor_action IN ("git.clone", "git.fetch", "repo.download_zip") OR url_path IN ("*/contents*","*/git/blobs*"))
+    actor!="[INSERT BOT / Service Accounts Here]]"
+    | bucket _time span=30m
+    | stats dc(repo) as distinct_repo_count by actor, _time
+    | where distinct_repo_count > 9
+    | sort - distinct_repo_count
+    | rename actor as "User", distinct_repo_count as "Distinct Repositories Downloaded in 30 Min"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Trevor Davenport
+version: "1"

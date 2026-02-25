@@ -1,0 +1,50 @@
+id: 019ac4ed-2d22-7642-8f85-1b79db18ff66
+name: LANDFALL Spyware C2 IP Communication
+description: Detects network connections to known Command and Control (C2) IP addresses associated with the LANDFALL Android spyware. While the spyware is known to target Samsung Android devices, this rule detects connections from any device to provide broader coverage against infrastructure reuse.
+query: |
+    // Name: LANDFALL Spyware C2 IP Communication
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects network connections to known Command and Control (C2) IP addresses associated with the LANDFALL Android spyware. While the spyware is known to target Samsung Android devices, this rule detects connections from any device to provide broader coverage against infrastructure reuse.
+    // False Positive Sensitivity: Low
+    // Reference: https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    // MITRE TTPs: T1071.001
+    // Data Source: DeviceNetworkEvents
+    let Timeframe = 7d;
+    // Known C2 IP addresses from LANDFALL spyware analysis.
+    let LandfallC2_IPs = dynamic([
+        "45.155.250.158",
+        "46.246.28.75",
+        "91.132.92.35",
+        "92.243.65.240",
+        "192.36.57.56",
+        "194.76.224.127"
+    ]);
+    DeviceNetworkEvents
+    | where Timestamp > ago(Timeframe)
+    // Look for successful outbound connections to public IPs.
+    | where ActionType == "ConnectionSuccess" and RemoteIPType == "Public"
+    // High-fidelity match: Connection to known LANDFALL C2 infrastructure.
+    | where RemoteIP in (LandfallC2_IPs)
+    | project
+        Timestamp,
+        DeviceName,
+        OSPlatform,
+        DeviceManufacturer,
+        ActionType,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl,
+        InitiatingProcessFileName,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/

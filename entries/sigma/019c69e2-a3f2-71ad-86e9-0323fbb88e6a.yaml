@@ -1,0 +1,100 @@
+id: 019c69e2-a3f2-71ad-86e9-0323fbb88e6a
+name: Linux Syslog Daemon Stopped or Killed
+description: |
+    Detects an adversary stopping or killing the syslog daemon (syslog,
+    rsyslog, or syslog-ng), which is responsible for forwarding system
+    events to /var/log and to SIEM collectors.
+
+    Stopping the syslog daemon is distinct from clearing existing logs --
+    it cuts the live telemetry pipeline at the source. Any activity
+    occurring after the daemon is stopped produces no log records
+    whatsoever, creating a blind spot.
+query: |
+    title: Linux Syslog Daemon Stopped or Killed
+    id: 5f9a2c17-3e8b-4d1f-a089-6c1d245a6b7c
+    status: experimental
+    description: |
+      Detects an adversary stopping or killing the syslog daemon (syslog,
+      rsyslog, or syslog-ng), which is responsible for forwarding system
+      events to /var/log and to SIEM collectors.
+
+      Stopping the syslog daemon is distinct from clearing existing logs --
+      it cuts the live telemetry pipeline at the source. Any activity
+      occurring after the daemon is stopped produces no log records
+      whatsoever, creating a blind spot.
+    references:
+      - https://attack.mitre.org/techniques/T1562/001/
+      - >-
+        https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1562.001/T1562.001.md
+    author: zendannyy
+    date: 2026-02-16T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_systemctl_syslog:
+        Image|endswith: /systemctl
+        CommandLine|contains:
+          - stop rsyslog
+          - stop syslog
+          - stop syslog-ng
+          - disable rsyslog
+          - disable syslog
+          - disable syslog-ng
+          - mask rsyslog
+          - mask syslog-ng
+      selection_service_syslog:
+        Image|endswith: /service
+        CommandLine|contains:
+          - rsyslog stop
+          - syslog stop
+          - syslog-ng stop
+      selection_kill_syslog:
+        Image|endswith:
+          - /kill
+          - /killall
+          - /pkill
+        CommandLine|contains:
+          - rsyslog
+          - syslogd
+          - syslog-ng
+      selection_config_tamper:
+        Image|endswith:
+          - /sed
+          - /tee
+          - /truncate
+        CommandLine|contains:
+          - rsyslog.conf
+          - syslog-ng.conf
+          - /etc/rsyslog.d/
+          - /etc/syslog-ng/
+      condition: >-
+        selection_systemctl_syslog or selection_service_syslog or
+        selection_kill_syslog or selection_config_tamper
+    falsepositives:
+      - System updates and package upgrades that restart rsyslog (correlate with a
+        corresponding start event immediately after)
+      - Legitimate reconfiguration of syslog forwarding rules by admins
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562
+    - T1562.001
+    - T1562.006
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/001/
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1562.001/T1562.001.md
+data_sources:
+    - process_creation
+    - linux

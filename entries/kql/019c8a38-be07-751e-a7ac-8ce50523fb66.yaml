@@ -1,0 +1,15 @@
+id: 019c8a38-be07-751e-a7ac-8ce50523fb66
+name: BADIIS Infrastructure Communication
+description: Detects network connections from the IIS worker process (w3wp.exe) or the service host process (svchost.exe) to domains associated with the BADIIS malware. These connections are used to download configuration, SEO content, and redirection instructions.
+query: "// Name: BADIIS Infrastructure Communication\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Tactic: Command and Control\r\n// Technique: T1071.001\r\n// Description: Detects network connections from the IIS worker process (w3wp.exe) or the service host process (svchost.exe) to domains associated with the BADIIS malware. These connections are used to download configuration, SEO content, and redirection instructions.\r\n// References: https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign\r\n// False Positive Sensitivity: Medium\r\nlet badiis_domains = dynamic([\r\n    \"gotz003.com\",\r\n    \"jbtz003.com\",\r\n    \"gotz001.com\",\r\n    \"jbtz001.com\"\r\n]);\r\nDeviceNetworkEvents\r\n// Filter for network events from the IIS worker process or the generic service host.\r\n| where InitiatingProcessFileName in~ (\"w3wp.exe\", \"svchost.exe\")\r\n| where isnotempty(RemoteUrl)\r\n// Extract the host from the URL to perform a more accurate match.\r\n| extend Host = tolower(parse_url(RemoteUrl).Host)\r\n// Check if the destination host ends with one of the known BADIIS C2 domains.\r\n| where Host endswith \"gotz003.com\"\r\n    or Host endswith \"jbtz003.com\"\r\n    or Host endswith \"gotz001.com\"\r\n    or Host endswith \"jbtz001.com\"\r\n// False positives are unlikely as these domains are specific to the threat.\r\n// However, if these domains are sinkholed or repurposed, alerts could trigger on benign traffic.\r\n// Consider correlating with other BADIIS indicators for higher fidelity.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign

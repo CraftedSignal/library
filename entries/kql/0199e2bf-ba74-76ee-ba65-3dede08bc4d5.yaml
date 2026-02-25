@@ -1,0 +1,50 @@
+id: 0199e2bf-ba74-76ee-ba65-3dede08bc4d5
+name: PowerShell Cache Smuggling via Headless Conhost
+description: Detects PowerShell execution patterns associated with the "Cache Smuggling" technique. This involves copying browser cache files, searching them with regex for an embedded payload, and then writing and executing that payload. This specific variant was observed being launched by conhost.exe in headless mode to conceal the window.
+query: |
+    // Name: PowerShell Cache Smuggling
+    // Author: detections.ai
+    // Date: 2025-10-14
+    // Description: Detects PowerShell execution patterns associated with the "Cache Smuggling" technique. This involves copying browser cache files, searching them with regex for an embedded payload, and then writing and executing that payload. This specific variant was observed being launched by conhost.exe in headless mode to conceal the window.
+    // References: https://expel.com/blog/cache-smuggling-when-a-picture-isnt-a-thousand-words/
+    // MITRE TTPs: T1059.001, T1083, T1218.007
+    // False Positive Sensitivity: Medium
+
+    DeviceProcessEvents
+    // Look for PowerShell processes.
+    | where FileName in~ ("powershell.exe", "pwsh.exe")
+    // The command line must contain keywords for the extraction logic.
+    | where ProcessCommandLine has "ReadAllBytes" and ProcessCommandLine has "regex::Matches" and ProcessCommandLine has "WriteAllBytes"
+    // And it must reference a common Chromium browser cache path.
+    | where ProcessCommandLine has_any (
+            @"\Google\Chrome\User Data\Default\Cache\",
+            @"\Microsoft\Edge\User Data\Default\Cache\"
+        )
+    // A strong indicator is execution via a headless conhost.exe, used to hide the PowerShell window.
+    | where InitiatingProcessCommandLine has "conhost.exe" and InitiatingProcessCommandLine has "--headless"
+    // FP Tuning: Legitimate forensic or diagnostic scripts might access cache, though this combination of behaviors is highly suspicious.
+    // If false positives occur, consider adding exclusions for known administrative scripts or specific user accounts/devices.
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0007
+techniques:
+    - T1059.001
+    - T1083
+tags:
+    - kql
+version: "2"
+references:
+    - https://expel.com/blog/cache-smuggling-when-a-picture-isnt-a-thousand-words/

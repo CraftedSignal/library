@@ -1,0 +1,16 @@
+id: 9c0decff-40e6-4239-9e18-1495f9ae1f39
+name: M365 Copilot Extensions Threat Monitoring
+description: 'KQL Query from file: M365 Copilot Extensions Threat Monitoring'
+query: "// M365 Copilot Extensions Threat Monitoring\n\n// https://www.linkedin.com/posts/0x534c_cybersecurity-generativeai-m365-activity-7250789113249837056-D6rZ/\n// This just keeps getting better and better! \U0001F602 I absolutely refuse to accept Message Center MC908119, which claims that ‘Admins will lose tenant-level control over who can use Copilot agents.’ \U0001F624 As a countermeasure, I’ve developed a Sentinel analytics rule that monitors all external URLs accessed by M365 Copilot extensions against my Threat Intelligence database for potential malicious activities. This rule is linked with a logic playbook automation to mark the user as compromised and isolate their access. \U0001F4AF\U0001F618\n\n// ConfusedPilot Attack Vector:\n// https://www.linkedin.com/posts/0x534c_confusedpilot-activity-7252113628470943744-BgxN/\n\n// M365 Copilot Extensions Threat Monitoring (Sentinel)\n// https://www.linkedin.com/posts/0x534c_cybersecurity-generativeai-copilot-activity-7251091656249090048-GfSg/\n\nCloudAppEvents\n| where TimeGenerated > ago(1h)\n| where ActionType == @\"CopilotInteraction\"\n| extend UserID = tostring(RawEventData.UserId)\n| extend CopilotData = todynamic(RawEventData.CopilotEventData)\n| extend CopilotPlugin = tostring(CopilotData.AISystemPlugin[0].Id)\n| where isnotempty(CopilotPlugin)\n| extend PluginAccessURL = tostring(CopilotData.AccessedResources)\n| mv-expand todynamic(PluginAccessURL)\n| where PluginAccessURL has \"SiteUrl\"\n| extend Url = tostring(PluginAccessURL.SiteUrl)\n| extend Domain = tostring(parse_url(Url).Host)\n| extend Action = tostring(PluginAccessURL.Action)\n| join ThreatIntelligenceIndicator on $left.Domain == $right.DomainName\n\n\n// MITRE ATT&CK\n// T1116 Browser Extensions\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1116
+    - T1176.001
+    - T1176.002
+    - T1176
+tags:
+    - kql
+version: "1"

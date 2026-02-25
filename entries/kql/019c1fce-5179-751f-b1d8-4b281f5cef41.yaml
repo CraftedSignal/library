@@ -1,0 +1,15 @@
+id: 019c1fce-5179-751f-b1d8-4b281f5cef41
+name: EDR-GhostLocker
+description: 'The query aims to detect de tool the tool called GhostLocker focusing in your modus operandi '
+query: "let AppLockService = \r\nDeviceRegistryEvents \r\n| where RegistryKey == @\"HKLM:\\SYSTEM\\CurrentControlSet\\Services\\AppIDSvc\"\r\n| where ActionType in (\"RegistryKeyDeleted\",\"RegistryValueSet\",\"RegistryValueDeleted\")\r\n| project AppLockServiceTime=Timestamp ,InitiatingProcessAccountName ,DeviceName ,RegistryActionType=ActionType , RegistryKey ,RegistryValueName ,RegistryValueData ,\r\nPreviousRegistryValueName ,PreviousRegistryValueData ,InitiatingProcessFileName ,InitiatingProcessCommandLine ,\r\nInitiatingProcessFolderPath ,InitiatingProcessSHA256 ,InitiatingProcessVersionInfoFileDescription , InitiatingProcessParentFileName;\r\nlet AppLockPolicyAdded = \r\nDeviceProcessEvents\r\n| where FileName in (\"powershell.exe\", \"POWERSHELL.EXE\", \"powershell_ise.exe\", \"POWERSHELL_ISE.EXE\")\r\n| where ProcessCommandLine  has \"Set-AppLockerPolicy -XMLPolicy\"\r\n| project AppLockXMLTime=Timestamp, DeviceName,AccountName, FileName,InitiatingProcessVersionInfoFileDescription,PWSCmd=ProcessCommandLine,FolderPath,SHA256,InitiatingProcessFileName,\r\nInitiatingProcessCommandLine,InitiatingProcessVersionInfoCompanyName,InitiatingProcessFolderPath,InitiatingProcessSHA256,\r\nInitiatingProcessParentFileName;\r\nlet NTDLL= \r\nDeviceImageLoadEvents\r\n| where FileName has \"ntdll\" and FileName endswith \".dll\"\r\n| project DLLTime=Timestamp,InitiatingProcessAccountName,DeviceName,ActionType,FileName,FolderPath,SHA256,\r\nInitiatingProcessFileName,InitiatingProcessVersionInfoFileDescription,InitiatingProcessCommandLine;\r\nAppLockService\r\n| join kind=inner NTDLL\r\n| join kind=inner AppLockPolicyAdded\r\n on DeviceName\r\n| where AppLockXMLTime between (DLLTime .. 5m) \r\n| where DLLTime  between (AppLockServiceTime .. 5m)\r\n| project DeviceName,PWSCmd,RegistryActionType,RegistryKey,RegistryValueName,RegistryValueData"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+tags:
+    - kql
+author: Enzima45
+version: "1"
+references:
+    - https://github.com/zero2504/EDR-GhostLocker/tree/main
+    - https://ipurple.team/2026/02/02/applocker-rules-abuse/

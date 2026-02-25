@@ -1,0 +1,66 @@
+id: 019ae4a0-171c-744f-ad2d-fabac5474712
+name: Linux Process Masquerading as Systemd-Logind
+description: Detects a process executing from a temporary directory that masquerades as the legitimate 'systemd-logind' service. This behavior is characteristic of the V3G4 Mirai-derived botnet, which uses this technique to evade detection.
+query: |
+    title: Linux Process Masquerading as Systemd-Logind
+    id: a6d4a1a1-dd3e-49c7-b862-ec1f50ad2ddd
+    status: experimental
+    description: >-
+      Detects a process executing from a temporary directory that masquerades as the
+      legitimate 'systemd-logind' service. This behavior is characteristic of the
+      V3G4 Mirai-derived botnet, which uses this technique to evade detection.
+    references:
+      - https://cyble.com/blog/v3g4-mirai-botnet-evolves/
+    author: detections.ai
+    date: 2025-12-03T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.005
+      - attack.t1564.001
+      - detection.emerging_threats
+      - linux
+      - botnet
+      - v3g4
+      - mirai
+    logsource:
+      category: process_creation
+      product: linux
+      service: audit
+    detection:
+      selection:
+        ProcessName: systemd-logind
+        Image|startswith:
+          - /tmp/
+          - /var/tmp/
+          - /dev/shm/
+      condition: selection
+    falsepositives:
+      - Legitimate administrative scripts or custom software installers that run
+        from temporary directories and incorrectly name their processes might cause
+        false positives, but this is highly unlikely for a critical system process
+        name like 'systemd-logind'. The legitimate process typically runs from
+        '/usr/lib/systemd/' or '/lib/systemd/'.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+    - T1564.001
+tags:
+    - attack.defense_evasion
+    - attack.t1036.005
+    - attack.t1564.001
+    - detection.emerging_threats
+    - linux
+    - botnet
+    - v3g4
+    - mirai
+author: detections.ai
+version: "4"
+references:
+    - https://cyble.com/blog/v3g4-mirai-botnet-evolves/
+data_sources:
+    - process_creation
+    - linux

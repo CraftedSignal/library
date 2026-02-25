@@ -1,0 +1,46 @@
+id: 019ac701-566a-710d-8b76-725a2aecec14
+name: SharePoint ToolShell Exploit Detection
+description: Detects the ToolShell exploit chain used against SharePoint servers. This exploit involves a POST request to ToolPane.aspx with a spoofed Referer header pointing to SignOut.aspx, which is a key indicator of this specific attack.
+query: |
+    // Name: SharePoint ToolShell Exploit
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the ToolShell exploit chain used against SharePoint servers by Storm-2603 (CL-CRI-1040). The exploit involves a POST request to ToolPane.aspx with a spoofed Referer header pointing to SignOut.aspx.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T1190 (Exploit Public-Facing Application)
+    // False Positive Sensitivity: Medium. This pattern is highly specific to the ToolShell exploit. False positives are unlikely but could occur if other tools or scripts mimic this behavior. Ensure W3CIISLog is being collected from SharePoint servers.
+
+    W3CIISLog
+    // The exploit uses an HTTP POST request.
+    | where csMethod == "POST"
+    // The request targets the ToolPane.aspx page. Using 'endswith' accounts for different SharePoint layout paths.
+    | where csUriStem endswith "/ToolPane.aspx"
+    // A key indicator of this specific exploit is the spoofed Referer header.
+    | where csReferer endswith "/SignOut.aspx"
+    | project
+        TimeGenerated,
+        Computer,
+        sSiteName,
+        cIP,
+        csMethod,
+        csUriStem,
+        csReferer,
+        csUserAgent,
+        SentBytes,
+        ReceivedBytes
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = Computer,
+        IPAddress = cIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

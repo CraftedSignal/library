@@ -1,0 +1,16 @@
+id: 019c9057-4b06-73ea-a5af-4f9a9ace9be7
+name: macOS - Unauthorized Apple Keychain Access
+description: Detects processes attempting to read or copy the Apple Keychain database file (login.keychain-db). Unauthorized access to this file is a strong indicator of credential theft activity, as seen with stealers like AMOS.
+query: "// Name: macOS - Unauthorized Apple Keychain Access\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects processes attempting to read or copy the Apple Keychain database file (login.keychain-db). Unauthorized access to this file is a strong indicator of credential theft activity, as seen with stealers like AMOS.\r\n// Tactics: Credential Access\r\n// Techniques: T1555.001\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html\r\nDeviceFileEvents\r\n// Filter for file events related to the primary user keychain database.\r\n| where FolderPath endswith \"/Library/Keychains/login.keychain-db\"\r\n// Focus on actions that indicate reading (FileAccessed) or copying (FileCreated).\r\n| where ActionType in (\"FileAccessed\", \"FileCreated\")\r\n// Exclude known legitimate macOS processes that interact with the keychain.\r\n| where not(InitiatingProcessFileName in~ (\"security\", \"securityd\", \"Keychain Access.app\", \"trustd\"))\r\n// FP Tuning: Other legitimate applications, especially third-party password managers or backup software,\r\n// may access this file. If false positives occur, add those legitimate process names to the exclusion list.\r\n// The 'FileAccessed' event can be noisy; for higher fidelity, restrict to 'FileCreated' which indicates a copy operation.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html

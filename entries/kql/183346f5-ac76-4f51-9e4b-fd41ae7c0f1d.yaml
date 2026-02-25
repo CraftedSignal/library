@@ -1,0 +1,76 @@
+id: 183346f5-ac76-4f51-9e4b-fd41ae7c0f1d
+name: Email with PDF Attachment Containing a Phishing URL
+description: Detects emails delivered to user inboxes that contain both a PDF attachment and a URL identified as a phishing link. This rule is designed to identify modern QR code phishing (quishing) campaigns where the malicious URL is embedded within the PDF to bypass traditional email security scanning. The detection relies on the email security solution's ability to extract and flag URLs from attachments, including those embedded in QR codes.
+query: |
+    // Name: Email with PDF Attachment Containing a Phishing URL
+    // Author: detections.ai
+    // Date: 2025-07-16
+    // Tactic: Initial Access
+    // Technique: T1566.001, Phishing: Spearphishing Attachment
+    // Description: Detects emails that were delivered with a PDF attachment and also contained a URL flagged as phishing.
+    // This pattern is indicative of modern QR code phishing (quishing) campaigns where the malicious link is embedded within the PDF to evade detection.
+    // This detection relies on an email security solution that can scan attachments (including QR codes) and flag embedded URLs.
+    // References: https://www.proofpoint.com/us/blog/email-and-cloud-threats/malicious-qr-code-attack
+    // False Positive Sensitivity: Medium
+    // ---
+
+    // Define keywords commonly seen in financial or HR-themed phishing lures.
+    // This list can be customized to fit the organization's context to reduce potential false positives.
+    let suspiciousKeywords = dynamic(["pay stub", "paystub", "payroll", "compensation", "amendment", "w-2", "tax form", "invoice", "shared a folder", "review changes", "human resources"]);
+
+    EmailEvents
+    // Focus on emails that reached the user's inbox, as blocked emails are not a direct threat.
+    | where DeliveryAction == "Delivered"
+    // Correlate with attachment information to find emails with at least one PDF file.
+    | join kind=inner (
+        EmailAttachmentInfo
+        | where FileType == "pdf"
+        | summarize take_any(FileName, SHA256) by NetworkMessageId
+    ) on NetworkMessageId
+    // Correlate with URL information to find phishing links within the same email context.
+    // This relies on the security tool's ability to extract and flag URLs from attachments (e.g., via QR code scanning).
+    | join kind=inner (
+        EmailUrlInfo
+        | where ThreatTypes has "Phish"
+    ) on NetworkMessageId
+    // Filter for emails containing suspicious keywords to increase the detection's fidelity.
+    | where Subject has_any (suspiciousKeywords)
+    // Summarize the relevant information for the alert.
+    | project
+        TimeGenerated,
+        Subject,
+        SenderFromAddress,
+        RecipientEmailAddress,
+        Url,
+        ThreatTypes,
+        PdfAttachmentName = any_FileName,
+        PdfAttachmentSha256 = any_SHA256,
+        NetworkMessageId
+    // Add additional context, such as checking if the URL points to a CAPTCHA service, a common evasion tactic.
+    | extend IsCaptchaUrl = Url has_any ("cloudflare", "captcha", "recaptcha")
+    | project-reorder
+        TimeGenerated,
+        Subject,
+        SenderFromAddress,
+        RecipientEmailAddress,
+        Url,
+        IsCaptchaUrl,
+        ThreatTypes,
+        PdfAttachmentName,
+        PdfAttachmentSha256
+    | extend
+        timestamp = TimeGenerated,
+        AccountCustomEntity = RecipientEmailAddress,
+        FileCustomEntity = PdfAttachmentName,
+        URLCustomEntity = Url
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.proofpoint.com/us/blog/email-and-cloud-threats/malicious-qr-code-attack

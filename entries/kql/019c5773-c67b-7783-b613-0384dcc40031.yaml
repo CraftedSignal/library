@@ -1,0 +1,16 @@
+id: 019c5773-c67b-7783-b613-0384dcc40031
+name: Notepad Exploitation via URI Scheme and Markdown File
+description: This rule identifies command-line arguments that contain both a Markdown (.md) file extension and a suspicious URI scheme. This pattern is indicative of an attempt to exploit vulnerabilities, such as CVE-2026-20841, where specially crafted files are opened via the command line to trigger malicious links or actions through specific URI handlers.
+query: "// Name: Notepad Exploitation URI Scheme Detection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-13\r\n// Description: Identifies command-line arguments that involve both a Markdown (.md) file and a suspicious URI scheme. This could indicate an attempt to exploit CVE-2026-20841, where specially crafted files are opened via the command line to trigger malicious links.\r\n// References: https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/\r\n// MITRE ATT&CK: T1204.001\r\n// False Positive Sensitivity: Medium\r\nlet suspicious_schemes = dynamic([\r\n    \"ms-appinstaller://\",\r\n    \"ms-settings://\",\r\n    \"ms-search://\",\r\n    \"file://\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process command lines that reference a Markdown file.\r\n| where ProcessCommandLine has \".md\"\r\n// Also look for the presence of URI schemes used in the exploit.\r\n| where ProcessCommandLine has_any (suspicious_schemes)\r\n// FP Tuning: This behavior is highly unusual. Legitimate developer or administrative scripts that combine .md files\r\n// and URI schemes in a single command line are rare but possible. If FPs occur, consider excluding specific\r\n// command lines or parent processes known to be safe in your environment.\r\n// For example: | where not (InitiatingProcessFileName =~ \"safe_app.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/

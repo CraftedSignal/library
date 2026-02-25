@@ -1,0 +1,16 @@
+id: 5af03933-fe59-4127-ae29-854b43e0b1fd
+name: Email Campaign - Exploiting SVG Files and trycloudflare.com to Spread Malware
+description: 'KQL Query from file: Email Campaign - Exploiting SVG Files and trycloudflare.com to Spread Malware'
+query: "// Email Campaign: Exploiting SVG Files and trycloudflare.com to Spread Malware\n\n// According to a Deutsche Telekom CERT advisory (link in the comments), an email campaign has been detected that delivers malware by exploiting SVG files and trycloudflare.com.\n// 1. The attack begins with an email \U0001F4E7 containing an SVG file. When opened, this file drops an HTML file that displays a spoofed PDF, tricking the victim into clicking an \"Open\" button.\n// 2. Clicking this button triggers JavaScript code that attempts to connect to the TryCloudflare domain via WebDAV and create a network share. Opening this share executes a VBS file, continuing the infection chain.\n// I have developed a DefenderXDR MDO + MDE + ExposureManagement KQL detection to hunt for potential abuse involving SVG files and trycloudflare.com.\n\n// Deutsche Telekom CERT\n// https://x.com/DTCERT/status/1858890116137099581\n\nlet TargetSVGRecipients =\nEmailAttachmentInfo\n| where FileName endswith \".pdf.svg\"\n| join EmailEvents on NetworkMessageId\n| where EmailDirection == \"Inbound\"\n| join IdentityInfo on $left.RecipientEmailAddress == $right.AccountUpn\n| summarize arg_max(Timestamp, *) by AccountUpn\n| distinct AccountDisplayName;\nlet TargetSVGdevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| where SourceNodeName has_any(TargetSVGRecipients)\n| distinct TargetNodeName;\nDeviceNetworkEvents\n| where ActionType == \"HttpConnectionInspected\"\n| extend ConnectInfo = todynamic(AdditionalFields)\n| extend HttpHost = ConnectInfo.host\n| where HttpHost has \".trycloudflare.com\"\n| where DeviceName has_any(TargetSVGdevices)\n\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0001
+    - TA0002
+techniques:
+    - T1027.017
+    - T1566.001
+    - T1059.005
+tags:
+    - kql
+version: "1"

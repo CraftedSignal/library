@@ -1,0 +1,15 @@
+id: 019a0c35-5247-7219-8fe0-fb59aac30ed8
+name: Risky SignIn after EmailUrlClickEvent
+description: 'This rule detects a highly suspicious sequence of events: a user clicking on a URL (potentially a phishing link) followed by a risky sign-in attempt to Azure AD from an IP address outside the organization''s defined range. The rule specifically looks for sign-ins with a high-risk level (>= 50) that occur after a URL click event, suggesting a potential compromise initiated by a phishing attack.'
+query: "let loopback = 1h;\r\n//Add your IPRange to minimize the Results\r\nlet OwnIPRange = \"xx.xx\";\r\nlet UserClicks = UrlClickEvents\r\n| where Timestamp > ago(loopback)\r\n| where IPAddress !startswith (OwnIPRange)\r\n| project TimestampUrlClick=Timestamp, AccountUpn;\r\nAADSignInEventsBeta\r\n| where isnotempty(RiskEventTypes) and isnotempty(RiskLevelDuringSignIn) \r\n| where ErrorCode == 0 \r\n| join kind=inner UserClicks on AccountUpn\r\n| where RiskLevelDuringSignIn >= 50\r\n| where Timestamp > TimestampUrlClick\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"

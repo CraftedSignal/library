@@ -1,0 +1,12 @@
+id: ee68bef2-acba-4067-8870-4799328cdf34
+name: ANY.RUN Obfuscated BAT Dropper Delivers NetSupport RAT post
+description: 'KQL Query from file: ANY.RUN Obfuscated BAT Dropper Delivers NetSupport RAT post'
+query: "let QueryLookup = 1h;\r\nlet ObfuscatedBAT =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(QueryLookup)\r\n| where InitiatingProcessFileName =~ \"cmd.exe\" and \r\nInitiatingProcessCommandLine has \".bat\"\r\n| where FileName =~ \"powershell.exe\" and \r\nProcessCommandLine has \"-WindowsStyle Hidden\" and \r\nProcessCommandLine has \"Invoke-WebRequest\"\r\n| distinct DeviceName;\r\nDeviceRegistryEvents\r\n| where Timestamp > ago(QueryLookup)\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey has \"\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\"\r\n| where RegistryValueData has \"client32.exe\"\r\n| where DeviceName has_any(ObfuscatedBAT)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://www.linkedin.com/posts/any-run_obfuscated-virustotal-powershell-activity-7336393368698028034-cayg/

@@ -1,0 +1,41 @@
+id: 019c2d43-70c1-768c-8b03-eaf15217b73b
+name: SimpleHelp Configuration File Modification
+description: Detects the creation or modification of the SimpleHelp RMM configuration file (serviceconfig.xml). Threat actors have been observed using SimpleHelp as part of a chained RMM attack, and this file contains the C2 server configuration.
+query: |
+    // Name: SimpleHelp Configuration File Modification
+    // Author: detections.ai
+    // Date: 2026-02-05
+    // Description: Detects the creation or modification of the SimpleHelp RMM configuration file (serviceconfig.xml). Threat actors have been observed using SimpleHelp as part of a chained RMM attack, and this file contains the C2 server configuration.
+    // Tactics: Command and Control
+    // Techniques: T1219
+    // References: https://www.huntress.com/blog/series-of-unfortunate-rmm-events
+
+    DeviceFileEvents
+    // Look for file creation or modification events.
+    | where ActionType in ("FileCreated", "FileModified")
+    // Target the specific SimpleHelp configuration file path.
+    | where FolderPath =~ @"C:\ProgramData\JWrapper-Remote Access\JWAppsSharedConfig\" and FileName =~ "serviceconfig.xml"
+    // FP-TUNING: This alert will trigger on any legitimate installation or configuration change of SimpleHelp.
+    // If SimpleHelp is used legitimately in your environment, consider excluding authorized hosts or users.
+    // For example: | where DeviceName !in ("AUTHORIZED_HOST1", "AUTHORIZED_HOST2")
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        InitiatingProcessAccountName,
+        FileName,
+        FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/series-of-unfortunate-rmm-events

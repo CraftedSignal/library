@@ -1,0 +1,66 @@
+id: 019be276-c7a6-72e8-a396-147bc8b7ce6a
+name: Large Outbound Traffic from AKS on Non-Standard Port
+description: This rule detects large volumes of outbound network traffic originating from Azure Kubernetes Service (AKS) clusters to external destinations over non-standard ports. It specifically looks for traffic allowed by Palo Alto firewalls, excluding common ports like 80 and 443, and flags transfers exceeding a defined data threshold (e.g., 100MB). This behavior can indicate data exfiltration attempts where adversaries use alternative protocols to bypass standard monitoring.
+query: |
+    // Name: Large Outbound Traffic from AKS on Non-Standard Port
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // Tactic: Exfiltration
+    // Technique: T1048, Exfiltration Over Alternative Protocol
+    // MITRE ATT&CK: https://attack.mitre.org/techniques/T1048/
+    // Data Source: Palo Alto Firewall Logs (CommonSecurityLog)
+
+    // Define the time window for the analysis.
+    let TimeWindow = 1h;
+    // Define the threshold for what is considered a 'large' amount of outbound data in bytes.
+    // This value is a starting point and should be tuned based on your environment's baseline. 100MB is a common starting point.
+    let DataThreshold = 100 * 1024 * 1024;
+    // Define the IP address ranges for your AKS clusters.
+    // This is a placeholder and MUST be updated with your specific AKS egress IP ranges in CIDR notation.
+    let AksIpRanges = dynamic(["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"]);
+    // Define common ports to exclude. 443 (HTTPS/Blob) and 80 (HTTP) are standard.
+    // You may need to add other legitimate ports used for large transfers in your environment to this list to reduce false positives.
+    let StandardPorts = dynamic([80, 443]);
+
+    CommonSecurityLog
+    // Filter for Palo Alto firewall traffic logs within the specified time window.
+    // Note: If you use a custom table for Palo Alto logs, replace 'CommonSecurityLog' with your table name.
+    | where TimeGenerated > ago(TimeWindow)
+    | where DeviceVendor == "Palo Alto Networks" and Activity == "TRAFFIC"
+    // Focus on traffic originating from the defined AKS IP ranges.
+    | where has_any_ipv4_prefix(SourceIP, AksIpRanges)
+    // Exclude traffic destined for internal/private networks.
+    | where not(ipv4_is_private(DestinationIP))
+    // Filter for traffic on non-standard/uncommon ports for bulk data transfer.
+    | where isnotempty(DestinationPort) and tolong(DestinationPort) !in (StandardPorts)
+    // Ensure we are looking at successful, outbound traffic.
+    | where SimplifiedDeviceAction == "allow"
+    | where SentBytes > 0
+    // Summarize the total data sent from a source to a destination on a specific port.
+    // This helps to identify sustained data transfers over the time window.
+    | summarize TotalBytesSent = sum(SentBytes), StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), DestinationCountries = make_set(DestinationCountry) by SourceIP, DestinationIP, DestinationPort, SourceUserName, DeviceAction
+    // Apply the threshold to identify significant data exfiltration events.
+    | where TotalBytesSent > DataThreshold
+    // FP Tuning: Legitimate applications may perform large data transfers over non-standard ports.
+    // Consider adding an exclusion for known good DestinationIPs or DestinationPorts if they cause noise.
+    // For example: `| where not(DestinationIP in ('1.2.3.4') and DestinationPort == 12345)`
+    | project
+        StartTime,
+        EndTime,
+        SourceIP,
+        SourceUserName,
+        DestinationIP,
+        DestinationPort,
+        DestinationCountries,
+        TotalBytesSent,
+        DeviceAction
+query_type: kql
+tactics:
+    - TA0010
+techniques:
+    - T1048
+tags:
+    - kql
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1048/

@@ -1,0 +1,111 @@
+id: b404365d-7a58-48a6-b564-0a04da587752
+name: NetScaler CitrixBleed 2 Exploitation Detection
+description: This detection identifies potential exploitation attempts against Citrix NetScaler appliances vulnerable to CVE-2025-5777 (CitrixBleed 2), focusing on suspicious POST requests and memory spillage in logoff entries.
+query: |-
+    {
+        "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+            "workspace": {
+                "type": "String"
+            }
+        },
+        "resources": [
+            {
+                "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/95da8c21-4c02-454f-9955-a2264fdd3e64')]",
+                "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/95da8c21-4c02-454f-9955-a2264fdd3e64')]",
+                "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+                "kind": "Scheduled",
+                "apiVersion": "2023-12-01-preview",
+                "properties": {
+                    "displayName": "NetScaler CitrixBleed 2 Memory Disclosure (CVE-2025-5777) Exploitation Attempt",
+                    "description": "This detection identifies potential exploitation attempts against Citrix NetScaler appliances vulnerable to CVE-2025-5777 (CitrixBleed 2), a memory disclosure flaw.\n\nThe rule looks for suspicious POST requests to the doAuthentication endpoint and anomalous logoff entries where leaked memory spills into the user field (e.g., presence of # symbol). Additionally, it cross-references client IPs with a threat intelligence feed of known vulnerable/unpatched Citrix systems to identify external scanners or exploitation sources.\n\nDetection Logic Includes:\n1. POST requests to /doAuthentication.do endpoint (commonly used in exploit).\n2. Log lines containing both doauthentication and logoff.\n3. Usernames containing the # character (indicative of memory spillage).\n4. Cross-match of client IP with a public GitHub feed (https://github.com/BlueTeamMatej/KQL/blob/main/CVE-2025-5777) of known unpatched Citrix NetScaler instances.\n\nReference: https://labs.watchtowr.com/how-much-more-must-we-bleed-citrix-netscaler-memory-disclosure-citrixbleed-2-cve-2025-5777/\n\nCreated By: Aniket",
+                    "severity": "High",
+                    "enabled": true,
+                    "query": "let CitrixBleedTargets = externaldata(rawLine:string)\r\n[\r\n  'https://raw.githubusercontent.com/GossiTheDog/scanning/main/CVE-2025-5777-CitrixBleed2-ElectricBoogaloo-patching.txt'\r\n]\r\nwith (format='txt', rowterminator='\\n')\r\n| where isnotempty(rawLine)\r\n| parse rawLine with IP: string \",\" WildcardDomain: string \",\" Domain: string \",\" Version: string \",\" Status: string\r\n| where Status has \"Vulnerable\" and Status !has @\"NOT_\"\r\n| project ExternalIP = IP,WildcardDomain, Domain, Version, Status;\r\nSyslog\r\n| where TimeGenerated > ago(1d)\r\n| where SyslogMessage has \"HTTPREQUEST\"\r\n| where SyslogMessage has_any (\"doauthentication\", \"logoff\") // Match either indicator\r\n| extend HttpMethod = extract(@\"\\s(POST|GET|PUT|DELETE)\\s\", 1, SyslogMessage)\r\n| where HttpMethod == \"POST\"\r\n| extend UriPath = extract(@\"\\s(POST|GET|PUT|DELETE)\\s+([^\\s]+)\", 2, SyslogMessage)\r\n| extend Username = extract(@\"User\\s+([^\\s:]+@[^\\s:]+)\", 1, SyslogMessage)\r\n| where isnotempty(Username) and Username contains @\"#\"\r\n| extend ClientIP = extract(@\"(\\d{1,3}(?:\\.\\d{1,3}){3})\", 1, SyslogMessage)\r\n| join kind=leftouter (CitrixBleedTargets) on $left.ClientIP == $right.ExternalIP\r\n| extend Match = iff(isnotempty(ExternalIP), \"Yes\", \"No\")\r\n| extend Domain = iff(Match == \"Yes\", Match, \"NA\"), Version = iff(Match == \"Yes\", Match, \"NA\"), Status = iff(Match == \"Yes\", Match, \"NA\")\r\n| project TimeGenerated, HostName, HttpMethod, UriPath, Username, ClientIP, Domain, Version, Status, SyslogMessage",
+                    "queryFrequency": "PT15M",
+                    "queryPeriod": "PT30M",
+                    "triggerOperator": "GreaterThan",
+                    "triggerThreshold": 0,
+                    "suppressionDuration": "PT5H",
+                    "suppressionEnabled": false,
+                    "startTimeUtc": null,
+                    "tactics": [
+                        "InitialAccess",
+                        "Collection",
+                        "Discovery",
+                        "Execution"
+                    ],
+                    "techniques": [
+                        "T1190",
+                        "T1005",
+                        "T1418",
+                        "T1203"
+                    ],
+                    "subTechniques": [],
+                    "alertRuleTemplateName": null,
+                    "incidentConfiguration": {
+                        "createIncident": true,
+                        "groupingConfiguration": {
+                            "enabled": true,
+                            "reopenClosedIncident": false,
+                            "lookbackDuration": "PT30M",
+                            "matchingMethod": "AllEntities",
+                            "groupByEntities": [],
+                            "groupByAlertDetails": [],
+                            "groupByCustomDetails": []
+                        }
+                    },
+                    "eventGroupingSettings": {
+                        "aggregationKind": "AlertPerResult"
+                    },
+                    "alertDetailsOverride": null,
+                    "customDetails": null,
+                    "entityMappings": [
+                        {
+                            "entityType": "Host",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "HostName",
+                                    "columnName": "HostName"
+                                }
+                            ]
+                        },
+                        {
+                            "entityType": "Account",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "Name",
+                                    "columnName": "Username"
+                                }
+                            ]
+                        },
+                        {
+                            "entityType": "IP",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "Address",
+                                    "columnName": "ClientIP"
+                                }
+                            ]
+                        }
+                    ],
+                    "sentinelEntitiesMappings": null,
+                    "templateVersion": null
+                }
+            }
+        ]
+    }
+query_type: kql
+severity: medium
+techniques:
+    - T1005
+    - T1083
+    - T1203
+tags:
+    - CVE
+author: 'Aniket #ART'
+version: "1"
+references:
+    - https://labs.watchtowr.com/how-much-more-must-we-bleed-citrix-netscaler-memory-disclosure-citrixbleed-2-cve-2025-5777/
+    - https://www.greynoise.io/blog/exploitation-citrixbleed-2-cve-2025-5777-before-public-poc

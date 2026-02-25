@@ -1,0 +1,38 @@
+id: 019c9188-6440-718b-b20a-780bc1023958
+name: AI Webchat as Covert C2 Proxy via WebView2
+description: This rule detects two related activities that could indicate the use of AI webchat services as a covert C2 proxy via WebView2. The first part identifies network connections to specific AI webchat domains (grok.com, copilot.microsoft.com) via proxy or web logs. The second part identifies the creation of the 'msedgewebview2.exe' process by unusual parent processes, excluding common browsers and Microsoft Office applications. This combination aims to catch scenarios where WebView2, often used by AI webchat applications, is leveraged for malicious command and control.
+query: |+
+    ## AI webchat as covert C2 proxy via WebView2 (Check Point Research)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/
+
+    ### Proxy: AI webchat domain access
+    (index=proxy OR index=web) (dest_domain="grok.com" OR dest_domain="copilot.microsoft.com" OR url="*grok.com*" OR url="*copilot.microsoft.com*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as user_agents by src, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Endpoint (Sysmon/4688): msedgewebview2.exe spawned by unusual parent (tune allowlist)
+    (index=endpoint OR index=wineventlog) (EventCode=4688 OR EventCode=1)
+    | eval ParentImage=coalesce(ParentImage, parent_process_path, ParentProcessName)
+    | eval Image=coalesce(Image, NewProcessName, process_path, ProcessName)
+    | eval CommandLine=coalesce(CommandLine, process_command_line, cmdline)
+    | where match(lower(Image), "\\\\msedgewebview2\\.exe$")
+    | where NOT (match(lower(ParentImage), "\\\\(msedge|chrome|firefox)\\.exe$") OR match(lower(ParentImage), "\\\\(teams|outlook|winword|excel|powerpnt)\\.exe$"))
+    | stats count min(_time) as first_seen max(_time) as last_seen values(ParentImage) as parents values(CommandLine) as cmdlines by Computer, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1090
+    - T1071.001
+    - T1090.003
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/

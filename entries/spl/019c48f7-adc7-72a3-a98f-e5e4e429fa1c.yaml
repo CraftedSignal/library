@@ -1,0 +1,8 @@
+id: 019c48f7-adc7-72a3-a98f-e5e4e429fa1c
+name: Scheduled Task Creation for Persistence via Startup Folder
+description: This rule detects the creation of scheduled tasks that are configured to execute programs from common Windows startup folders. It specifically looks for the use of 'schtasks.exe' with the '/create' and '/tr' (task run) arguments, or PowerShell commands 'Register-ScheduledTask' with '-Action' arguments. The rule then filters these activities to identify instances where the command line specifies paths within 'Start Menu\Programs\Startup' or '%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup', which are common locations for persistence.
+query: "index=windows sourcetype=WinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1\r\n| search ((Image=\"*\\\\schtasks.exe\" CommandLine=\"*/create*\" CommandLine=\"*/tr*\") OR ((Image=\"*\\\\powershell.exe\" OR Image=\"*\\\\pwsh.exe\") CommandLine=\"*Register-ScheduledTask*\" CommandLine=\"*-Action*\"))\r\n| search (CommandLine=\"*\\\\Start Menu\\\\Programs\\\\Startup\\\\*\" OR CommandLine=\"*\\\\Start Menu\\\\Programs\\\\StartUp\\\\*\" OR CommandLine=\"*\\\\ProgramData\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\StartUp\\\\*\" OR CommandLine=\"*%APPDATA%\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup*\")\r\n| table _time, ComputerName, User, Image, CommandLine"
+query_type: spl
+tags:
+    - spl
+version: "1"

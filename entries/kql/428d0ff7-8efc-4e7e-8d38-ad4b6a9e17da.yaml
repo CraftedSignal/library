@@ -1,0 +1,13 @@
+id: 428d0ff7-8efc-4e7e-8d38-ad4b6a9e17da
+name: Google Workspace - Successful MFA Completion After A Stream Of Login Failures
+description: This alert indicates that a user has successfully passed MFA after a stream of login failures. This activity may indicate that an attacker has successfully brute forced an accounts credentials and has passed MFA.
+query: "let FailedLogins =\r\n    CloudAppEvents\r\n    | where Application == \"Google Workspace\"\r\n    | where ActionType == \"login_failure\"\r\n    | extend Email = tostring(parse_json(RawEventData).actor.email)\r\n    | summarize LoginFailures = count() by Email, bin(TimeGenerated, 1hr)\r\n    | project Email, TimeGenerated, LoginFailures;\r\nlet VerificationCount = \r\n    CloudAppEvents\r\n    | where Application == \"Google Workspace\"\r\n    | where ActionType == \"login_verification\"\r\n    | extend Email = tostring(parse_json(RawEventData).actor.email)\r\n    | summarize VerificationCount = count() by Email, bin(TimeGenerated, 1hr)\r\n    | project Email, TimeGenerated, VerificationCount;\r\nlet VerificationResult =\r\n    CloudAppEvents\r\n    | where Application == \"Google Workspace\"\r\n    | where ActionType contains \"login_verification\"\r\n    | extend rawjson = parse_json(RawEventData)\r\n    | extend Email = tostring(rawjson.actor.email)\r\n    | extend event = rawjson.events[0]\r\n    | extend parameters = event.parameters[2]\r\n    | extend VerificationResult = tostring(parse_json(parameters.value))\r\n    | extend TimeGenerated = bin(TimeGenerated, 1hr)\r\n    | project Email, TimeGenerated, VerificationResult;\r\nFailedLogins\r\n| join kind=fullouter VerificationCount on Email, TimeGenerated\r\n| join kind=fullouter VerificationResult on Email, TimeGenerated\r\n| project\r\n    Email = coalesce(Email, Email1, Email2),\r\n    TimeGenerated = coalesce(TimeGenerated, TimeGenerated1, TimeGenerated2),\r\n    LoginFailures = coalesce(LoginFailures, 0),\r\n    VerificationCount = coalesce(VerificationCount, 0),\r\n    VerificationResult\r\n| where LoginFailures > 0 and VerificationCount > 0"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1110
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,13 @@
+id: 019a5ba9-02b0-75ee-8e4f-658cd8ace02d
+name: Phishing Domains Detected 6 Nov 2025
+description: This detection identifies network traffic to domains explicitly listed as associated with recent phishing campaigns. It specifically looks for these domains within the RequestURL field of logs from Palo Alto Networks or Cato Networks firewalls/proxies.
+query: "// Name: Phishing Domains Detected 6 Nov 2025\r\n// Author: @dxmiller\r\n// Date: 2025-11-06\r\n// Tactic: Initial Access\r\n// Technique: Phishing for Information (T1598), Spearphishing Link (T1598.003)\r\n// Description: This detection identifies network traffic to domains associated with recent phishing campaigns.\r\nlet suspiciousDomains = dynamic([\r\n    \"iqxgzd.com\",\r\n    \"ekrbow.com\",\r\n    \"gkbqh.com\",\r\n    \"cnstraw.com\",\r\n    \"aodaila.com\",\r\n    \"lzlaug.com\",\r\n    \"90pb.com\",\r\n    \"domjtag.com\",\r\n    \"gugculk.com\",\r\n    \"jzhlqd.com\",\r\n    \"kecntp.com\",\r\n    \"qikkafr.com\",\r\n    \"kxajdh.com\",\r\n    \"yrbbwfo.com\",\r\n    \"dmcdol.com\",\r\n    \"lianwuyou.com\",\r\n    \"ddzpbj.com\",\r\n    \"jpikwsr.com\",\r\n    \"sniawcw.com\",\r\n    \"ctbssd.com\",\r\n    \"dpppoyw.com\"\r\n]);\r\nCommonSecurityLog\r\n// Search for logs from the last day. Adjust the timeframe as needed.\r\n| where TimeGenerated > ago(1d)\r\n// Filter for logs from Palo Alto Networks or Cato Networks firewalls/proxies.\r\n// You can add other network device vendors here if applicable.\r\n| where DeviceVendor in (\"Palo Alto Networks\", \"Cato Networks\")\r\n// Check if the RequestURL contains any of the suspicious domains.\r\n| where RequestURL has_any (suspiciousDomains)\r\n// To reduce potential noise, you might consider filtering for specific activity types that indicate a successful connection.\r\n// For example: | where Activity in (\"URL\", \"TRAFFIC\", \"THREAT\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceVendor,\r\n    DeviceProduct,\r\n    Activity,\r\n    SourceUserID,\r\n    SourceHostName,\r\n    SourceIP,\r\n    DestinationIP,\r\n    RequestURL,\r\n    AdditionalExtensions"
+query_type: kql
+severity: medium
+techniques:
+    - T1598
+    - T1598.003
+tags:
+    - kql
+author: dxmiller
+version: "1"

@@ -1,0 +1,20 @@
+id: 019b8fa2-2981-75dc-beeb-13f103e29d5f
+name: vvs-stealer
+description: This rule detects activities associated with the VVS Stealer malware, as described in the Palo Alto Networks Unit 42 blog. It identifies the malware through specific SHA256 hashes of known VVS Stealer executables, network connections to hardcoded Discord webhook URLs used for exfiltration, persistence mechanisms via creation of executables in Windows startup folders, creation of '_vault.zip' files (likely containing stolen data), and suspicious Discord-related process activity indicative of the stealer's operation.
+query: "// https://unit42.paloaltonetworks.com/vvs-stealer/\r\n\r\nDeviceFileEvents\r\n| where SHA256 in (\r\n\"307d9cefa7a3147eb78c69eded273e47c08df44c2004f839548963268d19dd87\",\r\n\"7a1554383345f31f3482ba3729c1126af7c1d9376abb07ad3ee189660c166a2b\",\r\n\"c7e6591e5e021daa30f949a6f6e0699ef2935d2d7c06ea006e3b201c52666e07\"\r\n)\r\n| project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName\r\n\r\nDeviceNetworkEvents\r\n| where RemoteUrl in (\r\n\"https://ptb.discord.com/api/webhooks/1360401843963826236/TkFvXfHFXrBIKT3EaqekJefvdvt39XTAxeOIWECeSrBbNLKDR5yPcn75uIqKEzdfs9o2\",\r\n\"https://ptb.discord.com/api/webhooks/1360259628440621087/YCo9eVnIBOYSMn8Xr6zX5C7AJF22z26WljaJk4zr6IiThnUrVyfWCZYs6JjSC12IC8c0\"\r\n)\r\n\r\nlet startup_folders = dynamic([\r\n    @\"C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\\",\r\n    @\"\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\\"\r\n]);\r\nDeviceFileEvents\r\n| where FileName endswith \".exe\"\r\n| where FolderPath has_any (startup_folders)\r\n| where ActionType == \"FileCreated\" or FileAttributes has \"Hidden\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    FileAttributes,\r\n    SHA1,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessParentFileName,\r\n    Actor=tostring(InitiatingProcessAccountName)\r\n\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \"_vault.zip\"\r\n| project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName\r\n\r\nDeviceProcessEvents\r\n| where InitiatingProcessVersionInfoFileDescription == \"Discord\"\r\n| where ProcessCommandLine has \"--processStart\"\r\n| where ProcessCommandLine has \"Update.exe\"\r\n| where InitiatingProcessSignatureStatus != \"Valid\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0003
+    - TA0004
+    - TA0010
+techniques:
+    - T1071.001
+    - T1547.001
+    - T1567.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/vvs-stealer/

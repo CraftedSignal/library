@@ -1,0 +1,20 @@
+id: 019c23f5-1a00-768d-bb27-0862e386f458
+name: Notepad++ Supply Chain Attack - Malicious C2/Exfil Domains
+description: Detects network connections or DNS queries to known malicious domains identified as being used for Cobalt Strike C2, data exfiltration, and secondary payload delivery during the Notepad++ supply chain attack. This rule specifically targets the domains 'cdncheck.it.com', 'safe-dns.it.com', 'self-dns.it.com', 'api.wiresguard.com', 'api.skycloudcenter.com', and 'temp.sh'.
+query: "// Name: Notepad++ Attack C2 Domains\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-03\r\n// Description: Detects network connections or DNS queries to known malicious domains used for Cobalt Strike C2, data exfiltration, and secondary payload delivery during the Notepad++ supply chain attack.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://securelist.com/notepad-supply-chain-attack/118708/\r\n// MITRE TTPs: T1071.001\r\nlet maliciousDomains = dynamic([\r\n    \"cdncheck.it.com\",\r\n    \"safe-dns.it.com\",\r\n    \"self-dns.it.com\",\r\n    \"api.wiresguard.com\",\r\n    \"api.skycloudcenter.com\",\r\n    \"temp.sh\"\r\n]);\r\nunion DeviceNetworkEvents, DeviceEvents\r\n// Look for network connections or DNS query events\r\n| where (ActionType == \"NetworkConnection\" or ActionType == \"DnsQueryResponse\")\r\n// Filter for connections to the known malicious domains\r\n| where RemoteUrl has_any (maliciousDomains)\r\n// FP Tuning: The 'temp.sh' domain is a legitimate file sharing service.\r\n// While its use was a specific TTP in this attack, legitimate use may occur.\r\n// Consider adding process-based filters (e.g., InitiatingProcessFileName == 'curl.exe')\r\n// or command-line filters to reduce potential false positives from this domain.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    AccountName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0001
+techniques:
+    - T1071.001
+    - T1041
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

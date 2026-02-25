@@ -1,0 +1,18 @@
+id: 019c8c01-1be0-775a-82b1-c57d0e6b41d3
+name: Python RAT Silent Execution from Temp
+description: This rule detects the behavioral pattern of the dYdX RAT, which executes Python scripts from temporary directories with suppressed output. It looks for Python processes (identified by original filename) executing from common temporary directories while also suppressing output (e.g., redirecting to /dev/null or using CREATE_NO_WINDOW).
+query: "// Name: Python RAT Silent Execution from Temp\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: This rule detects the behavioral pattern of the dYdX RAT, which executes Python scripts from temporary directories with suppressed output.\r\n// References: https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi\r\n// Tags: T1059.006, T1027, supply chain, dYdX, RAT, Python\r\nDeviceProcessEvents\r\n// Look for python processes based on the original filename from version info.\r\n| where InitiatingProcessVersionInfoOriginalFileName has \"python\"\r\n// The RAT executes scripts from temp directories with suppressed output to remain hidden.\r\n| where ProcessCommandLine has_any (\"/tmp/\", \"/var/tmp\", \"AppData\\\\Local\\\\Temp\")\r\n    and ProcessCommandLine has_any (\"/dev/null\", \"CREATE_NO_WINDOW\")\r\n// FP-TUNING: Legitimate applications or administrative scripts may run from temp directories or redirect output.\r\n// The combination of these behaviors is more suspicious. For higher fidelity, consider filtering for specific parent processes\r\n// or excluding known-good scripts and parent-child relationships.\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Host = DeviceName,\r\n    Account = InitiatingProcessAccountName\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.006
+    - T1027
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi

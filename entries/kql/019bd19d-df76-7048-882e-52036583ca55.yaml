@@ -1,0 +1,17 @@
+id: 019bd19d-df76-7048-882e-52036583ca55
+name: KongTuke - Nexthink extension
+description: This rule detects the presence and activity of known malicious browser extensions, specifically 'NexShield' and those associated with the 'KongTuke' campaign. It identifies these extensions by their unique IDs found in file paths or names, network connections to associated malicious IPs or domains, and specific file hashes. The rule correlates file events, network events, and process events to provide a comprehensive view of the malicious extension's activity, including when it was first and last seen, the browsers involved, and the files/folders it interacted with.
+query: "// https://www.huntress.com/blog/malicious-browser-extention-crashfix-kongtuke\r\n\r\nlet ExtensionMapping = datatable(\r\n    ExtensionID:string,\r\n    ExtensionName:string,\r\n    Campaign:string,\r\n    Browser:string\r\n)\r\n[\r\n    \"cpcdkmjddocikjdkbbeiaafnpdbdafmi\",\"NexShield Extension\",\"KongTuke\",\"ANY\"\r\n];\r\nlet MaliciousExtensionIDs =\r\n    ExtensionMapping\r\n    | project ExtensionID;\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where FolderPath has_any (MaliciousExtensionIDs)\r\n   or FileName has_any (MaliciousExtensionIDs)\r\n| extend ExtensionID = extract(@\"([a-z]{32})\", 1, tolower(strcat(FolderPath, FileName)))\r\n| where isnotempty(ExtensionID)\r\n| lookup ExtensionMapping on ExtensionID\r\n| summarize\r\n    FirstSeen = min(Timestamp),\r\n    LastSeen  = max(Timestamp),\r\n    ExtensionsFound = make_set(ExtensionName),\r\n    ExtensionIDs    = make_set(ExtensionID),\r\n    Campaigns       = make_set(Campaign),\r\n    Browsers        = make_set(InitiatingProcessFileName),\r\n    FileFound       = make_set(FileName),\r\n    FolderFound     = make_set(FolderPath),\r\n    EventCount      = count()\r\n  by DeviceName, DeviceId\r\n| order by LastSeen desc\r\n\r\nDeviceNetworkEvents\r\n| where RemoteIP has_any (\"199.217.98.108\",\"170.168.103.208\",\"158.247.252.178\") or RemoteUrl has \"nexsnield.com\"\r\n\r\nunion DeviceFileEvents, DeviceProcessEvents\r\n| where SHA256 has_any (\"c46af9ae6ab0e7567573dbc950a8ffbe30ea848fac90cd15860045fe7640199c\",\"c15f44d6abb3a2a882ffdc9b90f7bb5d1a233c0aa183eb765aa8bfba5832c8c6\",\"6399c686eba09584bbbb02f31d398ace333a2b57529059849ef97ce7c27752f4\",\"fbfce492d1aa458c0ccc8ce4611f0e2d00913c8d51b5016ce60a7f59db67de67\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1176
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/malicious-browser-extention-crashfix-kongtuke?trk=public_post_comment-text

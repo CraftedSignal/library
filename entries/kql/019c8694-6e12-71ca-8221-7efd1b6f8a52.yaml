@@ -1,0 +1,49 @@
+id: 019c8694-6e12-71ca-8221-7efd1b6f8a52
+name: Unauthorized Azure AD Account Creation or Deletion
+description: This rule identifies the creation or deletion of user accounts in Azure AD (Entra ID) by principals not on an approved list. It relies on a customized list of approved administrators/service principals to reduce false positives.
+query: |
+    // Name: Unauthorized Azure AD Account Creation or Deletion
+    // Author: MFA meex
+    // Date: 2026-02-22
+    // Description: This query identifies the creation or deletion of user accounts in Azure AD (Entra ID) by principals not on an approved list.
+    // Note: This rule relies on a defined list of approved administrators / service principals. You MUST customize the 'approved_admins' list to reduce false positives.
+
+    // Define the lookback period for the search.
+    let lookback = 1d;
+
+    let approved_admins = dynamic([
+        "admin_user1@example.com",
+        "helpdesk_user@example.com",
+        "svc_identity_manager@example.com"
+    ]);
+
+    AuditLogs
+    | where TimeGenerated > ago(lookback)
+    // Filter for user creation and deletion operations.
+    | where OperationName in ("Add user", "Delete user")
+    | extend Actor = tostring(InitiatedBy.user.userPrincipalName)
+    // Exclude actions performed by the approved list of administrators.
+    | where isnotempty(Actor) and Actor !in (approved_admins)
+    | project
+        TimeGenerated,
+        Action = case(
+            OperationName == "Add user", "Azure AD Account Created",
+            OperationName == "Delete user", "Azure AD Account Deleted",
+            "Unknown"
+        ),
+        Actor,
+        TargetAccount = tostring(TargetResources[0].userPrincipalName),
+        SourceIpAddress = tostring(InitiatedBy.user.ipAddress),
+        OperationName
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0040
+techniques:
+    - T1098
+    - T1531
+tags:
+    - kql
+version: "3"

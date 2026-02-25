@@ -1,0 +1,48 @@
+id: 019c8a95-3cde-72bb-96a0-d21b2ff8fcc1
+name: BeyondTrust RCE Handshake Injection (CVE-2026-1731)
+description: Detects attempts to exploit a remote code execution vulnerability (CVE-2026-1731) in BeyondTrust Remote Support software. The attack involves sending a specially crafted 'remoteVersion' parameter during a WebSocket handshake to trigger a command injection.
+query: |
+    kql
+    // Name: BeyondTrust RCE Handshake Injection (CVE-2026-1731)
+    // Author: adarsh pandey
+    // Date: 2026-02-23
+    // Description: Detects attempts to exploit a remote code execution vulnerability (CVE-2026-1731) in BeyondTrust Remote Support software. The attack involves sending a specially crafted 'remoteVersion' parameter during a WebSocket handshake to trigger a command injection.
+    // False Positive Sensitivity: Medium
+    // Tactic: Initial Access
+    // Technique: T1190, T1059.004
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    // This rule should be run against web server, proxy, or WAF logs that have visibility into URI paths and query parameters.
+    let timeframe = 1h;
+    // Define the target URI paths associated with the vulnerable component.
+    let targetPaths = dynamic(["/nw", "get_portal_info"]);
+    // Define the regex to identify the malicious payload pattern in the remoteVersion parameter.
+    let injectionPattern = @'remoteVersion=a[$(';
+    // The full pattern is 'a[$(<command>)]0', but we search for the start to reduce complexity and potential evasion.
+    // The 'has' operator is used for performance. A 'matches regex' could be used for more precise matching if needed.
+    CommonSecurityLog
+    | where TimeGenerated > ago(timeframe)
+    // Filter for requests targeting the vulnerable paths.
+    | where RequestURL has_any (targetPaths)
+    // Filter for requests containing the specific injection pattern.
+    | where RequestURL has injectionPattern
+    // Further validation to reduce false positives by checking for the closing characters of the injection pattern.
+    // This may not catch all variants but improves fidelity.
+    | where RequestURL matches regex @'remoteVersion=a\[\$\(.*\)]0'
+    | extend timestamp = TimeGenerated, HostCustomEntity = DeviceName, AccountCustomEntity = SourceUserID
+    // Add comments for potential tuning.
+    // FP Tuning: If legitimate traffic uses 'remoteVersion' in a way that triggers this rule,
+    // consider adding more specific 'where' clauses to exclude known safe source IPs or user agents.
+    // For example: | where SourceIP !in ("<trusted_ip_1>", "<trusted_ip_2>")
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

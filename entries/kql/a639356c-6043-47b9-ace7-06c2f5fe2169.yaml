@@ -1,0 +1,22 @@
+id: a639356c-6043-47b9-ace7-06c2f5fe2169
+name: Unquoted Service Path Detected During Service Installation
+description: |+
+    This detection identifies instances where a Windows service is installed with a file path that contains spaces but is not enclosed in quotation marks. Such misconfigurations can be exploited by attackers for privilege escalation using unquoted service path vulnerabilities. This detection helps administrators identify and remediate potentially insecure service installations.
+
+query: "SecurityEvent\r\n| where EventID == 4697\r\n| extend parsed = parse_xml(EventData)\r\n| extend ServiceName = tostring(parsed.EventData.Data[4][\"#text\"]),\r\n         FullPath = tostring(parsed.EventData.Data[5][\"#text\"])\r\n| extend ExecutablePath = extract(@\"[a-zA-Z]:\\\\\\\\[^\\\"\"\\s]+\\.exe\", 0, FullPath)\r\n| where ExecutablePath has \" \"\r\n       and ExecutablePath !startswith \"\\\"\" \r\n       and ExecutablePath !endswith \"\\\"\"\r\n| project TimeGenerated, Computer, SubjectUserName, ServiceName, ExecutablePath, FullPath\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1574.009
+tags:
+    - unquoted-service-path
+    - privilege-escalation
+    - service-installation
+    - misconfiguration
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1574/009/
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4697
+    - https://blackpointcyber.com/blog/unlocking-the-mystery-of-unquoted-service-paths-another-opportunity-for-privilege-escalation/

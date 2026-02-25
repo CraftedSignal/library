@@ -1,0 +1,52 @@
+id: 956e5234-9400-4bab-bd9f-830baecef863
+name: FileFix Social Engineering PowerShell Execution
+description: Detects PowerShell execution patterns consistent with the 'FileFix' social engineering technique. This technique tricks users into pasting and running a malicious command, often from the Run dialog or File Explorer address bar, which results in explorer.exe being the parent process. The command typically involves downloading and executing a remote script.
+query: |
+    // Name: FileFix Social Engineering PowerShell Execution
+    // Author: detections.ai
+    // Date: 2025-07-17
+    // Description: Detects PowerShell execution patterns consistent with the "FileFix" social engineering technique. This technique tricks users into pasting and running a malicious command, often from the Run dialog or File Explorer address bar, which results in explorer.exe being the parent process. The command typically involves downloading and executing a remote script.
+    // References: https://thedfirreport.com/2025/07/14/kongtuke-filefix-leads-to-new-interlock-rat-variant/
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for PowerShell execution. Using OriginalFileName is often more reliable than FileName.
+    | where ProcessVersionInfoOriginalFileName =~ "PowerShell.EXE"
+    // In the FileFix technique, the user pastes the command into the Run dialog (Win+R) or the File Explorer address bar.
+    // In these cases, the parent process is explorer.exe.
+    | where InitiatingProcessFileName =~ "explorer.exe"
+    // The core of this technique is to download and immediately execute a remote script.
+    // We look for the combination of an execution alias ('iex') and a web client/download method.
+    | where ProcessCommandLine has_any ("iex", "Invoke-Expression") and ProcessCommandLine has_any ("DownloadString", "System.Net.WebClient", "DownloadFile")
+    // Further filter for suspicious arguments that attempt to hide the execution or bypass security controls.
+    | where isnotempty(ProcessCommandLine) and ProcessCommandLine has_any ("-w hidden", "-windowstyle hidden", "-ep bypass", "-executionpolicy bypass", "-enc", "-encodedcommand", "-noni", "-noprofile")
+    // FP Tuning:
+    // Legitimate admin scripts or tools might be launched from explorer.exe and use these commands.
+    // To reduce FPs, consider filtering for known good scripts, parent processes, or user accounts.
+    // For higher fidelity on this specific campaign, you could add: `and ProcessCommandLine has ".trycloudflare.com"`
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+    - TA0001
+techniques:
+    - T1059.001
+    - T1105
+    - T1027
+    - T1027.010
+    - T1566.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://thedfirreport.com/2025/07/14/kongtuke-filefix-leads-to-new-interlock-rat-variant/

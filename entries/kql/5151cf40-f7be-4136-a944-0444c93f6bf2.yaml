@@ -1,0 +1,41 @@
+id: 5151cf40-f7be-4136-a944-0444c93f6bf2
+name: Creation of "ESX Admins" Group for ESXi Privilege Escalation
+description: Detects the creation of the Active Directory group "ESX Admins". Threat actors create this group to exploit CVE-2024-37085, which grants any member of this group administrative privileges on domain-joined VMware ESXi hypervisors.
+query: |
+    // Name: Creation of "ESX Admins" Group for ESXi Privilege Escalation
+    // Author: detections.ai
+    // Date: 2025-09-18
+    // Description: Detects the creation of the Active Directory group "ESX Admins". Threat actors create this group to exploit CVE-2024-37085, which grants any member of this group administrative privileges on domain-joined VMware ESXi hypervisors.
+    // False Positives: This group may be created by administrators following older VMware documentation. However, its creation introduces a significant vulnerability and should be investigated immediately.
+    // References: https://www.microsoft.com/en-us/security/blog/2024/07/29/ransomware-operators-exploit-esxi-hypervisor-vulnerability-for-mass-encryption/
+    // MITRE ATT&CK: T1098.003 (Account Manipulation: Create Account)
+
+    IdentityDirectoryEvents
+    // Look for group creation events in Active Directory.
+    | where ActionType == "Group Created"
+    // Filter for the specific group name "ESX Admins". The match is case-insensitive.
+    | where TargetAccountDisplayName =~ "ESX Admins"
+    | project
+        Timestamp,
+        ActionType,
+        TargetAccountDisplayName,
+        CreatingUser = Actor.DisplayName,
+        CreatingUserSid = Actor.Sid,
+        DeviceName, // The domain controller where the change was observed.
+        ReportId,
+        AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1098
+    - T1098.003
+    - T1068
+tags:
+    - kql
+author: Salten Fisk
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2024/07/29/ransomware-operators-exploit-esxi-hypervisor-vulnerability-for-mass-encryption/

@@ -1,0 +1,17 @@
+id: 019c8a39-d70b-7348-9324-013b8d5acdf2
+name: Suspicious Service DLL in Ringtones Folder
+description: Detects the loading of a ServiceDLL by svchost.exe from the highly unusual 'Ringtones' directory. This behavior is a specific indicator of the BADIIS malware loader (CbsMsgApi.exe) which creates a service pointing to a malicious DLL in this location for persistence and evasion.
+query: "// Name: Suspicious Service DLL in Ringtones Folder\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Tactic: Persistence, Defense Evasion\r\n// Technique: T1543.003, T1027.001\r\n// Description: Detects the loading of a ServiceDLL by svchost.exe from the highly unusual 'Ringtones' directory. This behavior is a specific indicator of the BADIIS malware loader (CbsMsgApi.exe) which creates a service pointing to a malicious DLL in this location for persistence and evasion.\r\n// References: https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign\r\n// False Positive Sensitivity: Medium\r\nDeviceImageLoadEvents\r\n// Filter for image loads by svchost.exe, which is responsible for hosting Windows services.\r\n| where InitiatingProcessFileName =~ \"svchost.exe\"\r\n// The BADIIS malware stages its malicious service DLL in the ProgramData\\Microsoft\\Windows\\Ringtones directory.\r\n| where FolderPath has @\"\\ProgramData\\Microsoft\\Windows\\Ringtones\\\" and FileName endswith \".dll\"\r\n// This is a highly anomalous path for a service DLL and is a strong indicator of compromise.\r\n// Legitimate software is not expected to load DLLs from this location. If false positives occur, consider excluding by specific FileName or SHA1.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1543.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign

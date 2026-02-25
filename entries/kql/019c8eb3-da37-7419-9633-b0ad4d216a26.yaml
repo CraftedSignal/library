@@ -1,0 +1,19 @@
+id: 019c8eb3-da37-7419-9633-b0ad4d216a26
+name: Sign-in via Legacy Protocol (MFA/CA Bypass)
+description: This rule detects successful sign-ins to Microsoft 365 services that occur via legacy authentication protocols. These protocols (e.g., Exchange ActiveSync, IMAP4, POP3, SMTP AUTH) do not support modern authentication methods like Multi-Factor Authentication (MFA) or Conditional Access policies, making them a potential bypass vector for adversaries who have compromised user credentials. The rule identifies the user, the specific legacy client application used, and provides details on the source IP address and country.
+query: "// Detection: Sign-in via Legacy Protocol (bypasses MFA/CA)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1078 - Valid Accounts\r\n\r\nlet legacyClients = dynamic([\r\n    \"Exchange ActiveSync\",\"IMAP4\",\"MAPI Over HTTP\",\r\n    \"SMTP AUTH\",\"POP3\",\"Other clients\",\"Authenticated SMTP\",\r\n    \"Exchange Web Services\",\"Outlook Anywhere\",\"IMAP\",\"POP\",\r\n    \"AutoDiscover\",\"Exchange Online PowerShell\"\r\n]);\r\nSigninLogs\r\n| where TimeGenerated > ago(1d)\r\n| where ResultType == \"0\"\r\n| where ClientAppUsed in (legacyClients)\r\n| summarize\r\n    Count      = count(),\r\n    Apps       = make_set(AppDisplayName, 5),\r\n    IPList     = make_set(IPAddress, 5),\r\n    Countries  = make_set(tostring(LocationDetails.countryOrRegion), 5)\r\n    by UserPrincipalName, ClientAppUsed\r\n| extend AlertDescription = strcat(\r\n    \"User \", UserPrincipalName,\r\n    \" authenticated via legacy protocol: \", ClientAppUsed,\r\n    \" — MFA cannot be enforced on this client\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1556.006
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

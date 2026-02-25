@@ -1,0 +1,15 @@
+id: d28222e1-3d33-4832-978f-42440dd32bda
+name: DarkCloud Stealer RunOnce Persistence Detection
+description: KQL Query
+query: "DeviceRegistryEvents\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey contains @\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\\\"\r\n| where RegistryKey startswith \"HKEY_USERS\\\\\" // Covers all user profiles\r\n| where isnotempty(RegistryValueData)\r\n// Look for paths that end with common executable extensions or contain \"AutoIt\"\r\n| where RegistryValueData matches regex @\".*\\.(exe|dll|vbs|js|ps1|hta|cmd|bat|scr|com|cpl|wsh|jse|wsf|msc|msi|pif|sh|shs|au3|a3x)$\" or RegistryValueData contains \"AutoIt\"\r\n// Exclude common legitimate applications/processes that might set RunOnce entries\r\n// This list is illustrative and would need to be tailored to a specific environment\r\n| where not(InitiatingProcessCommandLine has_any (\"OneDriveSetup.exe\", \"Teams.exe\", \"Skype.exe\", \"GoogleUpdate.exe\", \"AdobeGCClient.exe\", \"Zoom.exe\", \"Webex.exe\", \"MicrosoftEdgeUpdate.exe\", \"msedge.exe\", \"chrome.exe\", \"firefox.exe\", \"explorer.exe\", \"msiexec.exe\", \"setup.exe\", \"install.exe\", \"update.exe\", \"updater.exe\", \"backgroundtaskhost.exe\"))\r\n| where not(InitiatingProcessCommandLine contains \"system32\\\\\" or InitiatingProcessCommandLine contains \"program files\\\\\" or InitiatingProcessCommandLine contains \"program files (x86)\\\\\" or InitiatingProcessCommandLine contains \"windows\\\\\")\r\n| project-reorder Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, RegistryKey, RegistryValueName, RegistryValueData, ReportId\r\n| extend OSPlatform = \"Windows\"\r\n| summarize arg_max(Timestamp, *) by DeviceId, RegistryKey, RegistryValueName, RegistryValueData\r\n| extend\r\n    Techniques = dynamic([\"T1547.001\"]),\r\n    Tactics = dynamic([\"Persistence\"]),\r\n    Severity = \"Medium\",\r\n    Description = \"Detects attempts to establish persistence via the RunOnce registry key, often abused by malware like DarkCloud Stealer. This rule specifically looks for executable paths or AutoIt-related entries.\",\r\n    RuleName = \"DarkCloudStealer_RunOnce_Persistence\",\r\n    References = dynamic([\"https://unit42.paloaltonetworks.com/darkcloud-stealer-and-obfuscated-autoit-scripting/\"]),\r\n    Author = \"HybridHunter\",\r\n    Date = \"2025-07-02\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: HybridHunter
+version: "1"

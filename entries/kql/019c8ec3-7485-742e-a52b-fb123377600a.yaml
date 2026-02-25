@@ -1,0 +1,19 @@
+id: 019c8ec3-7485-742e-a52b-fb123377600a
+name: OAuth App Consent Grant - Possible Illicit Consent Grant Attack
+description: This rule detects attempts to grant consent to OAuth applications, which could indicate an illicit consent grant attack. It specifically looks for successful operations related to consenting to applications, adding app role assignments to service principals, adding delegated permission grants, or adding OAuth2PermissionGrants within audit logs. The rule extracts details such as the target application, the user who consented, their initiating IP address, and the permissions granted.
+query: "// Detection: OAuth App Consent Grant - Possible Illicit Consent Grant Attack\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1550.001 - Alternate Authentication Material\r\n\r\nAuditLogs\r\n| where TimeGenerated > ago(1d)\r\n| where OperationName has_any (\r\n    \"Consent to application\",\r\n    \"Add app role assignment to service principal\",\r\n    \"Add delegated permission grant\",\r\n    \"Add OAuth2PermissionGrant\"\r\n)\r\n| where Result =~ \"success\"\r\n| extend\r\n    TargetApp   = tostring(TargetResources[0].displayName),\r\n    ConsentedBy = tostring(InitiatedBy.user.userPrincipalName),\r\n    InitiatingIP = tostring(InitiatedBy.user.ipAddress),\r\n    Permissions  = tostring(TargetResources[0].modifiedProperties)\r\n| where isnotempty(TargetApp)\r\n| project TimeGenerated, OperationName, TargetApp,\r\n          ConsentedBy, InitiatingIP, Permissions, CorrelationId\r\n| extend AlertDescription = strcat(\r\n    \"OAuth consent granted to '\", TargetApp,\r\n    \"' by '\", ConsentedBy, \"' — review delegated permissions immediately\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0008
+    - TA0001
+    - TA0003
+techniques:
+    - T1550.001
+    - T1566.002
+    - T1671
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

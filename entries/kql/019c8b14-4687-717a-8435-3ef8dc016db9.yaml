@@ -1,0 +1,20 @@
+id: 019c8b14-4687-717a-8435-3ef8dc016db9
+name: SANDWORM_MODE C2/Exfil Domains
+description: This rule detects outbound network connections to known Command and Control (C2) and exfiltration domains associated with the SANDWORM_MODE campaign. These domains are used to exfiltrate stolen credentials and other sensitive data.
+query: "// Name: SANDWORM_MODE C2/Exfil Domains\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Tactic: Exfiltration, Command and Control\r\n// Technique: T1567.002, Exfiltration Over Web Service; T1071.001, Application Layer Protocol\r\n// Description: This rule detects outbound network connections to known Command and Control (C2) and exfiltration domains associated with the SANDWORM_MODE campaign. These domains are used to exfiltrate stolen credentials and other sensitive data.\r\n// False Positive Sensitivity: Medium\r\n// References: https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning\r\n// Define the list of known malicious domains and URL fragments.\r\nlet C2Domains = dynamic([\"freefan.net\", \"fanfree.net\"]);\r\nlet C2UrlPart = \"pkg-metrics.official334.workers.dev\";\r\n// Combine common network log tables. You may need to adjust this based on your data sources.\r\nunion DeviceNetworkEvents, CommonSecurityLog\r\n// Look for outbound connections to the specified malicious indicators.\r\n| where (RemoteUrl has C2UrlPart or DestinationDnsDomain in~ (C2Domains)) // For DeviceNetworkEvents schema\r\n    or (RequestURL has C2UrlPart or DestinationHostName in~ (C2Domains)) // For CommonSecurityLog schema\r\n// FP Tuning: These indicators are highly specific to this campaign. False positives are unlikely but could occur if the domains are re-purposed after the campaign ends.\r\n// Consider excluding traffic from known security research tools or sandboxes if they are expected to visit these sites.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RequestURL,\r\n    RemoteIP,\r\n    DestinationIP,\r\n    DestinationDnsDomain,\r\n    DestinationHostName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1567
+    - T1567.002
+    - T1071
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning

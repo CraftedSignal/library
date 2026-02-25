@@ -1,0 +1,73 @@
+id: 019c34a3-b4ac-75ea-badb-412c54958136
+name: Shadow Campaigns Activity Detection
+description: This rule detects several suspicious activities potentially related to the 'Shadow Campaigns' threat actor, including the 'Diaoyu loader' and 'ShadowGuard' malware. It identifies processes created with specific command-line arguments (e.g., 'pic1.png', 'padeqav', 'DiaoYu', 'admin-bar-sprite', 'raw.githubusercontent.com' with 'WordPress') and network connections to known C2 domains (e.g., 'gouvn.me', 'dog3rj.tech', 'zamstats.me', 'msonline.help', 'pickupweb.me', 'servgate.me', 'abwxjp5.me', 'brackusi0n.live', 'emezonhe.me', 'pr0fu5a.me', 'q74vn.live', 'zrheblirsy.me'). The rule also looks for connections to 'mega.nz' or 'mega.co.nz' initiated by common office applications or browsers, which could indicate data exfiltration or download of malicious content. Additionally, it identifies processes created with command-line arguments related to specific security software (e.g., 'Avp.exe', 'SentryEye.exe', 'EPSecurityService.exe', 'SentinelUI.exe', 'NortonSecurity.exe'), which might indicate attempts to disable or interfere with security products. Further, it detects processes created with command-line arguments indicative of Java-based web shells or tunneling tools (e.g., 'rce.jar', 'crowd' and 'jar', 'Behinder', 'Neo-reGeorg', 'Godzilla', 'reGeorg') when initiated by web server processes. Finally, it looks for specific strings ('kill -900', 'kill -901', 'swsecret') in security logs, which could be related to specific attack techniques or tools.
+query: |-
+    // TGR-STA-1030 Shadow Campaigns. Unit 42: Diaoyu loader, ShadowGuard, C2 domains.
+    // Author = Daniel Jeremiah
+    // Ref: https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+
+
+    let Diaoyu = DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "pic1.png" or ProcessCommandLine contains "padeqav"
+            or ProcessCommandLine contains "DiaoYu" or ProcessCommandLine contains "admin-bar-sprite"
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName;
+    let C2Domains = DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "gouvn.me" or RemoteUrl contains "dog3rj.tech" or RemoteUrl contains "zamstats.me"
+            or RemoteUrl contains "msonline.help" or RemoteUrl contains "pickupweb.me" or RemoteUrl contains "servgate.me"
+        | project Timestamp, DeviceName, RemoteUrl, InitiatingProcessFileName;
+    Diaoyu
+        | join kind=inner C2Domains on DeviceName
+        | where (Timestamp - Timestamp1) between (-1h .. 1h)
+        | project Timestamp, DeviceName, RemoteUrl, ProcessCommandLine, InitiatingProcessFileName
+
+    // Additional queries (these were separate queries in the original input, now combined with union or kept separate if they are distinct detection logic)
+    ;
+    DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "gouvn.me" or RemoteUrl contains "dog3rj.tech" or RemoteUrl contains "zamstats.me"
+            or RemoteUrl contains "abwxjp5.me" or RemoteUrl contains "brackusi0n.live" or RemoteUrl contains "emezonhe.me"
+            or RemoteUrl contains "msonline.help" or RemoteUrl contains "pickupweb.me" or RemoteUrl contains "pr0fu5a.me"
+            or RemoteUrl contains "q74vn.live" or RemoteUrl contains "servgate.me" or RemoteUrl contains "zrheblirsy.me"
+        | project Timestamp, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine
+    ;
+    DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "pic1.png" or ProcessCommandLine contains "padeqav"
+            or (ProcessCommandLine contains "raw.githubusercontent.com" and ProcessCommandLine contains "WordPress")
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+    ;
+    DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "mega.nz" or RemoteUrl contains "mega.co.nz"
+        | where InitiatingProcessFileName in ("WINWORD.EXE", "EXCEL.EXE", "OUTLOOK.EXE", "chrome.exe", "msedge.exe")
+        | project Timestamp, DeviceName, RemoteUrl, InitiatingProcessFileName
+    ;
+    DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "Avp.exe" or ProcessCommandLine contains "SentryEye.exe"
+            or ProcessCommandLine contains "EPSecurityService.exe" or ProcessCommandLine contains "SentinelUI.exe"
+            or ProcessCommandLine contains "NortonSecurity.exe"
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+    ;
+    DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "rce.jar" or (ProcessCommandLine contains "crowd" and ProcessCommandLine contains "jar")
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+    ;
+    DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "Behinder" or ProcessCommandLine contains "Neo-reGeorg"
+            or ProcessCommandLine contains "Godzilla" or ProcessCommandLine contains "reGeorg"
+        | where InitiatingProcessFileName in ("w3wp.exe", "httpd.exe", "nginx.exe", "java.exe")
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+    ;
+    CommonSecurityLog
+        | where Activity contains "kill -900" or Activity contains "kill -901" or Activity contains "swsecret"
+        | project TimeGenerated, DeviceName, Activity, SourceUserName, DeviceVendor
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "3"

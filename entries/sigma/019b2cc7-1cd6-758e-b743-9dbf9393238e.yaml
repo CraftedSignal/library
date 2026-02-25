@@ -1,0 +1,64 @@
+id: 019b2cc7-1cd6-758e-b743-9dbf9393238e
+name: RansomHouse VM File Encryption
+description: Detects the renaming of VMware virtual machine related files to a new file ending with the '.emario' extension. This behavior is characteristic of the RansomHouse 'Mario' encryptor.
+query: |
+    title: RansomHouse VM File Encryption
+    id: 8727feec-ca90-4f16-8497-06bcdfa99ff6
+    status: experimental
+    description: Detects the renaming of VMware virtual machine related files to a
+      new file ending with the '.emario' extension. This behavior is characteristic
+      of the RansomHouse 'Mario' encryptor.
+    references:
+      - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+    author: detections.ai
+    date: 2025-12-17
+    tags:
+      - attack.impact
+      - attack.t1486
+    logsource:
+      category: file_event
+      product: linux # ESXi is a Linux-based hypervisor
+    detection:
+      selection_rename:
+        # This detection relies on file rename events. The field and value may need to be adjusted for your specific log source.
+        event.action:
+          - 'rename'
+          - 'file_renamed'
+      selection_target:
+        # The 'Mario' encryptor appends '.emario' to encrypted files.
+        file.path|endswith: '.emario'
+      selection_source:
+        # The encryptor targets specific files related to VMware and virtualization.
+        file.previous_path|endswith:
+          - '.ova'
+          - '.ovf'
+          - '.vbk'
+          - '.vbm'
+          - '.vib'
+          - '.vmdk'
+          - '.vmem'
+          - '.vmsd'
+          - '.vmsn'
+          - '.vswp'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate file operations that coincidentally match this pattern are highly
+        unlikely. The combination of specific VM file extensions being renamed to a
+        file with the '.emario' extension is a strong indicator of compromise.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - attack.impact
+    - attack.t1486
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+data_sources:
+    - file_event
+    - linux

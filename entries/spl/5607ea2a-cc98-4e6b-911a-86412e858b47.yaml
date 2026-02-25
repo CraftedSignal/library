@@ -1,0 +1,33 @@
+id: 5607ea2a-cc98-4e6b-911a-86412e858b47
+name: SLOW#TEMPEST ISO Hash Detection
+description: This detection rule identifies the presence of the SLOW#TEMPEST ISO file based on its SHA256 hash. This ISO file is the initial delivery mechanism for the malware campaign.
+query: |
+    # Name: SLOW#TEMPEST ISO Hash
+    # Author: detections.ai
+    # Date: 2025-07-23
+    # References:
+    #   - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/
+    # Description:
+    #   This detection rule identifies the presence of the SLOW#TEMPEST ISO file based on its SHA256 hash.
+    #   This ISO file is the initial delivery mechanism for the malware campaign.
+
+    (index=* OR sourcetype=*)
+    `tstats` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Filesystem where Filesystem.sha256="a05882750f7caac48a5b5ddf4a1392aa704e6e584699fe915c6766306dae72cc" by Filesystem.dest Filesystem.file_name Filesystem.sha256
+    `drop_dm_object_name("Filesystem")`
+
+    # The following search can be used if you have file hash information in other data models or sourcetypes.
+    # | append [
+    #   `tstats` count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Traffic where All_Traffic.file_hash="a05882750f7caac48a5b5ddf4a1392aa704e6e584699fe915c6766306dae72cc" by All_Traffic.dest All_Traffic.file_name All_Traffic.file_hash
+    #   `drop_dm_object_name("All_Traffic")`
+    #   `rename file_hash as sha256`
+    # ]
+query_type: spl
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - spl
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/

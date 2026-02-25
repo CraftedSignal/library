@@ -1,0 +1,52 @@
+id: 019c06da-a2e9-7322-a446-078c77c823f8
+name: Suspicious Node.js Execution (Tsundere Bot)
+description: Detects the anomalous execution of Node.js from non-standard, user-writable directories or when spawned by a shell process. This behavior is indicative of the Tsundere Bot backdoor, often used by TA584. The rule specifically looks for node.exe running from common user-writable or temporary directories (AppData\Local, Users\Public, Temp) or when initiated by command-line shells like powershell.exe or cmd.exe.
+query: |
+    // Name: Suspicious Node.js Execution (Tsundere Bot)
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects the anomalous execution of Node.js from non-standard, user-writable directories or when spawned by a shell process. This is a hallmark of the new Tsundere Bot backdoor used by TA584.
+    // Reference: https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access
+    // Tactics: Execution, Command and Control, Ingress Tool Transfer
+    // Techniques: T1059.001, T1105, T1071.001
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for node.js process creation events.
+    | where FileName =~ "node.exe"
+    // The core detection logic combines two conditions: execution from a suspicious path OR being spawned by a shell.
+    | where
+        // Condition 1: Node.js is executed from a common user-writable or temporary directory.
+        // Tsundere Bot installers often drop and run node.js from these locations.
+        FolderPath has_any (@"\AppData\Local\", @"\Users\Public\", @"\Temp\")
+        or
+        // Condition 2: Node.js is initiated by a command-line shell.
+        // This is common in the TA584 attack chain where PowerShell downloads and executes the malware.
+        InitiatingProcessFileName in~ ("powershell.exe", "cmd.exe")
+    // Potential for False Positives:
+    // Legitimate developer activities or some software installers might use Node.js in these ways.
+    // Consider tuning by excluding specific parent processes, command lines, or user accounts associated with development work.
+    // For example: | where InitiatingProcessCommandLine !has "legit_script.js"
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access

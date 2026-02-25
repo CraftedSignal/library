@@ -1,0 +1,64 @@
+id: 019c398a-0881-732f-93bb-95239842c8d9
+name: DeadVax IPFS VHD Download and Script Execution
+description: |
+    This attack starts when a user clicks a link in an email or message. The link opens what looks like a document, such as a purchase order or PDF. In reality, it is a fake file that runs a script when opened. The script then loads the malware. The activity is started from the browser or file explorer, which is normal for a user opening a file. But the combination of opening a document and then immediately running a script is suspicious. Legitimate documents do not run scripts when you open them. Security teams should look for cases where a user opens a file from a link and that file starts a script process. This rule helps catch that first step of the attack.
+query: |
+    title: "DeadVax IPFS VHD Download and Script Execution"
+    id: c3d4e5f6-a7b8-4c5d-9e0f-deadvax003
+    status: experimental
+    description: >
+      This attack starts when a user clicks a link in an email or message. The link
+      opens what looks like a document, such as a purchase order or PDF. In reality,
+      it is a fake file that runs a script when opened. The script then loads the
+      malware. The activity is started from the browser or file explorer, which is
+      normal for a user opening a file. But the combination of opening a document
+      and then immediately running a script is suspicious. Legitimate documents do
+      not run scripts when you open them. Security teams should look for cases where
+      a user opens a file from a link and that file starts a script process. This
+      rule helps catch that first step of the attack.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+      - attack.initial-access
+      - attack.t1566.002
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_script:
+        Image|endswith|any:
+          - \wscript.exe
+          - \cscript.exe
+          - \cmd.exe
+        CommandLine|contains|any:
+          - .wsf
+          - .vhd
+          - Procomps
+          - PurchaseOrder
+      context_parent:
+        ParentImage|endswith|any:
+          - \explorer.exe
+          - \msedge.exe
+          - \chrome.exe
+      condition: selection_script and context_parent
+    falsepositives:
+      - User opening legitimate WSF from mounted image
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1566.002
+tags:
+    - attack.initial-access
+    - attack.t1566.002
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

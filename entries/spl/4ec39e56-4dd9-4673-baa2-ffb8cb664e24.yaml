@@ -1,0 +1,16 @@
+id: 4ec39e56-4dd9-4673-baa2-ffb8cb664e24
+name: Suspicious Process Execution via PsExec
+description: Detects suspicious child processes of the PsExec service executable (PSEXESVC.exe). This activity could represent an adversary using PsExec for lateral movement and executing commands on a remote host.
+query: "-- name: Suspicious Process Execution via PsExec\r\n-- description: Detects suspicious child processes of the PsExec service executable (PSEXESVC.exe). This activity could represent an adversary using PsExec for lateral movement and executing commands on a remote host.\r\n-- author: Daniel Jeremiah\r\n-- date: 2025-08-05\r\n-- references:\r\n--   - https://attack.mitre.org/software/S0029/\r\n--   - https://docs.microsoft.com/en-us/sysinternals/downloads/psexec\r\n\r\n(index=* sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1) OR (sourcetype=WinEventLog:Security EventCode=4688)\r\n-- comment: Search for process creation events from Sysmon (1) or Windows Security logs (4688).\r\n\r\n| rename ParentProcessName as parent_process, NewProcessName as process_path, ProcessName as process_path, CommandLine as process_command_line, CreatorProcessName as parent_process\r\n-- comment: Normalize field names from different event logs.\r\n\r\n| where parent_process = \"*\\\\PSEXESVC.exe\"\r\n-- comment: Filter for events where the parent process is the PsExec service executable.\r\n\r\n| stats count min(_time) as firstTime max(_time) as lastTime by Computer, User, parent_process, process_path, process_command_line\r\n-- comment: Aggregate events to create a single alert per unique combination of host, user, and process.\r\n\r\n| `ctime(firstTime)`\r\n| `ctime(lastTime)`\r\n-- comment: Convert epoch timestamps to a human-readable format.\r\n\r\n| rename Computer as target_host, User as target_user, process_path as child_process_path, process_command_line as child_process_command_line\r\n-- comment: Rename fields for better readability in the final output.\r\n\r\n-- comment: PsExec is a legitimate administrative tool. False positives may occur if it's used for system administration.\r\n-- comment: To reduce noise, consider filtering by target_host or target_user for known administrative activity.\r\n-- comment: For example: | search NOT (target_user IN (\"known_admin_account$\") OR target_host IN (\"server_group_A\"))\r\n"
+query_type: spl
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1569.002
+tags:
+    - spl
+version: "1"
+references:
+    - https://attack.mitre.org/software/S0029/
+    - https://docs.microsoft.com/en-us/sysinternals/downloads/psexec

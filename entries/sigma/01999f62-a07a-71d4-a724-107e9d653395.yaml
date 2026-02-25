@@ -1,0 +1,80 @@
+id: 01999f62-a07a-71d4-a724-107e9d653395
+name: TOTOLINK X6000R Multiple Vulnerabilities Exploitation Attempt
+description: Detects attempts to exploit multiple vulnerabilities (CVE-2025-52905, CVE-2025-52906, CVE-2025-52907) in TOTOLINK X6000R routers. Attackers can leverage argument injection, unauthenticated command injection, and security bypasses through the '/cgi-bin/cstecgi.cgi' endpoint to achieve remote code execution or denial of service.
+query: |
+    title: TOTOLINK X6000R Multiple Vulnerabilities Exploitation Attempt
+    id: 466f88e3-dbad-468f-b2df-4943d6673b7f
+    status: experimental
+    description: >-
+      Detects attempts to exploit multiple vulnerabilities (CVE-2025-52905,
+      CVE-2025-52906, CVE-2025-52907) in TOTOLINK X6000R routers. Attackers can
+      leverage argument injection, unauthenticated command injection, and security
+      bypasses through the '/cgi-bin/cstecgi.cgi' endpoint to achieve remote code
+      execution or denial of service.
+    references:
+      - https://unit42.paloaltonetworks.com/totolink-x6000r-vulnerabilities/
+    author: detections.ai
+    date: 2025-10-01
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2025.52905
+      - cve.2025.52906
+      - cve.2025.52907
+      - vuln.iot
+      - vendor.totolink
+      - product.x6000r
+    logsource:
+      category: webserver
+    detection:
+      # Corresponds to the main CGI endpoint used for router configuration
+      selection_endpoint:
+        c-uri|endswith: '/cgi-bin/cstecgi.cgi'
+      # The 'topicurl' parameter is used to route to vulnerable internal functions
+      selection_vuln_func:
+        c-uri-query|contains:
+          - 'topicurl=setEasyMeshAgentCfg'
+          - 'topicurl=setWizardCfg'
+      # Looks for characters commonly used in command injection and file redirection attacks
+      selection_payload:
+        c-uri-query|contains:
+          - ';'
+          - '|'
+          - '&&'
+          - '`'
+          - '$('
+          - 'wget '
+          - 'curl '
+          - '>/'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative actions could potentially trigger this rule,
+        although the combination of the specific endpoint, vulnerable functions, and
+        payload indicators should limit false positives.
+      - Tuning may be required if legitimate tools interact with this endpoint in an
+        unusual way.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0040
+techniques:
+    - T1190
+    - T1498
+    - T1499
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2025.52905
+    - cve.2025.52906
+    - cve.2025.52907
+    - vuln.iot
+    - vendor.totolink
+    - product.x6000r
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/totolink-x6000r-vulnerabilities/
+data_sources:
+    - webserver

@@ -1,0 +1,18 @@
+id: 019c8ec0-6b51-7244-8b2f-a923f21bc08a
+name: Suspicious Process Connecting on Non-Standard External Port
+description: This rule detects suspicious processes (e.g., powershell.exe, cmd.exe, mshta.exe) making outbound network connections to public IP addresses on non-standard ports. This behavior can indicate command and control (C2) communication or data exfiltration attempts, as adversaries often use non-standard ports to evade detection.
+query: "// Detection: Suspicious Process Connecting on Non-Standard External Port\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1571 - Non-Standard Port\r\n\r\nlet standardPorts = dynamic([\r\n    80, 443, 8080, 8443, 53, 25, 587, 465, 110,\r\n    995, 143, 993, 21, 22, 3389, 5985, 5986, 123, 389, 636\r\n]);\r\nlet suspiciousProcs = dynamic([\r\n    \"powershell.exe\",\"cmd.exe\",\"wscript.exe\",\"cscript.exe\",\r\n    \"mshta.exe\",\"rundll32.exe\",\"regsvr32.exe\",\"certutil.exe\",\r\n    \"bitsadmin.exe\",\"nc.exe\",\"ncat.exe\",\"nmap.exe\"\r\n]);\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(1d)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteIPType == \"Public\"\r\n| where RemotePort !in (standardPorts)\r\n| where RemotePort between (1 .. 65535)\r\n| where InitiatingProcessFileName has_any (suspiciousProcs)\r\n| project TimeGenerated, DeviceName, LocalIP,\r\n          RemoteIP, RemotePort, RemoteUrl,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName\r\n| extend AlertDescription = strcat(\r\n    \"'\", InitiatingProcessFileName,\r\n    \"' connecting externally on non-standard port \", RemotePort,\r\n    \" — potential C2/exfil channel\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0010
+techniques:
+    - T1571
+    - T1059.001
+    - T1041
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

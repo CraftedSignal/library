@@ -1,0 +1,49 @@
+id: 019bec81-0302-7408-b54c-fe901276053e
+name: PyPI Package Impersonation with Cryptomining Malware
+description: This rule detects potential PyPI package impersonation attacks, specifically targeting packages that mimic 'sympy' and deliver cryptomining malware. It identifies suspicious package installation patterns, including the use of custom index URLs or extra index URLs, and the presence of specific installation flags like '--no-deps', '--no-cache-dir', or '--force-reinstall' in conjunction with 'sympy' related package names. Additionally, it looks for suspicious Python execution patterns involving code that imports, executes, or evaluates base64-encoded data, often associated with network communication libraries (urllib, requests, http.client, socket). The rule combines these indicators to identify malicious activity related to cryptomining malware delivered via PyPI.
+query: |
+    title: PyPI Package Impersonation with Cryptomining Malware
+    id: d94c3cc4-cc1b-45de-bcba-dc9d05098319
+    status: experimental
+    description: Detection of PyPI package impersonation attacks that deliver cryptomining malware, focusing on package installation patterns and suspicious Python execution
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://socket.dev/blog/pypi-package-impersonates-sympy-to-deliver-cryptomining-malware
+    tags:
+        - attack.initial_access
+        - attack.execution
+        - attack.t1195.002
+        - attack.t1059.006
+        - attack.t1496
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection_pip_install:
+            Image|endswith|any:
+                - '/pip'
+                - '/pip3'
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(pip\s+install|python.*-m\s+pip\s+install).*(sympy|sympy-|sympy_).*(--index-url|--extra-index-url|--trusted-host)'
+        selection_suspicious_package:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+                - '/pip'
+                - '/pip3'
+            CommandLine|re: '(?i)(pip\s+install.*sympy|install.*sympy)'
+            CommandLine|re: '(?i)(--no-deps|--no-cache-dir|--force-reinstall)'
+        selection_python_execution:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(-c\s+.*import|exec\(|eval\(|compile\(|__import__).*(base64|decode|decode64|b64decode).*(urllib|requests|http\.client|socket)'
+        condition: selection_pip_install or (selection_suspicious_package and selection_python_execution)
+    falsepositives:
+        - Legitimate sympy package installations (check for suspicious flags and execution patterns)
+        - Development environments installing packages with custom indexes
+    level: high
+query_type: sigma
+version: "2"

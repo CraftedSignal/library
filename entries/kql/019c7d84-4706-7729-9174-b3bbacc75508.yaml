@@ -1,0 +1,76 @@
+id: 019c7d84-4706-7729-9174-b3bbacc75508
+name: Periodic AI Data Exfiltration from Browser Processes
+description: Detects periodic network traffic (beaconing) from browser processes to external domains, which may indicate automated data exfiltration by a malicious extension like the ChatGPT Stealer. This threat is known to exfiltrate data at approximately 30-minute intervals.
+query: |-
+    // Name: Periodic AI Data Exfiltration
+    // Author: Nicholas Isakson
+    // Date: 2026-02-20
+    // Description: Detects periodic network traffic (beaconing) from browser processes to external domains, which may indicate automated data exfiltration by a malicious extension like the ChatGPT Stealer. This threat is known to exfiltrate data at approximately 30-minute intervals.
+    // MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols), T1041 (Exfiltration Over C2 Channel)
+
+    // Define detection parameters
+    let LookbackTime = 24h; // The time window to look for beaconing activity
+    let BeaconInterval = 30m; // The expected interval for the ChatGPT Stealer
+    let Jitter = 5m; // The allowed variance (plus or minus) from the beacon interval
+    // Define common browser processes
+    let BrowserProcesses = dynamic([
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe",
+        "brave.exe",
+        "opera.exe",
+        "vivaldi.exe"
+    ]);
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(LookbackTime)
+    | where InitiatingProcessFileName in~ (BrowserProcesses)
+    // False Positive Tuning: Exclude connections to known good, high-volume domains.
+    // This list should be customized for your environment to reduce noise from legitimate services.
+    | where not(RemoteUrl has_any ("google.com", "microsoft.com", "office.com", "bing.com"))
+    | where not(ipv4_is_private(RemoteIP))
+    // Sort events to calculate time differences between consecutive connections
+    | sort by DeviceName, InitiatingProcessFileName, RemoteUrl, TimeGenerated asc
+    | serialize GroupId = strcat(DeviceName, InitiatingProcessFileName, RemoteUrl)
+    // Group consecutive events and calculate the time difference in seconds
+    | extend PrevTime = prev(TimeGenerated, 1)
+    | extend TimeDiffInSeconds = (TimeGenerated - PrevTime) / 1s
+    | where isnotempty(PrevTime) and GroupId == prev(GroupId, 1)
+    // Summarize the connection patterns for each group
+    | summarize
+        ConnectionCount = count(),
+        FirstSeen = min(PrevTime),
+        LastSeen = max(TimeGenerated),
+        TimeDiffList = make_list(TimeDiffInSeconds),
+        AvgTimeDiff = avg(TimeDiffInSeconds),
+        StdevTimeDiff = stdev(TimeDiffInSeconds)
+        by DeviceName, InitiatingProcessFileName, RemoteUrl
+    // Filter for patterns that match the expected beaconing behavior
+    | where
+        // Ensure there are enough connections to establish a reliable pattern
+        ConnectionCount > 3 and
+        // Check if the average interval is close to the expected 30 minutes, ensuring type compatibility
+        AvgTimeDiff between (toreal((BeaconInterval - Jitter) / 1s) .. toreal((BeaconInterval + Jitter) / 1s)) and
+        // A low standard deviation indicates a regular, machine-like interval. A value under 60 seconds is a good starting point.
+        StdevTimeDiff < 60
+    | project
+        DeviceName,
+        InitiatingProcessFileName,
+        RemoteUrl,
+        ConnectionCount,
+        FirstSeen,
+        LastSeen,
+        AvgTimeDiff,
+        StdevTimeDiff,
+        TimeDiffList
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1041
+tags:
+    - kql
+author: Nicholas Isakson
+version: "3"

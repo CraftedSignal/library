@@ -1,0 +1,20 @@
+id: 019c1f7a-a3ef-71b2-9dfa-0f35463e64f5
+name: Suspicious GUP.exe Child Process
+description: Detects the Notepad++ updater process (gup.exe) spawning unusual child processes. Attackers have been observed hijacking the update process to execute malicious payloads.
+query: "// Name: Suspicious GUP.exe Child Process\r\n// Author: @jsh0x\r\n// Date: 2026-02-02\r\n// Tactic: Privilege Escalation, Defense Evasion\r\n// Technique: T1546.003, T1574.002, T1204.002\r\n// Description: Detects the Notepad++ updater process (gup.exe) spawning unusual child processes. Attackers have been observed hijacking the update process to execute malicious payloads.\r\n// False Positive Sensitivity: Medium\r\n// - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-371d7a3fd2d9\r\nlet suspicious_children = dynamic([\"update.exe\",\"AutoUpdater.exe\",\"curl.exe\",\"cmd.exe\",\"powershell.exe\",\"wscript.exe\",\"cscript.exe\",\"rundll32.exe\"]);\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(30d)\r\n| where InitiatingProcessFileName =~ \"gup.exe\"\r\n| where not(FileName =~ \"explorer.exe\" or FileName matches regex @\"^npp\\..*\\.Installer.*\\.exe$\")\r\n| where FileName in~ (suspicious_children) or FolderPath has_any (\"\\\\Temp\\\\\", \"\\\\tmp\\\\\", \"AppData\\\\Local\\\\\")\r\n| project Timestamp,DeviceName,AccountName,InitiatingProcessFileName,InitiatingProcessCommandLine,FileName,FolderPath,ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1574.001
+    - T1204.002
+tags:
+    - kql
+author: jsh0x
+version: "3"
+references:
+    - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-371d7a3fd2d9

@@ -1,0 +1,21 @@
+id: 019bf103-a190-75f3-a80b-cffa189f1208
+name: EtherRAT SSH Backdoor Installation and Persistence
+description: Detection of EtherRAT's SSH backdoor module that appends attacker-controlled public keys to authorized_keys. The rule correlates the creation of the .ssh directory with key injection and permission setting. It also identifies direct writes or appends to authorized_keys, and specific chmod operations on authorized_keys. Additionally, it looks for Node.js processes writing or appending to authorized_keys, indicating potential automated key injection.
+query: "title: EtherRAT SSH Backdoor Installation and Persistence\nid: 1c2d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f\nstatus: experimental\ndescription: |\n    Detection of EtherRAT's SSH backdoor module that appends attacker-controlled \n    public keys to authorized_keys. Correlates .ssh directory creation with key \n    injection and permission setting.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2\ntags:\n    - attack.persistence\n    - attack.t1098.004\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    ssh_dir_create:\n        CommandLine|re: '(?i)mkdir.*(-m\\s*700|--mode=700)?.*\\.ssh'\n    authorized_keys_append:\n        CommandLine|re: '(?i)(echo|cat|tee).*ssh-(rsa|ed25519|ecdsa).*>>.*authorized_keys'\n    authorized_keys_write:\n        CommandLine|re: '(?i)(echo|cat|tee).*ssh-(rsa|ed25519|ecdsa).*>.*authorized_keys'\n    chmod_ssh_files:\n        CommandLine|re: '(?i)chmod\\s+(600|0600).*authorized_keys'\n    node_ssh_injection:\n        Image|endswith|any:\n            - '/node'\n            - '/nodejs'\n        CommandLine|re: '(?i)(writeFile|appendFile).*authorized_keys'\n    condition: (ssh_dir_create and authorized_keys_append) or (authorized_keys_write and chmod_ssh_files) or node_ssh_injection\nfalsepositives:\n    - Legitimate SSH key management\n    - Automated provisioning systems\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.004
+tags:
+    - attack.persistence
+    - attack.t1098.004
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

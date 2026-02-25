@@ -1,0 +1,48 @@
+id: 3238be8c-ad8c-4b0b-b7e4-71d6061cd3bb
+name: Service abuse with malicious ImagePath (service)
+description: Detects scenarios where an attacker modify the original service executable path with a malicious one.
+query: |-
+    title: Service abuse with malicious ImagePath (service)
+    description: Detects scenarios where an attacker modify the original service executable path with a malicious one.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0003-Persistence/T1543.003-Create%20or%20Modify%20System%20Process-Windows%20Service
+    - https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/cc742019(v=ws.11)
+    - https://pentestlab.blog/2020/01/22/persistence-modify-existing-service/
+    tags:
+    - attack.persistence
+    - attack.t1543.003
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      category: process_creation
+    detection: # sc config <service_name> binPath="C:\windows\system32\pentestlab.exe"
+      selection_process:
+        NewProcessName|endswith: \sc.exe
+        CommandLine|contains|all:
+          - sc
+          - config
+          - binpath
+      condition: selection
+    falsepositives:
+    - administrator reconfiguring service
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.003
+tags:
+    - attack.persistence
+    - attack.t1543.003
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0003-Persistence/T1543.003-Create%20or%20Modify%20System%20Process-Windows%20Service
+    - https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-r2-and-2012/cc742019(v=ws.11)
+    - https://pentestlab.blog/2020/01/22/persistence-modify-existing-service/
+data_sources:
+    - process_creation
+    - windows

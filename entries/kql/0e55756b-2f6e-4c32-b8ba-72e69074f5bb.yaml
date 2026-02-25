@@ -1,0 +1,56 @@
+id: 0e55756b-2f6e-4c32-b8ba-72e69074f5bb
+name: Storm-0501 Account Takeover via Synced Password Reset and MFA Registration
+description: Detects a user password change synced from on-premises Active Directory, immediately followed by the same user registering a new MFA method. This sequence is highly suspicious for existing privileged accounts and was used by the threat actor Storm-0501 to compromise a Global Administrator account that previously lacked MFA.
+query: |
+    let lookback = 1h;
+    let PwdChanges = AuditLogs
+    | where TimeGenerated > ago(lookback)
+    | where Category == "UserManagement" and OperationName in ("Change user password", "Reset user password")
+    // The password change is initiated by the Entra Connect Sync service.
+    | where tostring(InitiatedBy.app.displayName) == "Microsoft Azure AD Connect" or tostring(InitiatedBy.user.userPrincipalName) has "On-Premises Directory Synchronization Service Account"
+    | extend TargetUserPrincipalName = tostring(TargetResources[0].userPrincipalName), TargetUserId = tostring(TargetResources[0].id)
+    | where isnotempty(TargetUserPrincipalName)
+    | project PwdChangeTime = TimeGenerated, PwdChangeOperation = OperationName, TargetUserPrincipalName, TargetUserId, InitiatingEntity = iff(isnotempty(tostring(InitiatedBy.app.displayName)), tostring(InitiatedBy.app.displayName), tostring(InitiatedBy.user.userPrincipalName));
+    // Find subsequent MFA registration events.
+    let MfaRegistrations = AuditLogs
+    | where TimeGenerated > ago(lookback)
+    | where Category == "UserManagement"
+    // This operation name covers various MFA registration activities.
+    | where OperationName has "User registered security info"
+    | extend TargetUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName), TargetUserId = tostring(InitiatedBy.user.id)
+    | extend MfaRegIP = tostring(InitiatedBy.ip.ipAddress)
+    | extend MfaRegLocation = tostring(parse_json(tostring(AdditionalDetails))[0].value)
+    | where isnotempty(TargetUserPrincipalName)
+    | project MfaRegTime = TimeGenerated, MfaRegOperation = OperationName, TargetUserPrincipalName, TargetUserId, MfaRegIP, MfaRegLocation;
+    // Join the two event types for the same user within the lookback window.
+    PwdChanges
+    | join kind=inner (
+        MfaRegistrations
+    ) on TargetUserId
+    // Ensure MFA registration happens after the password change.
+    | where MfaRegTime > PwdChangeTime and MfaRegTime - PwdChangeTime < lookback
+    | project
+        Timestamp = MfaRegTime,
+        AccountUpn = TargetUserPrincipalName,
+        AccountObjectId = TargetUserId,
+        MfaRegistrationIp = MfaRegIP,
+        MfaRegistrationLocation = MfaRegLocation,
+        PasswordChangeTime = PwdChangeTime,
+        MfaRegistrationTime = MfaRegTime,
+        InitiatingSyncService = InitiatingEntity
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0001
+techniques:
+    - T1078.004
+    - T1556.007
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/27/storm-0501s-evolving-techniques-lead-to-cloud-based-ransomware/

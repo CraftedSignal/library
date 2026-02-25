@@ -1,0 +1,17 @@
+id: 019ada10-5644-7605-bf52-a20cbcfc15f9
+name: Suspicious Scheduled Tasks from %LOCALAPPDATA%
+description: This rule detects suspicious scheduled tasks that execute binaries from the AppData\Local folder, which is a common location for user-specific applications and can be abused by adversaries for persistence. Such behavior is often used by Infostealer Malware. The rule specifically looks for processes initiated by 'svchost.exe' or 'taskeng.exe' with command lines indicating scheduled task execution, and then filters out a whitelist of known legitimate applications that operate from this directory. It also incorporates a global prevalence check to further reduce false positives.
+query: "//https://github.com/benscha/KQLAdvancedHunting\r\n//Whitelisted FolderPaths\r\nlet WhitelistedPaths = dynamic([\r\n    \"\\\\AppData\\\\Local\\\\Chrome\\\\User Data\",\r\n    \"\\\\AppData\\\\Local\\\\Microsoft\\\\Teams\\\\current\",\r\n    \"\\\\AppData\\\\Local\\\\ZoomMeetings\\\\bin\",\r\n    \"\\\\AppData\\\\Local\\\\Google\\\\GoogleUpdater\\\\\",\r\n    \"\\\\AppData\\\\Local\\\\Opera\\\\autoupdate\\\\opera_autoupdate.exe\",\r\n    \"\\\\AppData\\\\Local\\\\Microsoft\\\\OneDrive\\\\OneDriveStandaloneUpdater.exe\",\r\n    \"\\\\AppData\\\\Local\\\\Dropbox\\\\DropboxUpdater\\\\\",\r\n    \"\\\\AppData\\\\Local\\\\Mozilla Firefox\\\\firefox.exe\",\r\n    \"\\\\AppData\\\\Local\\\\GoToMeeting\\\\\",\r\n    \"\\\\AppData\\\\Local\\\\Mozilla Firefox\\\\default-browser-agent.exe\",\r\n    \"\\\\AppData\\\\Local\\\\BraveSoftware\\\\Update\\\\BraveUpdate.exe\",\r\n    \"AppData\\\\Local\\\\VLC Plus Player Updater\\\\Updater.exe\",\r\n    \"\\\\AppData\\\\Local\\\\ConvertMate\\\\UpdateRetreiver.exe\",\r\n    \"\\\\AppData\\\\Local\\\\Programs\\\\Opera Air\\\\autoupdate\\\\opera_autoupdate.exe\",\r\n    \"\\\\AppData\\\\Local\\\\PDFClick\\\\PDFClickUpdater.exe\",\r\n    \"\\\\AppData\\\\Local\\\\AVAST Software\\\\Browser\\\\Application\\\\AvastBrowser.exe\",\r\n    \"\\\\AppData\\\\Local\\\\Vivaldi\\\\Application\\\\update_notifier.exe\",\r\n    \"\\\\AppData\\\\Local\\\\anaconda3\\\\envs\\\\EMMA\\\\python.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where InitiatingProcessFileName in (\"svchost.exe\", \"taskeng.exe\")\r\n| where InitiatingProcessCommandLine has_all (\"netsvcs\", \"Schedule\") or InitiatingProcessFileName == \"taskeng.exe\"\r\n| where FolderPath matches regex @\"(?i)C:\\\\Users\\\\.*\\\\AppData\\\\Local\\\\.*\"\r\n// Substring-based Whitelisting\r\n| where not(FolderPath has_any (WhitelistedPaths))\r\n| extend TaskSource = iff(InitiatingProcessFileName == \"svchost.exe\", \"Scheduled Task (svchost)\", \"Scheduled Task (taskeng)\")\r\n| invoke FileProfile(SHA1)\r\n| where GlobalPrevalence < 30000\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053
+    - T1053.005
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "5"

@@ -1,0 +1,56 @@
+id: 019be1c9-746a-700a-9c1e-0362812f9f09
+name: Defendnot Security Bypass Tool
+description: Detects the presence and execution of Defendnot components. This tool is used to disable Microsoft Defender by exploiting the Windows Security Center trust model, which involves injecting a malicious DLL into the trusted Task Manager process.
+query: |
+    title: Defendnot Security Bypass Tool
+    id: b159d8a9-2ed4-4025-bada-1eadd996558a
+    status: experimental
+    description: Detects the presence and execution of Defendnot components. This
+      tool is used to disable Microsoft Defender by exploiting the Windows Security
+      Center trust model, which involves injecting a malicious DLL into the trusted
+      Task Manager process.
+    references:
+      - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    author: detections.ai
+    date: 2026-01-21
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.004
+      - attack.t1218
+    logsource:
+      product: windows
+      # This rule requires file creation events (e.g., Sysmon Event ID 11) or image load events (e.g., Sysmon Event ID 7).
+    detection:
+      selection_file:
+        TargetFilename|endswith:
+          # Detects the creation of the specific Defendnot tool files.
+          - '\defendnot-loader.exe'
+          - '\defendnot.dll'
+      selection_load:
+        Image|endswith: '\taskmgr.exe' # Detects injection into the trusted Task Manager process.
+        ImageLoaded|endswith: '\defendnot.dll'
+      condition: 1 of them
+    falsepositives:
+      - The filenames 'defendnot-loader.exe' and 'defendnot.dll' are specific to
+        this tool. False positives are unlikely unless other software coincidentally
+        uses these names.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.004
+    - T1218
+    - T1055
+tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+    - attack.t1218
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+data_sources:
+    - windows

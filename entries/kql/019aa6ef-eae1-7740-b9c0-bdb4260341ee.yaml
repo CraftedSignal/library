@@ -1,0 +1,24 @@
+id: 019aa6ef-eae1-7740-b9c0-bdb4260341ee
+name: EvilAi Node.js Malware CMD Execution for System Information Discovery
+description: Detects suspicious behavior where a Node.js-based application, potentially EvilAi malware, launches cmd.exe to query MachineGuid from the registry or system model via PowerShell. This activity indicates potential fingerprinting or persistence activity, often originating from the \AppData\Local\Programs\ directory with medium integrity.
+query: "//Title: EvilAi Node.js Malware Detection CMD Execution (DeviceProcessEvents)  \n//Description: Detects suspicious behavior where a Node.js-based application launches cmd.exe to query MachineGuid from the registry, indicating potential fingerprinting or persistence activity by EvilAi malware.\n//Author(s): Adair John Collins\n//Date: 11/21/2025\n//Version: 1\nDeviceProcessEvents \n| where InitiatingProcessFolderPath has @\"\\AppData\\Local\\Programs\\\"\n//Focus on processes launched from the suspicious folder associated with EvilAi  \n| where InitiatingProcessIntegrityLevel == \"Medium\" //Filter for medium integrity level processes (typically user-level, not elevated)\n| where InitiatingProcessVersionInfoOriginalFileName == \"node.exe\" //Ensure the parent process is node.exe, indicating a Node.js-based launcher \n| where FolderPath has @\":\\Windows\\System32\\cmd.exe\"\n| where ProcessCommandLine has @\"cmd.exe /d /s /c\" and ProcessCommandLine has_any(@'powershell -command \"(Get-CimInstance -ClassName Win32_ComputerSystem | Select-Object).Model', @':\\WINDOWS\\system32\\reg.exe QUERY \"HKLM\\Software\\Microsoft\\Cryptography\" /v MachineGuid')\n| sort by Timestamp, DeviceId asc //Sort results chronologically and by device for investigation\n//Reference(s):  \n//https://www.virustotal.com/gui/file/efa658cb9eb24136c8c69540fcde833683ed5002def1b6c84b0d04f64ee25076/detection  \n//https://www.virustotal.com/gui/search/engines:trojan%20AND%20engines:evilai%20AND%20engines:infosteal?type=files  \n//https://www.virustotal.com/gui/domain/api.cjby76nlcynrc4jvrb.com\n//Incident Response Steps:\n//EvilAi JavaScript Threat Response via Microsoft Defender for Endpoint (MDE)\n//1.Inspect the MDE timeline for .js files located under \\AppData\\Local\\Programs\\ManualReaderPro\\\n//2.Use MDE Live Response to acquire the suspicious .js files\n//3.De-obfuscate the JavaScript files using \"https://deobfuscate.io/\" and extract any embedded command-and-control (C2) IP addresses or domains\n//4.Block the extracted indicators using Microsoft Defender Threat Intelligence (TI) blocking capabilities\n//5.Remediate the malicious .js files using the Live Response command: remediate\n//6.Run a full antivirus scan after remediation to ensure the system is clean"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1082
+    - T1059
+    - T1059.007
+    - T1012
+tags:
+    - kql
+author: Adair John Collins
+version: "2"
+references:
+    - https://www.virustotal.com/gui/file/efa658cb9eb24136c8c69540fcde833683ed5002def1b6c84b0d04f64ee25076/detection
+    - https://www.virustotal.com/gui/search/engines:trojan%20AND%20engines:evilai%20AND%20engines:infosteal?type=files
+    - https://www.virustotal.com/gui/domain/api.cjby76nlcynrc4jvrb.com
+    - https://www.linkedin.com/in/adaircollins/
+    - https://raw.githubusercontent.com/wifisec/DetectionEngineering/refs/heads/main/defender-for-endpoint/detection-rules/windows/evilai_nodejs_cmd.txt

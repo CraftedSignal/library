@@ -1,0 +1,82 @@
+id: 6e93a1a7-1647-42a9-a020-5cf0a92510f9
+name: UNC6395 Salesforce Data Theft Activity
+description: Detects data theft activity from Salesforce instances by the threat actor UNC6395, who leveraged compromised OAuth tokens associated with the Salesloft Drift third-party application. The detection is based on suspicious user agents and known malicious IP addresses used by the threat actor, specifically targeting the 'Drift' connected application.
+query: |
+    title: UNC6395 Salesforce Data Theft Activity
+    id: 265b0dd2-60a9-474b-97f7-d14b934585d8
+    status: experimental
+    description: Detects data theft activity from Salesforce instances by the threat actor UNC6395, who leveraged compromised OAuth tokens associated with the Salesloft Drift third-party application.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift
+    author: detections.ai
+    date: 2025-08-26
+    tags:
+      - attack.collection
+      - attack.credential_access
+      - attack.t1213
+      - attack.t1528
+    logsource:
+      product: salesforce
+      category: cloud
+    detection:
+      # Malicious and suspicious User-Agents observed in the campaign
+      selection_ua:
+        http.user_agent:
+          - 'Salesforce-Multi-Org-Fetcher/1.0'
+          - 'Salesforce-CLI/1.0'
+          - 'python-requests/2.32.4'
+          - 'Python/3.11 aiohttp/3.12.15'
+      # IP addresses used by the threat actor, including Tor exit nodes
+      selection_ip:
+        source.ip:
+          - '208.68.36.90'
+          - '44.215.108.109'
+          - '154.41.95.2'
+          - '176.65.149.100'
+          - '179.43.159.198'
+          - '185.130.47.58'
+          - '185.207.107.130'
+          - '185.220.101.133'
+          - '185.220.101.143'
+          - '185.220.101.164'
+          - '185.220.101.167'
+          - '185.220.101.169'
+          - '185.220.101.180'
+          - '185.220.101.185'
+          - '185.220.101.33'
+          - '192.42.116.179'
+          - '192.42.116.20'
+          - '194.15.36.117'
+          - '195.47.238.178'
+          - '195.47.238.83'
+      # The attack specifically targeted the Drift connected application
+      filter_app:
+        # The field name for the connected app may vary (e.g., 'application', 'salesforce.connected_app_name').
+        # Adjust this field based on your Salesforce log schema.
+        salesforce.application: 'Drift'
+      condition: (selection_ua or selection_ip) and filter_app
+    falsepositives:
+      - The 'python-requests' and 'aiohttp' user agents are generic and may cause false positives if used by other applications. The filter for the 'Drift' application significantly reduces this risk.
+      - Some of the IP addresses are Tor exit nodes, which could be used for legitimate, albeit unusual, access. Investigate any hits to confirm malicious intent.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1213
+    - T1213.004
+    - T1528
+tags:
+    - attack.collection
+    - attack.credential_access
+    - attack.t1213
+    - attack.t1528
+author: detections.ai
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift
+data_sources:
+    - cloud
+    - salesforce

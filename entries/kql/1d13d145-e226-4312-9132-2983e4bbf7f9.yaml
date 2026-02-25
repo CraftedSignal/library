@@ -1,0 +1,43 @@
+id: 1d13d145-e226-4312-9132-2983e4bbf7f9
+name: DarkCloud Stealer RunOnce and Network Activity
+description: Detects a process setting the RunOnce registry key and making suspicious network connections associated with DarkCloud Stealer.
+query: |-
+    // Detects a process setting the RunOnce registry key and making suspicious network connections (file distribution or IP check services) associated with DarkCloud Stealer.
+    let runOnceSet = DeviceRegistryEvents
+    | where RegistryKey == @"HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\"
+    | where ActionType == "RegistryValueSet"
+    | extend RunOnceProcessId = InitiatingProcessId, RunOnceTimestamp = Timestamp, RunOnceProcessName = InitiatingProcessFileName, RunOnceProcessPath = InitiatingProcessFolderPath, RunOnceCommandLine = InitiatingProcessCommandLine, RunOnceTargetValue = RegistryValueData;
+    // Look for suspicious network connections (distribution domain or IP check services)
+    let suspiciousNetwork = DeviceNetworkEvents
+    | where RemoteUrl contains "files.catbox.moe" or RemoteUrl contains "showip.net" or RemoteUrl contains "mediacollege.com"
+    | extend NetProcessId = InitiatingProcessId, NetTimestamp = Timestamp, NetProcessName = InitiatingProcessFileName, NetProcessPath = InitiatingProcessFolderPath, NetCommandLine = InitiatingProcessCommandLine, ConnectedUrl = RemoteUrl, ConnectedIP = RemoteIP;
+    // Join the two events by DeviceId and ProcessId within a time window
+    runOnceSet
+    | join kind=inner (suspiciousNetwork) on DeviceId, $left.RunOnceProcessId == $right.NetProcessId
+    | where NetTimestamp between (RunOnceTimestamp - 5m .. RunOnceTimestamp + 5m) // Adjust time window as needed
+    | project
+        RunOnceTimestamp,
+        NetTimestamp,
+        DeviceId,
+        DeviceName,
+        RunOnceProcessName,
+        RunOnceProcessPath,
+        RunOnceCommandLine,
+        RunOnceTargetValue,
+        ConnectedUrl,
+        ConnectedIP,
+        ReportId
+    // Add metadata below for new rules
+    /*
+    | customFields
+        Author = "Detections.ai",
+        Date = "2025-05-23",
+        Description = "Detects a process setting the RunOnce registry key and making suspicious network connections (file distribution or IP check services) associated with DarkCloud Stealer.",
+        References = "https://unit42.paloaltonetworks.com/darkcloud-stealer-and-obfuscated-autoit-scripting/",
+        MITRE_ATTACK = "T1053.005 - Scheduled Task/Job: Registry Run Keys / Startup Folders, T1102.001 - Web Service: Cloud Storage, T1590.005 - Gather Victim Network Information: IP Addresses"
+    */
+query_type: kql
+severity: medium
+techniques:
+    - T1053.005
+version: "1"

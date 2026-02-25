@@ -1,0 +1,52 @@
+id: 019c918b-8a2b-71bd-9281-40643c58308d
+name: Booking.com Phishing Campaign Detection
+description: This rule detects various indicators associated with the Booking.com phishing campaign targeting hotels and customers. It identifies suspicious web requests to non-Booking.com domains containing 'op_token' and 'complaint' or 'reservation' keywords, especially when combined with punycode, 'booklng' typos, or management-related subdomains. It also looks for partner kit patterns involving 'sign-in/?tpo_token=' and 'booklng' in URLs. Additionally, it identifies suspicious emails from newly generated Gmail accounts with specific subjects ('Automatic reply', 'Availability', 'Reservation') containing 'op_token' in the subject or body.
+query: |+
+    ## Booking.com phishing campaign hunts (partner + customer kits)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers
+
+    ### 1) Web/proxy: complaint op_token lures on non-Booking domains
+    (index=proxy OR index=web OR index=waf) (
+      (url="*op_token=*" AND (url="*/complaint*" OR url="*/complint*" OR url="*/reserv*"))
+      AND NOT (dest_domain="booking.com" OR dest_domain="admin.booking.com" OR url="*://booking.com/*" OR url="*://admin.booking.com/*")
+    )
+    | eval is_punycode=if(match(dest_domain,"^xn--"),1,0)
+    | eval is_booklng=if(like(dest_domain,"%booklng%"),1,0)
+    | eval is_mgmnt=if(match(dest_domain,"mgmnt|portal|control|identity"),1,0)
+    | where is_punycode=1 OR is_booklng=1 OR is_mgmnt=1
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as uas by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Web/proxy: partner kit pattern (booklng + sign-in/?tpo_token=)
+    (index=proxy OR index=web OR index=waf) (url="*sign-in/?tpo_token=*" AND url="*booklng*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as uas by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Email gateway (if available): generated gmail senders + op_token lure
+    (index=email OR index=o365 OR index=mail) (
+      from="*@gmail.com"
+      AND (subject="*Automatic reply*" OR subject="*Availability*" OR subject="*Reservation*")
+    )
+    | regex from="^[a-z]{7,11}[0-9]{2,3}@gmail\\.com$"
+    | search (url="*op_token=*" OR body="*op_token=*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(subject) as subjects values(url) as urls by from, recipient
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+    - T1598.003
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers

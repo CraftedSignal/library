@@ -1,0 +1,63 @@
+id: 019c00e3-c7b5-70d8-a694-5f87a1a08376
+name: Obfuscated PowerShell Alias and Wildcard Abuse
+description: Detects PowerShell commands that use aliases and wildcard matching to dynamically resolve sensitive cmdlets like Invoke-Expression or Invoke-RestMethod. This technique is used to evade static analysis and keyword-based detections and was observed in the Amatera Stealer infection chain.
+query: |
+    title: Obfuscated PowerShell Alias and Wildcard Abuse
+    id: e82db715-bebb-4ac2-aaaa-c59053c7cfce
+    status: experimental
+    description: >-
+      Detects PowerShell commands that use aliases and wildcard matching to
+      dynamically resolve sensitive cmdlets like Invoke-Expression or
+      Invoke-RestMethod. This technique is used to evade static analysis and
+      keyword-based detections and was observed in the Amatera Stealer infection
+      chain.
+    references:
+      - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+    author: detections.ai
+    date: 2026-01-27
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1059.001
+      - attack.t1027.010
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects PowerShell processes
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        # Detects specific obfuscation patterns seen in the Amatera campaign
+        CommandLine|contains:
+          - 'gal i*x' # Corresponds to Get-Alias for Invoke-Expression (iex)
+          - 'gcm *stM*' # Corresponds to Get-Command for Invoke-RestMethod
+          - 'ScriptBlock.Create' # Used to create and execute script blocks from strings
+      condition: selection
+    falsepositives:
+      - Advanced administrative or development scripts may use 'ScriptBlock.Create'
+        for legitimate purposes.
+      - The use of alias/wildcard combinations like 'gal i*x' is highly suspicious
+        and unlikely to be legitimate.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027.010
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1059.001
+    - attack.t1027.010
+author: detections.ai
+version: "2"
+references:
+    - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+data_sources:
+    - process_creation
+    - windows

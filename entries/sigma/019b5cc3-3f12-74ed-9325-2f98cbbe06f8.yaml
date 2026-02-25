@@ -1,0 +1,59 @@
+id: 019b5cc3-3f12-74ed-9325-2f98cbbe06f8
+name: Okta Session Impersonation Grant
+description: |
+    Detects events in Okta where there is the eventType of "user.session.impersonation.grant".
+    This grants access in the context of the user. This could be high privilege admin access.
+query: |
+    title: Okta Session Impersonation Grant
+    id: fe04b26b-0ac4-45d7-9404-4b9f16a440a9
+    status: experimental
+    description: >
+      Detects events in Okta where there is the eventType of
+      "user.session.impersonation.grant".
+
+      This grants access in the context of the user. This could be high privilege
+      admin access.
+    references:
+      - https://www.beyondtrust.com/blog/entry/okta-support-unit-breach
+      - https://developer.okta.com/docs/reference/system-log-query/
+      - https://attack.mitre.org/techniques/T1484/002/
+    author: zendannyy
+    date: 2025-12-25T00:00:00.000Z
+    tags:
+      - attack.privilege_escalation
+    logsource:
+      service: okta
+      product: okta
+    detection:
+      selection:
+        debugContext.debugData.requestUri|contains: admin
+        eventType:
+          - user.session.impersonation.grant
+      filter:
+        alternateId|contains:
+          - system@okta.com
+          - '@company_domain.com'
+      condition: selection and not filter
+    falsepositives:
+      - The only legitimate use case here is an Okta support engineer actively
+        working with an Okta Admin.
+      - This access is temporary and should be revoked once done with support case.
+      - Apply additional filters if necessary
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+techniques:
+    - T1484.002
+tags:
+    - attack.privilege_escalation
+author: zendannyy
+version: "1"
+references:
+    - https://www.beyondtrust.com/blog/entry/okta-support-unit-breach
+    - https://developer.okta.com/docs/reference/system-log-query/
+    - https://attack.mitre.org/techniques/T1484/002/
+data_sources:
+    - okta
+    - okta

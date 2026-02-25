@@ -1,0 +1,54 @@
+id: 0199caa0-aab5-753f-85f8-2463a3fcdb2d
+name: Possible Detection of MSIX Payloads via Google Ad (via cmdline)
+description: This rule aimed to detect NetSupport RAT via MSIX app installer files. Attackers use csvde.exe to collect target device informations such as ip and accountname. They put outputs to the file (-f). And then send it to the attacker.
+query: |-
+    title: Possible Detection of MSIX Payloads via Google Ad (via cmdline)
+    id: 376f08aa-43bb-4638-b42c-7530d10ab13e
+    description: This rule aimed to detect NetSupport RAT via MSIX app installer files. Attackers use csvde.exe to collect target device informations such as ip and accountname. They put outputs to the file (-f). And then send it to the attacker.
+    author: Ziya Deniz
+    references:
+    - https://www.esentire.com/blog/fin7-uses-trusted-brands-and-sponsored-google-ads-to-distribute-msix-payloads
+    date: 2024-05-19
+    tags:
+    - attack.persistence
+    - attack.T1486
+    - attack.T1592
+    status: stable
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      exec_selection:
+        Image|endswith: 'csvde.exe'
+        ParentImage|endswith:
+        - cmd.exe
+        - PowerShell.exe
+      command_selection:
+        CommandLine|contains|all:
+        - -r
+        - -l
+        - -f
+        - samAccountName
+        - description
+        - IPv4Address
+        - objectClass=Computer
+      condition: exec_selection and command_selection
+    falsepositives:
+    - New ESXi installation or adding new hardware (disk) to existing ESX servers may cause false positives.
+    level: high
+query_type: sigma
+severity: medium
+techniques:
+    - T1592
+    - T1486
+tags:
+    - attack.persistence
+    - attack.T1486
+    - attack.T1592
+author: Ziya Deniz
+version: "1"
+references:
+    - https://www.esentire.com/blog/fin7-uses-trusted-brands-and-sponsored-google-ads-to-distribute-msix-payloads
+data_sources:
+    - process_creation
+    - windows

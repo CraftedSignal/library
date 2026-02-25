@@ -1,0 +1,16 @@
+id: 019a9574-a29a-739f-8dc2-8c76538d36b3
+name: 'Impossible Travel Indicator: Multi-Country Logons'
+description: |-
+    The purpose of this query is to identify accounts that have logged in from multiple different countries within a short time window (last hour or last day).
+    This is typically used for security monitoring to detect suspicious or anomalous authentication behavior.
+query: "IdentityLogonEvents\r\n| where Timestamp > ago(1h)  //1d / 1h\r\n| where isnotempty(Location) and isnotempty(AccountDisplayName)\r\n| summarize CountriesAccessed = dcount(Location), CountryList = make_set(Location), LogonCount = count(), IPList = make_set(IPAddress) \r\n    by AccountDisplayName, bin(Timestamp, 1d)\r\n| where CountriesAccessed >= 3 //2/3\r\n| project Timestamp, AccountDisplayName, CountriesAccessed, CountryList, IPList, LogonCount\r\n| order by CountriesAccessed desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1078
+    - T1090
+    - T1110
+    - T1087
+tags:
+    - kql
+version: "2"

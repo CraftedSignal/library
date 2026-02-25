@@ -1,0 +1,28 @@
+id: 5959e1f3-75cc-4abf-8e81-d0ddec9a7d9c
+name: PowerShell executed with parent or grandparent process of mshta.exe (Clickfix)
+description: |-
+    This hunt looks for PowerShell being executed as a child or grandchild of mshta.exe or network events initiated by PowerShell as a child of mshta.exe.
+    There are two ways to approach this:
+        Look for device network events initiated by PowerShell with a parent of mshta.exe
+        Look for process events where PowerShell is executed with a parent process of mshta.exe
+    The search in this hunt leverages the second approach.
+    You could also look for PowerShell command lines making web requests but the obfuscation employed by known threat actors makes this more difficult to find by matching strings.
+query: "union\r\n(\r\nDeviceNetworkEvents\r\n| where InitiatingProcessCommandLine contains \"powershell.exe\" or InitiatingProcessVersionInfoInternalFileName contains \"powershell.exe\"\r\n| where InitiatingProcessParentFileName == \"mshta.exe\"\r\n),\r\n(\r\nDeviceProcessEvents\r\n| where InitiatingProcessParentFileName == \"mshta.exe\" or InitiatingProcessCommandLine contains \"mshta.exe\" or InitiatingProcessVersionInfoInternalFileName == \"mshta.exe\"\r\n| where ProcessCommandLine contains \"powershell.exe\"\r\n| project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessCommandLine, ProcessVersionInfoInternalFileName, InitiatingProcessVersionInfoInternalFileName\r\n)\r\n|project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessCommandLine, InitiatingProcessParentFileName, RemoteUrl, RemoteIP"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218.005
+    - T1059.001
+tags:
+    - clickfix
+    - powershell
+    - mshta
+    - kql
+author: Salten Fisk
+version: "1"
+references:
+    - https://www.reliaquest.com/blog/using-captcha-for-compromise/
+    - https://redcanary.com/threat-detection-report/techniques/mshta/c

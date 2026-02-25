@@ -1,0 +1,14 @@
+id: a82c004e-4f0a-469e-9b9c-d4af491f6fa3
+name: Suspicious Command Execution via Run Dialog (RunMRU)
+description: This rule detects commands executed via the Run dialog (Win+R), which is often used by attackers or malicious scripts to launch tools like PowerShell, cmd, or other malicious payloads. It specifically looks for modifications to the 'RunMRU' registry key by 'explorer.exe' that contain suspicious keywords or patterns indicative of command execution, especially in scenarios like ClickFix-style attacks where users are tricked into running commands.
+query: "## \U0001F50D KQL Description\n#### The objective of this KQL script is to detect commands executed via the Run dialog, which is often used by attackers or malicious scripts to launch tools like PowerShell, cmd, or malicious payloads—especially in ClickFix-style attacks, where users are tricked into running commands.\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic: Execution\n#### Goal: Run unauthorized or malicious code on the system.\n#### Technique: T1059 – Command and Scripting Interpreter\n#### Sub-techniques - T1059.001 – PowerShell, T1059.003 – Windows Command Shell\n### Query:\n```KQL\nDeviceRegistryEvents\n| where ActionType == \"RegistryValueSet\"\n| where InitiatingProcessFileName =~ \"explorer.exe\"\n| where RegistryKey has @\"\\CurrentVersion\\Explorer\\RunMRU\"\n| where RegistryValueData has \"✅\" or (RegistryValueData has_any (\"powershell\", \"mshta\", \"curl\", \"msiexec\", \"cmd\") and (RegistryValueData has_any (\"verify\", \"http\", \"https\", \"-W Hidden\",  \"-eC\",  \"-o\",  \"vbscript\", \"E:jscript\", \"ssh\", \"Invoke-Expression\", \"DownloadString\", \"DownloadFile\", \"FromBase64String\", \"System.IO.Compression\", \"System.IO.MemoryStream\", \"iex\", \"iex(\", \"Invoke-WebRequest\", \"iwr\", \"Get-ADDomainController\")) or RegistryValueData matches regex @\"[-/–][Ee^]{1,2}[NnCcOoDdEeMmAa^]*\\s[A-Za-z0-9+/=]{15,}\")\n```\n"
+query_type: kql
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+version: "1"

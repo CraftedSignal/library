@@ -1,0 +1,52 @@
+id: 019bc20c-0f61-72fa-9dfb-b49d885be664
+name: RustyWater Payload Execution
+description: Detects the execution of the RustyWater implant payload "CertificationKit.ini" from the "C:\ProgramData" directory. This activity is associated with the MuddyWater APT group.
+query: |
+    title: RustyWater Payload Execution
+    id: 1ed42da8-9ccb-4cf7-ba4e-3ccd5f2cbce5
+    status: experimental
+    description: Detects the execution of the RustyWater implant payload
+      "CertificationKit.ini" from the "C:\ProgramData" directory. This activity is
+      associated with the MuddyWater APT group.
+    references:
+      - https://www.cloudsek.com/blog/reborn-in-rust-muddywater-evolves-tooling-with-rustywater-implant#iocs
+    author: detections.ai
+    date: 2026-01-15
+    tags:
+      - attack.execution
+      - attack.t1059.005
+      - attack.t1047
+      - attack.g0069
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\cmd.exe' # Detects command prompt execution
+        CommandLine|contains: 'C:\ProgramData\CertificationKit.ini' # Looks for the specific payload path and name used by RustyWater
+      condition: selection
+    falsepositives:
+      - Legitimate software could potentially use a file with the same name in this
+        directory, but it is unlikely. Further tuning could involve checking for
+        WmiPrvSE.exe as the parent process, as the malware is often launched via
+        WMI.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.005
+    - T1047
+tags:
+    - attack.execution
+    - attack.t1059.005
+    - attack.t1047
+    - attack.g0069
+author: detections.ai
+version: "2"
+references:
+    - https://www.cloudsek.com/blog/reborn-in-rust-muddywater-evolves-tooling-with-rustywater-implant#iocs
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,38 @@
+id: ff067722-dd6b-4ff6-9806-f5944566a717
+name: IFM creation detected from commandline (installation from media)
+description: Detects scenarios where an attacker attempts to create an IFM image (usually used for deploying domain controllers to reduce replication traffic) for dumping credentials.
+query: "title: IFM creation detected from commandline (installation from media)\ndescription: Detects scenarios where an attacker attempts to create an IFM image (usually used for deploying domain controllers to reduce replication traffic) for dumping credentials.\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/T1003-Credential%20dumping\n- https://blog.menasec.net/2019/11/forensics-traces-of-ntdsdit-dumping.html\n- https://adsecurity.org/?p=2398\n- https://www.ired.team/offensive-security/credential-access-and-credential-dumping/ntds.dit-enumeration\n- https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-R2-and-2012/cc753343(v=ws.11)\n- https://www.microsoft.com/security/blog/2021/11/08/threat-actor-dev-0322-exploiting-zoho-manageengine-adselfservice-plus/\n- https://twitter.com/JohnLaTwC/status/1416382178380767233?s=09\n- https://thedfirreport.com/2021/10/04/bazarloader-and-the-conti-leaks/\n- https://blog.talosintelligence.com/2022/08/recent-cyber-attack.html\n- https://www.microsoft.com/en-us/security/blog/2022/10/18/defenders-beware-a-case-for-post-ransomware-investigations/\n- https://blog.sekoia.io/lucky-mouse-incident-response-to-detection-engineering/\n- https://media.defense.gov/2023/May/24/2003229517/-1/-1/0/CSA_Living_off_the_Land.PDF\n- https://www.microsoft.com/en-us/security/blog/2023/05/24/volt-typhoon-targets-us-critical-infrastructure-with-living-off-the-land-techniques/\n- https://thedfirreport.com/2023/10/30/netsupport-intrusion-results-in-domain-compromise/\n- https://medium.com/@simone.kraus/part-2-sensor-mapping-reverse-engineering-ntds-a73bde69031e\ntags:\n- attack.credential_dumping\n- attack.t1003.003\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_baseline:\n    NewProcessName|endswith: \n      - '\\ntdsutil.exe'\n      - '\\dsdbutil.exe'\n\n  selection_creation_basic: # full command: \"ntdsutil \"activate instance ntds\" ifm \"create full c:\\data\" quit quit\"\n    CommandLine|contains|all:\n      - ifm\n      - create\n\n  selection_creation_obfuscated:\n    CommandLine|contains|all:\n      - ' i '  # ifm\n      - ' c '  # create\n\n  selection_activation_basic: # full command \"ntdsutil.exe \"act i ntds\" i \"c full c:\\hacker\" q q\"\n    CommandLine|contains|all:\n      - activate\n      - instance\n      - ntds\n\n  selection_activation_obfuscated:\n    CommandLine|contains|all:\n      - 'ac ' # activate\n      - ntds\n\n  condition: selection_baseline and 1 of selection_*\nfalsepositives:\n- Administrator creating a IFM image\n- Backup program or script\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+    - TA0002
+techniques:
+    - T1003.003
+    - T1003
+    - T1223
+tags:
+    - attack.credential_dumping
+    - attack.t1003.003
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/T1003-Credential%20dumping
+    - https://blog.menasec.net/2019/11/forensics-traces-of-ntdsdit-dumping.html
+    - https://adsecurity.org/?p=2398
+    - https://www.ired.team/offensive-security/credential-access-and-credential-dumping/ntds.dit-enumeration
+    - https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2012-R2-and-2012/cc753343(v=ws.11)
+    - https://www.microsoft.com/security/blog/2021/11/08/threat-actor-dev-0322-exploiting-zoho-manageengine-adselfservice-plus/
+    - https://twitter.com/JohnLaTwC/status/1416382178380767233?s=09
+    - https://thedfirreport.com/2021/10/04/bazarloader-and-the-conti-leaks/
+    - https://blog.talosintelligence.com/2022/08/recent-cyber-attack.html
+    - https://www.microsoft.com/en-us/security/blog/2022/10/18/defenders-beware-a-case-for-post-ransomware-investigations/
+    - https://blog.sekoia.io/lucky-mouse-incident-response-to-detection-engineering/
+    - https://media.defense.gov/2023/May/24/2003229517/-1/-1/0/CSA_Living_off_the_Land.PDF
+    - https://www.microsoft.com/en-us/security/blog/2023/05/24/volt-typhoon-targets-us-critical-infrastructure-with-living-off-the-land-techniques/
+    - https://thedfirreport.com/2023/10/30/netsupport-intrusion-results-in-domain-compromise/
+    - https://medium.com/@simone.kraus/part-2-sensor-mapping-reverse-engineering-ntds-a73bde69031e
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,14 @@
+id: 019c8ebe-4428-7468-a75f-b2c1424e43e3
+name: Device Connected to Known Malicious IP (TI Feed Match)
+description: This rule detects outbound network connections from devices to IP addresses identified as malicious by a threat intelligence feed. It joins device network events with threat intelligence indicators, specifically looking for successful connections or connection requests to IPs with a confidence score greater than 50. The alert provides details about the device, the remote IP, the initiating process, and the threat intelligence context.
+query: "// Detection: Device Connected to Known Malicious IP (TI Feed Match)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1071 - Application Layer Protocol\r\n\r\nlet TIWindow    = ago(14d);\r\nlet EventWindow = ago(1d);\r\nlet TI =\r\n    ThreatIntelligenceIndicator\r\n    | where TimeGenerated >= TIWindow\r\n    | where Active == true\r\n    | where isnotempty(NetworkIP)\r\n    | where ExpirationDateTime > now()\r\n    | where ConfidenceScore > 50\r\n    | summarize LatestTI = max(TimeGenerated)\r\n        by NetworkIP, ThreatType, ConfidenceScore;\r\nDeviceNetworkEvents\r\n| where TimeGenerated >= EventWindow\r\n| where ActionType in (\"ConnectionSuccess\",\"ConnectionRequest\")\r\n| join kind=inner TI on $left.RemoteIP == $right.NetworkIP\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    RemoteIP,\r\n    RemotePort,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ThreatType,\r\n    ConfidenceScore\r\n| extend AlertDescription = strcat(\r\n    \"Connection to known malicious IP \", RemoteIP,\r\n    \" [ThreatType: \", ThreatType,\r\n    \" | Confidence: \", ConfidenceScore, \"]\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

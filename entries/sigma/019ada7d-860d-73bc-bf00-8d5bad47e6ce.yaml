@@ -1,0 +1,61 @@
+id: 019ada7d-860d-73bc-bf00-8d5bad47e6ce
+name: PowerShell Obfuscation via Repeated Empty-String Literal Patterns
+description: Detects PowerShell execution containing multiple repeated empty-string literal patterns such as "" or '' (including variants with whitespace), often used in trivial string-obfuscation techniques observed in malicious scripts. The regex is greedy so per environment tuning may be necessary.
+query: |
+    title: PowerShell Obfuscation via Repeated Empty-String Literal Patterns
+    id: 4b8d9f86-1f2b-41c3-8c43-3de19ea47d4d
+    status: experimental
+    description: >-
+      Detects PowerShell execution containing multiple repeated empty-string literal
+      patterns such as "" or '' (including variants with whitespace), often used in
+      trivial string-obfuscation techniques observed in malicious scripts. The regex
+      is greedy so per environment tuning may be necessary.
+    references:
+      - https://attack.mitre.org/techniques/T1027/
+    tags:
+      - attack.obfuscation
+      - attack.defense_evasion
+      - attack.t1027
+      - seen_in_the_wild
+    author: Marcus Mingo
+    date: 2023-12-01T00:00:00.000Z
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_regex:
+        CommandLine|re: >
+          (?ix) powershell (?:\.exe)?  .*\ ( ['"] \ s? ['"] )  .*\ ( ['"] \ s? ['"]
+          ) .*\ ( ['"] \ s? ['"] )  .*\ ( ['"] \ s? ['"] )?
+      condition: selection_regex
+    fields:
+      - CommandLine
+      - ParentImage
+      - Image
+      - User
+    falsepositives:
+      - Rare; potentially present in debugging, string testing, or accidental code
+        generation using repeated empty-string concatenations.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.obfuscation
+    - attack.defense_evasion
+    - attack.t1027
+    - seen_in_the_wild
+author: Marcus Mingo
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1027/
+data_sources:
+    - process_creation
+    - windows
+    - security

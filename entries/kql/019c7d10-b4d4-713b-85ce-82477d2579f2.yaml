@@ -1,0 +1,19 @@
+id: 019c7d10-b4d4-713b-85ce-82477d2579f2
+name: TeamPCP Malware Hash Match
+description: Detects the presence or execution of known TeamPCP malware and infrastructure tools (proxy.sh, kube.py, pcpcat.py, and tunneling tools like FRPS/gost) based on their MD5 file hashes. The group uses these standardized payloads to automate their operations.
+query: "// Name: TeamPCP Malware Hash Match\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects the presence or execution of known TeamPCP malware and infrastructure tools (proxy.sh, kube.py, pcpcat.py, and tunneling tools like FRPS/gost) based on their MD5 file hashes. The group uses these standardized payloads to automate their operations.\r\n// Tactics: Execution, Command and Control, Discovery\r\n// Techniques: T1059.004, T1572, T1021.002\r\n// False Positive Sensitivity: Medium\r\n// References:\r\n// - https://thehackernews.com/2026/02/teampcp-worm-exploits-cloud.html\r\n// - https://cybersecuritynews.com/teampcp-industrializes-cloud-misconfigurations/\r\nlet pcpHashes = dynamic([\r\n    \"692238a56e1941b1d92df3d8dfd513eb\", // proxy.sh\r\n    \"4e99e24649e1b32cccf15bc3a2a5f421\", // frps (ELF)\r\n    \"b4242fe303e9dc491480e90202274a36\", // gost (ELF)\r\n    \"1c949ae44105d400f8b4709f8a29c82a\", // react.py\r\n    \"844ec243d0edcaa952a9700ef53d2611\", // kube.py\r\n    \"cad6a9f588c1c1f90d03575f4c115ff3\", // pcpcat.py\r\n    \"40a5e3971e7139a7b9cddbbcea618bb1\"  // scanner.py\r\n    ]);\r\n// This query checks for both file creation (DeviceFileEvents) and process execution (DeviceProcessEvents) events.\r\nunion isfuzzy=true DeviceFileEvents, DeviceProcessEvents\r\n// Match against the list of known TeamPCP MD5 hashes.\r\n| where MD5 in (pcpHashes)\r\n// FP-TUNING: Hash-based detections are high-fidelity. False positives are rare but could occur if a legitimate, internal tool has a hash collision. Exclude known-good file paths or device names if necessary.\r\n// For example: | where FolderPath !startswith \"C:\\\\trusted_path\\\\\"\r\n| project\r\n    TimeGenerated,\r\n    EventType = ActionType,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    MD5,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.004
+    - T1572
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://thehackernews.com/2026/02/teampcp-worm-exploits-cloud.html
+    - https://cybersecuritynews.com/teampcp-industrializes-cloud-misconfigurations/

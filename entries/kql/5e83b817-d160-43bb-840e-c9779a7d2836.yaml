@@ -1,0 +1,26 @@
+id: 5e83b817-d160-43bb-840e-c9779a7d2836
+name: DefenderXDR - Devman Ransomware Detection
+description: 'KQL Query from file: DefenderXDR - Devman Ransomware Detection'
+query: "\r\n// DevMan Ransomware  Detection Query\r\n// NRT detection of DragonForce ransomware .devman variant. Combines suspicious indicators from the same process.\r\n// Based on IOCs from https://any.run/cybersecurity-blog/devman-ransomware-analysis/\r\n\r\nlet lookbackWindow = 5m; // Define the lookback window for NRT detection\r\nlet fileActivity = DeviceFileEvents\r\n| where TimeGenerated > ago(lookbackWindow)\r\n// Derive file extension from FileName to ensure it's always available\r\n| extend _FileExtension = tolower(tostring(split(FileName, '.')[-1]))\r\n| where InitiatingProcessFileName has_any (\"hsfjuukjzloqu28oajh727190\", \"e47qfsnz2trbkhnt.devman\") or FileName has_any (\"hsfjuukjzloqu28oajh727190\", \"e47qfsnz2trbkhnt.devman\") or _FileExtension == \"devman\"\r\n| project Timestamp, DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessCommandLine, FileName, FolderPath, _FileExtension, ActionType, SHA256, ReportId, FileActivityDetection = \"File IOC\";\r\nlet registryActivity = DeviceRegistryEvents\r\n| where TimeGenerated > ago(lookbackWindow)\r\n| where RegistryKey has \"HKEY_CURRENT_USER\\\\Software\\\\Microsoft\\\\RestartManager\\\\Session0000\"\r\n| project Timestamp, DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessCommandLine, RegistryKey, RegistryValueData, ActionType, ReportId, RegistryActivityDetection = \"Registry IOC\";\r\nlet processActivity = DeviceProcessEvents\r\n| where TimeGenerated > ago(lookbackWindow)\r\n| where ProcessCommandLine has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\") or ProcessVersionInfoOriginalFileName has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\") or ProcessVersionInfoProductName has_any (\"Local\\\\RstrMgr\", \"Local\\\\RstrMgr-\")\r\n| project Timestamp, DeviceId, DeviceName, ProcessId, ProcessCommandLine, FileName, ReportId, ProcessActivityDetection = \"Process Mutex Pattern\";\r\nfileActivity\r\n| join kind=inner (registryActivity | union processActivity) on DeviceId, $left.InitiatingProcessId == $right.InitiatingProcessId\r\n| where abs(datetime_diff('second', Timestamp, Timestamp1)) < 60\r\n| project Timestamp = coalesce(Timestamp, Timestamp1), DeviceId, DeviceName, InitiatingProcessId = coalesce(InitiatingProcessId, InitiatingProcessId1), InitiatingProcessCommandLine = coalesce(InitiatingProcessCommandLine, InitiatingProcessCommandLine1), FileName, FolderPath, _FileExtension, RegistryKey, RegistryValueData, ProcessMutexPattern = ProcessActivityDetection, FileIOCDetected = FileActivityDetection, RegistryIOCDetected = RegistryActivityDetection, ActionType, SHA256, ReportId = coalesce(ReportId, ReportId1)\r\n| extend DetectionDetails = strcat(iif(isnotempty(FileIOCDetected), \"File IOC: \", \"\"), iif(isnotempty(FileIOCDetected), strcat(FileName, \" (\", _FileExtension, \")\"), \"\"), iif(isnotempty(RegistryIOCDetected), \", Registry IOC: \", \"\"), iif(isnotempty(RegistryIOCDetected), RegistryKey, \"\"), iif(isnotempty(ProcessMutexPattern), \", Mutex Pattern: \", \"\"), iif(isnotempty(ProcessMutexPattern), ProcessMutexPattern, \"\"))\r\n| project-reorder Timestamp, DeviceName, InitiatingProcessCommandLine, DetectionDetails\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0006
+    - TA0003
+    - TA0004
+    - TA0040
+techniques:
+    - DS0022
+    - T1600
+    - T1547.001
+    - T1552.002
+    - DS0009
+    - T1055.012
+    - T1486
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://github.com/dylanevans-cybersec/KQL-Queries/blob/main/DefenderXDR/DragonForce%20devman%20Ransomware%20Detection%20Query

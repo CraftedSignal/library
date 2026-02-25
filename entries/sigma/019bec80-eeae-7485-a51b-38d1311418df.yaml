@@ -1,0 +1,70 @@
+id: 019bec80-eeae-7485-a51b-38d1311418df
+name: PyPI Impersonation Cryptomining Malware Execution
+description: 'This rule detects patterns indicative of cryptomining malware execution, specifically targeting those distributed via impersonated PyPI packages. It looks for Python processes exhibiting characteristics such as: 1. Command lines containing keywords related to mining, cryptocurrency, hashing, and mining pools. 2. Python processes making suspicious network connections to stratum+tcp or mining pools. 3. Python processes engaging in resource-intensive operations like multiprocessing or threading, often utilizing all available CPU cores. 4. Python processes executing obfuscated code, potentially involving base64, zlib, or gzip decoding, combined with network requests. The rule triggers if any of these conditions are met, or if a combination of suspicious network activity and resource-intensive behavior, or obfuscated execution and resource-intensive behavior, is observed.'
+query: |
+    title: PyPI Impersonation Cryptomining Malware Execution
+    id: 5bef5c15-9528-46ad-bcd1-d367c2ba9538
+    status: experimental
+    description: Detection of cryptomining malware execution patterns from impersonated PyPI packages including suspicious network connections and resource-intensive processes
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://socket.dev/blog/pypi-package-impersonates-sympy-to-deliver-cryptomining-malware
+    tags:
+        - attack.execution
+        - attack.command_and_control
+        - attack.t1496
+        - attack.t1059.006
+        - attack.t1071
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection_mining_process:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(mining|miner|crypto|coin|hash|sha256|scrypt).*(pool|stratum|miningpool)'
+        selection_suspicious_network:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(socket|connect|bind|listen).*(stratum\+tcp|mining|pool)'
+        selection_resource_intensive:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(multiprocessing|threading|Pool|Process).*(cpu_count|os\.cpu_count)'
+        selection_obfuscated_exec:
+            Image|endswith|any:
+                - '/python'
+                - '/python3'
+            CommandLine|re: '(?i)(exec\(|eval\(|compile\(|__import__).*(base64|decode|zlib|gzip).*(urllib|requests|http)'
+        condition: selection_mining_process or (selection_suspicious_network and selection_resource_intensive) or (selection_obfuscated_exec and selection_resource_intensive)
+    falsepositives:
+        - Legitimate Python applications using multiprocessing
+        - Development tools making network connections
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0040
+    - TA0011
+techniques:
+    - T1496
+    - T1059.006
+    - T1071
+tags:
+    - attack.execution
+    - attack.command_and_control
+    - attack.t1496
+    - attack.t1059.006
+    - attack.t1071
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://socket.dev/blog/pypi-package-impersonates-sympy-to-deliver-cryptomining-malware
+data_sources:
+    - process_creation
+    - linux

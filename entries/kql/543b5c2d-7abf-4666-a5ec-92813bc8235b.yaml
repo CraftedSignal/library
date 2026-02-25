@@ -1,0 +1,21 @@
+id: 543b5c2d-7abf-4666-a5ec-92813bc8235b
+name: Phishing by Design Two-Step Attacks Using vsdx Files
+description: KQL Query
+query: "// Phishing by Design: Two-Step Attacks Using .vsdx Files\n\n// A recent blog from Perception Point details a sophisticated phishing attack using Microsoft Visio files hosted on SharePoint. Attackers embed malicious URLs in these files, which are sent via compromised email accounts with attached .eml files. Victims are tricked into clicking these links, leading to fake Microsoft login pages designed to steal credentials. This method leverages trusted platforms to evade detection, highlighting the need for advanced security measures. The Perception Point blog link has been shared in the comment section for awareness.\n// I have crafted a precise KQL using Microsoft Defender for Office 365 and Endpoint to detect such abuse scenarios, helping defenders mitigate the risk of these two-step attacks that leverage trusted platforms to evade detection.  The KQL code can be downloaded from my SlimKQL GitHub Repository, which is featured on my LinkedIn profile. (Search for “Phishing by Design Two-Step Attacks Using vsdx Files”)\n\nlet WhiteListSharepointDomain = dynamic([\"XXX.sharepoint.com\"]);\nlet EMLSharepointDomain =\nEmailAttachmentInfo \n| where FileName endswith \".eml\" or FileName endswith \".msg\"\n| join EmailEvents on NetworkMessageId\n| where EmailDirection == \"Inbound\"\n| join EmailUrlInfo on NetworkMessageId\n| where UrlLocation == \"Attachment\"\n| extend URLDomain = tostring(parse_url(Url).Host)\n| where URLDomain has \".sharepoint.com\"\n| where not (URLDomain has_any (WhiteListSharepointDomain))\n| distinct URLDomain;\n//Consolidated all external sharepoint domains from all .eml .msg attachment\nDeviceNetworkEvents\n| where ActionType == @\"HttpConnectionInspected\"\n| extend Host = parse_json(AdditionalFields)[\"host\"]\n| extend Direction = parse_json(AdditionalFields)[\"direction\"]\n| where Direction == \"Out\" and Host has_any(EMLSharepointDomain)\n// MDE Endpoint click on external sharepoint links that was embedded in .eml .msg attachment\n\n// T1566.001 - Phishing: Spearphishing Attachment:\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0043
+    - TA0006
+    - TA0009
+techniques:
+    - T1566.001
+    - T1566
+    - T1566.002
+    - T1589.001
+    - T1557
+    - T1557.004
+    - T1199
+tags:
+    - kql
+version: "1"

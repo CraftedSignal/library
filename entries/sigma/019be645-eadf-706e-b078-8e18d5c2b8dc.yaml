@@ -1,0 +1,64 @@
+id: 019be645-eadf-706e-b078-8e18d5c2b8dc
+name: TamperedChef Security Software Discovery
+description: Detects attempts by the TamperedChef malware to discover installed security products by querying specific registry keys. This behavior often precedes credential theft activities, which can involve terminating browser processes.
+query: |
+    title: TamperedChef Security Software Discovery
+    id: 34d84932-d225-47c6-94da-b0aa021dc5ac
+    status: experimental
+    description: Detects attempts by the TamperedChef malware to discover installed
+      security products by querying specific registry keys. This behavior often
+      precedes credential theft activities, which can involve terminating browser
+      processes.
+    references:
+      - https://www.sophos.com/en-us/blog/tamperedchef-serves-bad-ads-with-infostealers-as-the-main-course
+    author: detections.ai
+    date: 2026-01-22
+    tags:
+      - attack.discovery
+      - attack.t1518.001
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_process:
+        # Detects the use of the built-in Windows Registry utility
+        Image|endswith: '\reg.exe'
+        CommandLine|contains: 'query'
+      selection_keys:
+        # Specific registry keys queried by TamperedChef to identify security software
+        CommandLine|contains:
+          - 'Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\{4073CD02-7996-48D7-AFDF-297676C27CA6}'
+          - 'Software\Classes\G DATA ANTIVIRUS'
+          - 'Software\CheckPoint\ZANG'
+          - 'Software\KasperskyLabSetup'
+          - 'Software\Fortinet'
+          - 'Software\Microsoft\Windows\CurrentVersion\Run\Bitdefender'
+          - 'Software\Microsoft\Windows\CurrentVersion\Uninstall\Bitdefender'
+          - 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{96A251BD-7532-4CF9-B87D-158FC685DBC4}'
+          - 'Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\REC'
+          - 'Software\Wow6432Node\Microsoft\Windows\CurrentVersion\Uninstall\G DATA
+            ANTIVIRUS'
+          - 'Software\Zillya\Zillya Antivirus'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate system administration or software inventory scripts may query
+        these registry keys.
+      - This detection may need to be tuned by excluding legitimate script paths or
+        parent processes if excessive noise is observed.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1518.001
+tags:
+    - attack.discovery
+    - attack.t1518.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.sophos.com/en-us/blog/tamperedchef-serves-bad-ads-with-infostealers-as-the-main-course
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,27 @@
+id: 05995551-d2ae-4479-9489-9b68b1afc1f7
+name: Detect vulnerable device with Global Admin browser cookie credential
+description: KQL Query
+query: "// Detect vulnerable device with Global Admin browser cookie credential\n// https://www.linkedin.com/posts/0x534c_exposuremanagement-attackpaths-critical-activity-7227325225493803009-o5te/\n//Thanks to Marko Lauren’s recent insights on how #ExposureManagement customers can identify #attackpaths that originate in non-cloud environments and target #critical cloud assets using Entra cloud credentials.\n\n//Leveraging DefenderXDR Exposure Management, I developed a KQL query that replicates this attack path functionality. The following KQL checks all Critical Identities (in my use case, line 6 limits to GA accounts only; removing this line will include all critical identities) and identifies which devices have their Entra browser cookie credentials stored, then checks if these devices have any critical vulnerabilities.\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) \nand NodeProperties.rawData.criticalityLevel.criticalityLevel < 4\n| where NodeProperties has \"Global Administrator\" // Remove this line to include all Critical Identities\n| distinct NodeName;\nlet VulnerableEndPointwithBCookie =\nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties has \"BrowserCookies\"\n| where TargetNodeName has_any (CriticalIdentities)\n// SourceNodeName = Devices that contains GA browser cookie \n| distinct SourceNodeName;\nDeviceTvmSoftwareVulnerabilities\n| where VulnerabilitySeverityLevel == \"Critical\"\n| where DeviceName has_any (VulnerableEndPointwithBCookie)\n\n// Bridging the On-premises to Cloud Security Gap: Cloud Credentials Detection\n// Link: https://techcommunity.microsoft.com/t5/security-compliance-and-identity/bridging-the-on-premises-to-cloud-security-gap-cloud-credentials/ba-p/4211794\n\n// MITRE ATT&CK Mapping\n\n//The KQL code is designed to identify critical identities, endpoints with browser cookies of these identities, and devices with critical vulnerabilities. The associated MITRE ATT&CK techniques include:\n\n// T1078: Valid Accounts\n// T1078.004: Valid Accounts: Cloud Accounts\n// T1539: Steal Web Session Cookie\n// T1190: Exploit Public-Facing Application\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+    - TA0043
+    - TA0042
+    - TA0002
+techniques:
+    - T1078
+    - T1078.004
+    - T1539
+    - T1190
+    - T1595.002
+    - T1588.006
+    - T1651
+    - T1675
+    - T1609
+tags:
+    - kql
+version: "1"

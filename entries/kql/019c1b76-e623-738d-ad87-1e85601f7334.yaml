@@ -1,0 +1,13 @@
+id: 019c1b76-e623-738d-ad87-1e85601f7334
+name: Suspicious USB NIC Chipset Detected
+description: This rule detects the connection of USB Network Interface Controllers (NICs) with specific Vendor and Product IDs known to be associated with suspicious devices often used in Man-in-the-Middle (MITM) implants. These include devices like the Hak5 LAN Turtle, Realtek USB GbE adapters (often found in Raspberry Pi-based implants), and D-Link USB Ethernet adapters that have been observed in modified implants. The rule specifically filters for 'PnpDeviceConnected' events where the device class is a network adapter.
+query: "// Known suspicious USB NIC chipsets often used in MITM implants\r\nlet SuspiciousNICs = datatable(VendorId:string, ProductId:string, Description:string)\r\n[\r\n    \"0B95\",\"772A\",\"ASIX AX88772A USB2Ethernet (Hak5 LAN Turtle)\",\r\n    \"0B95\",\"1790\",\"ASIX AX88179 USB3Ethernet\",\r\n    \"0BDA\",\"8153\",\"Realtek USB GbE (used in Pi-based dongles/implants)\",\r\n    \"0BDA\",\"8152\",\"Realtek 10/100 USB Ethernet\",\r\n    \"2001\",\"1A02\",\"D-Link USB Ethernet (seen in modded implants)\"\r\n];\r\nDeviceEvents\r\n| where TimeGenerated > ago(1h)\r\n| where ActionType == \"PnpDeviceConnected\"\r\n| extend DeviceName = tostring(parse_json(AdditionalFields).DeviceName),\r\n         DeviceClass = tostring(parse_json(AdditionalFields).DeviceClassGuid),\r\n         VendorId = tostring(parse_json(AdditionalFields).VendorId),\r\n         ProductId = tostring(parse_json(AdditionalFields).ProductId)\r\n| where DeviceClass == \"{4d36e972-e325-11ce-bfc1-08002be10318}\" // Network Adapters only\r\n| join kind=inner SuspiciousNICs on VendorId, ProductId\r\n| project\r\n    TimeGenerated,\r\n    DeviceId,\r\n    DeviceName,\r\n    VendorId,\r\n    ProductId,\r\n    Description,\r\n    InitiatingProcessAccountName,\r\n    ReportId\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1200
+tags:
+    - kql
+version: "1"

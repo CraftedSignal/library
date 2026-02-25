@@ -1,0 +1,61 @@
+id: 013faa3e-ae76-44d2-ad00-2b550e937441
+name: Anomalous System Behavior
+description: KQL Query
+query: |
+    // Name: Anomalous System Behavior
+    // Author: detections.ai
+    // Date: 2025-08-11
+    // Description: Detects anomalous system behavior that could indicate sophisticated threats deviating from normal activity. This includes unusual process-parent relationships, unexpected network connections from scripting engines, and attempts to modify registry keys related to AMSI or ETW configuration.
+    // MITRE ATT&CK: TA0002 (Execution), T1070 (Indicator Removal)
+    // References: https://github.com/BC-SECURITY/Obfuscation-Reloaded
+
+    // Part 1: Detects scripting engines spawned by unusual parent processes
+    DeviceProcessEvents
+    | where FileName in~ ("powershell.exe", "pwsh.exe", "cscript.exe", "wscript.exe", "mshta.exe")
+        and InitiatingProcessFileName in~ ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "chrome.exe", "msedge.exe", "firefox.exe", "acrord32.exe")
+    // FP Tuning: Exclude known good parent-child relationships as needed
+    // Example: | where not (InitiatingProcessFileName == "outlook.exe" and ProcessCommandLine has "MyLoginScript.ps1")
+    | extend AnomalyType = "Unusual Parent-Process Relationship"
+    | extend Details = strcat("Parent: ", InitiatingProcessFileName, ", Process: ", FileName)
+    | project TimeGenerated, DeviceName, AccountName, AnomalyType, Details, InitiatingProcessFileName, FileName, ProcessCommandLine
+
+    | union (
+        // Part 2: Detects network connections initiated by scripting engines to non-private IP addresses
+        DeviceNetworkEvents
+        | where InitiatingProcessFileName in~ ("powershell.exe", "pwsh.exe", "cscript.exe", "wscript.exe", "mshta.exe")
+        | where not (
+            ipv4_is_private(RemoteIP)
+            or RemoteIP in ("127.0.0.1", "::1")
+        )
+        // FP Tuning: Exclude known good destination IPs or domains as needed
+        // Example: | where not (RemoteIP == "1.2.3.4" or RemoteUrl has "mycompany.sharepoint.com")
+        | extend AnomalyType = "Unexpected Network Connection from Scripting Engine"
+        | extend Details = strcat("Process ", InitiatingProcessFileName, " connected to ", RemoteIP, ":", tostring(RemotePort))
+        | project TimeGenerated, DeviceName, AccountName, AnomalyType, Details, InitiatingProcessFileName, RemoteIP, RemotePort, RemoteUrl
+    )
+
+    | union (
+        // Part 3: Detects modification of registry keys related to AMSI or ETW logging
+        DeviceRegistryEvents
+        | where RegistryKey has_any (
+            @"\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging",
+            @"\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging",
+            @"\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription",
+            @"\\SOFTWARE\\Microsoft\\AMSI\\Providers"
+        )
+        // FP Tuning: Exclude known legitimate processes as needed
+        // Example: | where not (InitiatingProcessFileName == "svchost.exe")
+        | extend AnomalyType = "AMSI/ETW Configuration Tampering"
+        | extend Details = strcat("Action: ", ActionType, ", Key: ", RegistryKey, ", Value: ", RegistryValueData)
+        | project TimeGenerated, DeviceName, AccountName, AnomalyType, Details, InitiatingProcessFileName, ActionType, RegistryKey, RegistryValueData
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1070
+tags:
+    - kql
+version: "1"

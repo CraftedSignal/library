@@ -1,0 +1,20 @@
+id: 019c76bb-5310-7202-bd89-9abad6e1eb2c
+name: CRESCENTHARVEST - Sideloading via Google Software Reporter Tool from Suspicious Directories
+description: Detects the execution of the deprecated Google 'software_reporter_tool.exe' from suspicious user-writable directories. This technique is used by the CRESCENTHARVEST malware campaign to perform DLL sideloading using a signed, but deprecated, binary to evade defenses.
+query: "// Name: CRESCENTHARVEST - Sideloading via Google Software Reporter Tool\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the execution of the deprecated Google 'software_reporter_tool.exe' from suspicious user-writable directories. This technique is used by the CRESCENTHARVEST malware campaign to perform DLL sideloading using a signed, but deprecated, binary to evade defenses.\r\n// Tactics: Defense Evasion, Execution\r\n// Techniques: T1574.002\r\n// References: https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/\r\nDeviceProcessEvents\r\n// Look for the execution of the Google Software Reporter Tool.\r\n| where FileName =~ \"software_reporter_tool.exe\"\r\n// The legitimate location is within the Chrome application folder. Execution from user-writable locations like AppData or Temp is a strong indicator of malicious activity.\r\n| where FolderPath has_any (@\"\\AppData\\Local\\Temp\", @\"\\AppData\\Roaming\", @\"\\Users\\Public\", @\"C:\\Temp\\\")\r\n// FP Tuning: This tool is deprecated. Legitimate execution is rare, but portable browser versions or admin scripts might cause FPs.\r\n// Exclude known safe parent processes if necessary. e.g., | where InitiatingProcessFileName !~ \"legit_installer.exe\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessParentId,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - Intel ID def6f9fab55c0643a2e518ace3a5ba32890978a58f553af61462a6b28c851595
+    - https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/

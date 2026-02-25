@@ -1,0 +1,34 @@
+id: 019c4dc2-9ca0-746a-ab17-7d02972b8080
+name: macOS ClickFix curl Pipe to zsh/sh
+description: This rule detects suspicious process creation activity on macOS systems where `curl` output is piped directly into a shell, specifically `zsh` or `sh`. This technique is often used by attackers to execute malicious scripts directly from a remote source without writing them to disk. The rule looks for `zsh` processes with command lines containing `curl` and a pipe character, or `curl` processes with a pipe character in their command line. This behavior is associated with campaigns like Datadog Tech Impersonators (ClickFix).
+query: |
+    title: ClickFix macOS curl Pipe to zsh
+    id: d1e2f3a4-b5c6-4e3f-7586-datadog01
+    status: experimental
+    description: |
+        macOS ClickFix: victim pastes command that runs curl then pipes output to zsh. Datadog Tech Impersonators campaign; stager often fetches script and pipes to osascript.
+    references:
+        - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059.004
+        - attack.execution
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_zsh:
+            Image|endswith: '/zsh'
+            CommandLine|contains: 'curl'
+            CommandLine|contains: '|'
+            CommandLine|re: 'zsh|sh\s*$'
+        selection_curl:
+            Image|endswith: '/curl'
+            CommandLine|contains: '|'
+        condition: selection_zsh or selection_curl
+    falsepositives:
+        - Legitimate script fetches (e.g. brew install) that pipe to shell
+    level: high
+query_type: sigma
+version: "2"

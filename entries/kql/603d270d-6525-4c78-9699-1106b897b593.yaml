@@ -1,0 +1,54 @@
+id: 603d270d-6525-4c78-9699-1106b897b593
+name: Chaos Ransomware Group PowerShell Activity
+description: This rule detects suspicious PowerShell command patterns associated with the Chaos ransomware group. These commands are used for environment setup, preparing for large file downloads, and remote command execution.
+query: |
+    // Name: Chaos Ransomware Group PowerShell Activity
+    // Author: detections.ai
+    // Date: 2025-08-01
+    // Description: This rule detects suspicious PowerShell command patterns associated with the Chaos ransomware group. These commands are used for environment setup, preparing for large file downloads, and remote command execution.
+    // False Positives: The 'Set-Location' command is common. If this rule is noisy, consider adding more specific logic, such as looking for parent processes or specific user accounts, or removing that clause entirely.
+    // References: https://blog.talosintelligence.com/new-chaos-ransomware/
+    // Tags: T1059.001, T1047, Chaos, Ransomware
+    let timeframe = 1h;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Focusing on PowerShell execution events
+    | where FileName =~ "powershell.exe" or ProcessCommandLine has "powershell"
+    // Searching for command-line patterns used by Chaos ransomware
+    | where
+        // Pattern 1: Interactive PowerShell session setting a specific location. Used for environment setup.
+        // This pattern can be legitimate. Consider tuning by looking for unusual parent processes or combining with other activity.
+        (ProcessCommandLine has "Set-Location" and ProcessCommandLine has "-noexit") or
+        // Pattern 2: Modifying Delivery Optimization settings to allow large file downloads from a local peer.
+        (ProcessCommandLine has "Get-DeliveryOptimizationStatus" and ProcessCommandLine has "ConvertTo-Xml" and ProcessCommandLine contains "localhost:8005") or
+        // Pattern 3: Use of Impacket's atexec tool for remote execution.
+        (ProcessCommandLine has "atexec")
+    | extend
+        timestamp = TimeGenerated,
+        hostName = DeviceName,
+        processName = FileName,
+        commandLine = ProcessCommandLine,
+        initiatingProcess = InitiatingProcessFileName,
+        userName = AccountName,
+        userDomain = AccountDomain
+    | project
+        timestamp,
+        hostName,
+        userName,
+        userDomain,
+        processName,
+        commandLine,
+        initiatingProcess
+query_type: kql
+tactics:
+    - TA0002
+    - TA0040
+techniques:
+    - T1059.001
+    - T1047
+    - T1486
+tags:
+    - kql
+version: "1"
+references:
+    - https://blog.talosintelligence.com/new-chaos-ransomware/

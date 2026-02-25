@@ -1,0 +1,16 @@
+id: 2221bcad-492b-4a7d-b633-962ce987507a
+name: 'Suspicious Execution of Logon Script from SMB/Netlogon '
+description: Detects the execution of command-line interpreters (cmd.exe, powershell.exe, wscript.exe, cscript.exe) from the Netlogon or Sysvol shares. This activity is highly suspicious as these shares are typically used for Group Policy and logon scripts, not for direct execution of interactive shells or scripting engines by users or processes. This could indicate an adversary attempting to execute malicious code or scripts from a central, often replicated, location within a Windows domain environment, potentially for lateral movement, persistence, or privilege escalation.
+query: "DeviceProcessEvents\r\n| where InitiatingProcessFileName in~ (\"cmd.exe\", \"powershell.exe\", \"wscript.exe\", \"cscript.exe\")\r\n| where FolderPath has @\"\\netlogon\\\" or FolderPath has @\"\\sysvol\\\"\r\n| where InitiatingProcessFileName in~ (\"cmd.exe\",\"powershell.exe\",\"wscript.exe\",\"cscript.exe\",\"userinit.exe\",\"winlogon.exe\")\r\n| project Timestamp, DeviceName, InitiatingProcessFileName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - kql
+author: Ranger007
+version: "1"
+references:
+    - https://businessinsights.bitdefender.com/eggstreme-fileless-malware-cyberattack-apac?cid=soc%7Cn%7Csprout%7Cemp&blaid=7861087

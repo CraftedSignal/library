@@ -1,0 +1,41 @@
+id: e18e31a9-1291-48cd-838a-eb07557c44fe
+name: Suspicious Hdiutil Disk Image Activity
+description: KQL Query
+query: |-
+    // Rule Name: Suspicious Hdiutil Activity (Disk Image Mounting or Data Exfiltration)
+    // Description: Detects suspicious usage of the hdiutil utility on macOS, which can indicate malicious disk image mounting for execution or data exfiltration via disk image creation.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // References: https://www.loobins.io/binaries/hdiutil/
+    // Tactics: Execution, Collection
+    // Platforms: macOS
+    // Data Source: Process Events
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName == "hdiutil"
+    | where InitiatingProcessFileName !in ("Installer", "App Store") // Exclude common legitimate macOS installers
+    | where (
+        // Hypothesis 1: Suspicious Disk Image Mounting (Execution)
+        // IOA: hdiutil used to mount/attach a disk image (.dmg, .iso) from a suspicious location.
+        // FP Exclusion: Excludes common installer processes and focuses on disk images originating from user-controlled or temporary directories.
+        (ProcessCommandLine has_any ("mount", "attach")
+         and ProcessCommandLine matches regex @'\.(dmg|iso)' // Target disk image files
+         and ProcessCommandLine matches regex @'(/(Users/[^/]+/(Downloads|Desktop|tmp))|/private/tmp/|/var/tmp/)' // Disk image path is suspicious (user-controlled or temp)
+        )
+        or
+        // Hypothesis 2: Data Exfiltration via Disk Image Creation (Collection)
+        // IOA: hdiutil used to create a disk image from sensitive user directories, especially with encryption.
+        // FP Exclusion: Creating encrypted disk images from sensitive user data is a strong indicator and less common for legitimate activity.
+        (ProcessCommandLine has "create"
+         and ProcessCommandLine has "-srcfolder"
+         and ProcessCommandLine has "-ov" // Output file specified
+         and ProcessCommandLine matches regex @'-srcfolder\s+(/Users/[^/]+/(Desktop|Documents|Downloads|Library|Public|tmp)|/tmp/|/var/tmp/)' // Source folder is sensitive user data or temp
+         and ProcessCommandLine has_any ("-encryption", "-stdinpass") // Strong indicator: encryption used
+        )
+    )
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

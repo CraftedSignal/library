@@ -1,0 +1,32 @@
+id: 97f26d5d-7dda-43fd-97bf-ad0f15707958
+name: CVE-2024-7971 Patch Prioritization
+description: 'KQL Query from file: CVE-2024-7971 Patch Prioritization'
+query: "// CVE-2024-7971 Patch Prioritization\n\n//Google has addressed a high-severity Chrome vulnerability that is currently being actively exploited. It’s crucial to identify which of your global administrators are using a vulnerable version of Chrome, especially if their credential cookies are stored on their endpoints. Given that threat actors are exploiting this flaw, it’s strongly recommended to patch the global admin endpoints immediately to significantly reduce the attack surface.\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) \nand NodeProperties.rawData.criticalityLevel.criticalityLevel < 4\n| where NodeProperties has \"Global Administrator\"\n| distinct NodeName;\nlet VulnerableEndPointwithBCookie =\nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties has \"BrowserCookies\"\n| where TargetNodeName has_any (CriticalIdentities)\n| distinct SourceNodeName;\nDeviceTvmSoftwareVulnerabilities\n| where CveId == \"CVE-2024-7971\"\n| where DeviceName has_any (VulnerableEndPointwithBCookie)\n\n// MITRE ATT&CK Mapping\n\n// T1078.004: Valid Accounts: Cloud Accounts\n// T1539: Steal Web Session Cookie\n// T1190: Exploit Public-Facing Application\n\n//These mappings help in understanding the potential tactics and techniques adversaries might use, based on the identified vulnerabilities and critical identities in your environment.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+    - TA0002
+    - TA0011
+    - TA0043
+techniques:
+    - T1078.004
+    - T1539
+    - T1190
+    - T1100
+    - T1071.001
+    - T1139
+    - T1176.001
+    - T1176.002
+    - T1176
+    - T1203
+    - T1592.004
+    - T1098
+    - T1098.006
+    - T1098.004
+tags:
+    - kql
+version: "1"

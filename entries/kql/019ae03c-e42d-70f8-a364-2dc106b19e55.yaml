@@ -1,0 +1,21 @@
+id: 019ae03c-e42d-70f8-a364-2dc106b19e55
+name: ShadyPanda Chrome Extension Malware Detection
+description: This rule detects the presence and activity of the ShadyPanda malware campaign, specifically focusing on malicious Chrome extensions and their associated command and control (C2) and data exfiltration domains. It identifies the creation of files with known malicious Chrome extension IDs (ending in '.crx') and network connections to hardcoded C2 and exfiltration domains linked to the ShadyPanda campaign.
+query: "//https://www.koi.ai/blog/4-million-browsers-infected-inside-shadypanda-7-year-malware-campaign\r\n\r\nlet MaliciousChromeExtensionID = dynamic([\r\n\"eagiakjmjnblliacokhcalebgnhellfi\",\"ibiejjpajlfljcgjndbonclhcbdcamai\",\r\n\"ogjneoecnllmjcegcfpaamfpbiaaiekh\",\"jbnopeoocgbmnochaadfnhiiimfpbpmf\",\r\n\"cdgonefipacceedbkflolomdegncceid\",\"gipnpcencdgljnaecpekokmpgnhgpela\",\r\n\"bpgaffohfacaamplbbojgbiicfgedmoi\",\"ineempkjpmbdejmdgienaphomigjjiej\",\r\n\"nnnklgkfdfbdijeeglhjfleaoagiagig\",\"mljmfnkjmcdmongjnnnbbnajjdbojoci\",\r\n\"llkncpcdceadgibhbedecmkencokjajg\",\"nmfbniajnpceakchicdhfofoejhgjefb\",\r\n\"ijcpbhmpbaafndchbjdjchogaogelnjl\",\"olaahjgjlhoehkpemnfognpgmkbedodk\",\r\n\"gnhgdhlkojnlgljamagoigaabdmfhfeg\",\"cihbmmokhmieaidfgamioabhhkggnehm\",\r\n\"lehjnmndiohfaphecnjhopgookigekdk\",\"hlcjkaoneihodfmonjnlnnfpdcopgfjk\",\r\n\"hmhifpbclhgklaaepgbabgcpfgidkoei\",\"lnlononncfdnhdfmgpkdfoibmfdehfoj\",\r\n\"nagbiboibhbjbclhcigklajjdefaiidc\",\"ofkopmlicnffaiiabnmnaajaimmenkjn\",\r\n\"ocffbdeldlbilgegmifiakciiicnoaeo\",\"eaokmbopbenbmgegkmoiogmpejlaikea\",\r\n\"lhiehjmkpbhhkfapacaiheolgejcifgd\",\"ondhgmkgppbdnogfiglikgpdkmkaiggk\",\r\n\"imdgpklnabbkghcbhmkbjbhcomnfdige\"\r\n]);\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".crx\"\r\n| where FileName has_any(MaliciousChromeExtensionID)\r\n\r\n\r\nlet C2Domains = dynamic([\"extensionplay.com\",\"yearnnewtab.com\",\"api.cgatgpt.net\"]);\r\nlet ExfilDomains = dynamic([\"dergoodting.com\",\"yearnnewtab.com\",\"cleanmasters.store\",\"s-85283.gotocdn.com\",\"s-82923.gotocdn.com\"]);\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (C2Domains) or RemoteUrl has_any (ExfilDomains)\r\n| project Timestamp, DeviceName, RemoteUrl, ActionType"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+    - TA0010
+techniques:
+    - T1189
+    - T1071
+    - T1573
+    - T1041
+    - T1567
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.koi.ai/blog/4-million-browsers-infected-inside-shadypanda-7-year-malware-campaign

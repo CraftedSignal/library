@@ -1,0 +1,15 @@
+id: 019b97ce-f91e-727d-94ef-a8d87d7941dd
+name: Windows Defender Tampering via PowerShell
+description: Detects PowerShell commands used to add exclusions to Windows Defender or disable real-time monitoring. This is a known defense evasion technique (T1562.001) used by adversaries, including the PHALT#BLYX campaign, to allow malicious components to operate without being detected.
+query: "// Name: Windows Defender Tampering via PowerShell\n// Author: detections.ai\n// Date: 2026-01-07\n// Description: Detects PowerShell commands used to add exclusions to Windows Defender or disable real-time monitoring. This is a known defense evasion technique (T1562.001) used by adversaries, including the PHALT#BLYX campaign, to allow malicious components to operate without being detected.\n// False Positive Sensitivity: Medium\n// Tactics: Defense Evasion\n// Techniques: T1562.001\n// References: https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/\n\nlet suspiciousPaths = dynamic([@\"'C:\\ProgramData'\", @\"\\ProgramData\"]);\nlet suspiciousExtensions = dynamic([\".exe\", \".ps1\", \".proj\", \".tmp\"]);\n\nDeviceProcessEvents\n// Look for PowerShell process execution.\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\n// Filter for commandlets that modify Windows Defender preferences.\n| where ProcessCommandLine has_any (\"Add-MpPreference\", \"Set-MpPreference\")\n| where \n    (\n        // Detects adding exclusions for specific paths or extensions used by the PHALT#BLYX campaign.\n        ProcessCommandLine has \"Add-MpPreference\" and\n        (\n            (ProcessCommandLine has \"-ExclusionPath\" and ProcessCommandLine has_any (suspiciousPaths)) or\n            (ProcessCommandLine has \"-ExclusionExtension\" and ProcessCommandLine has_any (suspiciousExtensions))\n        )\n    )\n    or\n    (\n        // Detects attempts to disable real-time monitoring.\n        ProcessCommandLine has \"Set-MpPreference\" and\n        ProcessCommandLine has \"-DisableRealtimeMonitoring\" and\n        ProcessCommandLine has_any (\"1\", \"$true\", \"true\")\n    )\n// FP Tuning: Legitimate system administration scripts or software installers may perform these actions.\n// If false positives occur, consider excluding known scripts, specific parent processes, or authorized administrator accounts.\n| project\n    TimeGenerated,\n    DeviceName,\n    AccountName,\n    FileName,\n    ProcessCommandLine,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    ReportId,\n    ProcessId,\n    InitiatingProcessId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/

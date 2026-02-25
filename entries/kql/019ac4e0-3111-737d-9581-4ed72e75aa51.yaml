@@ -1,0 +1,80 @@
+id: 019ac4e0-3111-737d-9581-4ed72e75aa51
+name: RPC Authentication Coercion to External Target
+description: Detects Remote Procedure Call (RPC) authentication coercion attempts where a machine is forced to authenticate to an external IP address. Attackers use this technique to capture credentials by tricking a server into connecting to a listener they control. This rule identifies known vulnerable RPC interfaces and functions (including rare ones like MS-EVEN/ElfrOpenBELW) being used with a UNC path parameter that points to a public IP address.
+query: |
+    // Name: RPC Authentication Coercion to External Target
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects Remote Procedure Call (RPC) authentication coercion attempts where a machine is forced to authenticate to an external IP address. Attackers use this technique to capture credentials by tricking a server into connecting to a listener they control. This rule identifies known vulnerable RPC interfaces and functions (including rare ones like MS-EVEN/ElfrOpenBELW) being used with a UNC path parameter that points to a public IP address.
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/authentication-coercion/
+    // MITRE TTPs: T1557.001
+    // Data Source: DeviceEvents (Microsoft Defender for Endpoint)
+    let CoercionSignatures = datatable(InterfaceUuid:string, OperationId:int, Protocol:string, Exploit:string) [
+        // MS-RPRN (PrintNightmare)
+        "12345678-1234-abcd-ef00-0123456789ab", 62, "MS-RPRN", "PrinterBug",
+        "12345678-1234-abcd-ef00-0123456789ab", 65, "MS-RPRN", "PrinterBug/PrintNightmare",
+        // MS-EFSR (PetitPotam)
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 0, "MS-EFSR", "PetitPotam",
+        "df1941c5-fe89-4e79-bf10-463657acf44d", 0, "MS-EFSR", "PetitPotam", // lsarpc pipe
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 4, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 5, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 6, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 7, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 12, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 13, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 15, "MS-EFSR", "PetitPotam",
+        "c681d488-d850-11d0-8c52-00c04fd90f7e", 16, "MS-EFSR", "PetitPotam",
+        // MS-DFSNM (DFSCoerce)
+        "4fc742e0-4a10-11cf-8273-00aa004ae673", 12, "MS-DFSNM", "DFSCoerce",
+        "4fc742e0-4a10-11cf-8273-00aa004ae673", 13, "MS-DFSNM", "DFSCoerce",
+        // MS-FSRVP (ShadowCoerce)
+        "a8e0653c-2744-4389-a61d-7373df8b2292", 8, "MS-FSRVP", "ShadowCoerce",
+        "a8e0653c-2744-4389-a61d-7373df8b2292", 9, "MS-FSRVP", "ShadowCoerce",
+        // MS-PAR (PrintNightmare)
+        "76f03f96-cdfd-44fc-a22c-64950a001209", 0, "MS-PAR", "PrintNightmare",
+        // MS-EVEN (CheeseOunce) - Highlighted as "rare" in the intel
+        "82273fdc-e32a-18c3-3f78-827929dc23ea", 9, "MS-EVEN", "CheeseOunce"
+    ];
+    // This query requires a data source that provides detailed RPC event logging, such as Microsoft Defender for Endpoint.
+    // The field names (e.g., RpcInterfaceUuid, RpcOperationId, RpcParameters) must match the schema of your data source.
+    DeviceEvents
+    | where ActionType == "RpcCall"
+    // Join with a list of known coercion signatures, including both common and rare interfaces/opnums.
+    | join kind=inner (CoercionSignatures) on $left.RpcInterfaceUuid == $right.InterfaceUuid and $left.RpcOperationId == $right.OperationId
+    // Extract the target hostname/IP from the UNC path in the RPC parameters.
+    | extend CoercedTarget = extract(@"\\\\([^\\/]+)", 1, RpcParameters)
+    | where isnotempty(CoercedTarget)
+    // The core detection logic: check if the coerced target is a public (non-private) IP address.
+    // This is a strong indicator of a coercion attack attempting to capture credentials over the internet.
+    | where not(ipv4_is_private(CoercedTarget))
+    // Filter out local RPC calls to reduce noise, as coercion typically involves a remote initiator.
+    | where RemoteDeviceName != DeviceName
+    // Potential for False Positives: Legitimate cloud-integrated or cross-premises services might use RPC
+    // to communicate with specific external IP addresses. These should be identified and added to an allowlist.
+    // Example allowlist: | where CoercedTarget !in ("1.2.3.4", "some.corp.domain.com")
+    | project
+        Timestamp,
+        DeviceName, // The server being coerced to authenticate.
+        InitiatingProcessAccountName, // The account context on the source machine.
+        RemoteDeviceName, // The source machine initiating the RPC call.
+        CoercedTarget, // The attacker-controlled machine the server is being forced to authenticate to.
+        Protocol,
+        Exploit,
+        RpcInterfaceUuid,
+        RpcOperationId,
+        RpcParameters,
+        InitiatingProcessCommandLine,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1557.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/authentication-coercion/

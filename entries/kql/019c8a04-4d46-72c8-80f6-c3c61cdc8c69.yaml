@@ -1,0 +1,17 @@
+id: 019c8a04-4d46-72c8-80f6-c3c61cdc8c69
+name: Ivanti EPMM - Suspicious Post-Exploitation Process
+description: Detects the execution of suspicious processes by web server accounts on systems, which may indicate post-exploitation activity related to Ivanti EPMM vulnerabilities CVE-2026-1281 and CVE-2026-1340. The rule specifically looks for common web server accounts executing suspicious tools (like curl, wget, nc, ncat, bash -i, sh -i) in conjunction with suspicious strings or domains often associated with reverse shells, C2 communication, or data exfiltration.
+query: "// Name: Ivanti EPMM - Suspicious Post-Exploitation Process\r\n// Author: detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects the execution of suspicious processes by web server accounts on systems, which may indicate post-exploitation activity related to Ivanti EPMM vulnerabilities CVE-2026-1281 and CVE-2026-1340.\r\n// MITRE ATT&CK: T1059.004 (Command and Scripting Interpreter: Unix Shell), T1011.001 (Exfiltration Over C2 Channel)\r\n// References: https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/\r\n// False Positive Sensitivity: Medium\r\n\r\nlet timeframe = 1h;\r\n// Define common web server user accounts.\r\nlet webServerAccounts = dynamic([\"tomcat\", \"apache\", \"www-data\"]);\r\n// Define suspicious tools and command patterns used for reverse shells or downloads.\r\nlet suspiciousTools = dynamic([\"curl\", \"wget\", \"nc\", \"ncat\", \"bash -i\", \"sh -i\"]);\r\n// Define suspicious strings observed in post-exploitation commands.\r\nlet suspiciousStrings = dynamic([\r\n    \"ngrok-free.app\",\r\n    \"gitee.com\",\r\n    \".onion\",\r\n    \"oast.fun\",\r\n    \"interactsh.com\",\r\n    \"oast.live\",\r\n    \"oast.me\",\r\n    \"oast.site\",\r\n    \"ceye.io\",\r\n    \"requestrepo.com\",\r\n    \"/dev/tcp/\"\r\n]);\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(timeframe)\r\n// Filter for processes initiated by known web server accounts.\r\n| where InitiatingProcessAccountName in~ (webServerAccounts)\r\n// Filter for command lines containing suspicious tools or reverse shell redirection.\r\n| where ProcessCommandLine has_any (suspiciousTools) or ProcessCommandLine contains \"/dev/tcp/\"\r\n// Further filter for command lines that contain suspicious domains or strings seen in this campaign.\r\n// This helps reduce false positives from legitimate uses of tools like curl/wget.\r\n| where ProcessCommandLine has_any (suspiciousStrings)\r\n// FP Tuning: Legitimate administrative scripts might use 'curl' or 'wget' to download updates from sites like 'gitee.com'.\r\n// Consider adding exclusions for known safe scripts, parent processes, or trusted domains if false positives occur.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ParentProcessFileName,\r\n    ParentProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0010
+techniques:
+    - T1059.004
+    - T1011.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

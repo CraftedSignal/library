@@ -1,0 +1,29 @@
+id: 019a1fa0-0d47-7609-bd2e-6ef475e3c64d
+name: WSUS Spawning Command Shell for Reconnaissance
+description: Detects the spawning of a Windows command shell, powershell, or reconnaissance tools by the IIS worker process (w3wp.exe). This behavior is a strong indicator of a successful web application exploit, such as the deserialization vulnerability in WSUS (CVE-2025-59287), where an attacker gains remote code execution. Also detects the WSUS Service as the parent process spawning another process.
+query: |-
+    DeviceProcessEvents
+    | where (InitiatingProcessFolderPath endswith "\\w3wp.exe" and (FolderPath endswith "\\cmd.exe" or FolderPath endswith "\\powershell.exe" or FolderPath endswith "\\pwsh.exe" or FolderPath endswith "\\powershell_ise.exe" or FolderPath endswith "\\whoami.exe" or FolderPath endswith "\\net.exe" or FolderPath endswith "\\net1.exe")) or InitiatingProcessFolderPath endswith "\\wsusservice.exe"
+query_type: kql
+severity: high
+tactics:
+    - TA0002
+    - TA0007
+techniques:
+    - T1059.003
+    - T1033
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.discovery
+    - attack.t1033
+    - cve.2025.59287
+author: detections.ai
+version: "2"
+references:
+    - https://research.eye.security/wsus-deserialization-exploit-in-the-wild-cve-2025-59287/
+    - https://www.linkedin.com/posts/johnhammond010_weve-been-seeing-some-of-the-wsus-cve-2025-activity-7387528448145186816-2bDC?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAx0FooBz0szRHeK7PdeBhOeISDk9PI9iio
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability?utm_source=linkedin&utm_medium=social&utm_campaign=cy25-10-rr-edr-global-broad-all-windows_server_update&utm_content=Image
+data_sources:
+    - process_creation
+    - windows

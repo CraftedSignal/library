@@ -1,0 +1,70 @@
+id: 019a67ef-ea10-7169-896d-30cb2ce66b11
+name: VanHelsing Ransomware - Remote Execution via SMB
+description: Detects a pattern of behavior associated with VanHelsing ransomware's lateral movement, where an executable is written to a device over SMB and then executed shortly after. This is indicative of remote code execution techniques like those using PsExec.
+query: |
+    // Name: VanHelsing Ransomware - Remote Execution via SMB
+    // Author: detections.ai
+    // Date: 2025-11-09
+    // Description: Detects a pattern of behavior associated with VanHelsing ransomware's lateral movement, where an executable is written to a device over SMB and then executed shortly after. This is indicative of remote code execution techniques like those using PsExec.
+    // MITRE ATT&CK: T1021.002 (Remote Services: SMB/Windows Admin Shares), T1570 (Lateral Tool Transfer)
+    // False Positive Sensitivity: Medium
+    // References: https://www.picussecurity.com/resource/multi-platform-vanhelsing-ransomware-raas-analysis, https://research.checkpoint.com/2025/vanhelsing-new-raas-in-town/
+
+    let timeframe = 15m;
+    // Step 1: Find executable files created by the SMB server process, indicating a remote write.
+    let remoteFileWrites = DeviceFileEvents
+    | where Timestamp > ago(timeframe)
+    | where ActionType == "FileCreated" and isnotempty(SHA1)
+    | where FileName endswith ".exe"
+    // The 'Server' service (LanmanServer) handles SMB shares and runs within svchost.exe, which is spawned by services.exe.
+    // This is a strong indicator of a file being written remotely to a share.
+    | where InitiatingProcessFileName =~ "svchost.exe" and InitiatingProcessParentFileName =~ "services.exe"
+    | project FileCreationTime = Timestamp, DeviceId, DeviceName, FolderPath, FileName, SHA1;
+    // Step 2: Find process creation events.
+    let processCreations = DeviceProcessEvents
+    | where Timestamp > ago(timeframe)
+    | where isnotempty(SHA1)
+    | project ProcessCreationTime = Timestamp, DeviceId, DeviceName, FolderPath, FileName, SHA1, ProcessCommandLine, InitiatingProcessFileName;
+    // Step 3: Join remote file writes with subsequent process executions on the same device.
+    remoteFileWrites
+    | join kind=inner (
+        processCreations
+    ) on DeviceId, SHA1
+    // Correlate the file write with the process execution of the same file.
+    | where FolderPath == processCreations.FolderPath and FileName == processCreations.FileName
+    // Ensure the process was created shortly after the file was written.
+    | where ProcessCreationTime between (FileCreationTime .. (FileCreationTime + 5m))
+    // The parent process of the remotely executed file is often services.exe (for tools like PsExec), wmiprvse.exe (for WMI), or another svchost.exe instance.
+    | where InitiatingProcessFileName in~ ("services.exe", "wmiprvse.exe", "svchost.exe")
+    // Potential for False Positives: Legitimate administrative tools or software deployment systems might exhibit similar behavior.
+    // Consider adding exclusions for known good software deployment processes or source/destination devices if noise is observed.
+    // For example: | where not (InitiatingProcessFolderPath has_any ("SCCM", "System32\\wbem"))
+    | project
+        Timestamp = ProcessCreationTime,
+        DeviceName,
+        DeviceId,
+        ExecutedFileName = FileName,
+        ExecutedFileSHA1 = SHA1,
+        ExecutedFilePath = FolderPath,
+        ProcessCommandLine,
+        ExecutionParentProcess = InitiatingProcessFileName,
+        FileCreationTime
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+    - TA0004
+    - TA0003
+techniques:
+    - T1021.002
+    - T1570
+    - T1569.002
+    - T1546.003
+tags:
+    - kql
+author: AJ
+version: "5"
+references:
+    - https://www.picussecurity.com/resource/multi-platform-vanhelsing-ransomware-raas-analysis
+    - https://research.checkpoint.com/2025/vanhelsing-new-raas-in-town/

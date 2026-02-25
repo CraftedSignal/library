@@ -1,0 +1,55 @@
+id: 019c4381-c40d-7278-a4e3-ff7818b375ff
+name: QEMU SSH Backdoor via Hostfwd with vault.db or bisrv.dll
+description: This rule detects the creation of a process that involves 'qemu' in its image path and contains 'hostfwd=tcp' along with either 'vault.db' or 'bisrv.dll' in its command line. This combination is indicative of an SSH backdoor deployment, specifically observed in the context of SolarWinds Web Help Desk exploitation where threat actors establish persistence using a scheduled task named TPMProfiler to execute QEMU with an SSH port forward.
+query: |
+    title: SolarWinds Web Help Desk Exploitation - TPMProfiler QEMU Persistence
+    id: a1b2c3d4-e5f6-4a5b-8c9d-solarwinds003
+    status: experimental
+    description: |
+        In this attack, threat actors establish persistence using a scheduled task named TPMProfiler. The task executes QEMU with an SSH port forward, creating a backdoor on the host. While legitimate TPM-related tasks exist, this specific TPMProfiler task name has only been observed in malicious contexts. The combination of QEMU with hostfwd and vault.db or bisrv.dll as disk images is a strong indicator of SSH backdoor deployment.
+    references:
+        - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+        - attack.persistence
+        - attack.t1053.005
+        - attack.t1021.002
+        - cve.2025.26399
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_image:
+            Image|contains: 'qemu'
+        selection_cmdline:
+            CommandLine|contains: 'hostfwd=tcp'
+            CommandLine|contains|any:
+                - 'vault.db'
+                - 'bisrv.dll'
+        condition: selection_image and selection_cmdline
+    falsepositives:
+        - Legitimate QEMU usage for development
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0008
+techniques:
+    - T1053.005
+    - T1021.002
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - attack.t1021.002
+    - cve.2025.26399
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,49 @@
+id: 019c36d9-d20e-7778-bd2c-5b6832a49386
+name: Sensitive Group Membership Change Detection
+description: This rule detects when a member is added to or removed from highly sensitive administrative groups within Active Directory. It specifically monitors Windows Security Event IDs 4728 (member added) and 4729 (member removed) for a predefined list of critical groups such as 'Administrators', 'Domain Admins', 'Enterprise Admins', and 'Schema Admins'. The rule excludes changes made by computer accounts to reduce false positives.
+query: |
+    SecurityEvent
+    // Extend custom columns with user-friendly names first, as per the original query style.
+    | extend ['Admin Group(s)'] = TargetUserName
+    | extend ['User Behind the Activity'] = SubjectUserName
+    | extend ['Member Added or Removed'] = MemberName
+    // Filter for events indicating a member was added (4728) or removed (4729) from a security group.
+    | where EventID in (4728, 4729)
+    // Filter for modifications only to the predefined list of sensitive groups.
+    // The list has been corrected to fix a typo ("Adminstrators") and a formatting error where multiple groups were a single string.
+    | where ['Admin Group(s)'] in~ (
+        "Administrators",
+        "Domain Admins",
+        "Enterprise Admins",
+        "Schema Admins",
+        "Exmerge",
+        "AC-ServerAdmins_Network",
+        "AC-ServerAdmins_ServiceAccts"
+    )
+    // Exclude changes made by computer accounts (ending in '$'), which are often automated and can be noisy.
+    // This is a common tuning step to reduce false positives from legitimate system activity.
+    | where ['User Behind the Activity'] !endswith "$"
+    // Create a column to describe the action taken based on the EventID.
+    | extend Action = iff(EventID == 4728, "Member Added", "Member Removed")
+    // Project the final columns in the desired order.
+    | project
+        TimeGenerated,
+        Action,
+        ['Admin Group(s)'],
+        ['Member Added or Removed'],
+        ['User Behind the Activity'],
+        Computer,
+        AccountType,
+        EventData,
+        Activity
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+tags:
+    - kql
+author: Nicholas Isakson
+version: "3"

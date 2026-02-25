@@ -1,0 +1,55 @@
+id: d8d9edf7-4a03-48b4-ab54-270147293afb
+name: Nation State Actors via Microsoft Graph
+description: 'KQL Query from file: Nation State Actors via Microsoft Graph'
+query: |
+    // Nation State Actors via Microsoft Graph
+    // https://www.linkedin.com/posts/activity-7194188372691607552-dtJv/
+
+    // IP addresses identified by the Microsoft Threat Intelligence Center (MSTIC) as being linked to state-sponsored entities or cybercriminal organizations are reportedly exploiting the Graph API. As of April 11, Microsoft Graph activity logs have become widely accessible. It is highly recommended to begin aggregating these logs if you haven’t already. The trend of malicious actors utilizing the Graph API as a platform for their illicit activities is on the rise.
+
+    let NationStateIP =
+        SigninLogs
+        | where TimeGenerated > ago(90d)
+        | where RiskEventTypes_V2 contains "estsNationStateIP"
+        | distinct IPAddress;
+    MicrosoftGraphActivityLogs
+    | where TimeGenerated > ago(90d)
+    | where IPAddress has_any(NationStateIP)
+    | count
+
+    // MITRE ATT&CK Mapping
+
+    // The KQL query is primarily focused on detecting suspicious IP addresses and their activities, which can be mapped to several MITRE ATT&CK techniques:
+
+    // T1071.001 - Application Layer Protocol: Web Protocols
+    // The query looks for suspicious IP addresses in activity logs, which can be related to the use of web protocols for communication.
+    // T1078 - Valid Accounts
+    // The detection of nation-state IPs in sign-in logs can indicate the use of valid accounts by adversaries.
+    // T1078.003 - Valid Accounts: Local Accounts
+    // If the nation-state IPs are using local accounts, this technique is relevant.
+    // T1078.004 - Valid Accounts: Cloud Accounts
+    // If the nation-state IPs are using cloud accounts, this technique is relevant.
+    // T1589.001 - Gather Victim Identity Information: Credentials
+    // The query might help in identifying attempts to gather credentials through nation-state IPs.
+query_type: kql
+tactics:
+    - TA0011
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0043
+    - TA0007
+    - TA0008
+techniques:
+    - T1071.001
+    - T1078
+    - T1078.003
+    - T1078.004
+    - T1589.001
+    - T1526
+    - T1102
+    - T1021.007
+tags:
+    - kql
+version: "1"

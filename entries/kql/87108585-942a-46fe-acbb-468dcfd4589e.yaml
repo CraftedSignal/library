@@ -1,0 +1,15 @@
+id: 87108585-942a-46fe-acbb-468dcfd4589e
+name: ExploitGuard & SmartScreen Network Protection Detection
+description: 'This rule detects network traffic blocked by Microsoft Defender Exploit Guard Network Protection or SmartScreen. It categorizes these detections into several types: Indicator of Compromise (IoC) URLs, Web Content Filtering, Malicious/Command & Control, and Cloud App Security Broker (CASB) policy violations. The rule summarizes these events per device, providing counts for each detection category and listing the blocked URLs with timestamps.'
+query: "// ============================================================================\r\n// ExploitGuard & SmartScreen Network Protection Detection\r\n// Author: KillBillKill98\r\n// Last Updated: 2025-09-18\r\n// ============================================================================\r\n// Tactic(s): Defense Evasion (TA0005), Command & Control (TA0011)\r\n// Technique(s): Network Protection / Web Filtering (T1562.004), Malicious URL Blocking\r\n// Description & Rationale:\r\n//  - Detects network traffic blocked by ExploitGuard Network Protection or SmartScreen\r\n//  - Categorizes detections by type: IoC URL, Web Content Filtering, Malicious / Command & Control, CASB policy\r\n//  - Summarizes events per device and counts occurrences for each detection category\r\n// ============================================================================\r\n\r\nDeviceEvents\r\n| where Timestamp > ago(7d)\r\n| where ActionType == \"ExploitGuardNetworkProtectionBlocked\"\r\n| extend ParsedFields=parse_json(AdditionalFields)\r\n| summarize MDE_IoC = make_list_if(strcat(format_datetime(Timestamp,'yyyy-M-dd H:mm:ss'), \" : \", RemoteUrl), ResponseCategory=tostring(ParsedFields.ResponseCategory) == \"CustomBlockList\"), \r\nMDE_WCF = make_list_if(strcat(format_datetime(Timestamp,'yyyy-M-dd H:mm:ss'), \" : \", RemoteUrl), ResponseCategory=tostring(ParsedFields.ResponseCategory) == \"CustomPolicy\"),\r\nMDE_NP = make_list_if(strcat(format_datetime(Timestamp,'yyyy-M-dd H:mm:ss'), \" : \", ParsedFields.ResponseCategory, \" : \", RemoteUrl), ResponseCategory=tostring(ParsedFields.ResponseCategory) in (\"CmdCtrl\", \"Malicious\")),\r\nMDA_CASB = make_list_if(strcat(format_datetime(Timestamp,'yyyy-M-dd H:mm:ss'), \" : \", RemoteUrl), ResponseCategory=tostring(ParsedFields.ResponseCategory) == \"CasbPolicy\") by DeviceId, DeviceName\r\n| extend MDE_IoC_case = array_length(MDE_IoC)\r\n| extend MDE_WCF_case = array_length(MDE_WCF)\r\n| extend MDE_NP_case = array_length(MDE_NP)\r\n| extend MDA_CASB_case = array_length(MDA_CASB)\r\n\r\n| project DeviceId, DeviceName, MDE_IoC_case, MDE_NP_case, MDE_WCF_case, MDA_CASB_case,  MDE_IoC, MDE_NP, MDE_WCF,  MDA_CASB\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1562.004
+    - T1553.005
+tags:
+    - kql
+version: "1"

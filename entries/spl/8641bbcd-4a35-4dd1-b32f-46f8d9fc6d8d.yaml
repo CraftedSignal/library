@@ -1,0 +1,15 @@
+id: 8641bbcd-4a35-4dd1-b32f-46f8d9fc6d8d
+name: PANW Firewall Unauthorized Config Change
+description: Detects unauthorized modifications to the Palo Alto Networks firewall configuration, potentially indicating malicious activity or security policy violations. These changes can be leveraged to evade detection, facilitate data exfiltration, or disrupt network defenses, ultimately compromising the integrity and security of the environment.
+query: "index=* sourcetype=\"pan:config\" \r\n| search result=\"Succeeded\" \r\n| eval change_time=strftime(_time, \"%Y-%m-%d %H:%M:%S\")\r\n| where NOT match(admin, \"^(admin|svc_|service_|splunk_).*\")\r\n| stats count by admin, cmd, path, host, change_time, result\r\n| where count >= 3\r\n| sort -count"
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0040
+techniques:
+    - T1562.004
+    - T1562
+tags:
+    - spl
+version: "1"

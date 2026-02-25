@@ -1,0 +1,25 @@
+id: 019aa6c9-8e49-7496-8dd9-f2ea137545f2
+name: Process Memory Changed to RWX Permissions
+description: Detects a process changing a memory region's permissions to be readable, writable, and executable (RWX). This is highly suspicious and is often associated with malware unpacking, process hollowing, or self-modifying code. The APT29 group has been observed using a backdoor (VMTOOLS.DLL) that employs self-modifying code to evade static analysis.
+query: "title: Process Memory Changed to RWX Permissions\r\nid: 6ee4b66f-93ae-4a6e-9080-f2e5aa5d9f80\r\nstatus: experimental\r\ndescription: >-\r\n  Detects a process changing a memory region's permissions to be readable,\r\n  writable, and executable (RWX). This is highly suspicious and is often\r\n  associated with malware unpacking, process hollowing, or self-modifying code.\r\n  The APT29 group has been observed using a backdoor (VMTOOLS.DLL) that employs\r\n  self-modifying code to evade static analysis.\r\nreferences:\r\n  - https://medium.com/@shubhandrew/backdoor-analysis-of-apt29-vmtools-dll-fd72fa1430b6\r\nauthor: Subhankar H.\r\ndate: 2025-11-21\r\ntags:\r\n  - attack.t1055\r\n  - attack.t1497\r\n  - attack.g0016\r\nlogsource:\r\n  # This detection requires an EDR or similar tool that can monitor API calls (e.g., VirtualProtect) or memory permission changes.\r\n  category: process_access\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    # Detects when memory protection is changed to be both writable and executable.\r\n    # The exact field name (e.g., NewProtection, ProtectionMask) and value may vary by EDR product.\r\n    NewProtection: 'PAGE_EXECUTE_READWRITE'\r\n  condition: selection\r\nfalsepositives:\r\n  - Legitimate software performing JIT compilation (.NET, Java).\r\n  - Packed or protected legitimate applications.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+    - TA0007
+techniques:
+    - T1055
+    - T1055.012
+    - T1497
+tags:
+    - attack.t1055
+    - attack.t1497
+    - attack.g0016
+author: Subhankar H.
+version: "2"
+references:
+    - https://medium.com/@shubhandrew/backdoor-analysis-of-apt29-vmtools-dll-fd72fa1430b6
+data_sources:
+    - process_access
+    - windows

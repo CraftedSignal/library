@@ -1,0 +1,63 @@
+id: 019a3895-94e3-747d-93fc-fe2f7748b8ab
+name: Qilin RaaS C2 Domain Communication
+description: Detects network traffic to 'cloudflariz.com', a known Command and Control (C2) domain associated with the Qilin RaaS group. An alert from this rule is a high-fidelity indicator of compromise.
+query: |-
+    // Name: Qilin RaaS C2 Domain Communication
+    // Author: detections.ai
+    // Date: 2025-10-31
+    // Tactic: Command and Control
+    // Technique: T1071.001, T1568.002
+    //
+    // Description:
+    // Detects network traffic to 'cloudflariz.com', a known Command and Control (C2) domain associated with the Qilin RaaS group.
+    // An alert from this rule is a high-fidelity indicator of compromise.
+    //
+    // References:
+    // - https://www.threatlocker.com/blog/qilin-raas-group-technical-analysis-from-initial-access-to-beaconing
+
+    let C2Domains = dynamic([
+        "cloudflariz.com"
+    ]);
+    (union isfuzzy=true
+        DeviceNetworkEvents,
+        CommonSecurityLog,
+        DnsEvents,
+        VMConnection,
+        DeviceEvents
+    )
+    // Search for connections to the specified C2 domains across common network and DNS log tables.
+    | where
+        (isnotempty(RemoteUrl) and RemoteUrl has_any (C2Domains)) or
+        (isnotempty(DestinationDnsDomain) and DestinationDnsDomain has_any (C2Domains)) or
+        (isnotempty(Name) and Name has_any (C2Domains)) or // Catches DNS lookups from DnsEvents table.
+        (isnotempty(RequestURL) and RequestURL has_any (C2Domains)) // Catches proxy logs in CommonSecurityLog.
+    // False Positives: This is a high-fidelity indicator. False positives are highly unlikely.
+    // If FPs occur, it may indicate a benign application or browser connecting to a sinkholed or parked domain.
+    // Investigate the initiating process and context before dismissing.
+    | extend
+        timestamp = TimeGenerated,
+        Host = coalesce(DeviceName, Computer),
+        Account = coalesce(InitiatingProcessAccountName, AccountName)
+    | project
+        timestamp,
+        Host,
+        Account,
+        ActionType,
+        RemoteUrl,
+        DestinationDnsDomain,
+        RemoteIP,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        Name, // Field from DnsEvents
+        RequestURL // Field from CommonSecurityLog
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.threatlocker.com/blog/qilin-raas-group-technical-analysis-from-initial-access-to-beaconing

@@ -1,0 +1,19 @@
+id: 0199ced0-2928-77ac-ab94-1abbaadbe1be
+name: Rundll32 with Obfuscated Ordinal Call or Comsvcs MiniDump
+description: |-
+    This rule detects suspicious execution patterns of rundll32.exe. Specifically, it looks for rundll32.exe being called with an obfuscated ordinal number (e.g., #+, #-, #0, #655, #656) which can be used by adversaries to obscure malicious code. Additionally, it identifies rundll32.exe attempting to perform a MiniDump of the 'comsvcs' process, which is a common technique for OS credential dumping.
+
+    this query combines Queries in a single Query created from Ayush Anand and published on https://www.securityinbits.com/detection-engineering/lsass-dump-comsvcs-rundll32/
+query: "//Combined Queries from this Article https://www.securityinbits.com/detection-engineering/lsass-dump-comsvcs-rundll32/\r\n// Props to Ayush Anand\r\nlet ObfusOrdCall = DeviceProcessEvents\r\n| where (FolderPath endswith \"\\\\rundll32.exe\" or ProcessVersionInfoOriginalFileName =~ \"RUNDLL32.EXE\" or ProcessCommandLine contains \"rundll32\") and (ProcessCommandLine contains \"#+\" or ProcessCommandLine contains \"#-\" or ProcessCommandLine contains \"#0\" or ProcessCommandLine contains \"#655\" or ProcessCommandLine contains \"#656\");\r\nlet MemDumpComsvcsDLL = DeviceProcessEvents\r\n| where ((FolderPath endswith \"\\\\rundll32.exe\" or ProcessVersionInfoOriginalFileName =~ \"RUNDLL32.EXE\" or ProcessCommandLine contains \"rundll32\") and ((ProcessCommandLine contains \"comsvcs\" and ProcessCommandLine contains \"full\") and (ProcessCommandLine contains \"#-\" or ProcessCommandLine contains \"#+\" or ProcessCommandLine contains \"#24\" or ProcessCommandLine contains \"24 \" or ProcessCommandLine contains \"MiniDump\" or ProcessCommandLine contains \"#65560\"))) or ((ProcessCommandLine contains \"24\" and ProcessCommandLine contains \"comsvcs\" and ProcessCommandLine contains \"full\") and (ProcessCommandLine contains \" #\" or ProcessCommandLine contains \",#\" or ProcessCommandLine contains \", #\" or ProcessCommandLine contains \"\\\"#\"));\r\nObfusOrdCall \r\n| union MemDumpComsvcsDLL"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0006
+techniques:
+    - T1218.011
+    - T1003
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"

@@ -1,0 +1,64 @@
+id: 77d38917-ea48-4b38-a3cb-5db0681f826d
+name: Browser Spawning Command Interpreter via FileFix Attack
+description: Detects suspicious process creation where a web browser spawns a command interpreter or scripting host. This behavior is indicative of the "FileFix" attack, where users are socially engineered to paste malicious commands into the File Explorer address bar opened by a browser's file upload functionality.
+query: |
+    title: Browser Spawning Command Interpreter via FileFix Attack
+    id: f1e2d3c4-b5a6-7890-1234-567890abcdef
+    status: experimental
+    description: >-
+      Detects suspicious process creation where a web browser spawns a command
+      interpreter or scripting host. This behavior is indicative of the "FileFix"
+      attack, where users are socially engineered to paste malicious commands into
+      the File Explorer address bar opened by a browser's file upload functionality.
+    author: jsh0x
+    date: 2025-06-26T00:00:00.000Z
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent_browser:
+        ParentImage|endswith:
+          - \chrome.exe
+          - \firefox.exe
+          - \msedge.exe
+          - \iexplore.exe
+          - \brave.exe
+          - \opera.exe
+      selection_child_command:
+        Image|endswith:
+          - \cmd.exe
+          - \powershell.exe
+          - \pwsh.exe
+          - \mshta.exe
+      condition: all of selection_*
+    falsepositives:
+      - >-
+        Legitimate browser extensions or applications that might legitimately spawn
+        command line tools (rare).
+      - >-
+        Developers or IT administrators performing legitimate tasks that involve
+        browser-initiated command execution.
+    level: high
+    references:
+      - https://mrd0x.com/filefix-clickfix-alternative/
+    tags:
+      - attack.t1204.001
+      - attack.t1059
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1204.001
+    - T1059
+    - T1204
+tags:
+    - attack.t1204.001
+    - attack.t1059
+author: Detections.ai
+version: "1"
+references:
+    - https://mrd0x.com/filefix-clickfix-alternative/
+data_sources:
+    - process_creation
+    - windows

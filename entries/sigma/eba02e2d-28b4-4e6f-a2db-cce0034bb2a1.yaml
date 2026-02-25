@@ -1,0 +1,59 @@
+id: eba02e2d-28b4-4e6f-a2db-cce0034bb2a1
+name: Odyssey Stealer Persistence Artifacts
+description: Detects the creation of hidden configuration files or a LaunchDaemon plist file used by the Odyssey Stealer malware to establish persistence on a compromised macOS system.
+query: |
+    title: Odyssey Stealer Persistence Artifacts
+    id: 94ebfbcd-0dcf-4bfe-9af8-b39fd1b30f4b
+    status: experimental
+    description: Detects the creation of hidden configuration files or a
+      LaunchDaemon plist file used by the Odyssey Stealer malware to establish
+      persistence on a compromised macOS system.
+    references:
+      - https://www.jamf.com/blog/signed-and-stealing-uncovering-new-insights-on-odyssey-infostealer/
+    author: Aaron Mog - detections.ai
+    date: 2025-07-16
+    tags:
+      - attack.persistence
+      - attack.t1543.004
+      - attack.t1546.003
+    logsource:
+      product: macos
+      category: file_creation
+    detection:
+      # Detects hidden configuration files created in user home directories
+      selection_hidden_files:
+        TargetFilename:
+          - '/Users/*/.botid'
+          - '/Users/*/.chost'
+          - '/Users/*/.username'
+          - '/Users/*/.pwd'
+        # Detects the creation of a new LaunchDaemon for persistence
+      selection_launchdaemon:
+        TargetFilename|startswith: '/Library/LaunchDaemons/'
+        TargetFilename|endswith: '.plist'
+      condition: selection_hidden_files or selection_launchdaemon
+    falsepositives:
+      - The hidden filenames are highly specific to Odyssey Stealer and are unlikely
+        to generate false positives.
+      - Legitimate software installers may create new LaunchDaemons. If alerts from
+        `selection_launchdaemon` are noisy, investigate the plist contents or the
+        process it is configured to run to determine legitimacy.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.004
+tags:
+    - attack.persistence
+    - attack.t1543.004
+    - attack.t1546.003
+author: Aaron Mog - detections.ai
+version: "1"
+references:
+    - https://www.jamf.com/blog/signed-and-stealing-uncovering-new-insights-on-odyssey-infostealer/
+data_sources:
+    - file_creation
+    - macos

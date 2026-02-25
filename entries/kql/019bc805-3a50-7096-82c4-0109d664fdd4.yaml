@@ -1,0 +1,13 @@
+id: 019bc805-3a50-7096-82c4-0109d664fdd4
+name: Inbound Connection to Internet-Facing Device on Non-Standard Ports
+description: This rule detects inbound network connections to internet-facing devices on ports other than 80 (HTTP) or 443 (HTTPS). This could indicate an adversary attempting to establish command and control, exfiltrate data, or exploit services running on non-standard ports.
+query: "let InternetFacing =\r\n    DeviceInfo\r\n    | where IsInternetFacing == true and isnotempty(PublicIP)\r\n    | distinct DeviceId;\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(7d)\r\n| where RemoteIPType == @\"Public\"\r\n| where ActionType == \"InboundConnectionAccepted\"\r\n| where LocalPort !=443 and LocalPort !=80 \r\n| where DeviceId in (InternetFacing)\r\n| where isnotempty(RemoteIP)\r\n| summarize by DeviceName,LocalPort"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "1"

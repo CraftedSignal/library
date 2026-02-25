@@ -1,0 +1,59 @@
+id: 019bfa94-13fe-774b-a6f7-4b839c3ddde1
+name: Adobe DLL Sideloading via urlmon.dll
+description: Detects the legitimate Adobe binary 'ADNotificationManager.exe' loading 'urlmon.dll' from a non-system directory. This is a DLL Sideloading technique (T1574.002) used by a Vietnamese Stealer campaign for initial execution.
+query: |
+    title: Adobe DLL Sideloading via urlmon.dll
+    id: a00bcbc6-6329-4aa6-95da-b935b6b914c3
+    status: experimental
+    description: Detects the legitimate Adobe binary 'ADNotificationManager.exe'
+      loading 'urlmon.dll' from a non-system directory. This is a DLL Sideloading
+      technique (T1574.002) used by a Vietnamese Stealer campaign for initial
+      execution.
+    references:
+      - https://profero.io/blog/dit-me-may-morphisec-when-malware-authors-taunt-security-researchers
+    author: tim@detections.ai
+    date: 2026-01-26
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection_process:
+        # Detects the legitimate Adobe binary, which may be renamed as seen in the campaign
+        - Image|endswith: '\ADNotificationManager.exe'
+        - OriginalFileName: 'ADNotificationManager.exe'
+        - Image|endswith: '\Documents proving violation.exe'
+      selection_dll:
+        # Detects the specific DLL being sideloaded
+        ImageLoaded|endswith: '\urlmon.dll'
+      filter_legit:
+        # Excludes legitimate loads from standard system directories
+        ImageLoaded|startswith:
+          - 'C:\Windows\System32\'
+          - 'C:\Windows\SysWOW64\'
+      condition: (selection_process and selection_dll) and not filter_legit
+    falsepositives:
+      - It is highly unusual for this specific binary to load this DLL from a
+        non-system path. False positives are unlikely but could occur with custom
+        application bundles.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+author: tim@detections.ai
+version: "3"
+references:
+    - https://profero.io/blog/dit-me-may-morphisec-when-malware-authors-taunt-security-researchers
+data_sources:
+    - image_load
+    - windows

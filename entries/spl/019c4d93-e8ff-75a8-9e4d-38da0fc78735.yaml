@@ -1,0 +1,26 @@
+id: 019c4d93-e8ff-75a8-9e4d-38da0fc78735
+name: Azure Managed Identity Lateral Movement via Run Command
+description: Detects potential lateral movement attempts within Azure by a Service Principal (Managed Identity) executing 'runCommand' or other compute operations on virtual machines. This activity could indicate an attacker abusing a compromised Managed Identity to gain access to and control other resources.
+query: |
+    // Azure Managed Identity lateral movement - Splunk
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms
+    // Source: AzureActivity (export to Splunk)
+
+    index=azure activityStatusValue="Succeeded" principalType="ServicePrincipal"
+    | spath path=Claims.xms_mirid output=InitiatedBy
+    | search InitiatedBy=*resourcegroups*
+    | search OperationNameValue=*runCommand* OR OperationNameValue=*Microsoft.Compute*
+    | table _time, OperationNameValue, Caller, PrincipalId, InitiatedBy, resource
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1651
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms

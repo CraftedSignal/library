@@ -1,0 +1,36 @@
+id: 0199d8f7-7127-70a4-9789-ce052e04975d
+name: Potential CVE-2025-11371 RCE via Gladinet Component
+description: Detects the creation of a child process from an IIS worker process (w3wp.exe) where the command line contains a long base64-encoded string, and the process is related to Gladinet software. This pattern is highly indicative of post-exploitation activity related to vulnerabilities like CVE-2025-11371.
+query: |
+    // title: Potential CVE-2025-11371 RCE via Gladinet Component
+    // description: Detects the creation of a child process from an IIS worker process (w3wp.exe) where the command line contains a long base64-encoded string, and the process is related to Gladinet software. This pattern is highly indicative of post-exploitation activity related to vulnerabilities like CVE-2025-11371.
+    // author: detections.ai
+    // date: 2025-10-12
+    // tags:
+    //     - attack.execution
+    //     - attack.t1059
+    //     - attack.initial_access
+    //     - attack.t1190
+    // falsepositives:
+    //     - Legitimate administrative scripts related to Gladinet might use encoded arguments, but this is expected to be rare. Review any findings to establish a baseline.
+    // level: high
+
+    DeviceProcessEvents
+    // Look for processes spawned by the IIS worker process, common in Gladinet web components.
+    | where ParentProcessFileName endswith "w3wp.exe"
+    // Detects a base64-like string of 20+ characters, often used to obfuscate payloads.
+    | where ProcessCommandLine matches regex @"[A-Za-z0-9+/]{20,}={0,2}"
+    // Scope the detection to processes related to Gladinet software to increase fidelity.
+    | where FolderPath contains "Gladinet" or ProcessFileName contains "Gladinet"
+    // Exclude common processes that might be noisy. This is a tuning point; attackers often use these, so consider removing this filter if you can baseline normal activity.
+    | where not (ProcessFileName endswith "cmd.exe" or ProcessFileName endswith "powershell.exe")
+query_type: kql
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059
+    - T1190
+tags:
+    - kql
+version: "2"

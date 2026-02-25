@@ -1,0 +1,8 @@
+id: 019c48f9-4acb-775f-8515-92c8083193b0
+name: Possible Brute Force or Directory Traversal via HTTP POST
+description: This rule detects potential suspicious activity by identifying internal hosts making frequent HTTP POST requests to external IP addresses (excluding RFC1918 and localhost ranges) over the Tor network (indicated by 'index=onion'). It counts the number of such requests from each originating host to a responding host and flags connections with 5 or more POST requests, along with the URIs and user agents involved.
+query: "index=onion source=\"/nsm/zeek/logs/current/http.log\" method=\"POST\"\r\n| where NOT (cidrmatch(\"10.0.0.0/8\", 'id.resp_h') OR cidrmatch(\"172.16.0.0/12\", 'id.resp_h') OR cidrmatch(\"192.168.0.0/16\", 'id.resp_h') OR cidrmatch(\"127.0.0.0/8\", 'id.resp_h'))\r\n| stats count values(uri) as uri_paths values(user_agent) as user_agents by id.orig_h, id.resp_h\r\n| where count >= 5\r\n| table id.orig_h, id.resp_h, count, uri_paths, user_agents"
+query_type: spl
+tags:
+    - spl
+version: "1"

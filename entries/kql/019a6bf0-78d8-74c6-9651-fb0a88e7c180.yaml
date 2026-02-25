@@ -1,0 +1,59 @@
+id: 019a6bf0-78d8-74c6-9651-fb0a88e7c180
+name: Expired or Approaching Expiry – Microsoft Defender for Endpoint (Linux) Agents
+description: |-
+    Detects Linux devices running Microsoft Defender for Endpoint (MDE) agent versions that are either expired or approaching end of support.
+    Expired agents no longer receive feature updates, bug fixes, or technical support, exposing systems to operational and security risks.
+    This detection helps identify and prioritize Linux endpoints that must be upgraded to supported agent versions.
+query: |
+    let ExpiredMax =
+        tolong(101) * tolong(10000000000) +
+        tolong(24112) * tolong(100000) +
+        tolong(8);
+    let ApproStart =
+        tolong(101) * tolong(10000000000) +
+        tolong(25012) * tolong(100000) +
+        tolong(0);
+    let ApproEnd =
+        tolong(101) * tolong(10000000000) +
+        tolong(25032) * tolong(100000) +
+        tolong(10);
+    // Optional recency filter
+    let expiringPublishdate = ago(8d);
+    DeviceTvmInfoGathering
+    | where OSPlatform == "Linux" or isnull(OSPlatform)
+    | where column_ifexists("TimeGenerated", now()) >= expiringPublishdate
+    | extend SoftwareVersion = tostring(AdditionalFields.AvPlatformVersion)
+    | extend parts = split(SoftwareVersion, ".")
+    | extend A = toint(tostring(parts[0])),
+             B = toint(tostring(parts[1])),
+             C = toint(tostring(parts[2]))
+    | extend VersionNum = iif(
+            isnull(A) or isnull(B) or isnull(C),
+            long(null),
+            tolong(A) * tolong(10000000000) +
+            tolong(B) * tolong(100000) +
+            tolong(C)
+        )
+    | extend Status = case(
+        isnull(SoftwareVersion) or isnull(VersionNum), "No Version Reported",
+        VersionNum <= ExpiredMax,                     "Expired",
+        VersionNum between (ApproStart .. ApproEnd),  "Approaching Expiry (≤4 mo)",
+        VersionNum > ApproEnd,                        "Current",
+                                                       "Other (Check)"
+      )
+    | project
+        DeviceId,
+        DeviceName = coalesce(DeviceName, "(unknown)"),
+        OSPlatform = coalesce(OSPlatform, "(unknown)"),
+        SoftwareVersion = coalesce(SoftwareVersion, "(unknown)"),
+        Status
+    | order by Status asc, SoftwareVersion asc nulls last
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Rishi Aggarwal (Trustwave / LevelBlue)
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/defender-endpoint/linux-whatsnew
+    - https://learn.microsoft.com/en-us/defender-endpoint/linux-deploy-updates

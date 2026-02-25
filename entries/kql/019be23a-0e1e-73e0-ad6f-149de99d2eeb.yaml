@@ -1,0 +1,63 @@
+id: 019be23a-0e1e-73e0-ad6f-149de99d2eeb
+name: GitOps Anomaly - Interactive Shell Execution in Production Namespaces
+description: Detects interactive shell execution within a container in a production Kubernetes namespace. This activity can be indicative of an attacker with a compromised user account attempting to manually control a container for exploration, privilege escalation, or data staging. Legitimate debugging by administrators may also trigger this rule.
+query: |
+    /**
+     * @name GitOps Anomaly - Interactive Shell Execution in Production Namesaces
+     * @author detections.ai
+     * @version 1.0
+     * @description Detects interactive shell execution within a container in a production Kubernetes namespace. This activity can be indicative of an attacker with a compromised user account (T1566) attempting to manually control a container (T1609) for exploration, privilege escalation, or data staging. Legitimate debugging by administrators may also trigger this rule.
+     * @creationDate 2026-01-21
+     * @mitreAttackTechnique T1609
+     * @mitreAttackTactic TA0007
+     * @tags ["Kubernetes", "Container", "Execution", "Discovery"]
+     * @severity Medium
+     */
+    // Define a list of production namespaces to monitor.
+    // Recommended: Populate this list with your actual production namespace names to focus the detection and reduce noise.
+    let prod_namespaces = dynamic(["prod", "production", "default"]);
+    // Define a list of common shell executables.
+    let shell_executables = dynamic(["/bin/sh", "sh", "/bin/bash", "bash", "powershell", "pwsh", "cmd"]);
+    // Define a list of authorized users or service accounts that may perform interactive debugging.
+    // Recommended: Populate this with usernames of on-call engineers or specific automation accounts to reduce false positives.
+    let authorized_users = dynamic(["ci-admin", "sre-team-user"]);
+    KubeAudit
+    // Filter for Kubernetes audit logs if using the KubeAudit table. For AzureDiagnostics, use:
+    // AzureDiagnostics | where Category == "kube-audit-admin"
+    | where OperationName == "Microsoft.ContainerService/managedClusters/audits/read"
+    // Parse the JSON log entry for easier querying.
+    | extend auditLog = todynamic(log_s)
+    // Filter for pod exec creation events, which indicates a command is being run in a pod.
+    | where auditLog.verb == "create" and auditLog.objectRef.resource == "pods" and auditLog.objectRef.subresource == "exec"
+    // Further filter for interactive sessions (stdin=true and tty=true are indicative of 'kubectl exec -it').
+    | where tostring(auditLog.requestURI) has "stdin=true" and tostring(auditLog.requestURI) has "tty=true"
+    // Focus on namespaces designated as production environments.
+    | where tostring(auditLog.objectRef.namespace) in (prod_namespaces)
+    // Extract the command from the request object.
+    | extend command_list = todynamic(tostring(auditLog.requestObject.command))
+    // Check if the executed command is a common shell.
+    | where array_length(command_list) > 0 and tostring(command_list[0]) in (shell_executables)
+    // Extract the username for exclusion filtering.
+    | extend userName = tostring(auditLog.user.username)
+    // Exclude known authorized users and system accounts to reduce false positives from legitimate administrative actions.
+    // This is a key area for tuning to fit your environment.
+    | where userName !in (authorized_users) and not(userName startswith "system:")
+    // Project relevant fields for the alert.
+    | project
+        TimeGenerated,
+        OperationName,
+        User = userName,
+        SourceIP = tostring(auditLog.sourceIPs[0]),
+        Namespace = tostring(auditLog.objectRef.namespace),
+        Pod = tostring(auditLog.objectRef.name),
+        Command = command_list,
+        RequestURI = tostring(auditLog.requestURI)
+query_type: kql
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1609
+tags:
+    - kql
+version: "2"

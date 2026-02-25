@@ -1,0 +1,16 @@
+id: f6aa2072-f213-4742-ab4a-00b808f7e5e9
+name: Suspicious Process Accessing Browser Extension Data
+description: This rule detects suspicious file access patterns to Chromium-based browser extension data folders. Specifically, it looks for any process other than the browser itself (msedge.exe, chrome.exe, wavebrowser.exe, vivaldi.exe, brave.exe, brchrome.exe) reading or accessing files within the 'AppData\Local\User Data\Default\Extensions' directory. This activity could indicate an attempt by malware or an unauthorised process to inspect, modify, or exfiltrate data related to browser extensions, potentially for credential theft, session hijacking, or to inject malicious code into extensions.
+query: "let Browser = dynamic([\"msedge.exe\",\"chrome.exe\",\"wavebrowser.exe\",\"vivaldi.exe\",\"brave.exe\",\"brchrome.exe\"]);\r\nDeviceFileEvents\r\n| where FolderPath contains @\"AppData\\Local\" and FolderPath contains @\"User Data\\Default\\Extensions\"\r\n| where ActionType in (\"FileRead\", \"FileAccessed\")\r\n| extend ExtensionFolder = extract(@\"\\\\Extensions\\\\([^\\\\]+)\", 1, FolderPath)\r\n| where InitiatingProcessFileName !in (Browser)\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176
+    - T1083
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cyfirma.com/research/edskmanager-rat-multi-stage-malware-with-hvnc-and-evasion-capabilities/

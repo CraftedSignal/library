@@ -1,0 +1,79 @@
+id: b33256e8-ddc2-4640-a9a0-f2f1532f5421
+name: BiBi Wiper Command-Line Artifacts
+description: Detects command-line patterns associated with the execution of the BiBi Wiper, used by the threat actor Void Manticore. This includes deleting shadow copies and disabling system recovery features.
+query: |
+    title: BiBi Wiper Command-Line Artifacts
+    id: 3a37fedb-0e6e-4ce2-bdde-5edeffd27b19
+    status: experimental
+    description: Detects command-line patterns associated with the execution of the
+      BiBi Wiper, used by the threat actor Void Manticore. This includes deleting
+      shadow copies and disabling system recovery features.
+    references:
+      - https://research.checkpoint.com/2024/bad-karma-no-justice-void-manticore-destructive-activities-in-israel/
+    author: Gopi Krishna - detections.ai
+    date: 2025-07-12
+    tags:
+      - attack.impact
+      - attack.t1485
+      - threat_actor.void_manticore
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_vssadmin:
+        # Detects the deletion of all volume shadow copies
+        Image|endswith: '\vssadmin.exe'
+        CommandLine|contains|all:
+          - 'delete'
+          - 'shadows'
+          - '/all'
+          - '/quiet'
+      selection_wmic:
+        # Detects the deletion of shadow copies using WMIC
+        Image|endswith: '\wmic.exe'
+        CommandLine|contains|all:
+          - 'shadowcopy'
+          - 'delete'
+      selection_bcdedit_bootstatus:
+        # Detects disabling of the error recovery screen on startup
+        Image|endswith: '\bcdedit.exe'
+        CommandLine|contains|all:
+          - '/set'
+          - '{default}'
+          - 'bootstatuspolicy'
+          - 'ignoreallfailures'
+      selection_bcdedit_recovery:
+        # Detects disabling of the system recovery feature
+        Image|endswith: '\bcdedit.exe'
+        CommandLine|contains|all:
+          - '/set'
+          - '{default}'
+          - 'recoveryenabled'
+          - 'no'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate administrative activity
+      - although the combination of these commands
+      - especially the bcdedit modifications
+      - is highly unusual.
+      - Backup software or system cleanup scripts might use vssadmin or wmic to
+        manage shadow copies
+      - but typically not with the `/all` switch in this manner.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1485
+tags:
+    - attack.impact
+    - attack.t1485
+    - threat_actor.void_manticore
+author: Gopi Krishna - detections.ai
+version: "1"
+references:
+    - https://research.checkpoint.com/2024/bad-karma-no-justice-void-manticore-destructive-activities-in-israel/
+data_sources:
+    - process_creation
+    - windows

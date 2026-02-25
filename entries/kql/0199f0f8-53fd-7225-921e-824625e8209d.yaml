@@ -1,0 +1,53 @@
+id: 0199f0f8-53fd-7225-921e-824625e8209d
+name: Suspicious SVG-to-Payload Correlation (Outlook & Browser Activity)
+description: This rule detects a suspicious activity chain where an SVG file is created by Outlook, immediately followed by a browser downloading a potentially malicious payload (archive, executable, or script file) on the same device within a short timeframe. This pattern could indicate a social engineering attack where a user is tricked into opening a malicious SVG attachment, which then leads to the download of a secondary malicious file.
+query: |-
+    let lookback = 30d;
+    let Browsers = dynamic(["chrome.exe","msedge.exe","firefox.exe","brave.exe","iexplore.exe"]);
+    let PayloadPattern = @".*(\.zip|\.rar|\.7z|\.iso|\.img|\.cab|\.exe|\.dll|\.scr|\.msi|\.js|\.vbs|\.hta|\.bat|\.cmd|\.ps1)$";
+    // Step 1: Detect SVG attachments saved by Outlook
+    let suspiciousSVGfile =
+    DeviceFileEvents
+    | where Timestamp > ago(lookback)
+    | where ActionType == "FileCreated"
+    | where InitiatingProcessFileName =~ "outlook.exe"
+    | where FileName matches regex @"\.svg$"
+    | project SVGCreationTimeStamp = Timestamp, DeviceId, DeviceName, SVGFileName = FileName, SVGFolderPath = FolderPath, SVG_SHA256 = SHA256, InitiatingProcessAccountName;
+    // Step 2: Detect possible payload files downloaded by browsers
+    let suspiciousBrowserDownloads =
+    DeviceFileEvents
+    | where Timestamp > ago(lookback)
+    | where ActionType == "FileCreated"
+    | where InitiatingProcessFileName in~ (Browsers)
+    | where tolower(FileName) matches regex PayloadPattern
+    | project DownloadTime = Timestamp, DeviceId, DeviceName, DownloadFileName = FileName, DownloadFolderPath = FolderPath, Download_SHA256 = SHA256, BrowserProcess = InitiatingProcessFileName, InitiatingProcessAccountName;
+    // Step 3: Correlate SVG creation and payload download within 2 minutes on same device
+    suspiciousSVGfile
+    | join kind=inner (suspiciousBrowserDownloads) on DeviceId
+    | where DownloadTime between ((SVGCreationTimeStamp - 30s) .. (SVGCreationTimeStamp + 2m))
+    | project
+        Timestamp = DownloadTime,
+        DeviceId,
+        DeviceName,
+        SVGFileName,
+        SVGFolderPath,
+        SVG_SHA256,
+        DownloadFileName,
+        DownloadFolderPath,
+        Download_SHA256,
+        BrowserProcess,
+        InitiatingProcessAccountName
+    | extend AlertName = "Potential SVG → Archive/Executable/Script Payload Chain"
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1204.002
+    - T1059
+tags:
+    - kql
+version: "3"

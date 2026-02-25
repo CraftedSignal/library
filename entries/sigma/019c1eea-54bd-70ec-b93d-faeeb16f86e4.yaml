@@ -1,0 +1,62 @@
+id: 019c1eea-54bd-70ec-b93d-faeeb16f86e4
+name: Windows Defender Exclusion Added Via WMIC
+description: |
+    Detects the use of the Windows Management Instrumentation Command-line (WMIC) utility to add an exclusion (Path, Process, or Extension) to Microsoft Defender. This technique is used by malware, such as the MKDOOR backdoor, to prevent detection by security products.
+query: |
+    title: Windows Defender Exclusion Added Via WMIC
+    id: e9f2c63d-4481-4839-a907-63ac7c1fab5c
+    status: experimental
+    description: >
+      Detects the use of the Windows Management Instrumentation Command-line (WMIC)
+      utility to add an exclusion (Path, Process, or Extension) to Microsoft
+      Defender. This technique is used by malware, such as the MKDOOR backdoor, to
+      prevent detection by security products.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html
+    author: tim@detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - attack.t1047
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_base:
+        Image|endswith: '\wmic.exe'
+        CommandLine|contains|all:
+          - 'MSFT_MpPreference'
+          - 'call'
+          - 'Add'
+      selection_exclusion_type:
+        CommandLine|contains:
+          - 'ExclusionPath'
+          - 'ExclusionExtension'
+          - 'ExclusionProcess'
+      condition: all of selection_*
+    falsepositives: >
+      System administrators may use this command for legitimate purposes to
+      configure Microsoft Defender exclusions. Tuning may be required to filter
+      out legitimate administrative activity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1047
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.t1047
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html
+data_sources:
+    - process_creation
+    - windows

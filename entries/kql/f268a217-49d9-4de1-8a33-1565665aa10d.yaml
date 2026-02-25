@@ -1,0 +1,19 @@
+id: f268a217-49d9-4de1-8a33-1565665aa10d
+name: ' New KimJongRAT Stealer Variant and Its PowerShell Implementation'
+description: KQL Query
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where (InitiatingProcessFileName =~ \"mshta.exe\" and InitiatingProcessFolderPath contains @\":\\Users\\\" and InitiatingProcessFolderPath contains @\"\\AppData\\Local\\Temp\\\")\r\n    or (InitiatingProcessFileName =~ \"powershell.exe\" and InitiatingProcessCommandLine contains \"Invoke-WebRequest\")\r\n| where FileName =~ \"certutil.exe\"\r\n| where ProcessCommandLine contains \"-decode\" and ProcessCommandLine contains \"base64\"\r\n| where ProcessCommandLine matches regex @\".* -decode .* (temp|localappdata)\\\\(.*\\.dll|.*\\.zip|.*\\.log|.*\\.txt|.*\\.pdf)\"\r\n| project-rename InitiatingProcessParentCommandLine = InitiatingProcessCommandLine, InitiatingProcessParentFolderPath = InitiatingProcessFolderPath\r\n| extend InitiatingProcessFileName = FileName, InitiatingProcessCommandLine = ProcessCommandLine, InitiatingProcessFolderPath = FolderPath\r\n| project Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessFolderPath, InitiatingProcessParentFileName, InitiatingProcessParentCommandLine, InitiatingProcessParentFolderPath, ProcessCommandLine, FileName, FolderPath, SHA256, MD5\r\n| summarize arg_max(Timestamp, *) by DeviceName, ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059.001
+    - T1219
+    - T1218
+tags:
+    - kql
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/kimjongrat-stealer-variant-powershell/

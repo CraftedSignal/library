@@ -1,0 +1,15 @@
+id: 0199e2f4-7dd3-776a-8219-fe2d427c0669
+name: 'Threat Hunt: APT35 - Subtle Snail - Suspicious Executable/DLL Activity with Cloud-Hosted C2 on Azure Infrastructure'
+description: Hunts for multi-stage attacker behavior involving executables dropped to user directories, co-located DLL loads, and outbound network connections to Azure cloud domains used as command-and-control infrastructure. This query surfaces advanced adversary tradecraft where payload delivery, code execution, and cloud-based C2 are tightly correlated.
+query: "let lookback = 1d;\r\nlet azure_hosts = dynamic([\".azurewebsites.net\", \".blob.core.windows.net\", \".cloudapp.net\", \".azureedge.net\", \".function.azure.com\", \".trafficmanager.net\"]);\r\nlet downloads = DeviceFileEvents\r\n    | where Timestamp >= ago(lookback)\r\n    | where FolderPath has_any (\"\\\\Downloads\\\\\", \"\\\\AppData\\\\Local\\\\Temp\\\\\", \"\\\\Temp\\\\\", \"\\\\AppData\\\\Roaming\\\\\")\r\n    | where FileName endswith \".exe\"\r\n    | project DeviceName, ExeFile=FileName, ExeFolder=FolderPath, ExeSHA1=SHA1, TimestampExe=Timestamp;\r\nlet dllloads = DeviceImageLoadEvents\r\n    | where Timestamp >= ago(lookback)\r\n    | where FileName endswith \".dll\"\r\n    | project DeviceName, DllFile=FileName, DllFolder=FolderPath, DllSHA1=SHA1, TimestampDll=Timestamp, InitiatingProcessFileName, InitiatingProcessCommandLine;\r\nlet net = DeviceNetworkEvents\r\n    | where Timestamp >= ago(lookback)\r\n    | extend rhost = RemoteUrl\r\n    | where rhost has_any (azure_hosts)\r\n    | project DeviceName, InitiatingProcessFileName, RemoteUrl= rhost, RemoteIP, TimestampNet=Timestamp, InitiatingProcessCommandLine;\r\ndownloads\r\n| join kind=inner dllloads on DeviceName\r\n| where DllFolder has ExeFolder or ExeFolder has DllFolder\r\n| join kind=inner net on DeviceName, InitiatingProcessFileName\r\n| project Timestamp = TimestampNet, DeviceName, ExeFile, ExeFolder, DllFile, DllFolder, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1071.001
+    - T1105
+tags:
+    - kql
+author: AwaisM
+version: "1"
+references:
+    - https://catalyst.prodaft.com/public/report/modus-operandi-of-subtle-snail/overview

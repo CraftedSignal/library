@@ -1,0 +1,63 @@
+id: 139db900-d184-4af9-a0c0-d4f396474c34
+name: Threat Hunting BYOVD Scenarios
+description: 'KQL Query from file: Threat Hunting BYOVD Scenarios'
+query: |
+    // Threat Hunting BYOVD Scenarios
+
+    // This query identifies recently created driver files on an endpoint with low global prevalence. It then cross-references these files with Windows Event ID 3004, where Windows Code Integrity validates the digital signature of kernel-mode drivers during memory loading. This detection can potentially highlight BYOVD (Bring Your Own Vulnerable Driver) scenarios.
+
+    let DriverwithLowPrevalence =
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    | where FileName endswith ".sys"
+    | invoke FileProfile(SHA1,1000)
+    | where GlobalPrevalence <= 150 or isempty(GlobalPrevalence)
+    | join kind=leftouter DeviceFileCertificateInfo on SHA1
+    | project FileName;
+    DeviceEvents
+    // Event ID 3004 — Kernel-mode Driver Validation
+    | where ReportId == "3004"
+    | where ActionType == @"DriverLoad"
+    | where FileName has_any(DriverwithLowPrevalence)
+
+
+    // #DefenderXDR #MDE #BYOVD #ThreatHunting #FileProfile #KQL
+
+    // MITRE ATT&CK Mapping
+
+    // Initial Access:
+    // Technique: T1190 (Exploit Public-Facing Application)
+    // The query may help detect exploitation attempts against public-facing applications.
+    // Technique: T1566.001 (Phishing: Spearphishing Attachment)
+    // The query could be relevant for detecting malicious attachments in spear-phishing emails.
+    // Execution:
+    // Technique: T1047 (Windows Management Instrumentation)
+    // The query involves using WMI for remote command execution.
+    // Persistence:
+    // Technique: T1136.001 (Create Account: Local Account)
+    // The query identifies local account creations.
+    // Defense Evasion:
+    // Technique: T1556 (Modify Authentication Process)
+    // The query may be related to conditional access policy changes.
+query_type: kql
+tactics:
+    - TA0001
+    - TA0002
+    - TA0003
+    - TA0006
+    - TA0005
+    - TA0004
+techniques:
+    - T1190
+    - T1566.001
+    - T1047
+    - T1136.001
+    - T1556
+    - T1068
+    - T1543.003
+    - T1547.008
+    - T1177
+    - T1574.006
+tags:
+    - kql
+version: "1"

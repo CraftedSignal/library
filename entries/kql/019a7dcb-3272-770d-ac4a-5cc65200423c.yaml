@@ -1,0 +1,17 @@
+id: 019a7dcb-3272-770d-ac4a-5cc65200423c
+name: Potential CLFS BLF File Tampering (CVE-2024-49138)
+description: Detects a sequence of file operations indicative of CLFS Base Log File (.blf) tampering, a technique used in CVE-2024-49138 exploitation. The detection looks for a process writing to a .blf file, immediately followed by a read of the same file, which is an unusual pattern as regular applications use CLFS APIs, not direct file writes.
+query: "// Name: Potential CLFS BLF File Tampering (CVE-2024-49138)\r\n// Author: detections.ai\r\n// Date: 2025-11-13\r\n// Description: Detects a sequence of file operations indicative of CLFS Base Log File (.blf) tampering, a technique used in CVE-2024-49138 exploitation. The detection looks for a process writing to a .blf file, immediately followed by a read of the same file, which is an unusual pattern as regular applications use CLFS APIs, not direct file writes.\r\n// Tactic: Privilege Escalation\r\n// Technique: T1068 - Exploitation for Privilege Escalation\r\n// False Positive Sensitivity: Medium\r\n// References:\r\n// - https://hnsecurity.it/blog/cve-2024-49138-windows-clfs-heap-based-buffer-overflow-analysis-part-1/\r\n// - https://hnsecurity.it/blog/cve-2024-49138-windows-clfs-heap-based-buffer-overflow-analysis-part-2/\r\n\r\nlet timeframe = 1d;\r\n// Find .blf files being created or overwritten. This is a proxy for tampering via WriteFile().\r\nlet blf_writes =\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType == \"FileCreated\" and FileName endswith \".blf\"\r\n| project WriteTimestamp = Timestamp, DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessCommandLine, InitiatingProcessFolderPath, FolderPath, FileName;\r\n\r\n// Find .blf files being opened. This is a proxy for the CreateLogFile() API call loading the tampered file.\r\nlet blf_reads =\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType == \"FileModified\" and FileName endswith \".blf\"\r\n| project ReadTimestamp = Timestamp, DeviceId, InitiatingProcessId, FolderPath, FileName;\r\n\r\n// Join writes and subsequent reads on the same file path by the same process.\r\nblf_writes\r\n| join kind=inner (\r\n    blf_reads\r\n) on DeviceId, InitiatingProcessId, FolderPath, FileName\r\n// The read must occur shortly after the write, which is characteristic of the exploit sequence.\r\n| where ReadTimestamp > WriteTimestamp and ReadTimestamp - WriteTimestamp < 5m\r\n// FP Tuning: Exclude known legitimate processes if they cause noise.\r\n// For example, some system or backup processes might exhibit this behavior under specific circumstances.\r\n// | where not(InitiatingProcessFolderPath in~ ('C:\\\\Windows\\\\System32\\\\lsass.exe'))\r\n| project\r\n    Timestamp = WriteTimestamp,\r\n    ReadTimestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    InitiatingProcessId,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFolderPath,\r\n    FileName,\r\n    FolderPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+techniques:
+    - T1068
+tags:
+    - kql
+author: Ramzi Z
+version: "2"
+references:
+    - https://hnsecurity.it/blog/cve-2024-49138-windows-clfs-heap-based-buffer-overflow-analysis-part-1/
+    - https://hnsecurity.it/blog/cve-2024-49138-windows-clfs-heap-based-buffer-overflow-analysis-part-2/

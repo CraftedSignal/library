@@ -1,0 +1,26 @@
+id: c2464a61-e92a-4059-a6f6-3128ae7f8811
+name: AWS S3 Large Volume Data Download
+description: Detects a single S3 object download event where the volume of data transferred exceeds a defined threshold. This can be an indicator of bulk data exfiltration. Attackers may download large archives or databases from compromised S3 buckets.
+query: "title: AWS S3 Large Volume Data Download\r\nid: 75c09d24-b790-4df1-b70e-c019ae5ee3f8\r\nstatus: experimental\r\ndescription: Detects a single S3 object download event where the volume of data transferred exceeds a defined threshold. This can be an indicator of bulk data exfiltration. Attackers may download large archives or databases from compromised S3 buckets.\r\nreferences:\r\n  - https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html\r\nauthor: detections.ai\r\ndate: 2025-08-12\r\ntags:\r\n  - attack.exfiltration\r\n  - attack.t1537\r\n  - cloud\r\n  - aws\r\n  - s3\r\nlogsource:\r\n  product: aws\r\n  service: s3.access   # This detection requires S3 server access logs to be enabled and collected.\r\ndetection:\r\n  selection:\r\n        # Corresponds to the S3 GetObject API call\r\n    operation: 'REST.GET.OBJECT'\r\n        # Threshold for a large download in bytes (default is 1 GB).\r\n        # This value is highly environment-specific and should be tuned.\r\n    bytes_sent|gt: 1073741824\r\n  condition: selection\r\nfalsepositives:\r\n  - Legitimate downloads of large files such as backups, datasets, or software distributions.\r\n  - Data transfers to trusted business partners or customers.\r\n  - To reduce noise, consider tuning the `bytes_sent` threshold based on baseline activity. You may also filter out events originating from known-good source IP addresses, user agents, or IAM principals (e.g., specific backup roles).\r\nlevel: medium\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+    - TA0009
+techniques:
+    - T1537
+    - T1530
+    - DS0010
+tags:
+    - attack.exfiltration
+    - attack.t1537
+    - cloud
+    - aws
+    - s3
+author: detections.ai
+version: "1"
+references:
+    - https://docs.aws.amazon.com/AmazonS3/latest/userguide/LogFormat.html
+data_sources:
+    - aws
+    - s3.access

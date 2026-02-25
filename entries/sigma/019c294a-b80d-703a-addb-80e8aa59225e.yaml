@@ -1,0 +1,63 @@
+id: 019c294a-b80d-703a-addb-80e8aa59225e
+name: MacOS Fileless Payload Execution via Piped Commands
+description: |
+    Detects a command line pattern where `curl` is used to download a payload, which is then piped to `base64` for decoding and `gunzip` for decompression. This technique is commonly used by macOS infostealers like DigitStealer and MacSync to execute malware in memory without writing it to disk.
+query: |
+    title: MacOS Fileless Payload Execution via Piped Commands
+    id: 51d11572-7fb0-438d-a999-ef625fe59e44
+    status: experimental
+    description: >
+      Detects a command line pattern where `curl` is used to download a payload,
+      which is then piped to `base64` for decoding and `gunzip` for decompression.
+      This technique is commonly used by macOS infostealers like DigitStealer and
+      MacSync to execute malware in memory without writing it to disk.
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/02/02/infostealers-without-borders-macos-python-stealers-and-platform-abuse/
+    author: tim@detections.ai
+    date: 2026-02-04T00:00:00.000Z
+    tags:
+      - attack.t1059.004
+      - attack.t1140
+      - attack.t1105
+      - attack.execution
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection:
+        CommandLine|contains|all:
+          - 'curl'
+          - '|'
+          - 'base64'
+          - '-d'
+          - 'gunzip'
+      # Alternative: Regex pattern that enforces command order (curl -> base64 -d -> gunzip)
+      #   CommandLine|re: 'curl\s.+\|\s*base64\s+-d\s*\|\s*gunzip'
+      condition: selection
+    falsepositives:
+      - Low probability - If false positives occur, consider adding filters for specific parent processes or user contexts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0011
+techniques:
+    - T1059.004
+    - T1140
+    - T1105
+tags:
+    - attack.t1059.004
+    - attack.t1140
+    - attack.t1105
+    - attack.execution
+    - attack.defense_evasion
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/02/infostealers-without-borders-macos-python-stealers-and-platform-abuse/
+data_sources:
+    - process_creation
+    - macos

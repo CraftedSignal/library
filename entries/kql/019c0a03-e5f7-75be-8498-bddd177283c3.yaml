@@ -1,0 +1,65 @@
+id: 019c0a03-e5f7-75be-8498-bddd177283c3
+name: Office Trusted Locations Expanded Scope Enabled
+description: Detects when the 'AllowNetworkLocations' or 'AllowSubfolders' registry values are enabled for Microsoft Office. This change broadens the attack surface by allowing Office to trust documents from network shares or any subdirectory within a trusted path, which can be abused by attackers to execute malicious payloads from attacker-controlled shares or hidden directories.
+query: |
+    //
+    // Rule Title: Office Trusted Locations Expanded Scope Enabled
+    // Description: Detects when the 'AllowNetworkLocations' or 'AllowSubfolders' registry values are enabled for Microsoft Office. This change broadens the attack surface by allowing Office to trust documents from network shares or any subdirectory within a trusted path, which can be abused by attackers to execute malicious payloads from attacker-controlled shares or hidden directories.
+    //
+    // Author: detections.ai
+    // Date: 2026-01-28
+    //
+    // MITRE ATT&CK:
+    // - T1112: Modify Registry
+    // - T1021.002: Remote Services: SMB/Windows Admin Shares
+    //
+    // References:
+    // - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations
+    //
+    // False Positive Sensitivity: Medium
+    // - Legitimate changes may be made by system administrators or through Group Policy.
+    // - Use the 'legit_process_allowlist' to filter known administrative tools in your environment.
+    //
+
+    // Define an allowlist for known legitimate processes that manage these settings.
+    let legit_process_allowlist = dynamic([
+        "svchost.exe", // Group Policy
+        "Microsoft.Management.Services.IntuneWindowsAgent.exe", // Intune Management Extension
+        "ccmexec.exe" // SCCM/Configuration Manager
+    ]);
+    DeviceRegistryEvents
+    // Filter for registry value modifications.
+    | where ActionType == "RegistryValueSet"
+    // Target the specific registry keys for Office trusted locations across different versions.
+    | where RegistryKey has_all (@"Software\Microsoft\Office", @"\Security\Trusted Locations")
+    // Look for the specific values being enabled (set to 1).
+    | where RegistryValueName in~ ("AllowNetworkLocations", "AllowSubfolders") and tostring(RegistryValueData) == "1"
+    // Exclude changes made by known administrative tools to reduce false positives.
+    | where not(InitiatingProcessFileName in~ (legit_process_allowlist))
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        RegistryKey,
+        RegistryValueName,
+        RegistryValueData,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0008
+techniques:
+    - T1112
+    - T1021.002
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations

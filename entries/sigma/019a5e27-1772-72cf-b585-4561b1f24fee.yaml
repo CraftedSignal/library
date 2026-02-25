@@ -1,0 +1,58 @@
+id: 019a5e27-1772-72cf-b585-4561b1f24fee
+name: LANDFALL Android Spyware SELinux Policy Manipulation
+description: Detects the LANDFALL Android spyware manipulating SELinux policy by preloading a malicious shared object and passing a path to the 'l.so' policy manipulator component via the PRELOAD_PATH environment variable.
+query: |
+    title: LANDFALL Android Spyware SELinux Policy Manipulation
+    id: 58287e7f-96af-4d20-a4c4-c0be0237ea5b
+    status: experimental
+    description: Detects the LANDFALL Android spyware manipulating SELinux policy by
+      preloading a malicious shared object and passing a path to the 'l.so' policy
+      manipulator component via the PRELOAD_PATH environment variable.
+    references:
+      - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    author: detections.ai
+    date: 2025-11-07
+    tags:
+      - attack.privilege_escalation
+      - attack.persistence
+      - attack.t1548.002
+      - attack.t1574.006
+      - malware.landfall
+      - os.android
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        CommandLine|contains|all:
+          - 'LD_PRELOAD=' # Detects the use of library preloading, a common hijacking technique.
+          - 'PRELOAD_PATH=/data/data/com.samsung.ipservice/files/l.so' # Highly specific path to the LANDFALL SELinux manipulator component.
+          - '/system/bin/id' # The benign system binary used to host the malicious preloaded library.
+      condition: selection
+    falsepositives:
+      - This detection is based on a very specific command line pattern observed in
+        the LANDFALL spyware analysis. Legitimate applications are not expected to
+        use this combination of environment variables and paths.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.006
+tags:
+    - attack.privilege_escalation
+    - attack.persistence
+    - attack.t1548.002
+    - attack.t1574.006
+    - malware.landfall
+    - os.android
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+data_sources:
+    - process_creation
+    - linux

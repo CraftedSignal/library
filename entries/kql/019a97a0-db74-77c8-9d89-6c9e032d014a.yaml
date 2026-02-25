@@ -1,0 +1,19 @@
+id: 019a97a0-db74-77c8-9d89-6c9e032d014a
+name: macOS Launch Agent/Daemon .plist File Creation or Modification
+description: Detects the creation or modification of .plist files in macOS Launch Agent and Launch Daemon directories. This activity can be indicative of persistence mechanisms being established by adversaries. The rule excludes modifications by common system installers to reduce false positives.
+query: "DeviceFileEvents\r\n| where ActionType in (\"FileCreated\", \"FileModified\")\r\n| where FolderPath has_any (\r\n    \"/Library/LaunchAgents/\",\r\n    \"/Library/LaunchDaemons/\",\r\n    \"/System/Library/LaunchAgents/\",\r\n    \"/System/Library/LaunchDaemons/\"\r\n    )\r\n    or FolderPath contains \"/Users/\" and FolderPath contains \"/Library/LaunchAgents/\"\r\n| where FileName endswith \".plist\"\r\n| where InitiatingProcessAccountName != \"root\" \r\n    or InitiatingProcessFileName !in (\"installer\", \"softwareupdated\", \"installd\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543
+    - T1543.001
+    - T1543.004
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://www.sentinelone.com/blog/how-malware-persists-on-macos/

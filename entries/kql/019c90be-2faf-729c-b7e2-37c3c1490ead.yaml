@@ -1,0 +1,91 @@
+id: 019c90be-2faf-729c-b7e2-37c3c1490ead
+name: DYNOWIPER Activity Detection
+description: This rule detects activity associated with the DYNOWIPER malware. It identifies the malware through specific SHA256 file hashes, known filenames (dynacom_update.exe, source.exe, schtask.exe, dynacon_update.ps1, exp.ps1), and process names (dynacom_update.exe, source.exe, schtask.exe, powershell.exe). Additionally, it flags network connections to or from a set of known malicious IP addresses (185.200.177.10, 31.172.71.5, 193.200.17.163, 185.82.127.20, 72.62.35.76) which are associated with VPN logins or exfiltration reverse proxies used by DYNOWIPER.
+query: |-
+    // DYNOWIPER hunts (Microsoft KQL - Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://www.elastic.co/security-labs/dynowiper
+
+    let DynoSha256 = dynamic([
+      "835b0d87ed2d49899ab6f9479cddb8b4e03f5aeb2365c50a51f9088dcede68d5",
+      "65099f306d27c8bcdd7ba3062c012d2471812ec5e06678096394b238210f0f7c",
+      "60c70cdcb1e998bffed2e6e7298e1ab6bb3d90df04e437486c04e77c411cae4b",
+      "d1389a1ff652f8ca5576f10e9fa2bf8e8398699ddfc87ddd3e26adb201242160",
+      "8759e79cf3341406564635f3f08b2f333b0547c444735dba54ea6fce8539cf15",
+      "f4e9a3ddb83c53f5b7717af737ab0885abd2f1b89b2c676d3441a793f65ffaee"
+    ]);
+
+    let DynoNames = dynamic([
+      "dynacom_update.exe",
+      "source.exe",
+      "schtask.exe",
+      "dynacon_update.ps1",
+      "exp.ps1",
+      "powershell.exe"
+    ]);
+
+    let DynoIPs = dynamic([
+      "185.200.177.10",
+      "31.172.71.5",
+      "193.200.17.163",
+      "185.82.127.20",
+      "72.62.35.76"
+    ]);
+
+    union isfuzzy=true
+    (
+      DeviceFileEvents
+      | where SHA256 in (DynoSha256) or FileName in (DynoNames)
+      | extend MatchType = case(
+          SHA256 in (DynoSha256), "sha256",
+          FileName in (DynoNames), "filename",
+          "other"
+        )
+      | project TimeGenerated, DeviceName, ActionType, MatchType, FileName, FolderPath, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      DeviceProcessEvents
+      | where SHA256 in (DynoSha256) or FileName in (DynoNames) or ProcessCommandLine has_any (DynoNames)
+      | extend MatchType = case(
+          SHA256 in (DynoSha256), "sha256",
+          FileName in (DynoNames), "process_name",
+          ProcessCommandLine has_any (DynoNames), "commandline_keyword",
+          "other"
+        )
+      | project TimeGenerated, DeviceName, ActionType, MatchType, FileName, FolderPath, SHA256,
+                AccountName, ParentProcessName, ProcessCommandLine, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      DeviceNetworkEvents
+      | where RemoteIP in (DynoIPs) or LocalIP in (DynoIPs) or RemoteUrl has_any (DynoIPs)
+      | extend MatchType = case(
+          RemoteIP in (DynoIPs) or LocalIP in (DynoIPs), "ip_match",
+          RemoteUrl has_any (DynoIPs), "url_contains_ip",
+          "other"
+        )
+      | project TimeGenerated, DeviceName, ActionType, MatchType, RemoteIP, RemotePort, RemoteUrl, LocalIP,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0011
+    - TA0002
+techniques:
+    - T1485
+    - T1489
+    - T1071.001
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.elastic.co/security-labs/dynowiper

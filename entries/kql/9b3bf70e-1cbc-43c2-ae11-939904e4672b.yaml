@@ -1,0 +1,56 @@
+id: 9b3bf70e-1cbc-43c2-ae11-939904e4672b
+name: Entra ID OAuth Phishing via MAB to DRS
+description: Detects a user initiating an OAuth flow with the Microsoft Authentication Broker (MAB) client to the Device Registration Service (DRS) from multiple IP addresses within a short time window. This pattern is indicative of an adversary using a phished authorization code to begin the process of registering a malicious device in the target tenant, a key step for establishing persistence. The rule specifically looks for sessions that involve at least one browser-based request, which is common in the initial phishing stage.
+query: |
+    // Name: Entra ID OAuth Phishing via MAB to DRS
+    // Author: AEspejo
+    // Date: 2025-09-02
+    // References: https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    // Description: Detects a user initiating an OAuth flow with the Microsoft Authentication Broker (MAB) client to the Device Registration Service (DRS) from multiple IP addresses within a short time window. This pattern is indicative of an adversary using a phished authorization code to begin the process of registering a malicious device in the target tenant, a key step for establishing persistence. The rule specifically looks for sessions that involve at least one browser-based request, which is common in the initial phishing stage.
+    // False Positive Sensitivity: Medium
+    // Tuning: This rule may generate false positives if a user legitimately authenticates while rapidly switching networks (e.g., Wi-Fi to cellular, connecting/disconnecting VPN). Consider excluding known corporate IP ranges or trusted Autonomous System Numbers (ASNs) to reduce noise.
+    let timeWindow = 30m;
+    SigninLogs
+    | where TimeGenerated > ago(1d)
+    // Filter for successful sign-ins targeting the Device Registration Service with the Microsoft Authentication Broker client.
+    | where ResultType == 0
+    | where AppId == "29d9ed98-a469-4536-ade2-f981bc1d605e" // Microsoft Authentication Broker (MAB)
+    | where ResourceIdentity == "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9" // Device Registration Service (DRS)
+    | where isnotempty(CorrelationId) and CorrelationId != "00000000-0000-0000-0000-000000000000"
+    // Group events by user and session ID to identify session reuse.
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        DistinctIpCount = dcount(IPAddress),
+        IpAddresses = make_set(IPAddress),
+        Locations = make_set(Location),
+        BrowserRequestCount = countif(UserAgent has "Mozilla"), // Heuristic to identify browser-based requests.
+        UserAgents = make_set(UserAgent)
+        by UserPrincipalName, CorrelationId, bin(TimeGenerated, timeWindow)
+    // Alert when a single session is used from more than one IP and involves a browser request.
+    | where DistinctIpCount > 1 and BrowserRequestCount > 0
+    | project
+        StartTime,
+        EndTime,
+        UserPrincipalName,
+        CorrelationId,
+        DistinctIpCount,
+        IpAddresses,
+        Locations,
+        UserAgents
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0008
+    - TA0003
+    - TA0004
+techniques:
+    - T1550.001
+    - T1098.005
+tags:
+    - kql
+author: AEspejo
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection

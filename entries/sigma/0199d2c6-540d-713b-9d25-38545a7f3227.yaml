@@ -1,0 +1,73 @@
+id: 0199d2c6-540d-713b-9d25-38545a7f3227
+name: Command Injection In Web Request POST Body
+description: |
+    Detects potential command injection attempts in the body of HTTP POST requests. Attackers, such as those operating the RondoDoX botnet, exploit unsanitized input fields in web interfaces of SOHO routers, IoT devices, and other applications to execute arbitrary commands. This rule looks for common command-line tools and shell characters within the POST body, particularly in requests targeting parameters known to be vulnerable.
+query: |-
+    title: Command Injection In Web Request POST Body
+    id: 5142343a-41ed-43e9-8625-f662e48372bb
+    status: experimental
+    description: >
+      Detects potential command injection attempts in the body of HTTP POST
+      requests. Attackers, such as those operating the RondoDoX botnet, exploit
+      unsanitized input fields in web interfaces of SOHO routers, IoT devices, and
+      other applications to execute arbitrary commands. This rule looks for common
+      command-line tools and shell characters within the POST body, particularly in
+      requests targeting parameters known to be vulnerable.
+    references:
+      - >-
+        https://www.cloudsek.com/blog/botnet-loader-as-a-service-infrastructure-distributing-rondodox-and-mirai-payloads
+    author: detections.ai
+    date: 2025-10-11T00:00:00.000Z
+    tags:
+      - attack.t1190
+      - attack.t1059
+      - attack.command_injection
+      - malware.rondodox
+      - malware.mirai
+    logsource:
+      category: webserver
+      service: apache
+    detection:
+      http_post:
+        http.method: POST
+      selection_commands:
+        http.request.body.content|contains:
+          - 'wget '
+          - 'curl '
+          - 'busybox '
+          - '|sh'
+      selection_parameters:
+        http.request.body.content|contains:
+          - ntp=
+          - syslogServerAddr=
+          - hostname=
+          - ping=
+          - remote_syslog=
+      condition: http_post and selection_commands and selection_parameters
+    falsepositives:
+      - Legitimate administrative web interfaces or diagnostic tools might allow the
+        use of these commands in POST bodies. Review the source of the request and
+        the full POST body to determine legitimacy. If false positives occur,
+        consider adding more specific vulnerable parameters to
+        'selection_parameters' or excluding trusted source IPs.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059
+tags:
+    - attack.t1190
+    - attack.t1059
+    - attack.command_injection
+    - malware.rondodox
+    - malware.mirai
+author: detections.ai
+version: "4"
+references:
+    - https://www.cloudsek.com/blog/botnet-loader-as-a-service-infrastructure-distributing-rondodox-and-mirai-payloads
+data_sources:
+    - webserver

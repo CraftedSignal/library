@@ -1,0 +1,45 @@
+id: 019c9063-2364-7283-8394-f3f2d9d5b74c
+name: PeckBirdy LOLBin Network Activity
+description: Detects LOLBin processes (mshta.exe, wscript.exe, cscript.exe) making outbound network connections to non-standard ports. This behavior is characteristic of the PeckBirdy framework's C2 communication.
+query: |
+    // Name: PeckBirdy LOLBin Network Activity
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects LOLBin processes (mshta.exe, wscript.exe, cscript.exe) making outbound network connections to non-standard ports. This behavior is characteristic of the PeckBirdy framework's C2 communication.
+    // Tactics: Command and Control, Execution
+    // Techniques: T1218.005, T1059.007, T1071.001
+    // False Positive Sensitivity: Medium
+    // References: https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html
+    DeviceNetworkEvents
+    // Look for network connections initiated by known script-based LOLBins
+    | where InitiatingProcessFileName in~ ("mshta.exe", "wscript.exe", "cscript.exe")
+    // The specific ports used by PeckBirdy for WebSocket, Flash, and Comet C2 channels
+    | where RemotePort in (2000, 2001, 2002, 3000)
+    // FP Tuning: While these ports are specific to the malware, other applications could potentially use them.
+    // If legitimate processes are found, consider excluding them by InitiatingProcessCommandLine or by adding RemoteIP/RemoteUrl to an allowlist.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteIP,
+        RemoteUrl,
+        RemotePort,
+        InitiatingProcessAccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0011
+techniques:
+    - T1218.005
+    - T1059.007
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html

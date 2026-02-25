@@ -1,0 +1,53 @@
+id: 019b2c94-d640-76e9-ab0b-897bee5a11aa
+name: ESXi Firewall Disabled by RansomHouse MrAgent
+description: Detects the execution of the ESXi command 'esxcli network firewall set --enabled false' used by the RansomHouse MrAgent deployment tool to disable the host's firewall. This is a defense evasion technique used to ensure C2 communication and subsequent ransomware deployment.
+query: |
+    title: ESXi Firewall Disabled by RansomHouse MrAgent
+    id: 9eb74e0c-5079-4d64-9760-47eebf76ca81
+    status: experimental
+    description: Detects the execution of the ESXi command 'esxcli network firewall
+      set --enabled false' used by the RansomHouse MrAgent deployment tool to
+      disable the host's firewall. This is a defense evasion technique used to
+      ensure C2 communication and subsequent ransomware deployment.
+    references:
+      - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+    author: detections.ai
+    date: 2025-12-17
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.004
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # This selection identifies the specific command line arguments used to disable the ESXi firewall.
+        CommandLine|contains|all:
+          - 'esxcli'
+          - 'network'
+          - 'firewall'
+          - 'set'
+          - '--enabled'
+          - 'false'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.004
+    - T1059.012
+tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+data_sources:
+    - process_creation
+    - linux

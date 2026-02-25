@@ -1,0 +1,34 @@
+id: 01998647-8f25-7576-86af-d95d44171f48
+name: '[IC] - Detection Response by tracing File Lineage with KQL Queries'
+description: |-
+    This query groups all files by their originating file—such as a ZIP archive or from a Website—and includes all the files that were extracted from it. Among the benefits of Correlating File Events Using InitiatingProcessUniqueId field we can identify:
+
+    - Provides full visibility into all files related to a single action (e.g., ZIP extraction).
+    - Helps detect hidden or secondary malicious files that may not trigger alerts.
+    - Traces the origin of files—whether downloaded or extracted from another source.
+    - Strengthens root cause analysis and incident investigation.
+    - Enhances detection of multi-stage payloads or complex delivery methods.
+    - Builds context around suspicious activity for better decision-making.
+
+    On the other hand, we can enhance this detection by adding additional checks — for example, identifying when one of the extracted or downloaded files has a high-risk file extension.
+    | where FileExtension in ("exe","cmd","bat","ps1","js","vbs")
+query: "DeviceFileEvents\n| extend FileOriginReferrerUrl_ext = extract(@\"[^\\\\]+$\", 0, FileOriginReferrerUrl)\n| where isnotempty( FileOriginReferrerUrl)\n| join kind=inner ( DeviceEvents) on $left.InitiatingProcessUniqueId == $right.InitiatingProcessUniqueId\n| extend FileExtension = extract(@\"\\.([a-zA-Z0-9]+)$\", 1, FileName)\n| extend Source_Type = case(FileOriginReferrerUrl startswith  \"https://\", \"\U0001F30E Web\",\"\U0001F4C2 File\")\n| where FileExtension in (\"exe\",\"cmd\",\"bat\",\"ps1\",\"js\",\"vbs\")\n| summarize total_Files= dcount(FileName), Files_after_execution= strcat(\"\U0001F5C2️ \",make_set(FileName)),make_set(FileExtension),make_set(ActionType),make_set(FolderPath),SHA256_Group=make_set(SHA2561) by  InitiatingProcessUniqueId, AccountUpn = strcat(\"\U0001F469\U0001F3FB\U0001F4BB\U0001F9D1\U0001F3FE\U0001F4BB\",InitiatingProcessAccountUpn),Device = strcat(\"\U0001F4BB \",DeviceName), FileOriginReferrerUrl,Source_Type, OriginalFile=strcat(\"\U0001F6A9 \",FileOriginReferrerUrl_ext)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1204
+    - T1059
+    - T1059.001
+    - T1059.003
+    - T1059.005
+    - T1059.007
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://medium.com/detect-fyi/detection-response-by-tracing-file-lineage-with-kql-queries-6ab53309af4d

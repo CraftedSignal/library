@@ -1,0 +1,60 @@
+id: 019ac6e3-1657-71ba-91c4-b2d7fb112399
+name: Shai-Hulud Malicious File Creation
+description: This rule detects the creation or modification of files associated with the Shai-Hulud 2.0 worm. The detection is based on specific file hashes and a behavioral rule for an unusually large 'bun_environment.js' file, which is a key indicator of the malware's obfuscation techniques.
+query: |
+    # Name: Shai-Hulud Malicious File Creation
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This search detects the creation or modification of files associated with the Shai-Hulud 2.0 worm.
+    # The detection is based on specific file hashes and a behavioral rule for an unusually large 'bun_environment.js' file,
+    # which is a key indicator of the malware's obfuscation techniques.
+    #
+    # Data Source:
+    # This search requires endpoint file creation/modification events, such as those from Sysmon (Event Code 11),
+    # CrowdStrike, or other EDR solutions. The macro `endpoint_file_events` should be configured to point to the correct
+    # index and sourcetype (e.g., `index=botsv3 sourcetype=stream:file`). Field names for file_name, file_hash, and file_size
+    # should be mapped to your CIM.
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Execution
+    # - Technique: T1204.002 (User Execution: Malicious File)
+    #
+    # False Positives:
+    # Detections based on file hashes are high-fidelity. Detections based on the large 'bun_environment.js' file are unlikely to be false positives,
+    # but it is theoretically possible for a legitimate development tool to create a file with the same name and a large size.
+    # Investigation should confirm the file's origin and the process that created it.
+
+    `endpoint_file_events`
+
+    # Filter for file creation/modification events matching Shai-Hulud indicators.
+    # This includes known malicious file hashes and the behavioral indicator of a large bun_environment.js file.
+    | search (
+        file_hash IN (
+            "46faab8ab153fae6e80e7cca38eab363075bb524edd79e42269217a083628f09",
+            "a3894003ad1d293ba96d77881ccd2071446dc3f65f434669b49b3da92421901a",
+            "62ee164b9b306250c1172583f138c9614139264f889fa99614903c12755468d0",
+            "f099c5d9ec417d4445a0328ac0ada9cde79fc37410914103ae9c609cbc0ee068",
+            "cbb9bc5a8496243e02f3cc080efbe3e4a1430ba0671f2e43a202bf45b05479cd"
+        ) OR
+        (file_name="bun_environment.js" file_size>=9437184)
+    )
+
+    # Group results by host and file details for easier investigation.
+    | stats count by _time, host, user, process_name, process_command_line, file_name, file_path, file_size, file_hash
+    | `shai_hulud_malicious_files_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+tags:
+    - spl
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

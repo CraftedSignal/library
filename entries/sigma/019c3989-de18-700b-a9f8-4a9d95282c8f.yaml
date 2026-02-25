@@ -1,0 +1,58 @@
+id: 019c3989-de18-700b-a9f8-4a9d95282c8f
+name: DeadVax Payload in IntelDriver
+description: |
+    Malware often hides its payload in folders that look legitimate. In this case, it uses a path that sounds like an Intel driver folder, but it is fake. A real Intel installer would use a different, standard path. What makes this suspicious is that the file is created by a script, such as PowerShell or a batch file, not by an installer. Normal software installs show a setup wizard and write to known locations. Here, a script writes a file with an unusual name to a folder that mimics a trusted vendor. Security teams should treat any file created in this path by a script as highly suspicious. This rule helps catch that behaviour early in the attack.
+query: |
+    title: DeadVax Payload in IntelDriver
+    id: 5a6b7c8d-9e0f-4a1b-2c3d-4e5f6a7b8c9d
+    status: experimental
+    description: >
+      Malware often hides its payload in folders that look legitimate. In this case,
+      it uses a path that sounds like an Intel driver folder, but it is fake. A real
+      Intel installer would use a different, standard path. What makes this
+      suspicious is that the file is created by a script, such as PowerShell or a
+      batch file, not by an installer. Normal software installs show a setup wizard
+      and write to known locations. Here, a script writes a file with an unusual
+      name to a folder that mimics a trusted vendor. Security teams should treat any
+      file created in this path by a script as highly suspicious. This rule helps
+      catch that behaviour early in the attack.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+      - attack.defense-evasion
+      - attack.t1027
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_path:
+        TargetFilename|contains|all:
+          - ProgramData
+          - IntelDriver
+          - boot64x.w
+      selection_parent:
+        ParentImage|endswith:
+          - \powershell.exe
+          - \mbs.exe
+          - \cmd.exe
+          - \wscript.exe
+      condition: selection_path and selection_parent
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "5"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - file_event
+    - windows

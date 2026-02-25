@@ -1,0 +1,15 @@
+id: 019a36a3-88a0-71ef-b024-2190012e9ca8
+name: CoPhish detection
+description: Detects users who accessed Microsoft Copilot Studio and correlates that activity with OAuth consent events for third-party applications in Azure Active Directory. Optionally, it verifies whether the consented application was used to access data via Microsoft Graph API, indicating potential account compromise.
+query: "//Reference: https://securitylabs.datadoghq.com/articles/cophish-using-microsoft-copilot-studio-as-a-wrapper/#how-oauth-consent-attacks-work\r\nDeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has \"copilotstudio.microsoft.com\"\r\n| extend AccountUPN=InitiatingProcessAccountName \r\n| project StudioTimestamp=Timestamp,AccountUPN,DeviceName,ActionType,RemoteUrl \r\n| join kind=inner(\r\nCloudAppEvents\r\n| where RawEventData.Workload == \"AzureActiveDirectory\"\r\n| where ActionType == \"Consent to application.\"\r\n| extend AccountUPN =tostring(RawEventData.UserId)\r\n| extend APPID = ObjectId\r\n|project ConsentTimestamp=Timestamp,AccountUPN,AccountObjectId,ActionType,ObjectName,APPID\r\n) on AccountUPN\r\n| where ConsentTimestamp between (StudioTimestamp .. 2m)\r\n| project StudioTimestamp,ConsentTimestamp,AccountUPN,AccountObjectId,DeviceName,RemoteUrl,ObjectName,APPID\r\n//optional\r\n| join kind=inner (\r\n    GraphAPIAuditEvents \r\n    | extend GA_AccountObjectId = AccountObjectId\r\n    | project ApplicationId,GA_AccountObjectId,RequestMethod,GraphAPITimeStamp=Timestamp,ResponseStatusCode,Scopes,RequestUri,IpAddress \r\n) on $left.AccountObjectId == $right.GA_AccountObjectId\r\n| where ApplicationId == APPID\r\n| project StudioTimestamp,ConsentTimestamp,GraphAPITimeStamp,AccountUPN,RemoteUrl,ObjectName,Scopes,RequestMethod,\r\nRequestUri,ResponseStatusCode,IpAddress"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+    - T1567.002
+tags:
+    - kql
+author: Enzima45
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/cophish-using-microsoft-copilot-studio-as-a-wrapper/#how-oauth-consent-attacks-work

@@ -1,0 +1,92 @@
+id: 019c7ccb-1e49-73a8-85a0-5fa19a8cf10b
+name: DLL Side-Loading via Legitimate Security Software Binaries
+description: |
+    Detects DLL side-loading attacks using legitimate security software binaries (but often targeted)
+    to execute malicious DLL payloads, covering various security vendors commonly abused.
+query: |
+    title: DLL Side-Loading via Legitimate Security Software Binaries
+    id: 01f33b39-0ac9-40c4-99a9-a46f8ad42b67
+    status: test
+    description: >
+      Detects DLL side-loading attacks using legitimate security software binaries
+      (but often targeted)
+
+      to execute malicious DLL payloads, covering various security vendors commonly
+      abused.
+    references:
+      - >-
+        https://www.proofpoint.com/us/threat-insight/post/apt-targets-financial-analysts
+      - https://attack.mitre.org/techniques/T1574/001/
+    author: zendannyy
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.001
+      - attack.s0000
+    logsource:
+      product: windows
+      category: image_load
+      service: sysmon
+    detection:
+      selection_security_process:
+        Image|contains:
+          - mcafee
+          - norton
+          - symantec
+          - avast
+          - avg
+          - kaspersky
+          - eset
+          - norman
+        Image|endswith: .exe
+      selection_suspicious_dll:
+        ImageLoaded|endswith:
+          - .mui
+          - .dll
+        ImageLoaded|contains:
+          - \AppData\
+          - \Temp\
+          - \ProgramData\
+          - \Desktop\
+          - \Users\Public\
+      selection_security_location:
+        Image|contains:
+          - \AppData\
+          - \Temp\
+          - \ProgramData\
+          - \Users\Public\
+      filter_legitimate:
+        ImageLoaded|startswith:
+          - C:\Windows\System32\
+          - C:\Windows\SysWOW64\
+          - C:\Program Files\McAfee\
+          - C:\Program Files (x86)\
+          - C:\Program Files\
+          - C:\Program Files (x86)\
+      condition: >-
+        selection_security_process and (selection_suspicious_dll or
+        selection_security_location)  and not filter_legitimate
+    falsepositives:
+      - Legitimate security software installations in non-standard directories
+        (Correlate with change management)
+      - Security software updates or repairs
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.001
+    - attack.s0000
+author: zendannyy
+version: "2"
+references:
+    - https://www.proofpoint.com/us/threat-insight/post/apt-targets-financial-analysts
+    - https://attack.mitre.org/techniques/T1574/001/
+data_sources:
+    - image_load
+    - windows
+    - sysmon

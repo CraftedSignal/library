@@ -1,0 +1,19 @@
+id: 019c6743-2ed7-751d-b9d1-723c45a646f9
+name: ClickFix ModeloRAT Persistence Artifacts
+description: Detects the creation of specific persistence artifacts (a VBScript file and a startup shortcut) associated with the ModeloRAT payload delivered by recent ClickFix campaigns. Specifically, it looks for a VBScript file at '\WPy64-31401\python\script.vbs' or a shortcut file named 'MonitoringService.lnk' in a user's startup folder.
+query: "// Name: ClickFix ModeloRAT Persistence Artifacts\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-16\r\n// Mitre: T1547.001, T1059.005\r\n// References: https://www.bleepingcomputer.com/news/security/new-clickfix-attack-abuses-nslookup-to-retrieve-powershell-payload-via-dns/\r\n// Description: Detects the creation of specific persistence artifacts (a VBScript file and a startup shortcut) associated with the ModeloRAT payload delivered by recent ClickFix campaigns.\r\nDeviceFileEvents\r\n// Look for file creation events.\r\n| where ActionType == \"FileCreated\"\r\n// Detect either the specific VBScript file path or the LNK file in the startup folder, which are indicators of this threat.\r\n| where (FolderPath endswith \"\\\\WPy64-31401\\\\python\\\\script.vbs\")\r\n    or (FileName == \"MonitoringService.lnk\" and FolderPath contains \"\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\\\\\")\r\n// FP Tuning: These file paths and names are highly specific to this campaign, making false positives very unlikely. No tuning is typically required.\r\n| extend Account_0_Name = InitiatingProcessAccountName\r\n| extend Host_0_HostName = DeviceName\r\n| extend File_0_Name = FileName\r\n| extend File_0_Directory = FolderPath\r\n| extend Process_0_CommandLine = InitiatingProcessCommandLine\r\n| extend File_1_Name = InitiatingProcessFileName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1547.001
+    - T1059.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/new-clickfix-attack-abuses-nslookup-to-retrieve-powershell-payload-via-dns/

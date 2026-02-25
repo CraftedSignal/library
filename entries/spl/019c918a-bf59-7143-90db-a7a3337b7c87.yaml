@@ -1,0 +1,59 @@
+id: 019c918a-bf59-7143-90db-a7a3337b7c87
+name: XWorm LATAM Campaign Activity
+description: Detects network and endpoint activity associated with the XWorm LATAM campaign, including C2 communication, payload downloads, CasPol.exe making outbound connections, WMI-spawned PowerShell with Cloudinary fetches and Assembly.Load, and a specific file hash.
+query: |+
+    ## XWorm LATAM campaign hunts
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://any.run/cybersecurity-blog/xworm-latam-campaign/
+
+    ### 1) Network: C2 + payload URLs/domains
+    (index=proxy OR index=netflow OR index=firewall) (
+      dest_domain IN ("jholycf100.ddns.com.br","voulerlivros.com.br","res.cloudinary.com") OR
+      url="*voulerlivros.com.br/arquivo_20260116064120.txt*" OR
+      url="*optimized_MSI_lpsd9p.jpg*" OR
+      dest_ip="152.249.17.145" OR
+      dest_port=7000
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(dest_port) as ports by src_ip, dest_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Endpoint: CasPol.exe making outbound connection to the above IOCs
+    (index=edr OR index=sysmon OR index=os) (
+      (process_name="CasPol.exe" OR Image="*\\CasPol.exe")
+      AND (dest_ip="152.249.17.145" OR dest_port=7000 OR dest_domain IN ("jholycf100.ddns.com.br","voulerlivros.com.br"))
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines values(dest_domain) as dest_domains values(dest_ip) as dest_ips by host, user, process_name
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Endpoint: WMI-spawned PowerShell with Cloudinary fetch + Assembly.Load
+    (index=edr OR index=sysmon OR index=os) (
+      (ParentImage="*\\WmiPrvSE.exe" OR parent_process_name="WmiPrvSE.exe")
+      AND (process_name="powershell.exe" OR process_name="pwsh.exe" OR Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+      AND (CommandLine="*System.Net.WebClient*" AND CommandLine="*cloudinary*" AND CommandLine="*Assembly.Load*")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 4) File hash pivot (if present)
+    (index=edr OR index=sysmon OR index=os) sha256="7befeacf0b3480fb675d0cab7767b5b9697edc9d0e05982025a06ead0054afd5"
+    | stats count min(_time) as first_seen max(_time) as last_seen values(process_name) as process values(file_path) as paths by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+    - TA0002
+    - TA0005
+techniques:
+    - T1546.003
+    - T1059.001
+    - T1620
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/xworm-latam-campaign/

@@ -1,0 +1,82 @@
+id: 82bdce68-5499-4e79-a0d6-e6c665553e41
+name: Microsoft Entra ID - Federated Domain SAML Forgery for Global Admin Escalation
+description: Detects potential exploitation of Microsoft Entra ID (formerly Azure AD) by attackers who abuse app role permissions to backdoor federated domains and escalate to Global Administrator using forged SAML tokens
+query: |
+    title: Microsoft Entra ID - Federated Domain SAML Forgery for Global Admin Escalation
+    status: experimental
+    description: Detects potential exploitation of Microsoft Entra ID (formerly
+      Azure AD) by attackers who abuse app role permissions to backdoor federated
+      domains and escalate to Global Administrator using forged SAML tokens
+    author: Chaitanya B (Mr.Alien)
+    tags:
+      - attack.initial_access
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1078
+      - attack.t1556.004
+      - attack.t1078.004
+      - attack.t1484.002
+      - attack.credential_access
+      - azure
+      - entra
+      - microsoft
+      - SAML
+    logsource:
+      product: azure
+      service: entraid
+      category: authentication
+      definition: 'Log analytics, Unified Audit Log, or Entra ID sign-in logs'
+    detection:
+      service_principal_hijack:
+        AppId: '00000002-0000-0ff1-ce00-000000000000'
+        OperationName|contains:
+          - 'Add domain'
+          - 'Configure federation settings'
+      suspicious_federated_domain:
+        RequestUrl|contains:
+          - '/domains/'
+          - '/federationConfiguration'
+        HttpMethod: 'POST'
+      forged_saml_token:
+        AuthenticationRequirement: 'multiFactorAuthentication'
+        AuthenticationMethodsUsed|contains: 'saml'
+        Status: 'Success'
+        AppDisplayName|contains: 'Office 365 Exchange Online'
+        UserAgent|contains: 'Mozilla'
+      condition: service_principal_hijack or suspicious_federated_domain or forged_saml_token
+    falsepositives:
+      - Legitimate admin configurations of federated domains
+      - Valid service principal token exchanges during setup
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1556.004
+    - T1078.004
+    - T1484.002
+tags:
+    - attack.initial_access
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1078
+    - attack.t1556.004
+    - attack.t1078.004
+    - attack.t1484.002
+    - attack.credential_access
+    - azure
+    - entra
+    - microsoft
+    - SAML
+author: Chaitanya B (Mr.Alien)
+version: "1"
+data_sources:
+    - authentication
+    - azure
+    - entraid

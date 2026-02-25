@@ -1,0 +1,56 @@
+id: 019be23c-9876-77de-88ac-c96f1f1c4a28
+name: High-Risk User Accessing Storage Account Keys
+description: Detects when a user flagged as 'high risk' by Azure AD Identity Protection lists storage account keys. This could indicate a compromised account is being used to access sensitive data or escalate privileges.
+query: |
+    // Name: High-Risk User Accessing Storage Account Keys
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // Tactic: Credential Access
+    // Technique: T1078 (Valid Accounts)
+    // Description: Detects when a user flagged as 'high risk' by Azure AD Identity Protection lists storage account keys. This could indicate a compromised account is being used to access sensitive data or escalate privileges.
+    // MITRE ATT&CK References:
+    // - T1566: https://attack.mitre.org/techniques/T1566/
+    // - T1078: https://attack.mitre.org/techniques/T1078/
+
+    // Define a list of users who are authorized to perform this action, even if flagged as high-risk.
+    // This helps reduce false positives from legitimate administrative activity.
+    let authorized_users = dynamic([]);
+
+    // Find all users currently flagged as high risk by Azure AD Identity Protection.
+    let high_risk_users = AADRiskyUsers
+    | where RiskLevel == 'high'
+    | summarize make_set(UserPrincipalName);
+
+    // Look for successful storage account key listing events.
+    AzureActivity
+    | where OperationNameValue has "MICROSOFT.STORAGE/STORAGEACCOUNTS/LISTKEYS/ACTION"
+    | where ActivityStatusValue == "Success"
+    // Correlate the action with the high-risk user list.
+    | where Caller in (high_risk_users)
+    // Exclude authorized users to reduce noise.
+    | where Caller !in (authorized_users)
+    | project
+        TimeGenerated,
+        Description="High-risk user accessed storage account keys.",
+        UserPrincipalName = Caller,
+        OperationName = OperationNameValue,
+        CallerIpAddress,
+        ResourceId,
+        SubscriptionId,
+        ResourceGroup
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - kql
+version: "4"
+references:
+    - https://attack.mitre.org/techniques/T1078/

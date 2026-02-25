@@ -1,0 +1,14 @@
+id: 019c2958-b99a-766c-944b-be08dc3eb457
+name: Public IP Connections from Wi-Fi Devices
+description: This rule identifies devices connected to Wi-Fi networks that have successfully established connections to public IP addresses. It lists details such as the device name, network adapter information (name, status, vendor), the public IP address connected to, and the first/last seen connection times, along with a count of connections. The primary goal is to provide visibility into Wi-Fi device network configurations and their external communication.
+query: "// ð\x9F\x94\x8D KQL Description\n// This query is designed to:\n// 1.List Wi-Fi-connected devices and their network configurations.\n// 2.Identify public IP addresses in use.\n// 3. See the list of connections outside of your preffered country\n// 4.Provide visibility into network adapter details, including vendor and status.\n// ð\x9F§© MITRE ATT&CK Mapping\n// Tactic:Discovery (TA0007)\n// Technique: System Network Configuration Discovery (T1016)\n// Sub-Technique: T1016.001 (Internet Connection Discovery)\nlet WifiDevices =\nDeviceNetworkInfo\n| where NetworkAdapterType contains \"Wireless\"\n   or NetworkAdapterName has_any (\"Wi-Fi\", \"Wireless\")\n| where NetworkAdapterStatus =~ \"Up\"\n| project\n    DeviceId,\n    DeviceName,\n    NetworkAdapterName,\n    NetworkAdapterStatus,\n    NetworkAdapterVendor,\n    NetworkAdapterType;\nDeviceNetworkEvents\n| where ActionType == \"ConnectionSuccess\"\n| where RemoteIPType == \"Public\"\n| extend Geo = geo_info_from_ip_address(RemoteIP)\n| extend\n    Country = tostring(Geo.Country),\n    City    = tostring(Geo.City),\n    Latitude  = todouble(Geo.Latitude),\n    Longitude = todouble(Geo.Longitude)\n| where isnotempty(Country) and Country != \"Canada\"  //Put exception to the country you want.\n| join kind=inner WifiDevices on DeviceId\n| summarize\n    FirstSeen = min(TimeGenerated),\n    LastSeen  = max(TimeGenerated),\n    ConnectionCount = count()\n  by\n    DeviceName,\n    DeviceId,\n    RemoteIP,\n    Country,\n    City,\n    Latitude,\n    Longitude,\n    NetworkAdapterName,\n    NetworkAdapterStatus,\n    NetworkAdapterVendor,\n    NetworkAdapterType\n| order by LastSeen desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1016
+    - T1016.001
+tags:
+    - kql
+version: "3"

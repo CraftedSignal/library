@@ -1,0 +1,21 @@
+id: fcd37b97-c521-4b31-a177-efd270615281
+name: Unit42 - 500 Phishing Domains Impersonating MS Login Pages
+description: KQL Query
+query: "let QueryPeriod = 30d;\r\nlet PhishDomains=externaldata(Type:string, Value:string, Source:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/unit42phishingcampaign.csv']\r\n| where Type == \"domain\"\r\n| project Value;\r\nlet ScanEmailURLs =\r\nEmailUrlInfo\r\n| where Timestamp > ago(QueryPeriod)\r\n| where UrlDomain has_any(PhishDomains);\r\nlet ScanEndpointNetwork1 =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has_any (PhishDomains);\r\nlet ScanEndpointNetwork2 =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where ActionType == \"HttpConnectionInspected\"\r\n| extend ConnectInfo = todynamic(AdditionalFields)\r\n| extend HttpHost = ConnectInfo.host\r\n| where HttpHost has_any(PhishDomains);\r\nunion ScanEmailURLs, ScanEndpointNetwork1, ScanEndpointNetwork2"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.002
+    - T1189
+    - T1204
+    - T1204.001
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://github.com/PaloAltoNetworks/Unit42-timely-threat-intel/blob/main/2025-06-26-IOCs-for-phishing-campaing-impersonating-Microsoft-login-pages.txt

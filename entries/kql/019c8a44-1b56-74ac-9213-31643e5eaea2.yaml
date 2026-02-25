@@ -1,0 +1,16 @@
+id: 019c8a44-1b56-74ac-9213-31643e5eaea2
+name: Medusa Ransomware Exfiltration Endpoints
+description: This rule detects network communication to known data exfiltration endpoints (domains and IP addresses) used by the Medusa ransomware group. It monitors DNS lookups, HTTP/S connections, and direct IP connections to identify potential data exfiltration activities.
+query: "// Name: Medusa Ransomware Exfiltration Endpoints\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects network communication to known data exfiltration endpoints (domains and IP addresses) used by the Medusa ransomware group.\r\n// Tactics: Exfiltration\r\n// Techniques: T1020, T1567\r\n// False Positive Sensitivity: Medium. These endpoints are strongly associated with Medusa activity. However, domains can expire and IPs can be reallocated. If false positives occur, investigate the process initiating the connection and consider time-based filtering.\r\n// References: https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns\r\n// Define known Medusa exfiltration IOCs\r\nlet MedusaExfilDomains = dynamic([\"erp.ranasons.com\", \"pruebas.pintacuario.mx\"]);\r\nlet MedusaExfilIps = dynamic([\"143.110.243.154\", \"144.217.181.205\"]);\r\n// Search across network and DNS logs for connections or lookups to the malicious endpoints.\r\nunion isfuzzy=true DeviceNetworkEvents, CommonSecurityLog, VMConnection, DnsEvents\r\n| where\r\n    (isnotempty(Name) and Name in (MedusaExfilDomains)) // Catches DNS lookups\r\n    or (isnotempty(RemoteUrl) and RemoteUrl has_any (MedusaExfilDomains)) // Catches HTTP/S connections\r\n    or (isnotempty(RemoteIP) and RemoteIP in (MedusaExfilIps))\r\n    or (isnotempty(DestinationIP) and DestinationIP in (MedusaExfilIps))\r\n| extend\r\n    // Normalize common fields for easier investigation.\r\n    timestamp = TimeGenerated,\r\n    Host = coalesce(DeviceName, Computer, HostName),\r\n    Account = coalesce(InitiatingProcessAccountName, UserName, RequestingUserName),\r\n    TargetDomain = coalesce(RemoteUrl, Name),\r\n    TargetIp = coalesce(RemoteIP, DestinationIP, tostring(parse_json(IPAddresses)[0]))\r\n| project-reorder\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    TargetDomain,\r\n    TargetIp,\r\n    InitiatingProcessFileName,\r\n    ProcessId,\r\n    Action,\r\n    NetworkDirection,\r\n    RemotePort,\r\n    DestinationPort\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1020
+    - T1567
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns

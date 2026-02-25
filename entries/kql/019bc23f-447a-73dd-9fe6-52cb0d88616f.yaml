@@ -1,0 +1,67 @@
+id: 019bc23f-447a-73dd-9fe6-52cb0d88616f
+name: SHADOW#REACTOR Process Chain Detection
+description: Detects a suspicious process chain involving wscript.exe spawning powershell.exe, which then spawns MSBuild.exe. This specific chain is characteristic of the SHADOW#REACTOR malware campaign, indicating potential execution of malicious code via trusted utilities.
+query: |
+    // Name: SHADOW#REACTOR Process Chain
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-01-15
+    // Tactic: Execution
+    // Technique: T1059.005, T1059.001, T1047
+    // Description: Detects the wscript.exe -> powershell.exe -> MSBuild.exe process chain characteristic of the SHADOW#REACTOR malware campaign.
+    // False Positive Sensitivity: Medium
+    // References: https://www.securonix.com/blog/shadowreactor-text-only-staging-net-reactor-and-in-memory-remcos-rat-deployment/
+    // Find powershell.exe processes spawned by wscript.exe
+    let stage1_processes =
+        DeviceProcessEvents
+        | where InitiatingProcessFolderPath endswith "\\wscript.exe"
+        | where FolderPath endswith "\\powershell.exe" or FolderPath endswith "\\pwsh.exe"
+        | project Stage1Time = TimeGenerated, DeviceId, DeviceName, AccountUpn,
+                  WscriptProcessId = InitiatingProcessId,
+                  WscriptCommandLine = InitiatingProcessCommandLine,
+                  PowershellProcessId = ProcessId,
+                  PowershellCommandLine = ProcessCommandLine;
+    // Find MSBuild.exe processes spawned by powershell.exe
+    let stage2_processes =
+        DeviceProcessEvents
+        | where InitiatingProcessFolderPath endswith "\\powershell.exe" or InitiatingProcessFolderPath endswith "\\pwsh.exe"
+        | where FolderPath endswith "\\MSBuild.exe"
+        | project Stage2Time = TimeGenerated, DeviceId,
+                  PowershellInitiatingProcessId = InitiatingProcessId,
+                  MsbuildProcessId = ProcessId,
+                  MsbuildCommandLine = ProcessCommandLine;
+    // Join the two stages to identify the full suspicious chain
+    stage1_processes
+    | join kind=inner (
+        stage2_processes
+    ) on $left.DeviceId == $right.DeviceId and $left.PowershellProcessId == $right.PowershellInitiatingProcessId
+    // Filter for events that occur in close succession to correlate the activity
+    | where Stage2Time - Stage1Time between (0s .. 5m)
+    // FP Tuning: This process chain is highly suspicious. However, complex administrative or build scripts could potentially cause false positives.
+    // Consider adding filters based on user context (AccountUpn) or command-line arguments if legitimate activity matches this pattern.
+    | project
+        TimeGenerated = Stage1Time,
+        EndTime = Stage2Time,
+        DeviceName,
+        DeviceId,
+        AccountUpn,
+        WscriptProcessId,
+        WscriptCommandLine,
+        PowershellProcessId,
+        PowershellCommandLine,
+        MsbuildProcessId,
+        MsbuildCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.005
+    - T1059.001
+    - T1127.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "4"
+references:
+    - https://www.securonix.com/blog/shadowreactor-text-only-staging-net-reactor-and-in-memory-remcos-rat-deployment/

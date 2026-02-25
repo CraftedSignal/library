@@ -1,0 +1,16 @@
+id: 1b780f85-75dd-4266-89b6-aff3404baf3c
+name: Suspicious URL in Email with Click Detection
+description: This rule detects emails containing a URL to a suspicious domain. It also checks if any of these suspicious URLs were subsequently clicked by a user, indicating potential compromise or successful phishing.
+query: "EmailUrlInfo\r\n| where TimeGenerated >= ago(14d)\r\n| where Url contains \"suspiciousdomain.com\"\r\n| summarize Urls = make_list(Url) by NetworkMessageId\r\n| join kind=inner (EmailEvents) on NetworkMessageId\r\n| project NetworkMessageId, TimeGenerated, Urls, SenderFromAddress, RecipientEmailAddress, Subject, DeliveryLocation, DeliveryAction, LatestDeliveryLocation\r\n| join kind=leftouter (UrlClickEvents \r\n| summarize ClickedUrls = make_set(Url) by NetworkMessageId) on NetworkMessageId\r\n| extend UrlClicked = iff(array_length(set_intersect(Urls, ClickedUrls)) > 0, true, false)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - phishing
+    - kql
+author: LindenSec
+version: "1"

@@ -1,0 +1,58 @@
+id: 019c4381-a427-76b1-b4c9-25c8b3bea5e2
+name: SolarWinds Web Help Desk Exploitation - MSI from Java
+description: This rule detects the execution of msiexec.exe with command-line arguments indicating a silent installation (`/q`, `/i`) and the download of an MSI package from a remote HTTP or HTTPS source. The detection specifically looks for this activity when the parent process is cmd.exe, and the grandparent process is java.exe, which is associated with SolarWinds Web Help Desk exploitation (CVE-2025-26399, CVE-2025-40551). This pattern suggests post-exploitation payload delivery via MSI from a compromised Java process.
+query: |
+    title: SolarWinds Web Help Desk Exploitation - MSI from Java
+    id: a1b2c3d4-e5f6-4a5b-8c9d-solarwinds001
+    status: experimental
+    description: |
+        In this attack, a vulnerable SolarWinds Web Help Desk instance is exploited. The WHD service runs as wrapper.exe and java.exe. After exploitation, the attacker uses the Java process to spawn cmd.exe, which then runs msiexec to silently install a remote MSI payload. Legitimate WHD would not launch msiexec to download and install software from the internet. This pattern indicates post-exploitation payload delivery.
+    references:
+        - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+        - attack.execution
+        - attack.t1059.003
+        - attack.t1047
+        - cve.2025.26399
+        - cve.2025.40551
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_image:
+            Image|endswith: '\msiexec.exe'
+        selection_cmdline:
+            CommandLine|contains|all:
+                - '/q'
+                - '/i'
+            CommandLine|contains|any:
+                - 'http'
+                - 'https'
+        context_parent:
+            ParentImage|endswith: '\cmd.exe'
+        condition: selection_image and selection_cmdline and context_parent
+    falsepositives:
+        - Legitimate software deployment from WHD
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+techniques:
+    - T1059.003
+    - T1047
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.t1047
+    - cve.2025.26399
+    - cve.2025.40551
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399
+data_sources:
+    - process_creation
+    - windows

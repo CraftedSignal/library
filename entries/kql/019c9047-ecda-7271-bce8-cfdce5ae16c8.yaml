@@ -1,0 +1,18 @@
+id: 019c9047-ecda-7271-bce8-cfdce5ae16c8
+name: Metasploit GetSystem Privilege Escalation via Named Pipe
+description: Detects a command-line pattern associated with the Metasploit 'getsystem' command. This technique involves echoing a string into a named pipe to elevate privileges to SYSTEM, often executed via a newly created service.
+query: "// Name: Metasploit GetSystem Privilege Escalation via Named Pipe\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects a command-line pattern associated with the Metasploit 'getsystem' command. This technique involves echoing a string into a named pipe to elevate privileges to SYSTEM, often executed via a newly created service.\r\n// Tactics: Privilege Escalation\r\n// Techniques: T1068, T1543.003\r\n// References: https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceProcessEvents\r\n// Set the lookback window for the detection\r\n| where Timestamp > ago(1d)\r\n// The 'getsystem' command is often run by a service, making services.exe the parent.\r\n| where InitiatingProcessFileName =~ \"services.exe\" and FileName =~ \"cmd.exe\"\r\n// Key detection logic: This command line is characteristic of Metasploit's 'getsystem' command using named pipe impersonation.\r\n| where ProcessCommandLine has_all (\"/c\", \"echo\", \">\", @\"\\\\.\\pipe\\\")\r\n// FP Tuning: This pattern is highly specific to Metasploit. Legitimate processes are unlikely to perform this action. If false positives occur, investigate the process ancestry and the name of the created pipe.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    ReportId,\r\n    DeviceId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1068
+    - T1543.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/

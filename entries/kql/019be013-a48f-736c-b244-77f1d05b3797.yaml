@@ -1,0 +1,45 @@
+id: 019be013-a48f-736c-b244-77f1d05b3797
+name: Connection to Malicious Converter App Domains
+description: This rule detects network connections to domains known to host and distribute malicious file converter applications that install Remote Access Trojans (RATs).
+query: |
+    // Name: Connection to Malicious Converter App Domains
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // Description: This rule detects network connections to domains known to host and distribute malicious file converter applications that install Remote Access Trojans (RATs).
+    // MITRE ATT&CK: T1105 (Ingress Tool Transfer)
+    // References: https://cybersecuritynews.com/free-converter-apps-infect-systems/
+    // False Positive Sensitivity: Medium. While this list contains known malicious domains, domains can be sinkholed or change ownership. Validate the context of the connection.
+
+    // Define the list of known malicious domains associated with the campaign.
+    let MaliciousDomains = pack_array(
+        "ez2convertapp.com", "convertyfileapp.com", "powerdocapp.com",
+        "infinitedocsapp.com", "convertmasterapp.com", "conmateapp.com",
+        "pdfskillsapp.com", "pdfclickapp.com", "zappdfapp.com",
+        "onezipapp.com", "crystalpdf.com", "pdfsparkware.com",
+        "zipmatepro.com", "notawordapp.com"
+    );
+    // Search for network events where the remote URL contains any of the malicious domains.
+    DeviceNetworkEvents
+    | where isnotempty(RemoteUrl)
+    | where RemoteUrl has_any (MaliciousDomains)
+    // Project relevant fields for investigation.
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1219
+tags:
+    - kql
+version: "5"
+references:
+    - https://cybersecuritynews.com/free-converter-apps-infect-systems/

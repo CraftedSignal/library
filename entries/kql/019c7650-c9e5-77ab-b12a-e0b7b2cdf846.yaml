@@ -1,0 +1,16 @@
+id: 019c7650-c9e5-77ab-b12a-e0b7b2cdf846
+name: JWrapper Campaign Network Indicators
+description: Detects network connections or DNS queries to domains and IP addresses identified as payload delivery and C2 infrastructure for a JWrapper/SimpleHelp RAT campaign. Monitoring these indicators can help detect initial compromise or ongoing C2 communication.
+query: "// Name: JWrapper Campaign Network Indicators\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects network connections or DNS queries to domains and IP addresses identified as payload delivery and C2 infrastructure for a JWrapper/SimpleHelp RAT campaign. Monitoring these indicators can help detect initial compromise or ongoing C2 communication.\r\n// References: https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware\r\n// MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols)\r\n// False Positive Sensitivity: Medium\r\nlet domains = dynamic([\"techmails.top\", \"adobe.pdfautoview.com\", \"klmgskmtn.com\"]);\r\nlet ips = dynamic([\"124.198.131.250\", \"172.67.222.5\", \"104.21.32.1\", \"104.21.96.1\", \"104.21.64.1\", \"104.21.25.20\", \"104.21.48.1\", \"104.21.112.1\", \"104.21.16.1\", \"104.21.80.1\"]);\r\nDeviceNetworkEvents\r\n// Look for connections to known malicious IPs or URLs containing the malicious domains\r\n| where RemoteIP in (ips) or RemoteUrl has_any (domains)\r\n// Note: This rule no longer explicitly queries DNS events via DeviceDnsEvents.\r\n// However, DeviceNetworkEvents may contain DNS query events (ActionType == \"DnsQueryResponse\") in some environments.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    ActionType,\r\n    RemoteIP,\r\n    RemoteUrl,\r\n    RemotePort,\r\n    InitiatingProcessCommandLine\r\n// Potential for False Positives: IOCs (IPs and domains) can become stale over time. Many of the IPs listed are behind Cloudflare,\r\n// which can lead to FPs if legitimate sites are also hosted on them. Correlate hits with the initiating process and user activity.\r\n// Consider scoping the rule to specific processes if noise is high.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware

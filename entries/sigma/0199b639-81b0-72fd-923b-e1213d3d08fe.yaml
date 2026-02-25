@@ -1,0 +1,21 @@
+id: 0199b639-81b0-72fd-923b-e1213d3d08fe
+name: Possible Modular Java Backdoor Execution Detection on Modular Cloe MFT (CVE-2024-55956 - via webserver)
+description: Detects process creations where parent is cmd.exe or PowerShell.exe and the command line contains . swp, webserver/temp/webserver, -Noninteractive and -EncodedCommand.
+query: "title: Possible Modular Java Backdoor Execution Detection on Modular Cloe MFT (CVE-2024-55956 - via webserver)\nid: 3da40f44-f0db-43c8-a489-c8889f780287\nstatus: stable\ndescription: Detects process creations where parent is cmd.exe or PowerShell.exe and the command line contains . swp, webserver/temp/webserver, -Noninteractive and -EncodedCommand. \nauthor: Ziya Deniz\ndate: '2024-10-06'\nreferences:\n  - https://www.rapid7.com/blog/post/2024/12/11/etr-modular-java-backdoor-dropped-in-cleo-exploitation-campaign/\ntags:\n  - attack.execution\n  - attack.t1204\n  - attack.credential_access\nlogsource:\n  category: sysmon, security\n  product: windows\n  definition: 'Process creation events (Sysmon EventID 1 and Windows Security EventID 4688)'\ndetection:\n  selection_sysmon:\n    ParentImage|endswith:\n      - '\\cmd.exe'\n      - '\\cmd.exe\"'        # some logs include quotes\n      - '\\powershell.exe'\n      - '\\powershell.exe\"'\n    CommandLine|contains|all:\n      - '.swp'\n      - 'webserver/temp/webserver'\n      - '-Noninteractive'\n      - '-EncodedCommand'\n  selection_winsec:\n    ParentProcessName|endswith:\n      - 'cmd.exe'\n      - 'cmd.exe\"'\n      - 'PowerShell.exe'\n      - 'PowerShell.exe\"'\n    CommandLine|contains|all:\n      - '.swp'\n      - 'webserver/temp/webserver'\n      - '-Noninteractive'\n      - '-EncodedCommand'\n  condition: selection_sysmon or selection_winsec\nfalsepositives:\n  - Legitimate automation or deployment scripts invoking PowerShell/cmd with encoded commands and temporary files; validate against known-safe orchestration tools.\nlevel: high"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204
+tags:
+    - attack.execution
+    - attack.t1204
+    - attack.credential_access
+author: Ziya Deniz
+version: "2"
+references:
+    - https://www.rapid7.com/blog/post/2024/12/11/etr-modular-java-backdoor-dropped-in-cleo-exploitation-campaign/
+data_sources:
+    - sysmon, security
+    - windows

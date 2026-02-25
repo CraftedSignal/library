@@ -1,0 +1,16 @@
+id: 0199be00-cde6-7715-bd71-f51af75c5ab8
+name: Malicious Batch File Creation in Startup Folder - Self-Propagating Malware Spreading Via WhatsApp, Targets Brazilian Users
+description: Detects the creation of batch (.bat) files within the Windows Startup folder, a common persistence mechanism. The rule prioritizes detection of files matching known malicious patterns, specifically 'HealthApp-*.bat' associated with the SORVEPOTEL malware, and flags other generic batch file creations in the Startup folder for investigation.
+query: "//Malicious BAT File in Startup with Enhanced Context\r\n// Detects batch files created in Startup folder, especially \"HealthApp-*.bat\" pattern\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".bat\"\r\n| where FolderPath has @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"\r\n// Priority detection for known SORVEPOTEL naming pattern\r\n| extend IsSORVEPOTELPattern = case(\r\n    FileName matches regex @\"HealthApp-[a-f0-9]{6}\\.bat\", \"High - Known pattern\",\r\n    FileName matches regex @\"[A-Z]{3,}-[0-9a-f]{6}\\.bat\", \"Medium - Similar pattern\",\r\n    \"Low - Generic BAT in Startup\"\r\n)\r\n| extend\r\n    CreatingProcess = InitiatingProcessFileName,\r\n    ParentProcess = InitiatingProcessParentFileName\r\n// Correlate with potential LNK/PowerShell parent processes\r\n| project \r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    IsSORVEPOTELPattern,\r\n    CreatingProcess,\r\n    InitiatingProcessCommandLine,\r\n    ParentProcess,\r\n    SHA256,\r\n    SHA1,\r\n    MD5\r\n| sort by IsSORVEPOTELPattern asc, Timestamp desc\r\n// you can add below for low GlobalPrevalence\r\n// |invoke FileProfile(SHA256,1000)\r\n// |where GlobalPrevalence < 500"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/25/j/self-propagating-malware-spreads-via-whatsapp.html

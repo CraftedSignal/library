@@ -1,0 +1,30 @@
+id: 019bd0df-a4ae-708f-9c63-a4b8b616e2cf
+name: Turla Kazuar v3 Registry Run Key Persistence
+description: Detects the registry-based persistence mechanism used by Turla's Kazuar v3 loader. The rule specifically looks for the creation or modification of a registry entry in 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run' with the value name 'Hewlett Packard Drivers' and the data containing 'hpbprndi.exe'. This combination indicates the malware's attempt to masquerade as a legitimate HP printer driver for persistence across system reboots.
+query: |
+    title: Turla Kazuar v3 Registry Persistence
+    id: f9dae6ee-6aec-4ec6-8baa-204201f82e04
+    status: experimental
+    description: |
+        Detects the registry-based persistence mechanism used by Turla's Kazuar v3 loader. After downloading and executing the initial components, the VBScript loader creates a registry entry to ensure the malware runs automatically on system startup. The persistence mechanism creates a registry value named "Hewlett Packard Drivers" in HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run and sets the value to point to %LOCALAPPDATA%\Programs\HP\Printer\Driver\hpbprndi.exe, ensuring the legitimate HP printer driver (which loads the malicious DLL) executes on every user login. The registry key name "Hewlett Packard Drivers" is used to masquerade as a legitimate HP printer driver installation, making it less suspicious to users and security tools. The combination of this specific registry key name with the hpbprndi.exe path is a strong indicator of Kazuar v3 persistence.
+    references:
+        - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+        - attack.persistence
+        - attack.t1053.005
+    logsource:
+        category: registry_set
+        product: windows
+    detection:
+        selection:
+            TargetObject|contains: 'HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'
+            TargetObject|contains: 'Hewlett Packard Drivers'
+            Details|contains: 'hpbprndi.exe'
+        condition: selection
+    falsepositives:
+        - Legitimate HP printer driver registry entries
+    level: high
+query_type: sigma
+version: "2"

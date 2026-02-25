@@ -1,0 +1,37 @@
+id: e2b6391a-7601-41f2-8be0-0094191dd67d
+name: 'Identification of Probably Qakbot Stage 2 Dropper '
+description: Detects files with suspiciously structured names potentially related to stage 2 malware delivery, focusing on those that contain specific HTML and image file extensions. This is specifically related to known malware TTPs related to Qakbot.
+query: |-
+    let pr = toscalar(DeviceFileEvents
+    // specify some of the common separators here
+    | where FileName has_any ("%", "#")
+    | project-reorder Timestamp, DeviceName, RequestAccountName, FileName
+    // look for any suspicious HTML files and extract the name pattern
+    | extend prefixFileName = extract(@'([^#%\.]+)[%#].+?\d{3,}\.html?$', 1, FileName)
+    | where isnotempty(prefixFileName)
+    | summarize make_set(prefixFileName)
+    | extend prefixRegex = strcat_array(set_prefixFileName, '|')
+    | project prefixRegex
+    // build the regex to use in the search - basically:
+    // 1. previous pattern
+    // 2. one of the separators we've seen
+    // 3. other optional characters followed by the extension
+    // if there have been no candidate prefixes found, we generate a dummy value (random GUID) to use as the placeholder regex
+    | extend prefixRegex = iff(isnotempty(prefixRegex), strcat('(', prefixRegex, ')', @'[_#%].*?\.\w{1,5}$'), tostring(new_guid())));
+    DeviceFileEvents
+    | where FileName matches regex pr
+    | summarize arg_max(Timestamp, ReportId), make_set(FileName), make_set(FolderPath), make_set(RequestAccountName), count() by DeviceName, DeviceId, timeBin=bin(Timestamp, 2h)
+    // ensure we still have the HTML file in the results
+    | where set_FileName matches regex @"\.htm"
+    // look for files, which contain the stage 2 malware
+    | where set_FileName matches regex @"(\.iso|\.img|\.udf)"
+    | project-away timeBin
+query_type: kql
+severity: medium
+techniques:
+    - T1105
+    - T1027
+tags:
+    - Qakbot
+author: ZeroChill
+version: "1"

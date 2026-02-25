@@ -1,0 +1,15 @@
+id: 019c1b72-13af-77f1-94ca-8184b12a0f15
+name: ScreenConnect Client Installation Detection
+description: This rule detects the installation or execution of ScreenConnect client software. It looks for specific keywords in the process command line, folder paths, or file names associated with ScreenConnect. The rule also attempts to categorize the risk level based on the installation path, flagging installations in temporary directories or downloads as 'High Risk'.
+query: "// Detection: ScreenConnect RAT Installation\n// Detect ScreenConnect client installation from suspicious locations\nDeviceProcessEvents\n| where TimeGenerated > ago(30d)\n| where ProcessCommandLine has_any (\"ScreenConnect\", \"083e4d30c7ea44f7\")\n    or FolderPath has \"ScreenConnect Client\"\n    or FileName =~ \"ScreenConnect.ClientService.exe\"\n| extend SuspiciousPath = iff(\n    FolderPath has_any (@\"\\Temp\", @\"\\AppData\\Local\\Temp\", @\"\\Downloads\"),\n    \"High Risk\",\n    iff(FolderPath has @\"Program Files (x86)\\ScreenConnect Client\", \"Medium Risk\", \"Low Risk\")\n)\n| project \n    TimeGenerated,\n    DeviceName, \n    AccountName, \n    FileName, \n    FolderPath, \n    ProcessCommandLine, \n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    SuspiciousPath,\n    SHA256\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+    - T1219
+tags:
+    - kql
+author: Rudra Verma- CyberHawk
+version: "4"

@@ -1,0 +1,21 @@
+id: 0199ff12-f2cd-750a-9f90-57a44df34320
+name: UNC5142 Cloudflare Pages Lure leading to Command Execution
+description: Detects a sequence of events where a user visits a Cloudflare Pages URL (*.pages.dev) and shortly after, a suspicious command (mshta, powershell, or curl) is executed. This pattern is consistent with the UNC5142 threat actor's TTP of using social engineering lures hosted on Cloudflare Pages to trick users into running malicious commands.
+query: "// Name: UNC5142 Cloudflare Pages Lure leading to Command Execution\r\n// Author: Arnold Chan\r\n// Date: 2025-10-20\r\n// Description: Detects a sequence of events where a user visits a Cloudflare Pages URL (*.pages.dev) and shortly after, a suspicious command (mshta, powershell, or curl) is executed. This pattern is consistent with the UNC5142 threat actor's TTP of using social engineering lures hosted on Cloudflare Pages to trick users into running malicious commands.\r\n// False Positive Sensitivity: Medium\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/\r\n// MITRE TTPs: T1566.002, T1204.002, T1059.001, T1059.004\r\n\r\nlet timeframe = 5m; // Define the correlation window between the network event and process execution.\r\n\r\n// Find network connections to Cloudflare Pages, a legitimate service abused by UNC5142 to host lures.\r\nlet pages_dev_visits =\r\n    DeviceNetworkEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where RemoteUrl has \".pages.dev\"\r\n    // Potential for FPs if .pages.dev is used legitimately for developer projects or documentation.\r\n    // The correlation with a suspicious process helps reduce this, but further tuning might be needed.\r\n    | project NetTimestamp = Timestamp, DeviceId, RemoteUrl;\r\n\r\n// Find suspicious command executions often used in the next stage of the attack, as described for UNC5142.\r\nlet suspicious_procs =\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where\r\n        // mshta is used to execute remote HTA files, a common technique for this actor.\r\n        (ProcessCommandLine has \"mshta.exe\" and ProcessCommandLine has \"http\") or\r\n        // PowerShell is used for downloading or executing in-memory payloads.\r\n        (ProcessCommandLine has \"powershell.exe\" and (ProcessCommandLine has_any (\"-enc\", \"-w 1\", \"IEX\", \"Invoke-Expression\", \"DownloadString\", \".DownloadFile\"))) or\r\n        // curl is used on macOS to download the next stage script or payload.\r\n        (ProcessCommandLine has \"curl\" and ProcessCommandLine has_any (\"-fsSL\", \"-o /tmp/\"))\r\n    // This logic may trigger on legitimate admin or developer activity.\r\n    // Consider excluding known safe scripts, parent processes (e.g., specific admin tools), or user accounts if noise occurs.\r\n    | project ProcTimestamp = Timestamp, DeviceId, ProcessCommandLine, InitiatingProcessCommandLine, AccountName, FolderPath, FileName;\r\n\r\n// Join network visits with subsequent suspicious process executions on the same device within the timeframe.\r\npages_dev_visits\r\n| join kind=inner (\r\n    suspicious_procs\r\n) on DeviceId\r\n| where ProcTimestamp between (NetTimestamp .. (NetTimestamp + timeframe))\r\n| project\r\n    Timestamp = ProcTimestamp,\r\n    DeviceId,\r\n    AccountName,\r\n    LureUrl = RemoteUrl,\r\n    SuspiciousProcess = FileName,\r\n    SuspiciousProcessPath = FolderPath,\r\n    CommandLine = ProcessCommandLine,\r\n    ParentProcessCommandLine = InitiatingProcessCommandLine\r\n| summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime = max(Timestamp),\r\n    make_set(LureUrl, 10),\r\n    make_set(CommandLine, 10),\r\n    make_set(ParentProcessCommandLine, 10)\r\n    by bin(Timestamp, 30m), DeviceId, AccountName, SuspiciousProcess, SuspiciousProcessPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1566.002
+    - T1204.002
+    - T1059.001
+    - T1059.004
+    - T1218.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/

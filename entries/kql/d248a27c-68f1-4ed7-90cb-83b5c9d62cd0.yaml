@@ -1,0 +1,13 @@
+id: d248a27c-68f1-4ed7-90cb-83b5c9d62cd0
+name: Publicly Internet-Facing Devices
+description: Identifies devices that have been observed as being directly exposed to the public internet. This is based on Microsoft Defender for Endpoint's device discovery capabilities. Such devices may be at higher risk of attack and should be reviewed to ensure the exposure is intentional and properly secured.
+query: "// Name: Publicly Internet-Facing Devices\r\n// Author: Rica Grande\r\n// Date: 2025-07-31\r\n// Severity: Informational\r\n// Description: Identifies devices that have been observed as being directly exposed to the public internet. This is based on Microsoft Defender for Endpoint's device discovery capabilities. Such devices may be at higher risk of attack and should be reviewed to ensure the exposure is intentional and properly secured.\r\n// False Positives: Medium. The accuracy depends on the discovery data. Complex NAT/network configurations might lead to misidentifications. This is more of an inventory/assessment query than a threat alert.\r\n// Tags: Discovery, Asset Inventory\r\n\r\nlet lookback = 1d; // Define the lookback period. Can be adjusted as needed.\r\nDeviceInfo\r\n| where TimeGenerated > ago(lookback)\r\n// Parse the AdditionalFields column to access nested properties.\r\n| extend ParsedFields = todynamic(AdditionalFields)\r\n// Filter for devices seen as internet-facing within the lookback period.\r\n| where isnotempty(ParsedFields.InternetFacingLastSeen) and todatetime(ParsedFields.InternetFacingLastSeen) > ago(lookback)\r\n// For each unique internet-facing endpoint, find the most recent observation.\r\n| summarize arg_max(todatetime(ParsedFields.InternetFacingLastSeen), *) by\r\n    DeviceName,\r\n    tostring(ParsedFields.InternetFacingLocalIp),\r\n    tostring(ParsedFields.InternetFacingLocalPort),\r\n    tostring(ParsedFields.InternetFacingPublicScannedIp),\r\n    tostring(ParsedFields.InternetFacingPublicScannedPort),\r\n    tostring(ParsedFields.InternetFacingTransportProtocol)\r\n// Project the relevant fields for a clean output.\r\n| project\r\n    LastSeen = todatetime(ParsedFields_InternetFacingLastSeen),\r\n    DeviceName,\r\n    LocalIp = ParsedFields_InternetFacingLocalIp,\r\n    LocalPort = ParsedFields_InternetFacingLocalPort,\r\n    PublicIp = ParsedFields_InternetFacingPublicScannedIp,\r\n    PublicPort = ParsedFields_InternetFacingPublicScannedPort,\r\n    Protocol = ParsedFields_InternetFacingTransportProtocol,\r\n    Reason = tostring(ParsedFields.InternetFacingReason)\r\n"
+query_type: kql
+tactics:
+    - TA0043
+techniques:
+    - T1590
+    - T1595
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,17 @@
+id: 019bc6d7-60a8-779d-acdf-8c44d8210c99
+name: Acoustic Data Exfiltration via ggwave Web Service
+description: Detects network traffic to web services associated with the ggwave project, such as 'ggwave.ggerganov.com'. These services can generate audio payloads from text, which could be used for covert data exfiltration over an acoustic channel, bypassing traditional network monitoring for the data content itself.
+query: "-- name: Acoustic Data Exfiltration via ggwave Web Service\r\n-- author: raianhadecardos\r\n-- date: 2026-01-16\r\n-- description: Detects network traffic to web services associated with the ggwave project, such as 'ggwave.ggerganov.com' or 'ggwave-to-file.ggerganov.com'. These services can generate audio payloads from text, which could be used for covert data exfiltration over an acoustic channel, bypassing traditional network monitoring for the data content itself.\r\n-- references:\r\n--   - https://github.com/ggerganov/ggwave/tree/master\r\n-- mitre_ttp:\r\n--   - T1048\r\n--   - T1071.001\r\n-- pyramid_of_pain:\r\n--   - Network Artifacts\r\n\r\n| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where (Web.url=\"*ggwave.ggerganov.com*\" OR Web.url=\"*ggwave-js.ggerganov.com*\") by Web.src as source_ip, Web.dest as destination_ip, Web.user, Web.url\r\n-- This search uses the Web data model to find traffic to ggwave-related domains, renaming fields at search time to prevent potential conflicts.\r\n\r\n-- The core logic filters for URLs containing the domains 'ggwave.ggerganov.com', 'ggwave-to-file.ggerganov.com', or 'ggwave-js.ggerganov.com'.\r\n-- Accessing these sites may indicate an attempt to generate an audio-based payload for data exfiltration.\r\n\r\n-- False positives may occur if developers or researchers are legitimately using these web-based tools for testing or projects.\r\n-- To tune, consider filtering by source IPs or user accounts that are not expected to perform this kind of activity.\r\n-- Example: | search NOT (user IN (known_researcher1, known_researcher2))\r\n\r\n| `security_content_ctime(firstTime)`\r\n| `security_content_ctime(lastTime)`\r\n| fields firstTime, lastTime, source_ip, destination_ip, user, url, count\r\n-- Arranges the output fields for clear and concise alerting.\r\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1048
+    - T1071.001
+tags:
+    - spl
+version: "3"
+references:
+    - https://github.com/ggerganov/ggwave/tree/master

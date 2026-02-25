@@ -1,0 +1,87 @@
+id: 947ab58e-a806-40cc-b906-1922065ec210
+name: RomCom Threat Group Activity Detection
+description: This rule detects activities associated with the RomCom threat group, including exploitation of CVE-2025-8088 (WinRAR path traversal), COM hijacking for persistence, anti-analysis techniques (RecentDocs check), C2 communication, and suspicious WMIC execution, potentially linked to a Mythic agent.
+query: |
+    // Name: RomCom Activity Collection (CVE-2025-8088)
+    // Date: 2025-08-13
+    // Description: This query combines multiple detection patterns associated with the RomCom threat group's exploitation of CVE-2025-8088 and subsequent post-exploitation activities. It looks for WinRAR path traversal, COM hijacking, anti-analysis techniques, C2 communication, and suspicious WMIC execution.
+    // False Positive Sensitivity: Medium. This is a composite rule. The sensitivity of individual detections varies. Tune by excluding known legitimate processes or domains as needed.
+    // References: https://www.welivesecurity.com/en/eset-research/update-winrar-tools-now-romcom-and-others-exploiting-zero-day-vulnerability/
+    // MITRE TTPs: T1204.002, T1566.001, T1546.015, T1059, T1497, T1071.001, T1047
+    // Note: This query relies on the Splunk Common Information Model (CIM), specifically the Endpoint data model.
+
+    // Detection 1: WinRAR Path Traversal (CVE-2025-8088)
+    `tstats` summariesonly=true count from datamodel=Endpoint.Filesystem where Filesystem.process_name="winrar.exe" AND ((Filesystem.file_path="*\\Microsoft\\Windows\\Start Menu\\Programs\\Startup*" AND Filesystem.file_name="*.lnk") OR (Filesystem.file_path="*\\AppData\\Local\\*" AND (Filesystem.file_name="*.exe" OR Filesystem.file_name="*.dll"))) by _time, Filesystem.dest, Filesystem.process_guid, Filesystem.process, Filesystem.file_path, Filesystem.file_name
+    | `comment("Correlate LNK creation in Startup with payload drop in temp location within a 2-minute window.")`
+    | bin _time span=2m
+    | stats values(Filesystem.process) as InitiatingProcessCommandLine, count(eval(if(match(Filesystem.file_path, "Startup") AND match(Filesystem.file_name, "\.lnk$"), 1, NULL))) as LnkInStartup, count(eval(if(match(Filesystem.file_path, "AppData\\\\Local"), 1, NULL))) as PayloadInTemp, values(eval(Filesystem.file_path."\\\\".Filesystem.file_name)) as FileName by _time, dest, process_guid
+    | where LnkInStartup > 0 AND PayloadInTemp > 0
+    | `comment("Format results to a common schema")`
+    | rename dest as DeviceName
+    | eval DetectionName="WinRAR Path Traversal (CVE-2025-8088)", Description="WinRAR created LNK in startup and payload in temp. Files: ".mvjoin(FileName, ", "), InitiatingProcessFileName="winrar.exe", ProcessCommandLine="", RegistryKey="", RemoteUrl=""
+    | fields _time, DeviceName, DetectionName, Description, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, RegistryKey, RemoteUrl
+
+    // Detection 2: RomCom COM Hijacking for Persistence
+    | append [
+        `tstats` summariesonly=true values(Registry.registry_value_data) as RegistryValueData from datamodel=Endpoint.Registry where Registry.action IN ("created", "modified") AND Registry.registry_path="*CLSID\\{1299CF18-C4F5-4B6A-BB0F-2299F0398E27}\\InprocServer32*" AND Registry.registry_value_data="*\\AppData\\Local\\Temp\\*.dll" by _time, Registry.dest, Registry.process_name, Registry.process, Registry.registry_path
+        | `comment("Format results to a common schema")`
+        | rename Registry.dest as DeviceName, Registry.process_name as InitiatingProcessFileName, Registry.process as InitiatingProcessCommandLine, Registry.registry_path as RegistryKey, RegistryValueData as FileName
+        | eval DetectionName="RomCom COM Hijacking", Description="COM Hijacking Detected. Key: ".RegistryKey.", Value: ".FileName, ProcessCommandLine="", RemoteUrl=""
+        | fields _time, DeviceName, DetectionName, Description, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, RegistryKey, RemoteUrl
+    ]
+
+    // Detection 3: Suspicious Execution from Temp with RecentDocs Anti-Analysis Check
+    | append [
+        `tstats` summariesonly=true count from datamodel=Endpoint where (nodename=Endpoint.Processes (Processes.process_path IN ("*\\AppData\\Local\\Temp\\*", "*\\AppData\\Local\\*") AND Processes.process_name="*.exe")) OR (nodename=Endpoint.Registry Registry.registry_path="*\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs*") by _time, Processes.process_id, Processes.dest, Processes.process_name, Processes.process_path, Processes.process, Processes.parent_process, Registry.registry_path
+        | `comment("Correlate process execution and registry access by the same process ID within a 2-minute window.")`
+        | bin _time span=2m
+        | stats values(Processes.process_name) as FileName, values(Processes.process_path) as FolderPath, values(Processes.process) as ProcessCommandLine, values(Processes.parent_process) as InitiatingProcessCommandLine, values(Registry.registry_path) as RegistryKey by _time, dest, Processes.process_id
+        | where isnotnull(FileName) AND isnotnull(RegistryKey)
+        | `comment("Format results to a common schema")`
+        | rename dest as DeviceName
+        | eval InitiatingProcessFileName=mvindex(split(InitiatingProcessCommandLine, " "), 0)
+        | eval DetectionName="Suspicious Temp Exec with RecentDocs Check", Description="Process ".FileName." executed from temp and checked RecentDocs registry keys.", RemoteUrl=""
+        | fields _time, DeviceName, DetectionName, Description, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, RegistryKey, RemoteUrl
+    ]
+
+    // Detection 4: RomCom C2 Domain Activity
+    | append [
+        `tstats` summariesonly=true values(Network_Traffic.url) as RemoteUrl from datamodel=Endpoint.Network_Traffic where (Network_Traffic.url IN ("*srlaptop.com*", "*campanole.com*", "*melamorri.com*", "*gohazeldale.com*")) by _time, Network_Traffic.dest, Network_Traffic.process_name, Network_Traffic.process
+        | `comment("Format results to a common schema")`
+        | rename Network_Traffic.dest as DeviceName, Network_Traffic.process_name as InitiatingProcessFileName, Network_Traffic.process as InitiatingProcessCommandLine
+        | eval DetectionName="RomCom C2 Domain Activity", Description="Network connection to known RomCom C2: ".RemoteUrl, FileName="", ProcessCommandLine="", RegistryKey=""
+        | fields _time, DeviceName, DetectionName, Description, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, RegistryKey, RemoteUrl
+    ]
+
+    // Detection 5: RomCom Mythic Agent WMIC Execution
+    | append [
+        `tstats` summariesonly=true count from datamodel=Endpoint.Processes where Processes.process_name="wmic.exe" AND Processes.parent_process_name!="svchost.exe" AND (Processes.parent_process_path IN ("*\\AppData\\Local\\Temp\\*", "*\\AppData\\Local\\*", "*\\Users\\Public\\*", "*\\ProgramData\\*", "*C:\\Temp\\*")) by _time, Processes.dest, Processes.process_name, Processes.process, Processes.parent_process_name, Processes.parent_process_path, Processes.parent_process
+        | `comment("Format results to a common schema")`
+        | rename Processes.dest as DeviceName, Processes.process_name as FileName, Processes.process as ProcessCommandLine, Processes.parent_process_name as InitiatingProcessFileName, Processes.parent_process as InitiatingProcessCommandLine, Processes.parent_process_path as InitiatingProcessFolderPath
+        | eval DetectionName="RomCom Mythic Agent WMIC Execution", Description="wmic.exe spawned by suspicious parent: ".InitiatingProcessFileName." in ".InitiatingProcessFolderPath, RegistryKey="", RemoteUrl=""
+        | fields _time, DeviceName, DetectionName, Description, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, RegistryKey, RemoteUrl
+    ]
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+    - TA0004
+    - TA0003
+    - TA0005
+    - TA0007
+    - TA0011
+techniques:
+    - T1204.002
+    - T1566.001
+    - T1546.015
+    - T1059
+    - T1497
+    - T1071.001
+    - T1047
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.welivesecurity.com/en/eset-research/update-winrar-tools-now-romcom-and-others-exploiting-zero-day-vulnerability/

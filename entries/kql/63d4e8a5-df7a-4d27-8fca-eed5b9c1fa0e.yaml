@@ -1,0 +1,14 @@
+id: 63d4e8a5-df7a-4d27-8fca-eed5b9c1fa0e
+name: FileFix Detection - Browsers Launching Lolbins
+description: This rule detects instances where common web browsers (e.g., Chrome, Edge, Firefox) launch specific Living Off The Land Binaries (LOLBins) or scripting interpreters. The LOLBins and interpreters include `cmd.exe`, `powershell.exe`, `rundll32.exe`, `regsvr32.exe`, `msiexec.exe`, `mshta.exe`, `hh.exe`, `certutil.exe`, and `bitsadmin.exe`. This activity can indicate malicious intent, such as drive-by downloads, exploit kit activity, or initial access attempts where an attacker leverages a browser to execute system utilities for further compromise.
+query: "\r\nDeviceProcessEvents\r\n| where InitiatingProcessParentFileName  has_any (\"chrome.exe\",\"msedge.exe\",\"firefox.exe\",\"iexplore.exe\",\"opera.exe\",\"brave.exe\",\"vivaldi.exe\",\"chromium.exe\",\"maxthon.exe\",\"avant.exe\",\"slimjet.exe\",\"dragon.exe\",\r\n\"iron.exe\",\"palemoon.exe\",\"waterfox.exe\",\"seamonkey.exe\",\"tor.exe\",\"epic.exe\",\"kmeleon.exe\",\"cometbird.exe\",\"torch.exe\",\"ucbrowser.exe\",\"qqbrowser.exe\",\"lunascape.exe\",\"otter-browser.exe\",\"slimbrowser.exe\",\"ur.exe\")\r\n| where InitiatingProcessFileName has_any (\"cmd.exe\",\"powershell.exe\",\"rundll32.exe\",\"regsvr32.exe\",\"msiexec.exe\",\"mshta.exe\",\"hh.exe\",\"certutil.exe\",\"bitsadmin.exe\") \r\nor InitiatingProcessCommandLine has_any (\"cmd /c\",\"powershell\",\" rundll32 \",\" regsvr32 \",\" msiexec \",\" mshta \",\" hh.exe\",\"certutil\",\"bitsadmin\")\r\n| summarize\r\nTotalEvents=count_distinct(Timestamp),\r\nGrandParent_Process=make_set(InitiatingProcessParentFileName),\r\nParent_Process=make_set(strcat(format_datetime(Timestamp,'dd.M.yyyy H:mm:ss'),\"  | Process ID: \",InitiatingProcessParentId,\" \",InitiatingProcessFileName,\"  | \",InitiatingProcessCommandLine)),\r\nChild_Process=make_set(strcat(format_datetime(Timestamp,'dd.M.yyyy H:mm:ss'),\"  | Parent ID: \",InitiatingProcessParentId,\" \",FileName,\"  | \",ProcessCommandLine))\r\nby AccountUpn,DeviceName\r\n| project TotalEvents,AccountUpn,DeviceName,GrandParent_Process,Parent_Process,Child_Process"
+query_type: kql
+severity: medium
+techniques:
+    - T1083
+    - T1189
+    - T1059
+tags:
+    - kql
+author: 0din
+version: "1"

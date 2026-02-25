@@ -1,0 +1,64 @@
+id: 019bb83f-dee3-74e9-9f35-45c89709a7f2
+name: Persistence via PowerShell Download to Startup Folder
+description: Detects PowerShell downloading a batch file (.bat) into the user's Startup folder. This is a common persistence technique (T1547.001) and was observed in an AsyncRAT campaign where the payload was downloaded from a malicious `trycloudflare.com` domain.
+query: |
+    title: Persistence via PowerShell Download to Startup Folder
+    id: 1b840dea-aeb0-485d-aeee-45b12d772404
+    status: experimental
+    description: Detects PowerShell downloading a batch file (.bat) into the user's
+      Startup folder. This is a common persistence technique (T1547.001) and was
+      observed in an AsyncRAT campaign where the payload was downloaded from a
+      malicious `trycloudflare.com` domain.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+    author: detections.ai
+    date: 2026-01-13
+    tags:
+      - attack.t1547.001
+      - attack.persistence
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+      selection_details:
+        # Detects web request commands like iwr or Invoke-WebRequest
+        CommandLine|contains:
+          - 'iwr '
+          - 'Invoke-WebRequest '
+        CommandLine|contains|all:
+          # Specifies the output file for the download
+          - '-OutFile'
+          # The destination is the user's startup folder
+          - '\Microsoft\Windows\Start Menu\Programs\Startup\'
+          # The file is a batch script for persistence
+          - '.bat'
+          # The source in the observed campaign is a trycloudflare.com domain
+          - '.trycloudflare.com/'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts might download batch files to the startup
+        folder, but this is uncommon, especially from external domains like
+        trycloudflare.com. If false positives occur, the source domain can be tuned
+        or removed for broader detection.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - attack.t1547.001
+    - attack.persistence
+author: detections.ai
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+data_sources:
+    - process_creation
+    - windows

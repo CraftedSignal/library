@@ -1,0 +1,61 @@
+id: 66dda5db-d370-4ae6-8976-910c6d786248
+name: Network login performed to multiple targets
+description: Detects scenarios where an attacker would attempt to enumerate hosts resources and execute a payload with a compromised account. Vulnerability scanners, enumeration software or tool like SharepHound/CrackMapexec may generate such behavior.
+query: |-
+    title: Network login performed to multiple targets
+    description: Detects scenarios where an attacker would attempt to enumerate hosts resources and execute a payload with a compromised account. Vulnerability scanners, enumeration software or tool like SharepHound/CrackMapexec may generate such behavior.
+    references:
+    - https://medium.com/@Shorty420/enumerating-ad-98e0821c4c78
+    - https://book.hacktricks.xyz/pentesting/pentesting-smb
+    - https://0xdf.gitlab.io/2018/12/02/pwk-notes-smb-enumeration-checklist-update1.html
+    tags:
+    - attack.discovery
+    - attack.t1046 # network service scanning
+    - attack.initial_access
+    - attack.t1078 # valid accounts
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection:
+        EventID: 4624
+        TargetUserSid|startswith: S-1-5-21-
+        LogonType: 3
+      filter:
+        IpAddress:
+          - '%vulnerability_scanners%'
+          - '%admin_jump_hosts%'
+          - '127.0.0.1'
+          - '::1'
+      condition: selection and not filter | count(Computer) by IpAddress > 20 # Count of many computer are reporting connection attemps from a single source IP
+      timeframe: 15m
+    falsepositives:
+    - VAS scanners, administrator jump host, backup solutions, monitoring solutions
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1046
+    - T1078
+tags:
+    - attack.discovery
+    - attack.t1046
+    - attack.initial_access
+    - attack.t1078
+author: mdecrevoisier
+version: "1"
+references:
+    - https://medium.com/@Shorty420/enumerating-ad-98e0821c4c78
+    - https://book.hacktricks.xyz/pentesting/pentesting-smb
+    - https://0xdf.gitlab.io/2018/12/02/pwk-notes-smb-enumeration-checklist-update1.html
+data_sources:
+    - windows
+    - security

@@ -1,0 +1,18 @@
+id: 0199b9cd-f7ac-71cb-b78f-d0ce62e8429f
+name: PowerShell Defender Exclusion Modification
+description: Detects PowerShell commands that attempt to modify Windows Defender preferences to add exclusions for paths, extensions, or processes. This activity is often indicative of an adversary attempting to disable or bypass security controls. Also seen by XWorm Malware.
+query: "DeviceProcessEvents\r\n| where FileName in (\"powershell.exe\", \"pwsh.exe\", \"powershell_ise.exe\")\r\n| where ProcessCommandLine has_any (\r\n    \"Add-MpPreference\",\r\n    \"Set-MpPreference\"\r\n)\r\n| where ProcessCommandLine has_any (\r\n    \"-ExclusionPath\",\r\n    \"-ExclusionExtension\",\r\n    \"-ExclusionProcess\"\r\n)\r\n//Exclude false positives by ProcessCommandLine\r\n| where not(ProcessCommandLine has_any ('-ExclusionPath \"\\'C:\\\\Program Files\\\\JetBrains\\\\Rider\\\\r2r\"', '\"powershell.exe\" -inputformat none -outputformat none -NonInteractive -Command \"Add-MpPreference -ExclusionProcess \\'C:\\\\Program Files\\\\FreeFileSync\\\\Bin\\\\*\\'\"'))"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1059.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"
+references:
+    - https://www.sambent.com/xworm-malware-evolves-into-ransomware-threat/

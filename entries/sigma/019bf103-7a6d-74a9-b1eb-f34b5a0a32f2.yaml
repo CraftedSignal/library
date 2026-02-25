@@ -1,0 +1,26 @@
+id: 019bf103-7a6d-74a9-b1eb-f34b5a0a32f2
+name: EtherRAT Credential Harvesting and Crypto Wallet Theft
+description: This rule detects potential credential harvesting and cryptocurrency wallet theft activities, specifically targeting browser data, SSH keys, cloud credentials, and crypto wallets. It looks for command-line patterns indicative of accessing or copying these sensitive files. The rule also includes a condition for Node.js processes attempting to exfiltrate credential-related data. The detection logic combines multiple conditions, such as browser credential access with SSH key theft, or cloud credential access with crypto wallet access, and Node.js exfiltration attempts combined with any of the credential/wallet access patterns.
+query: "title: EtherRAT Credential Harvesting and Crypto Wallet Theft\nid: 8f9a0b1c-2d3e-4f5a-6b7c-8d9e0f1a2b3c\nstatus: experimental\ndescription: |\n    Detection of EtherRAT's credential harvesting module targeting browser data, \n    SSH keys, cloud credentials, and cryptocurrency wallets. Correlates file \n    access patterns with exfiltration behavior.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2\ntags:\n    - attack.credential_access\n    - attack.collection\n    - attack.t1555.003\n    - attack.t1552.001\n    - attack.t1005\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    browser_credential_access:\n        CommandLine|re: '(?i)(cat|cp|tar|zip).*(\\.config/google-chrome|\\.mozilla/firefox|\\.config/chromium).*(Login\\s*Data|cookies|key[0-9]+\\.db)'\n    ssh_key_theft:\n        CommandLine|re: '(?i)(cat|cp|tar|zip|base64).*\\.ssh/(id_rsa|id_ed25519|id_ecdsa|config|known_hosts)'\n    cloud_credential_access:\n        CommandLine|re: '(?i)(cat|cp|tar).*(\\.aws/credentials|\\.config/gcloud|\\.kube/config|\\.docker/config\\.json)'\n    crypto_wallet_access:\n        CommandLine|re: '(?i)(cat|cp|find|ls).*(\\.ethereum|\\.bitcoin|\\.solana|wallet\\.dat|keystore)'\n    env_credential_dump:\n        CommandLine|re: '(?i)(env|printenv|cat.*/proc/.*/environ).*>(.*\\.txt|.*\\.log)'\n    node_credential_exfil:\n        Image|endswith|any:\n            - '/node'\n            - '/nodejs'\n        CommandLine|re: '(?i)(fetch|axios|http|request).*(keys|credentials|crypto)'\n    condition: (browser_credential_access and ssh_key_theft) or (cloud_credential_access and crypto_wallet_access) or (node_credential_exfil and (browser_credential_access or ssh_key_theft or crypto_wallet_access))\nfalsepositives:\n    - Backup scripts accessing credential files\n    - Legitimate credential management tools\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1555.003
+    - T1552.001
+    - T1005
+tags:
+    - attack.credential_access
+    - attack.collection
+    - attack.t1555.003
+    - attack.t1552.001
+    - attack.t1005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

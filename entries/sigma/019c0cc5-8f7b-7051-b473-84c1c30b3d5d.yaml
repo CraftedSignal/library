@@ -1,0 +1,66 @@
+id: 019c0cc5-8f7b-7051-b473-84c1c30b3d5d
+name: HoneyMyte CoolClient Execution and Persistence
+description: The rule detects the execution and persistence mechanisms of the HoneyMyte CoolClient backdoor. It identifies specific command-line arguments used during execution (' install', ' work', ' passuac') when launched by particular parent processes (Sang.exe or Jarte.exe). It also looks for the creation of 'write.exe' as a child process originating from common data directories (ProgramData, AppData, Temp). Additionally, the rule identifies persistence mechanisms by searching for command lines related to 'media_updaten' (likely a service) or 'ComboxResetTask' (likely a scheduled task).
+query: |
+    title: HoneyMyte CoolClient Execution and Persistence Behavior
+    id: c1d2e3f4-a5b6-7890-cdef-123456789abc
+    status: experimental
+    description: |
+        Detection of HoneyMyte CoolClient backdoor execution and persistence.
+        CoolClient uses DLL sideloading (e.g. Sang.exe loading libngs.dll), decrypts loader.dat/time.dat/main.dat,
+        spawns write.exe, and establishes persistence via Run key, service media_updaten, or scheduled task
+        ComboxResetTask. Parameters: no param (re-launch with install), install, work, passuac.
+        Behavior: parent process (e.g. Sang.exe, Jarte.exe) with install/work/passuac, or child write.exe
+        created by process from same directory as loader.dat/time.dat/main.dat; registry or service/task
+        creation matching CoolClient artifacts. Correlate with CoolClient stealer/plugin activity.
+    references:
+        - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/
+    author: Daniel Jeremiah
+    date: 2026/01/25
+    tags:
+        - attack.persistence
+        - attack.t1053
+        - attack.t1547.001
+        - attack.t1574.002
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_install_work:
+            CommandLine|contains|any:
+                - ' install'
+                - ' work'
+                - ' passuac'
+            ParentImage|endswith|any:
+                - '\Sang.exe'
+                - '\Jarte.exe'
+        selection_write_child:
+            Image|endswith: '\write.exe'
+            ParentImage|re: '.*\\(ProgramData|AppData|Temp)\\.*'
+        selection_persistence_context:
+            CommandLine|re: '(?i).*(media_updaten|ComboxResetTask).*'
+        condition: selection_install_work or selection_write_child or selection_persistence_context
+    falsepositives:
+        - Legitimate security testing (e.g. POC, authorized testing) using the C2 as testing
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053
+    - T1547.001
+tags:
+    - attack.persistence
+    - attack.t1053
+    - attack.t1547.001
+    - attack.t1574.002
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,17 @@
+id: 019c8eca-ce53-73ae-b1a9-a0f6fe4e568a
+name: Clawdbot PowerShell Fallback Download
+description: Detects the execution of a PowerShell command used as a fallback download mechanism by the fake 'ClawdBot Agent' VS Code extension. This ensures detection coverage even if the primary Node.js-based delivery method fails by looking for PowerShell command lines that indicate a file download from specific C2 domains used in the Clawdbot campaign's fallback script.
+query: "// Rule Title: Clawdbot PowerShell Fallback Download\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects the execution of a PowerShell command used as a fallback download mechanism by the fake 'ClawdBot Agent' VS Code extension. This ensures detection coverage even if the primary Node.js-based delivery method fails.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware\r\n// MITRE ATT&CK: T1059.001 (Command and Scripting Interpreter: PowerShell), T1105 (Ingress Tool Transfer)\r\nDeviceProcessEvents\r\n// Look for PowerShell command lines that indicate a file download.\r\n| where ProcessCommandLine has \"powershell\" and ProcessCommandLine has \"Net.WebClient\" and ProcessCommandLine has \".DownloadFile\"\r\n// Filter for the specific C2 domains used in the Clawdbot campaign's fallback script.\r\n| where ProcessCommandLine has \"darkgptprivate.com\" or ProcessCommandLine has \"clawdbot.getintwopc.site\"\r\n// FP Tuning: This is a specific TTP combined with IOCs. False positives are unlikely unless other tools in your environment legitimately download files from these specific malicious domains.\r\n| project-reorder Timestamp, DeviceName, AccountName, InitiatingProcessFileName, FileName, ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware

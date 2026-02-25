@@ -1,0 +1,27 @@
+id: 391474de-e93f-4738-9d69-93dbbbd08c4e
+name: UNC3944 Malicious VIB Installation on VMware ESXi
+description: Detects the reconfiguration of a virtual machine where a virtual disk (.vmdk) from a different, often critical, VM is attached. This is a key tactic used by threat actors like UNC3944 to perform offline credential theft by mounting a Domain Controller's disk to a staging VM to access the NTDS.dit file.
+query: "title: UNC3944 Malicious VIB Installation on VMware ESXi\r\nid: 88408c14-3d46-4792-bf32-2a557e975044\r\nstatus: experimental\r\ndescription: Detects the reconfiguration of a virtual machine where a virtual\r\n  disk (.vmdk) from a different, often critical, VM is attached. This is a key\r\n  tactic used by threat actors like UNC3944 to perform offline credential theft\r\n  by mounting a Domain Controller's disk to a staging VM to access the NTDS.dit\r\n  file.\r\nauthor: Kaung Khant Ko\r\ndate: 2025-07-29\r\ntags:\r\n  - attack.credential_access\r\n  - attack.t1552.005\r\n  - attack.t1078\r\n  - threat_actor.unc3944\r\nlogsource:\r\n  product: vmware\r\n  service: vcenter\r\ndetection:\r\n  # This detection looks for the core event of a VM being reconfigured.\r\n  # Field names for event type may vary (e.g., event.code, eventTypeId).\r\n  reconfig_event:\r\n    event.action: 'vim.event.VmReconfiguredEvent'\r\n    event.outcome: 'success'\r\n  disk_from_critical_vm:\r\n    message|contains|all:\r\n      - '.vmdk'\r\n        # The file extension for a VMware virtual disk.\r\n        # Add patterns that identify your critical assets (Tier 0).\r\n        # Example patterns for Domain Controllers, Certificate Authorities, PAM, etc.\r\n      - - 'DC'\r\n        - 'AD'\r\n        - 'CA'\r\n        - 'PKI'\r\n        - 'VEEAM'\r\n        - 'BACKUP'\r\n  filter_not_staging_vm:\r\n    vm.name|contains:\r\n      - 'DC'\r\n      - 'AD'\r\n      - 'CA'\r\n      - 'PKI'\r\n      - 'VEEAM'\r\n      - 'BACKUP'\r\n  condition: reconfig_event and disk_from_critical_vm and not filter_not_staging_vm\r\nlevel: high\r\nfalsepositives:\r\n  - Legitimate IT administration activities involving attaching disks from\r\n    critical VMs to other VMs for maintenance, backup, or recovery purposes.\r\n  - Automated backup or disaster recovery solutions that reconfigure VMs and\r\n    attach disks from critical assets.\r\nreferences:\r\n  - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1003.003
+tags:
+    - attack.credential_access
+    - attack.t1552.005
+    - attack.t1078
+    - threat_actor.unc3944
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944
+data_sources:
+    - vmware
+    - vcenter

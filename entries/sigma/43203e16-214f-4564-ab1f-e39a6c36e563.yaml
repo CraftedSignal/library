@@ -1,0 +1,96 @@
+id: 43203e16-214f-4564-ab1f-e39a6c36e563
+name: Dropping Elephant VLC Side-Loading and Staging
+description: Detects techniques used by the Dropping Elephant APT group to stage and execute a DLL side-loading attack using VLC Media Player. This includes the execution of VLC from suspicious paths, the use of PowerShell to download and rename payloads into those paths, and the specific scheduled task used for persistence.
+query: |
+    title: Dropping Elephant VLC Side-Loading and Staging
+    id: bb099872-f0ce-41dc-9ac5-a5fc04427a8d
+    status: experimental
+    description: >-
+      Detects techniques used by the Dropping Elephant APT group to stage and execute a DLL side-loading attack using VLC Media Player.
+      This includes the execution of VLC from suspicious paths, the use of PowerShell to download and rename payloads into those paths, and the specific scheduled task used for persistence.
+    references:
+      - https://arcticwolf.com/resources/blog/dropping-elephant-apt-group-targets-turkish-defense-industry/
+    author: detections.ai
+    date: 2025-07-25
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+      - attack.t1036.005
+      - attack.t1053.005
+      - apt.dropping_elephant
+      - apt.patchwork
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects VLC running from a non-standard, suspicious directory to perform DLL side-loading
+      vlc_exec:
+        Image|endswith: '\vlc.exe'
+        Image|contains:
+          - ':\Windows\Tasks\'
+          - ':\Users\Public\'
+          - ':\ProgramData\'
+          - ':\Windows\Temp\'
+          - ':\PerfLogs\'
+      filter_vlc_legit:
+        Image|startswith:
+          - 'C:\Program Files\VideoLAN\VLC\'
+          - 'C:\Program Files (x86)\VideoLAN\VLC\'
+
+      # Detects PowerShell downloading and renaming files to the suspicious staging directory.
+      # Note: The actor used obfuscation (e.g., r''e''n) which may evade simple string matching.
+      ps_staging:
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains|all:
+          # The actor uses aliases like 'wget' for Invoke-WebRequest and 'ren' for Rename-Item
+          - 'wget'
+          - 'ren'
+          - '\Windows\Tasks\'
+
+      # Detects the specific scheduled task creation command used in the campaign for persistence.
+      # The actor renamed schtasks.exe to Winver.exe.
+      schtasks_creation:
+        Image|endswith:
+          - '\schtasks.exe'
+          - '\Winver.exe'
+        CommandLine|contains|all:
+          - '/Create'
+          - '/sc'
+          - 'minute'
+          - '/tn'
+          - 'NewErrorReport'
+          - '/tr'
+          - '\Windows\Tasks\vlc'
+
+      condition: (vlc_exec and not filter_vlc_legit) or ps_staging or schtasks_creation
+    falsepositives:
+      - Legitimate portable versions of VLC may be executed from non-standard paths.
+      - Administrative scripts could potentially download and rename files into the '\Windows\Tasks\' directory, although this is uncommon.
+      - The scheduled task creation logic is highly specific to this campaign but could theoretically overlap with legitimate administrative activity if similar naming conventions are used.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1574.001
+    - T1036.005
+    - T1053.005
+    - T1059.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+    - attack.t1036.005
+    - attack.t1053.005
+    - apt.dropping_elephant
+    - apt.patchwork
+author: detections.ai
+version: "1"
+references:
+    - https://arcticwolf.com/resources/blog/dropping-elephant-apt-group-targets-turkish-defense-industry/
+data_sources:
+    - process_creation
+    - windows

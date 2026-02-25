@@ -1,0 +1,26 @@
+id: d4f4f95d-77b2-402a-95cb-207f5a35fa3f
+name: Windows Subsystem for Linux (WSL) installation (command)
+description: Detects scenarios where an attacker enables the WSL to cary out malicious activities in a virtual instance to avoid detection.
+query: "title: Windows Subsystem for Linux (WSL) installation (command)\ndescription: Detects scenarios where an attacker enables the WSL to cary out malicious activities in a virtual instance to avoid detection.\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1564-Hide%20artifacts\n- https://learn.microsoft.com/en-us/windows/wsl/install-manual\n- https://learn.microsoft.com/en-us/windows/wsl/install\n- https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/\n- https://blog.f-secure.com/hunting-for-windows-subsystem-for-linux/\n- https://blog.lumen.com/no-longer-just-theory-black-lotus-labs-uncovers-linux-executables-deployed-as-stealth-windows-loaders/\ntags:\n- attack.defense_evasion\n- attack.t1564.006\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_wsl_activation_modern: # wsl --install\n    CommandLine|contains|all:\n      - wsl\n      - '--install'\n\n  selection_wsl_activation_deprecated: # dism.exe /online /enable-feature /featurename:Microsoft-Windows-Subsystem-Linux /all /norestart\n    NewProcessName|endswith: '\\dism.exe'\n    CommandLine|contains|all: \n      - Enable-feature\n      - Microsoft-Windows-Subsystem-Linux\n      \n  condition: selection_wsl_activation_modern or selection_wsl_activation_deprecated\nfalsepositives:\n- developer computer (with Visual Studio Code)\n- administrator activity\nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.006
+    - T1564
+tags:
+    - attack.defense_evasion
+    - attack.t1564.006
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1564-Hide%20artifacts
+    - https://learn.microsoft.com/en-us/windows/wsl/install-manual
+    - https://learn.microsoft.com/en-us/windows/wsl/install
+    - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/
+    - https://blog.f-secure.com/hunting-for-windows-subsystem-for-linux/
+    - https://blog.lumen.com/no-longer-just-theory-black-lotus-labs-uncovers-linux-executables-deployed-as-stealth-windows-loaders/
+data_sources:
+    - process_creation
+    - windows

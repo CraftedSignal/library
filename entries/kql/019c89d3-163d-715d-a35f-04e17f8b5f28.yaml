@@ -1,0 +1,21 @@
+id: 019c89d3-163d-715d-a35f-04e17f8b5f28
+name: BeyondTrust Post-Exploitation via Windows Reconnaissance Tools
+description: Detects instances where the BeyondTrust/Bomgar support client spawns a command shell that subsequently executes common reconnaissance or post-exploitation utilities. This behavior is consistent with attacker activity following the exploitation of CVE-2026-1731.
+query: "// Name: BeyondTrust Post-Exploitation via Windows Reconnaissance Tools\r\n// Author: Adarsh Pandey\r\n// Date: 2026-02-23\r\n// Description: Detects instances where the BeyondTrust/Bomgar support client spawns a command shell that subsequently executes common reconnaissance or post-exploitation utilities. This behavior is consistent with attacker activity following the exploitation of CVE-2026-1731.\r\n// MITRE ATT&CK: T1190, T1059.001, T1059.003, T1033, T1087.002\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// False Positive Sensitivity: Medium. Legitimate administrators may use BeyondTrust to perform diagnostic activities using these tools. Tuning may be required to filter for specific command-line arguments or to exclude known administrative accounts.\r\n\r\nlet timeframe = 1d;\r\n// List of shells commonly used to launch subsequent commands.\r\nlet shell_processes = dynamic([\"cmd.exe\", \"powershell.exe\"]);\r\n// List of reconnaissance and discovery tools observed in post-exploitation activity.\r\nlet recon_tools = dynamic([\r\n    \"nltest.exe\",\r\n    \"whoami.exe\",\r\n    \"adfind.exe\",\r\n    \"net.exe\",\r\n    \"hostname.exe\",\r\n    \"quser.exe\",\r\n    \"dsquery.exe\",\r\n    \"certutil.exe\",\r\n    \"vssadmin.exe\",\r\n    \"ntdsutil.exe\",\r\n    \"klist.exe\",\r\n    \"tasklist.exe\",\r\n    \"wevtutil.exe\",\r\n    \"ipconfig.exe\",\r\n    \"qwinsta.exe\",\r\n    \"mshta.exe\",\r\n    \"rundll32.exe\",\r\n    \"netstat.exe\",\r\n    \"findstr.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n// The grandparent process is the BeyondTrust/Bomgar client.\r\n| where InitiatingProcessParentFileName =~ \"bomgar-scc.exe\"\r\n// The parent process is a command shell.\r\n| where InitiatingProcessFileName in~ (shell_processes)\r\n// The executed process is a known reconnaissance tool.\r\n| where FileName in~ (recon_tools)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    GrandparentProcess = InitiatingProcessParentFileName,\r\n    ParentProcess = InitiatingProcessFileName,\r\n    ParentProcessCommandLine = InitiatingProcessCommandLine,\r\n    ChildProcess = FileName,\r\n    ChildProcessCommandLine = ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0007
+techniques:
+    - T1190
+    - T1059.001
+    - T1059.003
+    - T1033
+    - T1087.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

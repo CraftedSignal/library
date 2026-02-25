@@ -1,0 +1,53 @@
+id: 019ac6e3-e53e-744c-a8f9-3e6a2b44a87f
+name: Shai-Hulud GitHub Actions Persistence
+description: This rule detects the creation or modification of a GitHub Actions workflow file named 'discussion.yaml' within the '.github/workflows/' directory. This is a known persistence technique used by the Shai-Hulud 2.0 worm to register an infected machine as a self-hosted runner, allowing attackers to execute arbitrary commands.
+query: |
+    # Name: Shai-Hulud GitHub Actions Persistence
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This search detects the creation or modification of a GitHub Actions workflow file named 'discussion.yaml'.
+    # This is a known persistence technique used by the Shai-Hulud 2.0 worm to register an infected machine
+    # as a self-hosted runner, allowing attackers to execute arbitrary commands.
+    #
+    # Data Source:
+    # This search requires endpoint file creation/modification events, such as those from Sysmon (Event Code 11),
+    # CrowdStrike, or other EDR solutions. The macro `endpoint_file_events` should be configured to point to the correct
+    # index and sourcetype. Field names for file_name and file_path should be mapped to your CIM.
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Persistence
+    # - Technique: T1136.003 (Create Account: Cloud Account)
+    #
+    # False Positives:
+    # It is possible for a developer to legitimately create a workflow file named 'discussion.yaml'.
+    # Investigation should focus on the process that created the file, the user account, and the contents of the YAML file
+    # to determine if it is malicious.
+
+    `endpoint_file_events`
+
+    # Filter for the specific workflow file name used by the malware.
+    | search file_name="discussion.yaml"
+
+    # Further refine the search to look for the file in the expected GitHub Actions workflow path.
+    # This helps reduce false positives from files with the same name in different locations.
+    | search (file_path="*.github/workflows/*" OR file_path="*.github\\workflows\\*")
+
+    # Group results by host and file details for easier investigation.
+    | stats count by _time, host, user, process_name, process_command_line, file_name, file_path
+    | `shai_hulud_github_actions_persistence_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1136.003
+tags:
+    - spl
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

@@ -1,0 +1,12 @@
+id: 039a57e0-d987-443d-ac10-f7a4254a6abd
+name: Apache Tomcat and Camel RCE Exploit Attempts
+description: Detects exploit attempts targeting Remote Code Execution vulnerabilities in Apache Tomcat (CVE-2025-24813) and Apache Camel (CVE-2025-27636, CVE-2025-29891) via crafted HTTP requests.
+query: "title: Apache Tomcat and Camel RCE Exploit Attempts\nid: 8f1b2c3d-4e5f-6a7b-8c9d-0e1f2a3b4c5d\nstatus: stable\ndescription: Detects exploit attempts targeting Remote Code Execution vulnerabilities in Apache Tomcat (CVE-2025-24813) and Apache Camel (CVE-2025-27636, CVE-2025-29891) via crafted HTTP requests.\nauthor: Detections.ai\ndate: 2025-07-07\nlogsource:\n  category: webserver\ndetection:\n  # CVE-2025-24813: Apache Tomcat Partial PUT RCE - Staging Phase\n  selection_tomcat_put_stage:\n    http_method: 'PUT'\n    url|endswith: '.session'\n    http_header.Content-Range|contains: 'bytes ' # Indicates partial PUT request\n  \n  # CVE-2025-24813: Apache Tomcat Partial PUT RCE - Trigger Phase\n  selection_tomcat_get_trigger:\n    http_method: 'GET'\n    http_header.Cookie|contains: 'JSESSIONID=.' # The leading dot before filename is a key indicator\n  \n  # CVE-2025-27636 & CVE-2025-29891: Apache Camel Header Hijack RCE - Bypass Headers\n  selection_camel_headers:\n    # Detecting the presence of specific mixed-case headers used for bypass\n    # Using '|contains: ''' checks for the existence of the header field.\n    - http_header.CAmelExecCommandExecutable|contains: ''\n    - http_header.CAmelExecCommandArgs|contains: ''\n    - http_header.CAmelHttpResponseCode|contains: ''\n    - http_header.CAmelBeanMethodName|contains: ''\n\n  condition: (1 of selection_tomcat_put_*) or selection_tomcat_get_trigger or (1 of selection_camel_headers)\nfalsepositives:\n  - Legitimate use of partial PUT with .session files (highly unlikely for malicious intent).\n  - Legitimate Apache Camel configurations using these specific mixed-case headers (highly unlikely as they are part of an exploit bypass).\nlevel: critical\nreferences:\n  - https://unit42.paloaltonetworks.com/apache-cve-2025-24813-cve-2025-27636-cve-2025-29891/"
+query_type: sigma
+severity: critical
+author: Detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/apache-cve-2025-24813-cve-2025-27636-cve-2025-29891/
+data_sources:
+    - webserver

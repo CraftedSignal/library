@@ -1,0 +1,42 @@
+id: 019a413f-6c17-77ce-b700-3c9e9d6d2e8f
+name: User Added to Local Privileged Group on Linux
+description: Detects when a user account is added to a local privileged group (sudo or wheel) on a Linux endpoint using the 'usermod' utility. This action grants the user administrative privileges and could be indicative of privilege escalation.
+query: |-
+    //Author: AJ
+    //Date: 2025-11-1
+    //Version: 1.0
+    //Mitre: T1136,T1078,T1069
+    //Name : User Added to Local Privileged Group on Linux
+    //Description: Detects when a user account is added to a local privileged group (sudo or wheel) on a Linux endpoint using the 'usermod' utility. This action grants the user administrative privileges and could be indicative of privilege escalation.
+    DeviceProcessEvents
+    | where FileName =~ "usermod"
+    | where ProcessCommandLine has_all ("-a", "-G") or ProcessCommandLine has "-aG"
+    | extend
+        TargetUser = extract(@"(\S+)$", 1, ProcessCommandLine),
+        GroupAdded = extract(@"(?i)(?:-G|-aG)\s*(\w+)", 1, ProcessCommandLine)
+        | where GroupAdded in~ ("sudo", "wheel","admin", "root")
+        | project
+        Timestamp,
+        DeviceName,
+        AccountName, // User that executed the command
+        TargetUser, // User that was added to the group
+        GroupAdded,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        ReportId,
+        DeviceId
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+techniques:
+    - T1098
+    - T1078
+tags:
+    - kql
+author: AJ
+version: "3"

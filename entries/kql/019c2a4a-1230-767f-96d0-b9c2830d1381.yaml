@@ -1,0 +1,13 @@
+id: 019c2a4a-1230-767f-96d0-b9c2830d1381
+name: PsExec Service Creation or Execution
+description: This rule detects the creation of the PsExec service (PSEXESVC, psexesvc, svcsvc, spoolsrv) or the execution of psexec.exe. PsExec is a legitimate Microsoft tool that allows administrators to execute processes on remote systems, but it is frequently abused by attackers for lateral movement and remote execution.
+query: "\r\n//Repo - T1569.002 PSexec tool observed on host\r\n//----------------------------------------------------------------\r\n// 1. PsExec Service Creation (EventID 7045)\r\n//----------------------------------------------------------------\r\nlet svc = SecurityEvent\r\n| where EventID == 7045\r\n| where ServiceName has_any (\"PSEXESVC\",\"psexesvc\",\"svcsvc\",\"spoolsrv\")\r\n| project TimeGenerated, HostName=Computer, Account, detection=\"PsExecService\",\r\n          CommandLine=ServiceFileName, FilePath=ServiceFileName,\r\n          FileHash=\"\", ParentProcessName=\"\", InitiatingProcessAccountName=\"\";\r\n//----------------------------------------------------------------\r\n// 2. PsExec Execution from DeviceProcessEvents\r\n//----------------------------------------------------------------\r\nlet proc = DeviceProcessEvents\r\n| where FileName has_cs \"psexec.exe\" or ProcessCommandLine has_cs \"psexec\"\r\n| project TimeGenerated,\r\n          HostName=DeviceName,\r\n          Account=AccountName,\r\n          detection=\"PsExecExecution\",\r\n          CommandLine=ProcessCommandLine,\r\n          FilePath=FolderPath,\r\n          FileHash=tostring(SHA256),\r\n          ParentProcessName=InitiatingProcessFileName,\r\n          InitiatingProcessAccountName;\r\n//----------------------------------------------------------------\r\n// 3. Union & Dedup per Host + Detection Type\r\n//----------------------------------------------------------------\r\nsvc\r\n| union proc\r\n| where TimeGenerated >= ago(1d)\r\n| summarize arg_max(TimeGenerated, *) by HostName, detection\r\n//| where not(InitiatingProcessAccountName == 'add AccountName here' and HostName == 'add HostName here')\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1569.002
+tags:
+    - kql
+version: "4"

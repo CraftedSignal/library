@@ -1,0 +1,55 @@
+id: 019a7ea0-b109-71cd-9b93-e82369114a5b
+name: Gootloader Persistence via Startup LNK File
+description: Detects Gootloader's persistence mechanism where a shortcut (.lnk) file is placed in the Startup folder or AppData, which in turn executes a JavaScript file using an 8.3 short filename.
+query: |
+    title: Gootloader Persistence via Startup LNK File
+    id: e52d8b29-a095-4631-8439-7fbeffcdc6d5
+    status: experimental
+    description: Detects Gootloader's persistence mechanism where a shortcut (.lnk)
+      file is placed in the Startup folder or AppData, which in turn executes a
+      JavaScript file using an 8.3 short filename.
+    references:
+      - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
+    author: detections.ai
+    date: 2025-11-13
+    tags:
+      - attack.t1547.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+      selection_cmdline:
+        CommandLine|contains|all:
+          - '~' # Key indicator for Windows 8.3 short filename format (e.g., EMCCON~1.JS)
+          - '.js' # The target payload is a JavaScript file
+      selection_path:
+        CommandLine|contains: '\AppData\Roaming\' # Gootloader drops its scripts and LNK files in subfolders of AppData\Roaming
+      condition: all of them
+    falsepositives:
+      - Legitimate legacy applications might still use 8.3 short filenames to launch
+        scripts, although this is uncommon for scripts located in the
+        AppData\Roaming directory. The combination of a script host, 8.3 filename
+        syntax, and the AppData path provides higher fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1547.001
+    - T1059.007
+tags:
+    - attack.t1547.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
+data_sources:
+    - process_creation
+    - windows

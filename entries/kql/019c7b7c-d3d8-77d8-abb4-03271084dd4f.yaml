@@ -1,0 +1,22 @@
+id: 019c7b7c-d3d8-77d8-abb4-03271084dd4f
+name: BeyondTrust Post-Exploitation via Suspicious Child Process
+description: Detects when the BeyondTrust remote support client process ('bomgar-scc.exe' or 'bomgar-scc') spawns a shell or a common reconnaissance/downloader tool. This behavior is a strong indicator of post-exploitation activity related to vulnerabilities like CVE-2026-1731, where an attacker gains code execution and begins to explore the compromised system.
+query: "// Name: BeyondTrust Post-Exploitation via Suspicious Child Process\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects when the BeyondTrust remote support client process ('bomgar-scc.exe' or 'bomgar-scc') spawns a shell or a common reconnaissance/downloader tool. This behavior is a strong indicator of post-exploitation activity related to vulnerabilities like CVE-2026-1731, where an attacker gains code execution and begins to explore the compromised system.\r\n// MITRE ATT&CK: T1190, T1059.001, T1059.004, T1033, T1016\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// False Positive Sensitivity: Medium\r\n// Tags: BeyondTrust, CVE-2026-1731, SparkRAT, VShell\r\nlet suspicious_procs = dynamic([\r\n    // Shells\r\n    \"cmd.exe\",\r\n    \"powershell.exe\",\r\n    \"sh\",\r\n    \"bash\",\r\n    // Reconnaissance tools\r\n    \"whoami.exe\",\r\n    \"hostname.exe\",\r\n    \"nslookup.exe\",\r\n    \"id\", // Linux/Unix specific\r\n    \"arp.exe\",\r\n    \"ipconfig.exe\",\r\n    \"nltest.exe\",\r\n    \"quser.exe\",\r\n    \"net.exe\",\r\n    \"net1.exe\",\r\n    // Downloaders\r\n    \"curl.exe\",\r\n    \"wget.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events from the last day\r\n| where TimeGenerated > ago(1d)\r\n// Filter for the BeyondTrust/Bomgar parent process for both Windows and Linux\r\n| where InitiatingProcessFileName in~ (\"bomgar-scc.exe\", \"bomgar-scc\")\r\n// Filter for suspicious child processes being spawned\r\n| where FileName in~ (suspicious_procs)\r\n// FP Tuning: Legitimate administrative or support activity may involve using these tools.\r\n// To reduce noise, you could exclude known admin accounts from 'InitiatingProcessAccountUpn'\r\n// or filter for specific command-line arguments that are less likely to be used in benign scenarios (e.g., non-interactive flags).\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    AccountDomain,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentId,\r\n    ProcessId,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0007
+techniques:
+    - T1190
+    - T1059.001
+    - T1059.004
+    - T1033
+    - T1016
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

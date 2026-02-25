@@ -1,0 +1,12 @@
+id: cfe08797-946f-4a86-98db-9289cf435888
+name: Outbound Email with Attachments to External Domains
+description: This rule detects outbound email activity, specifically focusing on emails sent outside the organization's domain that include attachments. It identifies the sender, recipient, file type, file name, and file size of these attachments.
+query: "#### To identify e-mails sent or forwarded outbound i.e outside of the organization e-mail domain:\n#### Query:\n```KQL\nlet Lookback = ago(1d);\nlet AllEmailActivity = \nEmailEvents_CL\n| where TimeGenerated >= Lookback \n| where DeliveryAction_s == \"Delivered\"\n| where EmailDirection_s == \"Outbound\"\n;\nAllEmailActivity \n```\n\n#### Now join the AllemailActivity data to the EmailAttachmentinfo Table to match if any outbound e-mail being sent from the organization e-mail domain with attachments:\n\n#### Final Query:\n```KQL\nlet Lookback = ago(1d);\nlet AllEmailActivity = \nEmailEvents_CL\n| where TimeGenerated >= Lookback \n| where DeliveryAction_s == \"Delivered\"\n| where EmailDirection_s == \"Outbound\";\nlet EmailWithAttachments = \n    AllEmailActivity\n    | join kind=inner (\n        EmailAttachmentInfo_CL\n        | where TimeGenerated >= Lookback\n    ) on NetworkMessageId_g  // Assuming NetworkMessageId_g exists in both tables\n;\nEmailWithAttachments\n| project TimeGenerated, SenderFromAddress_s, RecipientEmailAddress_s, FileType_s, FileName_s, FileSize_d\n```\n\n##### Note: Table names for the query shown above can be different in different organization. Adjust the table name and its schema's according to the organization enviornment.\n"
+query_type: kql
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - kql
+version: "1"

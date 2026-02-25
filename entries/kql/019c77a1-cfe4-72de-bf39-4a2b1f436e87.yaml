@@ -1,0 +1,15 @@
+id: 019c77a1-cfe4-72de-bf39-4a2b1f436e87
+name: Azure AD External User Invitation from Common Public Domains
+description: This rule detects when an external user is invited to Azure Active Directory (AAD) from a common, publicly available email domain (e.g., gmail.com, outlook.com, yahoo.com). This can be an indicator of an attacker attempting to establish persistence or gain initial access by inviting an external account they control, or it could be a legitimate business process for collaboration with external parties using personal email addresses.
+query: "\r\n\r\n////KQL to find out the guest user invited to AAD from novel domains////\r\nAuditLogs\r\n| where ActivityDisplayName == \"Invite external user\"\r\n| extend InitiatedByRaw = tostring(InitiatedBy)\r\n| extend InitiatedByUser = parse_json(InitiatedByRaw)\r\n| extend initiatedBy = iff(isnull(InitiatedByUser.user.userPrincipalName), tostring(InitiatedByUser.app.displayName), tostring(InitiatedByUser.user.userPrincipalName))\r\n| extend InvitedUser = tostring(AdditionalDetails[5].value)\r\n| extend InvitedUserDomain = tostring(split(InvitedUser, \"@\")[1])\r\n| where InvitedUserDomain in~ (\r\n    \"gmail.com\", \"outlook.com\", \"hotmail.com\", \"live.com\", \"yahoo.com\",\r\n    \"icloud.com\", \"aol.com\", \"mail.com\", \"protonmail.com\", \"zoho.com\",\r\n    \"gmx.com\", \"yandex.com\", \"tuta.com\", \"fastmail.com\", \"msn.com\",\r\n    \"ymail.com\", \"qq.com\", \"163.com\", \"126.com\", \"mail.ru\",\r\n    \"web.de\", \"t-online.de\", \"naver.com\", \"rediffmail.com\",\r\n    \"libero.it\", \"freenet.de\", \"comcast.net\", \"xtra.co.nz\"\r\n)\r\n| extend InvitationMethod = tostring(AdditionalDetails[6].value)\r\n| extend Location = tostring(AdditionalDetails[2].value)\r\n| extend DeviceDetail = tostring(AdditionalDetails[3].value)\r\n| extend UserAgent = tostring(AdditionalDetails[4].value)\r\n| extend ObjectId = tostring(TargetResources[0].id)\r\n| extend RefObjectId = iff(isnull(InitiatedByUser.user.id), tostring(InitiatedByUser.app.id), tostring(InitiatedByUser.user.id))\r\n| where initiatedBy != \"Microsoft.Azure.SyncFabric\"\r\n| where Result != 'clientError'\r\n| extend AccountCustomEntity = initiatedBy\r\n| extend AccountCustomEntity2 = InvitedUser\r\n| extend AzureResourceId = ObjectId\r\n| project TimeGenerated, initiatedBy, InvitedUser, InvitedUserDomain, InvitationMethod, Location, DeviceDetail, UserAgent, ObjectId, RefObjectId, Result, ActivityDisplayName, LoggedByService\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+techniques:
+    - T1136.003
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

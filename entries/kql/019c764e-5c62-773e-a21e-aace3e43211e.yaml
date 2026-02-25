@@ -1,0 +1,16 @@
+id: 019c764e-5c62-773e-a21e-aace3e43211e
+name: SimpleHelp Firewall Rule Modification
+description: Detects the use of netsh.exe to create a firewall rule specifically named "SH Remote Access Service Launcher". This activity is associated with the JWrapper/SimpleHelp RAT, which adds this rule to allow inbound C2 connections, bypassing the system firewall.
+query: "// Name: SimpleHelp Firewall Rule Modification\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the use of netsh.exe to create a firewall rule specifically named \"SH Remote Access Service Launcher\". This activity is associated with the JWrapper/SimpleHelp RAT, which adds this rule to allow inbound C2 connections, bypassing the system firewall.\r\n// References: https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware\r\n// MITRE ATT&CK: T1562.004 (Impair Defenses: Disable or Modify System Firewall)\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Filter for the execution of the netsh.exe command-line tool\r\n| where FileName =~ \"netsh.exe\"\r\n// Look for command line arguments used to add a new firewall rule with a specific name\r\n| where ProcessCommandLine has \"advfirewall firewall add rule\" and ProcessCommandLine has \"name=SH Remote Access Service Launcher\"\r\n// Potential for False Positives: While highly specific, a legitimate application could theoretically use a similar naming convention.\r\n// Review the initiating process and the full command line to confirm malicious intent.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware

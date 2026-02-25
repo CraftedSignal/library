@@ -1,0 +1,14 @@
+id: 0f91993e-c7a1-4465-8647-aaaeab74e93d
+name: Detecting Social Engineering Attacks in Teams with KQL
+description: KQL Query
+query: "// https://redcanary.com/blog/threat-intelligence/storm-1811-black-basta/\n// https://techcommunity.microsoft.com/blog/microsoftsecurityexperts/phish-click-breach-hunting-for-a-sophisticated-cyber-attack/4267916\n\n// E.g Approved Corporate RMM - Whitelisting\nlet SanctionRMM = dynamic(\"bomgarcloud.com\");\n// Lookup list of RMM Tools Url from Microsoft\nlet RMMList=externaldata(URI: string, RMMTool: string)\n[h'https://raw.githubusercontent.com/jischell-msft/RemoteManagementMonitoringTools/refs/heads/main/Network%20Indicators/RMM_SummaryNetworkURI.csv'];\nlet RMMUrl =\nRMMList\n| project URI;\nMessageUrlInfo\n| where Timestamp > ago(1h)\n// Scan all external inbound Teams message for RMM Tools URL\n// For example: Storm-1811 exploits RMM tools to drop Black Basta ransomware \n| where Url has_any(RMMUrl)\n| where not (Url has_any(SanctionRMM))\n| join MessageEvents on TeamsMessageId\n| where IsExternalThread == \"1\"\n| where ThreadType == \"chat\"\n| where DeliveryLocation == \"Teams\"\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566
+    - T1219.002
+tags:
+    - kql
+version: "1"

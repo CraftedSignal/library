@@ -1,0 +1,27 @@
+id: 1bf96536-cb8b-48e1-87ac-c7f7f6566ac6
+name: Detection of Suspicious PIF File Creation, Execution, and Persistence
+description: |
+    This detection scenario focuses on the abuse of legacy .pif (Program Information File) extensions for malware delivery, execution, and persistence on Windows endpoints. Attackers may use .pif files, sometimes with deceptive double extensions or in user-writable folders, to execute arbitrary code, evade user scrutiny, or persist via the registry, exploiting the fact that .pif files are still natively executable on modern Windows systems.
+    Algorithm:
+    - Monitor for .pif file creation in user-writable folders (excluding well-known dev/test tools/processes and paths).
+
+    - Detect execution of any .pif file in user-writable folders.
+
+    - Detect suspicious child process launch (e.g., scripting engines or LOLBins) from a .pif parent process.
+
+    - Detect registry persistence attempts (Run/RunOnce) by .pif processes.
+
+    - Suppress false positives by excluding known dev/test folders and processes.
+query: "// Choose Files to allow\r\nlet dev_folders = dynamic([\r\n    @\"Path1\",\r\n    @\"path2\",  \r\n]);\r\n// Choose processes to allow\r\nlet dev_processes = dynamic([\r\n    \"P1.exe\",\r\n    \"P2.exe\",\r\n]);\r\n// --- Detect .pif file creation in user space (but not from known dev tools/paths)\r\nlet PifFileCreation = DeviceFileEvents\r\n| where FileName endswith \".pif\"\r\n| where FolderPath contains @\"\\Users\\\"\r\n| where not(FolderPath has_any(dev_folders))\r\n| where not(InitiatingProcessFileName has_any(dev_processes))\r\n| project Timestamp, DeviceName, AccountName=InitiatingProcessAccountName, FileAction=\"Created\", FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId, Reason=\"Suspicious PIF file creation outside dev patterns\";\r\n// --- Detect execution of .pif files in user folders (always alert)\r\nlet PifExecution = DeviceProcessEvents\r\n| where FileName endswith \".pif\"\r\n| where FolderPath contains @\"\\Users\\\"\r\n| project Timestamp, DeviceName, AccountName=InitiatingProcessAccountName, FileAction=\"Executed\", FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId, Reason=\"PIF file executed\";\r\n// --- Detect .pif execution with suspicious follow-up process\r\nlet SuspiciousChildProc = DeviceProcessEvents\r\n| where InitiatingProcessFileName endswith \".pif\"\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\", \"wscript.exe\", \"mshta.exe\", \"regsvr32.exe\", \"rundll32.exe\", \"cscript.exe\", \"schtasks.exe\")\r\n| project Timestamp, DeviceName, AccountName=InitiatingProcessAccountName, FileAction=\"PIF spawned child proc\", FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId, Reason=\"PIF file spawned suspicious process\";\r\n// --- Detect persistence attempt from PIF process\r\nlet PifPersistence = DeviceRegistryEvents\r\n| where InitiatingProcessFileName endswith \".pif\"\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey contains @\"\\Run\" or RegistryKey contains @\"\\RunOnce\"\r\n| project Timestamp, DeviceName, AccountName=InitiatingProcessAccountName, FileAction=\"Persistence Attempt\", RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId, Reason=\"PIF file attempted persistence\";\r\n// --- Collect & present results\r\nunion PifFileCreation, PifExecution, SuspiciousChildProc, PifPersistence\r\n| order by Timestamp desc\r\n| extend\r\n    Severity=case(FileAction == \"PIF spawned child proc\" or FileAction == \"Persistence Attempt\", \"High\",\r\n                  FileAction == \"Executed\", \"Medium\",\r\n                  FileAction == \"Created\", \"Low\",\r\n                  \"Informational\"),\r\n    Techniques=dynamic([\"T1204\", \"T1547.001\"]),\r\n    Tactics=dynamic([\"Execution\", \"Persistence\"]),\r\n    Description=\"Detection of suspicious PIF (.pif) file creation, execution, follow-up process, or persistence in user environments. Alerts are tuned to suppress standard dev/test artifacts.\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204
+    - T1547.001
+tags:
+    - PIF
+    - kql
+author: Ahmed Monsri
+version: "1"

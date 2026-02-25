@@ -1,0 +1,22 @@
+id: 019a2679-124b-75ac-a5f0-61042a764b1c
+name: 'Security Hardening: Legacy Authentication Protocols'
+description: |-
+    This query identifies user sign-ins leveraging legacy authentication protocols in Azure Active Directory (AAD). Legacy authentication methods, such as IMAP, POP3, Exchange ActiveSync, SMTP, and older Outlook protocols, do not support modern security features like multi-factor authentication (MFA). Their use increases the risk of account compromise, brute force attacks, and credential theft.
+
+    Monitoring for legacy authentication activity is a critical security control to detect potential unauthorized access or accounts bypassing modern security protections.
+query: "// ---------------------------------------------------------- \n// MS Defender HUNT: Legacy Authentication Protocols\n// ----------------------------------------------------------\n\nlet legacy_auth_protocols = dynamic([\n    \"Authenticated SMTP\", \"AutoDiscover\", \"Exchange ActiveSync\", \"Exchange Online PowerShell\",\n    \"Exchange Web Services\", \"IMAP4\", \"MAPI Over HTTP\", \"Outlook Anywhere (RPC over HTTP)\",\n    \"Outlook Service\", \"POP3\", \"Reporting Web Services\", \"Other clients\"\n]);\nlet legacy_user_agents = dynamic([\"BAV2ROPC\", \"CBAinPROD\", \"CBAinTAR\", \"MSRPC\"]);\nAADSignInEventsBeta\n| where Timestamp > ago(2d)\n| where ClientAppUsed in (legacy_auth_protocols) or UserAgent has_any (legacy_user_agents)\n| where tostring(ErrorCode) !in (\"50126\", \"50053\", \"50125\", \"50076\", \"50140\") // ignore known benign failures\n| where IPAddress != \"::1\" and isnotempty(IPAddress) // Exclude localhost and empty IP addresses\n| extend LocationInfo = strcat(Country, \" - \", City)\n| summarize\n    FirstSeen = min(Timestamp),\n    LastSeen = max(Timestamp),\n    AppUsed = make_set(ClientAppUsed),\n    Agents = make_set(UserAgent),\n    AuthenticationDetails = make_set(AuthenticationProcessingDetails), // Renamed for clarity\n    Locations = make_set(LocationInfo),\n    IPs = make_set(IPAddress),\n    Devices = make_set(DeviceName),\n    RiskStates = make_set(RiskState),\n    RiskLevels = make_set(RiskLevelDuringSignIn),\n    RiskTypes = make_set(RiskEventTypes),\n    CorrelationIds = make_set(CorrelationId)\n    by AccountDisplayName, AccountUpn\n| extend AlertSeverity = case(\n    array_length(IPs) > 1 and array_length(Locations) > 1, \"High\",\n    array_length(RiskLevels) > 0, \"High\", // Simplified risk check\n    RiskStates contains \"atRisk\", \"Medium\",\n    \"Low\"\n)\n| project\n    FirstSeen,\n    LastSeen,\n    AccountDisplayName,\n    AccountUpn,\n    AppUsed,\n    Agents,\n    IPs,\n    Locations,\n    Devices,\n    AuthenticationDetails,\n    RiskStates,\n    RiskLevels,\n    RiskTypes,\n    CorrelationIds,\n    AlertSeverity\n| sort by AlertSeverity, LastSeen desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1078
+tags:
+    - kql
+author: IronBr@nded
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/entra/identity/conditional-access/policy-block-legacy-authentication
+    - https://www.bleepingcomputer.com/news/microsoft/microsoft-365-to-block-file-access-via-legacy-auth-protocols-by-default/
+    - https://learn.microsoft.com/en-us/exchange/clients-and-mobile-in-exchange-online/deprecation-of-basic-authentication-exchange-online

@@ -1,0 +1,77 @@
+id: bf17079c-c567-4937-be48-805a83746830
+name: MURKY PANDA Exploitation of Internet-Facing Appliances
+description: Detects suspicious child processes spawned by Citrix or Commvault services, which may indicate exploitation for initial access (T1190), as seen in MURKY PANDA campaigns involving CVE-2023-3519 and CVE-2025-3928.
+query: |
+    title: MURKY PANDA Exploitation of Internet-Facing Appliances
+    id: d825e0ef-018f-4210-aa48-57fef45f424b
+    status: experimental
+    description: Detects suspicious child processes spawned by Citrix or Commvault services, which may indicate exploitation for initial access (T1190), as seen in MURKY PANDA campaigns involving CVE-2023-3519 and CVE-2025-3928.
+    references:
+      - https://www.crowdstrike.com/en-us/blog/murky-panda-trusted-relationship-threat-in-cloud/
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2023.3519
+      - cve.2025.3928
+      - actor.murky_panda
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_citrix:
+            # Detects suspicious processes spawned by Citrix/NetScaler processes, a common post-exploitation behavior for CVE-2023-3519.
+        ParentImage|endswith:
+          - '\nsppe.exe'       # NetScaler Packet Processing Engine
+          - '\httpd.exe'
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\sh.exe'
+          - '\bash.exe'
+          - '\whoami.exe'
+          - '\cscript.exe'
+          - '\wscript.exe'
+      selection_commvault:
+            # Detects suspicious processes spawned by Commvault services, which could indicate exploitation (e.g., CVE-2025-3928).
+        ParentImage|endswith:
+          - '\cvd.exe'
+          - '\CVODS.exe'
+          - '\CVFirewall.exe'
+          - '\GxFWD.exe'
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\sh.exe'
+          - '\bash.exe'
+          - '\whoami.exe'
+          - '\net.exe'
+          - '\net1.exe'
+      condition: 1 of them
+    falsepositives:
+        # Legitimate administrative or diagnostic scripts executed by Citrix or Commvault services may cause false positives.
+        # It is recommended to baseline the normal behavior of these applications in your environment and filter out legitimate scripts.
+      - Legitimate software updates or maintenance tasks.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2023.3519
+    - cve.2025.3928
+    - actor.murky_panda
+author: detections.ai
+version: "1"
+references:
+    - https://www.crowdstrike.com/en-us/blog/murky-panda-trusted-relationship-threat-in-cloud/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,33 @@
+id: 262fefdc-e76a-4675-a3eb-c33eb1a6ab01
+name: 'PromptLock AI Malware '
+description: KQL query designed to detect executables that invoke the Ollama interface (or other LLM-related activity) while simultaneously monitoring for the creation of potentially malicious script files. The detection specifically correlates suspicious process execution with the creation of .lua, .bat, and .ps1 scripts to broaden coverage and reduce false negatives.
+query: |
+    // https://www.pcmag.com/news/mysterious-promptlock-ransomware-is-harnessing-openais-model
+    let lookback = 1d;
+    let suspiciousProcesses =
+        DeviceProcessEvents
+        | where Timestamp > ago(lookback)
+        | where ProcessCommandLine has "ollama" or ProcessCommandLine has "gpt-oss"
+        | project
+            ProcessStartTime = Timestamp, DeviceId, DeviceName, SuspiciousProcessId = ProcessId, SuspiciousProcessName = FileName, ProcessCommandLine;
+    let scriptFilesCreated =
+        DeviceFileEvents
+        | where Timestamp > ago(lookback)
+        | where ActionType == "FileCreated"
+        | where FileName endswith ".lua" or FileName endswith ".ps1" or FileName endswith ".bat"
+        | project FileCreationTime = Timestamp, DeviceId, FileName, FolderPath, CreatingProcessId = InitiatingProcessId;
+    suspiciousProcesses
+    | join kind=inner (
+        scriptFilesCreated
+    ) on $left.DeviceId == $right.DeviceId and $left.SuspiciousProcessId == $right.CreatingProcessId
+    | where FileCreationTime between (ProcessStartTime .. (ProcessStartTime + 5m))
+    | project
+        Timestamp = FileCreationTime, DeviceName, SuspiciousProcessName,ProcessCommandLine, CreatedScriptFile = FileName, ScriptFolderPath = FolderPath
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Martin.Baran
+version: "1"
+references:
+    - https://www.pcmag.com/news/mysterious-promptlock-ransomware-is-harnessing-openais-model

@@ -1,0 +1,24 @@
+id: 8b7f8217-6f3a-48ff-8da8-3402ed951629
+name: SharePoint CVE-2025-53770 Attack Surface Alert (SPLUNK)
+description: SPL Query
+query: |-
+    | search sourcetype=DeviceInfo IsInternetFacing=true PublicIP!=""
+    | fields DeviceId
+    | dedup DeviceId
+    | rename DeviceId as InternetFacingDeviceId
+    | join type=inner where DeviceId=InternetFacingDeviceId [
+        search sourcetype=DeviceProcessEvents
+        earliest=-30d
+        | search InitiatingProcessVersionInfoFileDescription="Microsoft SharePoint"
+        | fields DeviceId, Timestamp, *
+    ]
+    | stats latest(*) as * by DeviceId
+    | sort - latest(Timestamp)
+query_type: spl
+severity: medium
+techniques:
+    - T1505.003
+tags:
+    - spl
+author: KQLWizard
+version: "1"

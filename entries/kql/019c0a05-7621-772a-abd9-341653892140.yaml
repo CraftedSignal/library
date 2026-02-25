@@ -1,0 +1,92 @@
+id: 019c0a05-7621-772a-abd9-341653892140
+name: Suspicious Process Execution from Office Trusted Location
+description: Detects when a suspicious process (such as a script interpreter or LOLBIN) is executed from a directory configured as a Microsoft Office Trusted Location. Attackers may place malicious executables or scripts in these locations to bypass security controls and execute them, often as a result of a user opening a malicious document.
+query: |
+    //
+    // Rule Title: Suspicious Process Execution from Office Trusted Location
+    // Description: Detects when a suspicious process (such as a script interpreter or LOLBIN) is executed from a directory configured as a Microsoft Office Trusted Location. Attackers may place malicious executables or scripts in these locations to bypass security controls and execute them, often as a result of a user opening a malicious document.
+    //
+    // Author: detections.ai
+    // Date: 2026-01-28
+    //
+    // MITRE ATT&CK:
+    // - T1204.002: User Execution: Malicious File
+    // - T1059: Command and Scripting Interpreter
+    //
+    // References:
+    // - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations
+    //
+    // False Positive Sensitivity: Medium
+    // - This rule may trigger on legitimate administrative scripts or third-party application updaters that are placed in trusted locations.
+    // - The 'process_allowlist' is a placeholder and should be populated with the names of legitimate applications in your environment that are expected to run from these locations.
+    // - Investigate the executed process, its command line, and the parent process to determine legitimacy.
+    //
+
+    // Define suspicious processes often used for malicious execution or as living-off-the-land binaries (LOLBINs).
+    let suspicious_processes = dynamic([
+        "cscript.exe",
+        "wscript.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "cmd.exe",
+        "mshta.exe",
+        "rundll32.exe",
+        "regsvr32.exe",
+        "certutil.exe"
+    ]);
+
+    // Define an allowlist for processes that are expected to run from trusted locations.
+    // This may include specific Line-of-Business (LOB) application executables or scripts. Tuning is likely required.
+    let process_allowlist = dynamic([
+        "some_legit_app.exe" // Placeholder for environmental tuning
+    ]);
+
+    // Collect all configured Office Trusted Location paths from the last day to build a device-specific baseline.
+    let trusted_locations =
+        DeviceRegistryEvents
+        | where TimeGenerated > ago(1d)
+        // Target registry keys for trusted locations across different Office versions.
+        | where RegistryKey has_all (@"Software\Microsoft\Office", @"\Security\Trusted Locations")
+        // The 'Path' value holds the trusted directory path.
+        | where RegistryValueName == "Path" and isnotempty(RegistryValueData)
+        | summarize makeset(tostring(RegistryValueData)) by DeviceId
+        | mv-expand set_RegistryValueData
+        | project DeviceId, TrustedPath = tostring(set_RegistryValueData);
+
+    // Look for recent process creation events.
+    DeviceProcessEvents
+    | where TimeGenerated > ago(1h)
+    // Filter for suspicious processes being executed.
+    | where FileName in~ (suspicious_processes)
+    // Exclude known-good processes if any are defined in the allowlist.
+    | where not(FileName in~ (process_allowlist))
+    // Join with the collected trusted paths for the same device.
+    | join kind=inner (trusted_locations) on DeviceId
+    // Correlate by checking if the process was executed from within a trusted path.
+    // Using 'startswith' accounts for subfolders if 'AllowSubfolders' is enabled for the trusted location.
+    | where FolderPath startswith TrustedPath
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        SHA1,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        AccountName,
+        TrustedPath
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations

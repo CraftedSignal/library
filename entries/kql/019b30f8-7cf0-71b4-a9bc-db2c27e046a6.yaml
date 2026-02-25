@@ -1,0 +1,47 @@
+id: 019b30f8-7cf0-71b4-a9bc-db2c27e046a6
+name: Suspicious AutoHotKey Execution from Initial Access Vector
+description: Detects the execution of the AutoHotKey interpreter (AutoHotKey.exe) as a child process of common initial access applications like web browsers, Microsoft Office products, or command-line interpreters. This behavior is a key indicator of the latest DarkGate malware infection chain.
+query: |
+    // Name: Suspicious AutoHotKey Execution from Initial Access Vector
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the execution of the AutoHotKey interpreter (AutoHotKey.exe) as a child process of common initial access applications like web browsers, Microsoft Office products, or command-line interpreters. This behavior is a key indicator of the latest DarkGate malware infection chain.
+    // MITRE ATT&CK: T1059.003
+    // References: https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4
+    // False Positive Sensitivity: Medium. Legitimate use of AutoHotKey by developers or power users might trigger this alert, especially if launched from a command prompt. Consider excluding known developer machines or specific parent-child process relationships if false positives occur.
+
+    DeviceProcessEvents
+    // Look for the execution of the AutoHotKey interpreter.
+    | where FileName =~ "AutoHotKey.exe"
+    // Filter for parent processes commonly associated with initial access or script execution.
+    | where InitiatingProcessFileName in~ (
+        // Office Applications
+        "excel.exe",
+        "winword.exe",
+        "powerpnt.exe",
+        "msaccess.exe",
+        "outlook.exe",
+        // Scripting/Command-line
+        "powershell.exe",
+        "cmd.exe",
+        "wscript.exe",
+        "cscript.exe",
+        "mshta.exe",
+        // Web Browsers
+        "chrome.exe",
+        "firefox.exe",
+        "msedge.exe",
+        "iexplore.exe"
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1059.010
+tags:
+    - kql
+version: "2"
+references:
+    - https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4

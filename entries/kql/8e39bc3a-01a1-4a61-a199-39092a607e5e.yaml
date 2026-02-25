@@ -1,0 +1,27 @@
+id: 8e39bc3a-01a1-4a61-a199-39092a607e5e
+name: Unicode Homograph Attack Detection in URLs (Network & Email)
+description: |-
+    Detects potential Unicode-based homograph attacks by scanning for non-ASCII characters in both DeviceNetworkEvents.RemoteUrl and EmailUrlInfo.Url. These attacks leverage visually deceptive domain names—using characters from non-Latin scripts (e.g., Cyrillic "а" instead of Latin "a")—to mimic legitimate sites and deceive users.
+
+    The detection covers both network activity and email delivery paths, helping uncover phishing attempts, credential harvesting links, or other malicious redirects.
+
+    Recommendation: If available, include telemetry from DNS logs (e.g., DnsEvents) and firewall/proxy logs to improve detection coverage and correlate threats across multiple layers of the kill chain.
+query: "let suspiciousCharacters = range(128, 1327, 1);\r\n// DeviceNetworkEvents - network-based detection\r\nlet NetworkHomograph = DeviceNetworkEvents\r\n| where isnotempty(RemoteUrl)\r\n| extend UtfChars = to_utf8(RemoteUrl)\r\n| where UtfChars has_any (suspiciousCharacters)\r\n| extend SuspiciousCharacters = set_intersect(suspiciousCharacters, UtfChars)\r\n| project \r\n    TimeGenerated,\r\n    DeviceName,\r\n    RemoteUrl,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ActionType,\r\n    ReportId,\r\n    SuspiciousCharacters,\r\n    Source = \"DeviceNetworkEvents\";\r\n// EmailUrlInfo + UrlClickEvents - email-based detection\r\nlet EmailHomograph = EmailUrlInfo\r\n| where isnotempty(Url)\r\n| extend UtfChars = to_utf8(Url)\r\n| where UtfChars has_any (suspiciousCharacters)\r\n| extend SuspiciousCharacters = set_intersect(suspiciousCharacters, UtfChars)\r\n| join kind=leftouter (\r\n    UrlClickEvents\r\n    | project Url, AccountUpn, IsClickedThrough, ClickAction, IPAddress, ClickTimestamp = TimeGenerated\r\n) on Url\r\n| project \r\n    TimeGenerated,\r\n    DeviceName = \"\", // not available in EmailUrlInfo\r\n    RemoteUrl = Url,\r\n    InitiatingProcessFileName = \"\",\r\n    InitiatingProcessCommandLine = \"\",\r\n    ActionType = ClickAction,\r\n    ReportId = \"\",\r\n    SuspiciousCharacters,\r\n    Source = \"EmailUrlInfo\";\r\n// Union both sources\r\nunion NetworkHomograph, EmailHomograph\r\n| sort by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.002
+    - T1204.001
+    - T1583.001
+    - T1598.003
+tags:
+    - unicode
+    - homograph
+    - phishing
+    - kql
+    - sentinel
+author: Michael Fajkus
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/homograph-attacks/
+    - https://outpost24.com/blog/homograph-attacks-how-hackers-exploit-look-alike-domains/

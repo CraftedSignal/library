@@ -1,0 +1,57 @@
+id: 019abed0-7a73-71ae-9b90-4aaeeda6e52f
+name: FlexibleFerret Malware Execution Chain Detection
+description: Detects curl downloading a file, making it executable with chmod, and executing it in the background, common in FlexibleFerret malware delivery on macOS systems.
+query: |+
+    ---
+    title: FlexibleFerret Suspicious curl with chmod and Background Execution
+    id: a1b2c3d4-ffff-4e5f-8a9b-0c1d2e3f4a5b
+    status: experimental
+    description: Detects curl download followed by chmod and background execution, characteristic of FlexibleFerret delivery chain
+    author: Claude Opus 4.5
+    date: 2025/11/26
+    references:
+        - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    tags:
+        - attack.execution
+        - attack.t1059.004
+        - attack.defense_evasion
+        - attack.t1222.002
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection:
+            CommandLine|contains|all:
+                - 'curl'
+                - 'chmod'
+                - '&'
+        selection_output:
+            CommandLine|contains:
+                - '/var/tmp/'
+                - '.sh'
+        condition: selection and selection_output
+    falsepositives:
+        - Legitimate installation scripts
+        - Software update mechanisms
+    level: high
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.004
+    - T1222.002
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - attack.defense_evasion
+    - attack.t1222.002
+author: Claude Opus 4.5
+version: "1"
+references:
+    - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+data_sources:
+    - process_creation
+    - macos

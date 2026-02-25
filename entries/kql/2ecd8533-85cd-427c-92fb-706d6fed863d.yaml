@@ -1,0 +1,17 @@
+id: 2ecd8533-85cd-427c-92fb-706d6fed863d
+name: Detection of Remote Monitoring and Management (RMM) Tool Activity
+description: This rule detects the execution of known Remote Monitoring and Management (RMM) tool processes or network connections to domains associated with RMM tools. It leverages an external CSV file containing a list of RMM tool executable names and their associated domains to identify suspicious activity. The rule aims to identify the presence and use of legitimate RMM software, which can be abused by adversaries for remote access and control.
+query: "  let RMMIOCs=externaldata (ToolName:string,\r\n    ExecutableName:string,\r\n    ProcessName:string,\r\n    Domain:string)[\"https://raw.githubusercontent.com/VlogicK/HuntAndDetect/refs/heads/main/Queries/Command%20and%20Control/Enhanced_RMM_Tools_List_With_Domains.csv\"]\r\n    with (format=\"csv\", ignoreFirstRecord=true);\r\n  let RMMProcNames=RMMIOCs\r\n  |distinct ProcessName;\r\n  let RMMDomains=RMMIOCs|distinct Domain;\r\n  let procesEventsQuery=DeviceProcessEvents\r\n  | where FileName has_any (RMMProcNames)| extend eventtype=\"ProcessEvent\";\r\n  let networkEventsQuery=DeviceNetworkEvents| where RemoteUrl has_any (RMMDomains)| extend eventtype=\"NetworkEvent\";\r\n  union procesEventsQuery,networkEventsQuery"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1219.002
+tags:
+    - kql
+author: Vaasudev Kala
+version: "1"
+references:
+    - https://raw.githubusercontent.com/VlogicK/HuntAndDetect/refs/heads/main/Queries/Command%20and%20Control/Enhanced_RMM_Tools_List_With_Domains.csv

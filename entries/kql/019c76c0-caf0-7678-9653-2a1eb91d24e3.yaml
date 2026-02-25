@@ -1,0 +1,17 @@
+id: 019c76c0-caf0-7678-9653-2a1eb91d24e3
+name: CRESCENTHARVEST - Data Staging Artifacts
+description: Detects the creation of files in specific staging directories used by the CRESCENTHARVEST malware for collecting keylogs, browser data, and Telegram sessions before exfiltration. The rule specifically looks for 'daT.txt' in 'spool\Drivers\color', and any file creation within '\Windows\Temp\sysdriver\' or '\Windows\Temp\tdata\'.
+query: "// Name: CRESCENTHARVEST - Data Staging Artifacts\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the creation of files in specific staging directories used by the CRESCENTHARVEST malware for collecting keylogs, browser data, and Telegram sessions before exfiltration.\r\n// Tactics: Collection\r\n// Techniques: T1074.001\r\n// References: https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/\r\nDeviceFileEvents\r\n// Filter for file creation events, as the malware writes stolen data to disk.\r\n| where ActionType == \"FileCreated\"\r\n// Look for the specific staging paths and files used by CRESCENTHARVEST.\r\n| where\r\n    (FileName =~ \"daT.txt\" and FolderPath endswith @\"\\spool\\Drivers\\color\") or // Keylog staging file\r\n    (FolderPath has @\"\\Windows\\Temp\\sysdriver\\\") or // Staging for browser data\r\n    (FolderPath has @\"\\Windows\\Temp\\tdata\\\") // Staging for Telegram data\r\n// FP Tuning: The 'daT.txt' and 'sysdriver' paths are highly specific. The 'tdata' folder is used by Telegram,\r\n// but its creation within C:\\Windows\\Temp is anomalous and indicative of the malware's staging behavior.\r\n// Monitor the initiating processes for legitimacy if false positives occur.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    RequestAccountName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1074.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - Intel ID def6f9fab55c0643a2e518ace3a5ba32890978a58f553af61462a6b28c851595
+    - https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/

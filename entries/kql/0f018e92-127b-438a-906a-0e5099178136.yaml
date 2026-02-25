@@ -1,0 +1,29 @@
+id: 0f018e92-127b-438a-906a-0e5099178136
+name: Microsoft 365 Copilot Agent Creation
+description: "This detection identifies when Microsoft Copilot Studio agents are created in your organization's tenant. This activity is significant as the default behavior in Copilot agent creation is to configure a new service principal with cloud app administrator role. \n\nCopilot agents can be found in the Microsoft Admin Portal https://admin.microsoft.com/Adminportal/Home#/copilot/agents "
+query: "CloudAppEvents\r\n| where ActionType has_any(\"BotCreate\", \"BotComponentCreate\")\r\n    or (ActivityType == 'Add' and\r\n        ObjectName has '(Microsoft Copilot Studio)')\r\n| extend \r\n        Workload = tostring(RawEventData.Workload),\r\n        AccountUpn = tostring(RawEventData.UserId),\r\n        Result = tostring(RawEventData.ResultStatus),\r\n        AppAccessContext = todynamic(RawEventData.AppAccessContext),\r\n        ModifiedProperties = todynamic(RawEventData.ModifiedProperties),\r\n        PropertyCollection = todynamic(RawEventData.PropertyCollection),\r\n        RequiresCustomerKeyEncryption = tostring(RawEventData.RequiresCustomerKeyEncryption)\r\n| project Timestamp, ActionType, Workload, Result, ModifiedProperties, PropertyCollection, RequiresCustomerKeyEncryption, ObjectType, ObjectName, ApplicationId, Application, AppAccessContext, AccountType, AccountId, AccountObjectId, AccountDisplayName, AccountUpn, IsAdminOperation, IsExternalUser, IsImpersonated, RawEventData, AuditSource, ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0040
+    - TA0002
+techniques:
+    - T1078.004
+    - T1671
+    - DS0019
+    - T1489
+    - T1569.002
+    - T1059.009
+    - T1651
+    - T1098.003
+tags:
+    - kql
+author: ramz
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-copilot-studio/authoring-first-bot
+    - https://learn.microsoft.com/en-us/microsoft-copilot-studio/

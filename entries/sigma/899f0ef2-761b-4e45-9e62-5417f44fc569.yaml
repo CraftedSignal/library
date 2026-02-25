@@ -1,0 +1,64 @@
+id: 899f0ef2-761b-4e45-9e62-5417f44fc569
+name: Potential GoldMelody ViewState Deserialization Activity
+description: Detects HTTP POST requests containing suspicious parameters or headers used by GoldMelody's in-memory IIS modules. Attackers leverage ASP.NET ViewState deserialization to execute payloads in memory, often passing commands and data via non-standard HTTP parameters and headers within POST requests.
+query: |
+    title: Potential GoldMelody ViewState Deserialization Activity
+    id: dd7fb020-1451-4d93-9e25-67c24acd90b6
+    status: experimental
+    description: >-
+      Detects HTTP POST requests containing suspicious parameters or headers used by
+      GoldMelody's in-memory IIS modules. Attackers leverage ASP.NET ViewState
+      deserialization to execute payloads in memory, often passing commands and data
+      via non-standard HTTP parameters and headers within POST requests.
+    references:
+      - https://unit42.paloaltonetworks.com/initial-access-broker-exploits-leaked-machine-keys/
+    author: detections.ai
+    date: 2025-07-16
+    tags:
+      - attack.t1190
+      - attack.initial_access
+      - attack.t1071.001
+      - threat_actor.gold_melody
+    logsource:
+      category: webserver
+    detection:
+      # This detection requires web server logs that include HTTP method, POST body content, and request headers.
+      selection_post:
+        http.method: 'POST' # The attack primarily uses POST requests to deliver the malicious __VIEWSTATE payload.
+      selection_param_value:
+        http.request.body.content|contains: '__Value=' # Parameter used by a cmd execution variant.
+      selection_param_upload:
+        http.request.body.content|contains|all:
+          # Parameters used by the file upload module.
+          - '__Fvalue='
+          - '__Bvalue='
+      selection_header_cmd:
+        http.request.header|contains: 'cmd:' # A custom header used by another cmd execution variant.
+      condition: selection_post and (1 of (selection_param_*, selection_header_*))
+    falsepositives:
+      - Legitimate applications could potentially use custom parameters or headers
+        with similar names. Tuning may be required.
+      - Effective detection requires visibility into HTTP POST request bodies and
+        headers, which may not be enabled by default.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0011
+    - TA0003
+techniques:
+    - T1190
+    - T1071.001
+    - T1505.004
+tags:
+    - attack.t1190
+    - attack.initial_access
+    - attack.t1071.001
+    - threat_actor.gold_melody
+author: detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/initial-access-broker-exploits-leaked-machine-keys/
+data_sources:
+    - webserver

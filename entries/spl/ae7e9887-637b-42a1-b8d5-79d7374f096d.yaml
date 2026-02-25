@@ -1,0 +1,18 @@
+id: ae7e9887-637b-42a1-b8d5-79d7374f096d
+name: Phishing Domain Activity Detection
+description: SPL Query
+query: "| inputlookup unit42phishingcampaign.csv \r\n| where Type = \"domain\" \r\n| fields Value \r\n| rename Value as PhishDomain \r\n| map search=\"search index=email sourcetype=email earliest=-30d UrlDomain=$PhishDomain$ | fields _time, UrlDomain, sender, recipient, subject | eval SourceType=\\\"EmailUrlInfo\\\"\" maxsearches=1000 \r\n| append [ \r\n    | inputlookup unit42phishingcampaign.csv \r\n    | where Type = \"domain\" \r\n    | fields Value \r\n    | rename Value as PhishDomain \r\n    | map search=\"search index=edr sourcetype=device_network_events earliest=-30d ActionType=ConnectionSuccess RemoteUrl=$PhishDomain$ | fields _time, RemoteUrl, DeviceName, UserName | eval SourceType=\\\"DeviceNetworkEvents_ConnectionSuccess\\\"\" maxsearches=1000 \r\n] \r\n| append [ \r\n    | inputlookup unit42phishingcampaign.csv \r\n    | where Type = \"domain\" \r\n    | fields Value \r\n    | rename Value as PhishDomain \r\n    | map search=\"search index=edr sourcetype=device_network_events earliest=-30d ActionType=HttpConnectionInspected | spath input=AdditionalFields output=HttpHost path=host | where HttpHost=$PhishDomain$ | fields _time, HttpHost, DeviceName, UserName | eval SourceType=\\\"DeviceNetworkEvents_HttpConnectionInspected\\\"\" maxsearches=1000 \r\n] \r\n\r\n\r\n```https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/unit42phishingcampaign.csv```"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.002
+    - T1204
+    - T1204.001
+    - T1189
+tags:
+    - spl
+version: "1"

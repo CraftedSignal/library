@@ -1,0 +1,29 @@
+id: b0dc9404-9ac8-4000-b90d-49685a51a095
+name: CVE-2024-38200 NTLM Exposure Detection
+description: 'KQL Query from file: CVE-2024-38200 NTLM Exposure Detection'
+query: "// CVE-2024-38200 NTLM Exposure Detection\n// Linkedin Post: https://www.linkedin.com/posts/0x534c_microsoft-discloses-unpatched-office-flaw-activity-7229115791139348480-X_Hi/\n// Microsoft has disclosed a high-severity vulnerability affecting Office 2016 that could expose NTLM hashes to a remote attacker. Microsoft's exploitability assessment says that exploitation of CVE-2024-38200 is less likely, MITRE has tagged the likelihood of exploitation for this type of weakness as highly probable.\n\n// The below KQL uses DefenderXDR Exposure Management to check the presence of NTLM hash on the endpoint and if it successfully made an outbound NTLM authentication to internet public IP which indicates high probability of NTLM hash exposure. Upon detection, SecOps should request user to change credential as a precaution until the endpoint is patched. \n\nlet EndpointWithNTLMHash = \nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties.rawData.ntlmHash.ntlmHash == \"true\"\n| distinct SourceNodeName;\nlet VulnerableEndpoint =\nDeviceTvmSoftwareInventory\n| where SoftwareName contains \"office_\" and SoftwareVendor == \"microsoft\"\n| where DeviceName has_any (EndpointWithNTLMHash)\n| distinct DeviceName;\nDeviceNetworkEvents\n| where RemotePort == \"445\" and RemoteIPType == \"Public\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (VulnerableEndpoint)\n\n// MSRC - Microsoft Office Spoofing Vulnerability (Recently Updated)\n// https://msrc.microsoft.com/update-guide/vulnerability/CVE-2024-38200\n\n// https://www.bleepingcomputer.com/news/security/microsoft-discloses-unpatched-office-flaw-that-exposes-ntlm-hashes/\n\n// MITRE ATT&CK Mapping\n\n// Credential Dumping (T1003): Identifying endpoints with NTLM hashes.\n// Exploitation for Client Execution (T1203): Identifying vulnerable endpoints with specific software.\n// Remote Services (T1021): Monitoring network events for successful connections on port 445.\n\n// These mappings help in understanding the potential threats and tactics being monitored by the KQL query.\n"
+query_type: kql
+tactics:
+    - TA0006
+    - TA0002
+    - TA0008
+    - TA0005
+    - TA0009
+    - TA0040
+    - TA0043
+    - TA0001
+techniques:
+    - T1003
+    - T1203
+    - T1021
+    - T1550.003
+    - T1557.001
+    - T1097
+    - T1021.002
+    - T1496.003
+    - T1590.005
+    - T1595.001
+    - T1190
+tags:
+    - kql
+version: "1"

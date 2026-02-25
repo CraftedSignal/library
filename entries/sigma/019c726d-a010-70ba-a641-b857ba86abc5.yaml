@@ -1,0 +1,60 @@
+id: 019c726d-a010-70ba-a641-b857ba86abc5
+name: Remote MSI Execution via Fake Verification Lure
+description: Detects the use of msiexec.exe to install a package from a remote URL that contains keywords associated with fake verification or captcha lures. This technique is used by threat actors in "Fake Captcha" campaigns to bypass script-based detections.
+query: |
+    title: Remote MSI Execution via Fake Verification Lure
+    id: 2cba63be-884d-432d-b4a8-4ba61e29d97f
+    status: experimental
+    description: Detects the use of msiexec.exe to install a package from a remote
+      URL that contains keywords associated with fake verification or captcha lures.
+      This technique is used by threat actors in "Fake Captcha" campaigns to bypass
+      script-based detections.
+    author: detections.ai
+    references:
+      - https://censys.com/blog/living-off-the-web-how-trust-infrastructure-became-a-malware-delivery-interface
+    date: 2026-02-18
+    tags:
+      - attack.t1218.007
+      - attack.execution
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects msiexec.exe running with the install switch and a remote URL
+      selection_base:
+        Image|endswith: '\msiexec.exe'
+        CommandLine|contains|all:
+          - '/i'
+          - 'http'
+      # Looks for keywords associated with fake verification lures in the command line
+      selection_keywords:
+        CommandLine|contains:
+          - 'cloudflarechallenge'
+          - 'humanverification'
+          - 'verify'
+          - 'captcha'
+      condition: selection_base and selection_keywords
+    falsepositives:
+      - Legitimate software installations from URLs that happen to contain one of
+        the keywords, although the combination is highly suspicious.
+      - Consider tuning by excluding known software distribution domains if false
+        positives occur.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1218.007
+    - T1204.004
+tags:
+    - attack.t1218.007
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://censys.com/blog/living-off-the-web-how-trust-infrastructure-became-a-malware-delivery-interface
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,44 @@
+id: 019c4d4c-f33b-72b1-8000-a03c8bf81bde
+name: Muddled Libra - AD Enumeration for SPN Hunting
+description: Detects the execution of Active Directory enumeration tools (ADRecon, ADExplorer) that result in the creation of 'ComputerSPNs.csv'. Muddled Libra uses this file to identify critical services (Veeam, MSSQL, Exchange) for targeting via their Service Principal Names (SPNs).
+query: |-
+    // Name: Muddled Libra - AD Enumeration for SPN Hunting
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-11
+    // Tactic: Discovery
+    // Technique: T1087.002, T1614.001
+    // Threat Actor: Muddled Libra (Scattered Spider)
+    // Description: Detects the execution of Active Directory enumeration tools (ADRecon, ADExplorer) that result in the creation of 'ComputerSPNs.csv'. Muddled Libra uses this file to identify critical services (Veeam, MSSQL, Exchange) for targeting via their Service Principal Names (SPNs).
+    // False Positive Sensitivity: Medium. Legitimate Active Directory reconnaissance by system administrators or security teams may trigger this alert. Consider excluding known administrative accounts or specific hosts where this activity is expected.
+    // References: https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    let lookback = 1d;
+    let tools = dynamic(["ADRecon", "ADExplorer", "ADExplorer64.exe"]);
+    let outputFile = "ComputerSPNs.csv";
+    // Look for the creation of the specific output file by one of the known tools.
+    DeviceFileEvents
+    | where TimeGenerated > ago(lookback)
+    | where ActionType == "FileCreated" and FileName =~ outputFile
+    // Correlate the file creation with the process that created it.
+    | where InitiatingProcessFileName has_any (tools) or InitiatingProcessCommandLine has_any (tools)
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        ThreatActor = "Muddled Libra"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1087
+    - T1087.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/

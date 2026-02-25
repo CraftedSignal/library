@@ -1,0 +1,15 @@
+id: 019b21c4-a81c-71ba-ad29-3a5f92683712
+name: Detection of Proxyware Electron Applications
+description: This rule detects the execution of known proxyware applications such as Infatica, Honeygain, and IPRoyal by looking for specific command-line arguments. Proxyware applications monetize unused internet bandwidth by routing traffic through the user's device, which can pose security and privacy risks.
+query: "\n// KQL 1\n// proxyware apps \nDeviceProcessEvents\n| where Timestamp > ago(30d)\n| where ProcessCommandLine has \"app.asar\"\n| where ProcessCommandLine has_any (\n    \"infatica\", \"honeygain\", \"pawns\", \"iproyal\", \n    \"packetstream\", \"bright\", \"luminati\", \"peer2profit\", \"p2b\"\n)\n| project Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine\n\n-------\n// KQL 2\nDeviceProcessEvents\n| where Timestamp > ago(30d)\n| where ProcessCommandLine has \"app.asar\" \n| where ProcessCommandLine has_any (\n    \"infatica\", \"honeygain\", \"pawns\", \"iproyal\", \n    \"packetstream\", \"bright\", \"luminati\", \"peer2profit\", \"p2b\"\n)\n| summarize \n    ProxywareTypes = make_set(extract(@\"([a-z0-9]+)\\.child\\.js\", 1, ProcessCommandLine)),\n    Devices = dcount(DeviceName),\n    Users = make_set(AccountName)\n    by InitiatingProcessFileName\n| order by Devices desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0042
+techniques:
+    - T1496.002
+    - T1584
+tags:
+    - kql
+version: "2"

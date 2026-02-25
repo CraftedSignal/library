@@ -1,0 +1,66 @@
+id: 019c91c0-b2e0-759d-a61c-78d08e1d3d99
+name: Linux RC Scripts Persistence Hunting
+description: Hunts for modifications to RC initialization scripts. This could point to persistence
+query: |
+    title: Linux RC Scripts Persistence Hunting
+    id: aa58fb7d-0b8a-458e-89da-1f0372fa7a41
+    status: experimental
+    description: >-
+      Hunts for modifications to RC initialization scripts. This could point to
+      persistence
+    references:
+      - https://attack.mitre.org/techniques/T1037/004/
+      - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+    author: zendannyy
+    date: 2026-02-21T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1037.004
+      - linux.init_scripts
+    logsource:
+      category: file_event
+      product: linux
+    detection:
+      selection_rc_files:
+        TargetFilename|endswith:
+          - /etc/rc.local
+          - /etc/rc.d/rc.local
+          - /etc/rc.common
+        TargetFilename|contains:
+          - /etc/init.d/
+      selection_file_operations:
+        EventType:
+          - FileCreate
+          - FileModify
+      selection_suspicious_content:
+        FileContent|contains:
+          - nc -
+          - wget
+          - curl
+          - /dev/tcp/
+      condition: >-
+        selection_rc_files and selection_file_operations and
+        selection_suspicious_content
+    falsepositives:
+      - System maintenance scripts
+      - Configuration management
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1037.004
+tags:
+    - attack.persistence
+    - attack.t1037.004
+    - linux.init_scripts
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1037/004/
+    - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+data_sources:
+    - file_event
+    - linux

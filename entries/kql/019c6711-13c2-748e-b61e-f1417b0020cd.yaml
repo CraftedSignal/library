@@ -1,0 +1,55 @@
+id: 019c6711-13c2-748e-b61e-f1417b0020cd
+name: Rapid Privileged Domain Account Creation via Net Command
+description: Detects the use of the 'net' command to create a new domain user and immediately add that user to a high-privilege domain group (e.g., Enterprise Admins, Domain Admins) within a short time window. This TTP was observed in campaigns following the exploitation of BeyondTrust (CVE-2026-1731) to establish persistent, privileged access.
+query: |-
+    // Name: Rapid Privileged Domain Account Creation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-16
+    // Description: Detects the use of the 'net' command to create a new domain user and immediately add that user to a high-privilege domain group (e.g., Enterprise Admins, Domain Admins) within a short time window. This TTP was observed in campaigns following the exploitation of BeyondTrust (CVE-2026-1731) to establish persistent, privileged access.
+    // False Positives: Legitimate, rapid creation and promotion of an administrative account could trigger this alert, though this is uncommon. The time window can be tuned to fit environment-specific administrative patterns.
+    // References: https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
+    // Tactics: Persistence, Privilege Escalation
+    // Techniques: T1136.002, T1098
+    let timeWindow = 5m;
+    let privilegedGroups = dynamic(["enterprise admins", "domain admins"]);
+    DeviceProcessEvents
+    | where FileName in~ ("net.exe", "net1.exe")
+    // Filter for the two relevant command patterns: creating a domain user or adding a user to a privileged domain group.
+    | where (ProcessCommandLine has_all ("user", "/add", "/domain")) or
+            (ProcessCommandLine has_all ("group", "/add", "/domain") and ProcessCommandLine has_any (privilegedGroups))
+    // Summarize events by device within the specified time window.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        // Check for at least one domain user creation command.
+        UserAddCount = countif(ProcessCommandLine has_all ("user", "/add", "/domain")),
+        // Check for at least one privileged group modification command.
+        GroupAddCount = countif(ProcessCommandLine has_all ("group", "/add", "/domain") and ProcessCommandLine has_any (privilegedGroups)),
+        // Collect the command lines for analysis.
+        Commands = make_set(ProcessCommandLine),
+        Account = take_any(AccountName),
+        InitiatingProcess = take_any(InitiatingProcessFileName)
+        by DeviceName, bin(Timestamp, timeWindow)
+    // Filter for time windows where both a user creation and a privileged group addition occurred.
+    | where UserAddCount > 0 and GroupAddCount > 0
+    | project
+        StartTime,
+        EndTime,
+        DeviceName,
+        Account,
+        InitiatingProcess,
+        Commands
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136.002
+    - T1098
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/

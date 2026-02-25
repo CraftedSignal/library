@@ -1,0 +1,53 @@
+id: 019b28af-f5d2-7208-be7a-53d96da876f5
+name: EtherRAT Fileless Node.js Execution
+description: Detects the execution of Node.js with the '-e' flag, which evaluates a string as JavaScript. This technique is used by the EtherRAT implant for fileless execution, particularly for privilege escalation attempts.
+query: |
+    title: EtherRAT Fileless Node.js Execution
+    id: 49cdd055-ec1d-4901-b6a7-2b4229a4f8b6
+    status: experimental
+    description: Detects the execution of Node.js with the '-e' flag, which
+      evaluates a string as JavaScript. This technique is used by the EtherRAT
+      implant for fileless execution, particularly for privilege escalation
+      attempts.
+    references:
+      - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+    author: detections.ai
+    date: 2025-12-16
+    tags:
+      - attack.execution
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # Detects node or nodejs process execution
+        Image|endswith:
+          - '/node'
+          - '/nodejs'
+        # The '-e' flag is used for inline script execution
+        CommandLine|contains: ' -e '
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or deployment scripts may use this feature to run
+        short, inline JavaScript snippets. Review the executed code for malicious
+        intent.
+    level: medium
+    associated_cves:
+      - CVE-2025-55182
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.007
+author: detections.ai
+version: "3"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

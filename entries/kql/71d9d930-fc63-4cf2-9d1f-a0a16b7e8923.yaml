@@ -1,0 +1,31 @@
+id: 71d9d930-fc63-4cf2-9d1f-a0a16b7e8923
+name: EchoSpoofing
+description: 'KQL Query from file: EchoSpoofing'
+query: "//By leveraging Defender threat intelligence data to first identify abused Proofpoint email gateways and correlating this with emails that have passed authentication checks (SPF/DKIM/DMARC) from these gateways, you can quickly spot abnormal inbound email counts from legitimate non-business partner domains by reviewing the email statistics. (E.g Disney.com)\n\nlet HighRiskProofpointEmailGateways =\nCloudAppEvents \n| where ActionType == @\"TIMailData-Inline\"\n| where RawEventData has \"pphosted.com\" or ISP == @\"proofpoint inc.\"\n| extend SenderIP = tostring(RawEventData.SenderIp)\n| distinct SenderIP;\nEmailEvents\n| where SenderIPv4 has_any(HighRiskProofpointEmailGateways)\n| extend SenderInfo = geo_info_from_ip_address(SenderIPv4)\n| extend AuthDetail = parse_json(AuthenticationDetails)\n| where AuthDetail.SPF==\"pass\" and AuthDetail.DKIM==\"pass\" and AuthDetail.DMARC==\"pass\"\n| summarize Count=count() by SenderFromDomain\n| sort by Count desc\n\n// https://labs.guard.io/echospoofing-a-massive-phishing-campaign-exploiting-proofpoints-email-protection-to-dispatch-3dd6b5417db6\n\n// MITRE ATT&CK Mapping\n\n// The KQL code is designed to detect potentially malicious email activities by focusing on high-risk Proofpoint email gateways and ensuring the emails pass key authentication checks. The associated MITRE ATT&CK techniques include:\n\n// T1071.001: Application Layer Protocol - Web Protocols\n// T1071.003: Application Layer Protocol - Email Protocols\n// T1589.002: Gather Victim Network Information - DNS\n// T1078.003: Valid Accounts - Cloud Accounts\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0043
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0009
+techniques:
+    - T1071.001
+    - T1071.003
+    - T1589.002
+    - T1078.003
+    - T1566
+    - T1598
+    - T1566.002
+    - T1193
+    - T1566.001
+    - T1598.002
+    - T1114
+    - T1114.002
+    - T1114.001
+    - T1078
+tags:
+    - kql
+version: "1"

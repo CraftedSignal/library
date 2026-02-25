@@ -1,0 +1,46 @@
+id: 118c53d9-90f8-4c13-9830-4b4765b18cef
+name: Malicious HTA File Execution by MSHTA
+description: Detects the execution of mshta.exe spawning a command shell (cmd.exe) to download a remote file. This behavior is indicative of malicious HTA files used to deliver malware, as seen in campaigns distributing Epsilon Red ransomware.
+query: |
+    // Name: Malicious HTA File Execution by MSHTA
+    // Severity: Medium
+    // Description: Detects the execution of `mshta.exe` spawning a command shell (`cmd.exe`) to download a remote file. This behavior is indicative of malicious HTA files used to deliver malware, as seen in campaigns distributing Epsilon Red ransomware.
+    // MITRE ATT&CK: T1218.005, T1189, T1059.003, T1059.005, T1204.001, T1027
+    // References: https://www.cloudsek.com/blog/threat-actors-lure-victims-into-downloading-hta-files-using-clickfix-to-spread-epsilon-red-ransomware
+    // False Positives: Some legitimate administration scripts or legacy applications might use this technique. Review the parent process of mshta.exe and the full command line for context.
+    // Version: 1.0
+    DeviceProcessEvents
+    // Look for the execution of the command shell
+    | where FileName =~ "cmd.exe"
+    // Check for mshta.exe as the parent process, which is used to execute HTA files
+    | where InitiatingProcessFileName =~ "mshta.exe"
+    // Identify command lines that contain utilities commonly used for downloading files
+    | where ProcessCommandLine has_any ("curl", "certutil", "bitsadmin", "Invoke-WebRequest", "IWR")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessId,
+        ProcessId,
+        ReportId,
+        DeviceId
+query_type: kql
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218.005
+    - T1059.003
+    - T1059.005
+    - T1204.001
+    - T1027
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cloudsek.com/blog/threat-actors-lure-victims-into-downloading-hta-files-using-clickfix-to-spread-epsilon-red-ransomware

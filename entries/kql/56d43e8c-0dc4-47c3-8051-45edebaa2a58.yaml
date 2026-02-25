@@ -1,0 +1,20 @@
+id: 56d43e8c-0dc4-47c3-8051-45edebaa2a58
+name: 'Potential MFASweep (tool) activity has been detected. '
+description: 'KQL Query from file: Potential MFASweep (tool) activity has been detected. '
+query: "// Title: Potential MFASweep (tool) activity has been detected. \n// ID: $add here the Sentinel Rule ID\n// Description: This detection rule triggers when someone is attempting to access an account with more than a certain amount of Operation Systems within 10 minutes by using a tool named MFASweep. MFASweep is a PowerShell script that attempts to log in to various Microsoft services using a provided set of credentials and will attempt to identify if MFA is enabled. Depending on how conditional access policies and other multi-factor authentication settings are configured, some protocols may end up being left single factor. See for more information: https://github.com/dafthack/MFASweep\n// Severity: Medium\n// Tactics: Initial Access\n// Techniques: T1078 - Valid Accounts\n// Creation date: 3 August 2024\n// Created by: @82BBB00 - https://github.com/82BBB00\n// Last modified date: XXX\n// Last modified by: XXX\n// QueryFrequency: : PT10M\n// QueryPeriod: PT20M\n// The actual KQL query will start below\nlet TotalThreshold = 5; // Set Treshold OperatingSystems. This can be changed depending on your environment\nSigninLogs\n| where TimeGenerated > ago(10m) // This time can be changed depending on your environment\n| extend operatingSystem = tostring(DeviceDetail.operatingSystem) // Retrieving OS\n| extend deviceId_ = tostring(DeviceDetail.deviceId) // Retrieving DeviceID\n| where isempty(deviceId_) //only look for unregistered devices\n| summarize\n            starttime = min(TimeGenerated),\n            stoptime = max(TimeGenerated),\n          OperationSystemsused = make_set(operatingSystem, 1000),\n          IPAddresses = make_set(IPAddress),\n          Applications = make_set(AppDisplayName)\n          by UserPrincipalName\n| extend CountOfOperationSystems = array_length(parse_json(OperationSystemsused))\n| where CountOfOperationSystems >= TotalThreshold"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - kql
+author: 82BBB00
+version: "1"
+references:
+    - https://github.com/82BBB00/KQL/blob/main/Detection-Rules/UC01-001%20potential%20MFASweep%20(tool)%20activity%20has%20been%20detected.

@@ -1,0 +1,18 @@
+id: 019c8b06-015f-74da-8083-af8eac17b7b3
+name: ValleyRAT Persistence via 'Batteries' Scheduled Task
+description: Detects the creation or execution of a scheduled task named 'Batteries' pointing to the AppData Roaming directory, which is a specific persistence mechanism for the ValleyRAT campaign. This rule identifies the creation of the scheduled task via 'schtasks.exe', the creation of the legacy '.job' file for the task, or the execution of the payload 'WavesSvc64.exe' from its persistence location.
+query: "// Name: ValleyRAT Persistence via 'Batteries' Scheduled Task\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects the creation or execution of a scheduled task named 'Batteries' pointing to the AppData Roaming directory, which is the specific persistence mechanism for the ValleyRAT campaign.\r\n// Tactics: Persistence\r\n// Techniques: T1053.005\r\n// References: https://www.malwarebytes.com/blog/scams/2026/02/huorong\r\nunion withsource=TableName DeviceProcessEvents, DeviceFileEvents\r\n| where\r\n    // Detects the creation of the scheduled task via the command line utility.\r\n    (TableName == 'DeviceProcessEvents' and FileName =~ 'schtasks.exe' and ProcessCommandLine has '/create' and ProcessCommandLine contains 'Batteries')\r\n    // Detects the creation of the legacy .job file for the task.\r\n    or (TableName == 'DeviceFileEvents' and FolderPath endswith '\\\\Windows\\\\Tasks\\\\' and FileName =~ 'Batteries.job')\r\n    // Detects the execution of the payload from its persistence location, which is triggered by the task.\r\n    or (TableName == 'DeviceProcessEvents' and FolderPath contains '\\\\AppData\\\\Roaming\\\\trvePath\\\\' and FileName =~ 'WavesSvc64.exe')\r\n// FP Tuning: The task name 'Batteries' is fairly unique. However, if legitimate software uses this name,\r\n// consider adding filters for the parent process of schtasks.exe or the user account creating the task.\r\n| project AccountName, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine, ProcessId, InitiatingProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong

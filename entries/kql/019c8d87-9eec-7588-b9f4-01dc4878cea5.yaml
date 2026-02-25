@@ -1,0 +1,17 @@
+id: 019c8d87-9eec-7588-b9f4-01dc4878cea5
+name: Signal Phishing Campaign Infrastructure Access
+description: This rule detects network connections or DNS queries to a list of domains identified as phishing campaign infrastructure. These domains are associated with a 'Signal Phishing Campaign' and are likely used for malicious purposes such as credential harvesting or malware distribution. The rule checks for these domains in `RemoteUrl` or `DestinationHost` fields across various network-related logs.
+query: "// Name: Signal Phishing Campaign Infrastructure\r\n// References: https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/\r\n// False Positive Sensitivity: Medium. Legitimate traffic to these domains is highly unlikely. However, the domains could become inactive or be sinkholed over time.\r\n\r\nlet targetedDomains = dynamic([\r\n    \"snitch.open-group.site\",\r\n    \"gui.snitch-dev.site\",\r\n    \"gui.dev-snitch.site\",\r\n    \"gui.snitch-dev.xyz\",\r\n    \"gui.dev-snitch.xyz\",\r\n    \"gui.snitch-dev.online\",\r\n    \"gui.dev-snitch.online\",\r\n    \"gui.dev-snitch.cloud\",\r\n    \"snitch-dev.space\",\r\n    \"gui-snitch.online\",\r\n    \"gui-grafit.online\",\r\n    \"kropyva-group.online\",\r\n    \"sgnl-web.org-status.nl\",\r\n    \"signal-qr.org\"\r\n]);\r\n// Search across multiple network-related tables for broader coverage\r\nunion isfuzzy=true\r\n    DeviceNetworkEvents,\r\n    CommonSecurityLog,\r\n    VMConnection\r\n// Check if the remote URL or domain is in the list of targeted domains\r\n| where RemoteUrl has_any (targetedDomains) or RemoteUrl has_any (targetedDomains) or DestinationHost has_any (targetedDomains)\r\n| extend\r\n    // Extract domain for consistent field naming\r\n    Domain = case(\r\n        isnotempty(RemoteUrl), extract(\"://([^/]+)\", 1, RemoteUrl),\r\n        isnotempty(DestinationHost), DestinationHost,\r\n        \"Unknown\"\r\n    )\r\n// Project relevant fields for investigation\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    DestinationHost,\r\n    Domain,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/

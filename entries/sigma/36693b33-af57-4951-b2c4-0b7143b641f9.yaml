@@ -1,0 +1,60 @@
+id: 36693b33-af57-4951-b2c4-0b7143b641f9
+name: Winos Malware Persistence Via Registry Modification
+description: Detects persistence mechanisms associated with a Winos malware variant. This includes the creation of the 'Software\DeepSer' registry key or the modification of the 'User Shell Folders\Startup' key to redirect to a malicious folder.
+query: |
+    title: Winos Malware Persistence Via Registry Modification
+    id: 2f63b14e-581c-4c94-b9f2-9fb7c1542993
+    status: experimental
+    description: >-
+      Detects persistence mechanisms associated with a Winos malware variant. This
+      includes the creation of the 'Software\DeepSer' registry key or the
+      modification of the 'User Shell Folders\Startup' key to redirect to a
+      malicious folder.
+    references:
+      - >-
+        https://www.fortinet.com/blog/threat-research/seo-poisoning-attack-targets-chinese-speaking-users-with-fake-software-sites
+    author: detections.ai
+    date: 2025-09-12T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1547.001
+      - malware.winos
+    logsource:
+      category: registry_set
+      product: windows
+      service: sysmon
+    detection:
+      selection_deepser:
+        TargetObject|endswith: \Software\DeepSer
+        Details:
+          - OpenAi_Service
+          - MyData
+          - Onload1
+      selection_startup:
+        TargetObject|endswith: \SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\User Shell Folders
+        Details: Startup
+        Data|contains: C:\ProgramData\
+      condition: selection_deepser or selection_startup
+    falsepositives:
+      - Legitimate software might modify startup folders, but redirection to
+        'C:\ProgramData\Venlnk' is highly specific. The 'DeepSer' key and its values
+        are also considered specific to this malware.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - attack.persistence
+    - attack.t1547.001
+    - malware.winos
+author: detections.ai
+version: "1"
+references:
+    - https://www.fortinet.com/blog/threat-research/seo-poisoning-attack-targets-chinese-speaking-users-with-fake-software-sites
+data_sources:
+    - registry_set
+    - windows

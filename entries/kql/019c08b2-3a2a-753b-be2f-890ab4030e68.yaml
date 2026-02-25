@@ -1,0 +1,16 @@
+id: 019c08b2-3a2a-753b-be2f-890ab4030e68
+name: Malicious Hash Detection - ScreenConnect Installer and Rust-based Loader
+description: Detects the creation or execution of files matching known malicious SHA256 hashes associated with a weaponized ScreenConnect installer and a Rust-based loader. This rule identifies the presence of specific known malicious binaries on endpoints.
+query: "let malicious_hashes = dynamic([\r\n    // Code.exe (Weaponized ScreenConnect installer)\r\n    \"e20b920c7af988aa215c95bbaa365d005dd673544ab7e3577b60fecf11dcdea2\",\r\n    // DWrite.dll (Rust-based loader)\r\n    \"d1e0c26774cb8beabaf64f119652719f673fb530368d5b2166178191ad5fcbea\"\r\n]);\r\nunion DeviceProcessEvents, DeviceFileEvents\r\n| where ActionType in (\"ProcessCreated\", \"FileCreated\")\r\n| where SHA256 in (malicious_hashes)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware

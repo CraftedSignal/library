@@ -1,0 +1,14 @@
+id: bea3b834-0db6-4d27-b15e-842d6eb26947
+name: XWorm Malware Network and Process Activity
+description: Detects network connections to known XWorm Command and Control (C2) infrastructure (IPs and domains) and the creation of processes with filenames associated with XWorm malware. This rule combines network and process-based indicators to identify potential XWorm infections.
+query: "let XWorm_C2_IPs_any_port = dynamic([\r\n    \"104.208.16.94\",\r\n    \"150.171.22.17\",\r\n    \"151.101.22.172\",\r\n    \"184.25.113.6\",\r\n    \"184.25.113.61\",\r\n    \"185.117.249.43\",\r\n    \"20.69.140.28\",\r\n    \"20.99.133.109\"\r\n]);\r\nlet XWorm_C2_Domains = dynamic([\r\n    \"copy-marco.gl.at.ply.gg\",\r\n    \"fp2e7a.wpc.2be4.phicdn.net\",\r\n    \"api.telegram.org\"\r\n]);\r\n// Define host IOCs\r\nlet XWorm_Filenames = dynamic([\r\n    \"WmiPrvSE.exe\",\r\n    \"WmiPrvSE.lnk\",\r\n    \"Soundman.exe\"\r\n]);\r\n// Union of network and process events for comprehensive detection\r\n(\r\n    // Query network events for connections to the specified C2 infrastructure\r\n    DeviceNetworkEvents\r\n    | where ActionType == \"ConnectionSuccess\"\r\n    | where\r\n        // Match IPs that can use any port\r\n        RemoteIP in (XWorm_C2_IPs_any_port)\r\n        // Match specific IP and Port combinations\r\n        or (RemoteIP == \"185.117.250.169\" and RemotePort == 7000)\r\n        or (RemoteIP == \"66.175.239.149\" and RemotePort == 7000)\r\n        // Match C2 domains\r\n        or RemoteDomain has_any (XWorm_C2_Domains)\r\n    // FP Tuning: Connections to api.telegram.org are common. Consider scoping this to non-browser processes or processes originating from suspicious locations (e.g., %appdata%).\r\n    | project\r\n        TimeGenerated,\r\n        DeviceName,\r\n        EventType = \"Network\",\r\n        FileName = InitiatingProcessFileName,\r\n        CommandLine = InitiatingProcessCommandLine,\r\n        Indicator = coalesce(RemoteDomain, RemoteIP),\r\n        Details = strcat(\"Connected to \", coalesce(RemoteDomain, RemoteIP), \" on port \", RemotePort)\r\n)\r\n| union\r\n(\r\n    // Query process events for known XWorm filenames\r\n    DeviceProcessEvents\r\n    | where FileName in~ (XWorm_Filenames)\r\n    // FP Tuning: WmiPrvSE.exe is a legitimate Windows process. Alerts should be triaged by looking at the file path. Legitimate instances typically run from C:\\Windows\\System32\\wbem\\. This rule could be improved by adding a path exclusion.\r\n    | project\r\n        TimeGenerated,\r\n        DeviceName,\r\n        EventType = \"Process\",\r\n        FileName,\r\n        CommandLine = ProcessCommandLine,\r\n        Indicator = FileName,\r\n        Details = strcat(\"Process \", FileName, \" created by \", InitiatingProcessFileName)\r\n)\r\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0004
+    - TA0003
+techniques:
+    - T1546.003
+tags:
+    - kql
+version: "1"

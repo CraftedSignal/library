@@ -1,0 +1,77 @@
+id: 019bfb0b-ed89-730e-8326-bcad3351d380
+name: SmarterMail Service Spawning Reconnaissance Commands
+description: Detects the SmarterMail service process ('MailService.exe') spawning command-line interpreters to execute reconnaissance commands. This behavior is highly indicative of remote code execution following the exploitation of vulnerabilities like CVE-2026-23760.
+query: |
+    title: SmarterMail Service Spawning Reconnaissance Commands
+    id: e8c96492-b922-4441-921b-a589a987f428
+    status: experimental
+    description: >-
+      Detects the SmarterMail service process ('MailService.exe') spawning
+      command-line interpreters to execute reconnaissance commands. This behavior is
+      highly indicative of remote code execution following the exploitation of
+      vulnerabilities like CVE-2026-23760.
+    references:
+      - https://www.huntress.com/blog/smartermail-account-takeover-leading-to-rce
+    author: tim@detections.ai
+    date: 2026-01-26T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.discovery
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.t1033
+      - attack.t1082
+      - cve.2026.23760
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection:
+        ParentImage|endswith: '\MailService.exe'
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+        CommandLine|contains:
+          - 'whoami'
+          - 'ipconfig'
+          - 'net user'
+          - 'systeminfo'
+          - 'hostname'
+          - 'iex'
+          - 'irm'
+          - 'iwr'
+          - 'Invoke-Expression'
+          - 'Invoke-WebRequest'
+          - 'Invoke-RestMethod'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative activity.
+    level: high
+    associated_cves:
+      - CVE-2026-23760
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0007
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1033
+    - T1082
+tags:
+    - attack.execution
+    - attack.discovery
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.t1033
+    - attack.t1082
+    - cve.2026.23760
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.huntress.com/blog/smartermail-account-takeover-leading-to-rce
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,20 @@
+id: b54602cf-b23c-45e8-b03a-b3ca17fd9c41
+name: Multiple Explicit Credential Use
+description: Detects multiple Event ID 4648 logon attempts using the same target account but from different source accounts within a short time window. This behavior may indicate lateral movement, credential stuffing, or misuse of shared credentials. By correlating explicit credential use across users, it helps identify possible compromise or abuse of privileged accounts.
+query: "SecurityEvent\r\n| where TimeGenerated >= ago(1h)\r\n| where EventID == 4648\r\n| extend SourceAccount = SubjectUserName, TargetAccount = TargetUserName\r\n| where SourceAccount != TargetAccount\r\n| summarize DistinctSources = dcount(SourceAccount),\r\n            SourceAccounts = make_set(SourceAccount)\r\n    by TargetAccount, bin(TimeGenerated, 1h)\r\n| where DistinctSources >= 3  // Schwellenwert anpassen je nach Umgebung\r\n| project TimeGenerated, TargetAccount, DistinctSources, SourceAccounts\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1078
+    - T1550.001
+    - T1550.002
+tags:
+    - credential_access
+    - lateral_movement
+    - eventid_4648
+    - runas_detection
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4648

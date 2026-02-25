@@ -1,0 +1,14 @@
+id: 019c6b5f-3294-77b1-9cb9-82653d0d41a7
+name: Credential Theft via Failed Logons (Brute Force or Password Spraying)
+description: This rule detects multiple failed logon attempts (more than 5 within a 5-minute window) for user accounts from a single IP address. This behavior is indicative of a brute-force attack or password guessing attempt against user accounts.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(1h)\r\n| where EventID == 4625  \r\n| where AccountType == \"User\" and Account !in~ (\"SYSTEM\", \"ANONYMOUS LOGON\") \r\n| summarize FailedAttempts = count() by IpAddress, Account, bin(TimeGenerated, 5m)\r\n| where FailedAttempts > 5  \r\n| project TimeGenerated, IpAddress, Account, FailedAttempts\r\n| order by FailedAttempts desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - kql
+version: "1"

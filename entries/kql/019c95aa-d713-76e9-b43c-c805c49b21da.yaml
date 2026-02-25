@@ -1,0 +1,49 @@
+id: 019c95aa-d713-76e9-b43c-c805c49b21da
+name: Non-Mail Process SMTP Exfiltration (Agent Tesla)
+description: Detects outbound SMTP connections from processes that are not typical mail clients, a technique used by malware like Agent Tesla to exfiltrate stolen data. This rule specifically looks for .NET utilities known to be abused in process hollowing attacks.
+query: |
+    // Name: Non-Mail Process SMTP Exfiltration (Agent Tesla)
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: Detects outbound SMTP connections from processes that are not typical mail clients, a technique used by malware like Agent Tesla to exfiltrate stolen data. This rule specifically looks for .NET utilities known to be abused in process hollowing attacks.
+    // MITRE ATT&CK: T1048.003
+    // False Positive Sensitivity: Medium
+    // References: https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    // Define a list of .NET utilities commonly abused for process hollowing.
+    let suspicious_processes = dynamic([
+        "Aspnet_compiler.exe",
+        "RegAsm.exe",
+        "vbc.exe"
+    ]);
+    DeviceNetworkEvents
+    // Look for successful outbound connections on common SMTP ports.
+    | where ActionType == "ConnectionSuccess" and RemotePort in (25, 465, 587)
+    // Focus on the specific processes abused in the Agent Tesla campaign.
+    | where InitiatingProcessFileName in (suspicious_processes)
+    // Exclude connections to internal networks to focus on external exfiltration.
+    | where not(ipv4_is_private(RemoteIP))
+    // FP Tuning: Some custom applications or scripts might use these processes to send email notifications.
+    // If false positives occur, consider excluding known-good RemoteIPs or specific InitiatingProcessCommandLine patterns.
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        RemoteIP,
+        RemotePort,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0005
+    - TA0004
+techniques:
+    - T1048.003
+    - T1055.012
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign

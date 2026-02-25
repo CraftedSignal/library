@@ -1,0 +1,11 @@
+id: 019bdac9-8062-70b4-92ee-514cd1a94d84
+name: Active Directory Enumeration Using dsquery
+description: Detects the use of dsquery.exe to enumerate users in Active Directory. This command-line utility is often used by attackers for reconnaissance to gather information about domain users.
+query: "SecurityEvent\r\n| where EventID == 4688\r\n| where NewProcessName endswith \"\\\\dsquery.exe\"\r\n| where (\r\n    (\r\n        CommandLine has \"user\"\r\n        and CommandLine has \"-limit\"\r\n        and CommandLine has \"0\"\r\n    )\r\n    or\r\n    (\r\n        CommandLine has \"*\"\r\n        and CommandLine has \"-filter\"\r\n        and CommandLine has \"objectClass=user\"\r\n        and CommandLine has \"-limit\"\r\n        and CommandLine has \"0\"\r\n    )\r\n)\r\n| project\r\n    TimeGenerated,\r\n    Computer,\r\n    SubjectUserName,\r\n    SubjectDomainName,\r\n    NewProcessName,\r\n    CommandLine,\r\n    ParentProcessName,\r\n    AccountType,\r\n    LogonTypeName\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - DS0026
+tags:
+    - kql
+version: "1"

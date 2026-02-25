@@ -1,0 +1,78 @@
+id: b834bf47-1f96-4024-a43c-7d21677a3e11
+name: Akira Ransomware Associated Vulnerable Driver Activity
+description: This detection identifies the use of two drivers, rwdrv.sys and hlpdrv.sys, which have been observed in Akira ransomware campaigns. The activity includes dropping these drivers, creating associated services, and disabling Windows Defender.
+query: |
+    // Name: Akira Ransomware Associated Vulnerable Driver Activity
+    // Author: detections.ai
+    // Date: 2025-08-07
+    // Description: This detection identifies the use of two drivers, rwdrv.sys and hlpdrv.sys, which have been observed in Akira ransomware campaigns. The activity includes dropping these drivers, creating associated services, and disabling Windows Defender.
+    // False Positives: Medium. The driver 'rwdrv.sys' is a legitimate component of the ThrottleStop utility and may be present on systems used by enthusiasts or administrators for performance tuning. Disabling Windows Defender via the registry can also be a legitimate administrative action. Correlate alerts with other suspicious activity.
+    // References: https://www.guidepointsecurity.com/blog/gritrep-akira-sonicwall/
+    // Tags: Akira, Ransomware, BYOVD, Defense Evasion
+    let fileHashes = dynamic([
+        "bd1f381e5a3db22e88776b7873d4d2835e9a1ec620571d2b1da0c58f81c84a56", // hlpdrv.sys
+        "16f83f056177c4ec24c7e99d01ca9d9d6713bd0497eeedb777a3ffefa99c97f0"  // rwdrv.sys
+    ]);
+    let fileNames = dynamic([
+        "hlpdrv.sys",
+        "rwdrv.sys"
+    ]);
+    let serviceNames = dynamic([
+        "KMHLPSVC", // Associated with hlpdrv.sys
+        "mgdsrv"    // Associated with rwdrv.sys
+    ]);
+    // Look for file creation events by hash or by name in a temp directory
+    let fileEvents = DeviceFileEvents
+    | where
+        SHA256 in (fileHashes)
+        or (
+            FileName in (fileNames)
+            // The report indicates creation in a user's AppData\Local\Temp folder.
+            and FolderPath has_any (@"\AppData\Local\Temp", @"\Temp\")
+        );
+    // Look for the creation of the specific malicious services
+    let serviceCreationEvents = DeviceRegistryEvents
+    | where ActionType == "RegistryKeyCreated"
+        and RegistryKey has_any (serviceNames)
+        and (RegistryKey endswith @"\Services\KMHLPSVC" or RegistryKey endswith @"\Services\mgdsrv");
+    // Look for attempts to disable Windows Defender via the registry
+    let defenderDisabledEvents = DeviceRegistryEvents
+    | where ActionType in ("RegistryValueSet", "RegistryValueDeleted")
+        and RegistryKey contains @"\SOFTWARE\Policies\Microsoft\Windows Defender"
+        and RegistryValueName == "DisableAntiSpyware"
+        and RegistryValueData == "1";
+    // Union all related events
+    union fileEvents, serviceCreationEvents, defenderDisabledEvents
+    | extend
+        DetectionMethod = case(
+            SHA256 in (fileHashes), "Malicious File Hash Match",
+            RegistryKey has_any (serviceNames), "Malicious Service Creation",
+            FileName in (fileNames), "Suspicious Driver File Created in Temp Location",
+            RegistryValueName == "DisableAntiSpyware", "Windows Defender Disabled via Registry",
+            "Unknown"
+        )
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        DetectionMethods = make_set(DetectionMethod),
+        Actions = make_set(ActionType),
+        FileNames = make_set(FileName),
+        FileHashes = make_set(SHA256),
+        RegistryKeys = make_set(RegistryKey)
+        by DeviceId, DeviceName, InitiatingProcessAccountName, bin(TimeGenerated, 5m)
+    | where array_length(FileNames) > 0 or array_length(RegistryKeys) > 0
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1562.001
+    - T1543.003
+tags:
+    - kql
+author: skay
+version: "1"
+references:
+    - https://www.guidepointsecurity.com/blog/gritrep-akira-sonicwall/

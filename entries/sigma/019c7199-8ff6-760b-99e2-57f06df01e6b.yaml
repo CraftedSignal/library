@@ -1,0 +1,73 @@
+id: 019c7199-8ff6-760b-99e2-57f06df01e6b
+name: AI-Driven Targeted File Encryption
+description: Identifies processes that first communicate with AI services and then perform a low-volume burst of file creation or deletion events. This behavioral pattern may indicate an AI-driven ransomware or wiper attack that is surgically targeting key data to evade traditional volume-based detection methods, as theorized by Check Point Research.
+query: |
+    title: AI-Driven Targeted File Encryption
+    id: d3048f96-e782-429c-a675-53db63fab595
+    status: experimental
+    description: >-
+      Identifies processes that first communicate with AI services and then perform
+      a low-volume burst of file creation or deletion events. This behavioral
+      pattern may indicate an AI-driven ransomware or wiper attack that is
+      surgically targeting key data to evade traditional volume-based detection
+      methods, as theorized by Check Point Research.
+    author: detections.ai
+    references:
+      - https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/
+    date: 2026-02-18
+    tags:
+      - attack.impact
+      - attack.t1486
+      - attack.command_and_control
+      - attack.t1071.001
+    logsource:
+      product: windows
+      service: sysmon
+    detection:
+      # Correlates network connections to AI services with subsequent file activity from the same process.
+      # Defines network traffic to known AI services that could act as a remote "brain" for the malware.
+      ai_comm:
+        EventID: 3 # NetworkConnect
+        DestinationHostname|endswith:
+          - 'copilot.microsoft.com'
+          - 'grok.com'
+          - 'openai.com'
+          - 'anthropic.com'
+          - 'gemini.google.com'
+      # Defines file creation or deletion events, common in ransomware and wiper attacks.
+      file_activity:
+        EventID:
+          - 11 # FileCreate
+          - 23 # FileDelete
+      # The timeframe for the correlation.
+      timeframe: 5m
+      # Condition: A process communicates with an AI service and then creates or deletes fewer than 50 files.
+      # The low count is key to detecting targeted attacks that avoid noisy, high-volume activity.
+      condition: ai_comm and file_activity | count(file_activity) < 50 by ProcessGuid
+    falsepositives:
+      - Developer tools or scripts that legitimately use AI APIs for code generation
+        or analysis and then write a small number of output files.
+      - Automated reporting tools that query AI services and save the results.
+      - The file activity threshold (`< 50`) may need to be tuned for your
+        environment to balance detection with potential false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0011
+techniques:
+    - T1486
+    - T1071.001
+tags:
+    - attack.impact
+    - attack.t1486
+    - attack.command_and_control
+    - attack.t1071.001
+author: detections.ai
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/
+data_sources:
+    - windows
+    - sysmon

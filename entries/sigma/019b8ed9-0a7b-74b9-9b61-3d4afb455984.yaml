@@ -1,0 +1,74 @@
+id: 019b8ed9-0a7b-74b9-9b61-3d4afb455984
+name: PowerShell DNS Query to Suspicious Domains
+description: Detects PowerShell making DNS requests for domains associated with less-reputable/uncommon TLDs. This behavior is not typical for legitimate administrative scripts and can indicate an attempt to download a payload from a malicious source.
+query: |
+    title: PowerShell DNS Query to Suspicious Domains
+    id: 7975728b-973a-4f94-b9d0-3e280c0a8b62
+    status: experimental
+    description: Detects PowerShell making DNS requests for domains associated with
+      less-reputable/uncommon TLDs. This behavior is not typical for legitimate
+      administrative scripts and can indicate an attempt to download a payload from
+      a malicious source.
+    references:
+      - https://sec0wn.blogspot.com/2026/01/from-new-years-surprise-to-bag-of-coal.html
+    author: tim@detections.ai
+    date: 2026-01-05
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+      - attack.t1059.001
+      - attack.t1105
+      - attack.t1027.003
+    logsource:
+      product: windows
+      category: dns_query
+      service: sysmon
+    detection:
+      selection_process:
+        # Detects PowerShell as the initiating process of the DNS query
+        Image|endswith:
+          - '\powershell.exe'
+          - '\powershell_ise.exe'
+          - '\pwsh.exe'
+      selection_suspicious_tlds:
+        QueryName|endswith:
+          - '.co'
+          - '.io'
+          - '.dev'
+          - '.xyz'
+          - '.top'
+          - '.club'
+          - '.online'
+          - '.live'
+          - '.site'
+          - '.zip'
+          # add more if needed
+      condition: selection_process  or selection_suspicious_tlds
+    falsepositives:
+      - Legitimate scripts, particularly those used for development, testing, or
+        system administration, might query domains with these TLDs. The list of
+        'suspicious' TLDs may need to be tuned for your specific environment to
+        reduce noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1071.001
+    - T1105
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1059.001
+    - attack.t1105
+    - attack.t1027.003
+author: tim@detections.ai
+version: "4"
+references:
+    - https://sec0wn.blogspot.com/2026/01/from-new-years-surprise-to-bag-of-coal.html
+data_sources:
+    - dns_query
+    - windows

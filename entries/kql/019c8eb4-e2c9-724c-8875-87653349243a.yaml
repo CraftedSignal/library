@@ -1,0 +1,14 @@
+id: 019c8eb4-e2c9-724c-8875-87653349243a
+name: MFA Push Fatigue - Repeated MFA Challenges to Same User
+description: This rule detects potential MFA push fatigue attacks by identifying a high volume of failed multi-factor authentication challenges for a single user within a short time window. It aggregates sign-in logs, specifically looking for result types indicative of MFA failures, and alerts if a user receives more than a defined threshold of MFA challenges within a 30-minute period.
+query: "// Detection: MFA Push Fatigue - Repeated MFA Challenges to Same User\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1621 - Multi-Factor Authentication Request Generation\r\n\r\nlet timeWindow       = 30m;\r\nlet mfaFailThreshold = 5;\r\nSigninLogs\r\n| where TimeGenerated > ago(1d)\r\n| where ResultType in (\"50074\",\"50076\",\"50140\",\"500121\",\"50095\",\"53003\")\r\n| summarize\r\n    MFAChallenges = count(),\r\n    IPAddresses   = make_set(IPAddress, 10),\r\n    Apps          = make_set(AppDisplayName, 5),\r\n    Countries     = make_set(tostring(LocationDetails.countryOrRegion), 5)\r\n    by UserPrincipalName, bin(TimeGenerated, timeWindow)\r\n| where MFAChallenges >= mfaFailThreshold\r\n| extend AlertDescription = strcat(\r\n    \"User '\", UserPrincipalName, \"' received \",\r\n    MFAChallenges, \" MFA challenges in 30 min — potential push fatigue attack\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1621
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

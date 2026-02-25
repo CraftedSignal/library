@@ -1,0 +1,44 @@
+id: 7e092bd5-1688-4072-a640-b93d1ef9b823
+name: Tor Relay Connection via Azure Blob Data
+description: Alternative Tor detection using Azure Blob Storage providing redundancy and potentially more up-to-date Tor relay information. Valid rule.
+query: |-
+    # Tor Relay Connection Detection (Blob Storage Source)
+
+    ## Description
+    Alternative Tor detection using a different data source hosted on Azure Blob Storage. This provides redundancy and potentially more up-to-date Tor relay information.
+
+    ## Detection Logic
+    Similar to the CSV-based detection but uses a different data source:
+    1. Imports Tor relay data from Azure Blob Storage
+    2. Filters for IPv4 addresses
+    3. Correlates with network events and device information
+    4. Provides comprehensive connection details
+
+    ## Query
+    ```kusto
+    let TorRelayData = (
+    externaldata (Nickname:string,Fingerprint:string,EntryAddress:string,IPAddress:string,Port:string,AddressType:string,Hostname:string,CountryCode:string,IsRunning:bool,RelayPublishDate:string,LastChangedIPData:string)
+    [h@'https://torinfo.blob.core.windows.net/public/TorRelayIPs.csv'] with (ignoreFirstRecord=true,format="csv")
+    | where AddressType == "IPv4"
+    );
+    TorRelayData
+    | join kind=inner DeviceNetworkEvents on $left.IPAddress == $right.RemoteIP
+    | join kind=inner (DeviceInfo | distinct DeviceId, PublicIP) on DeviceId
+    | project Timestamp, DeviceId, LocalPublicIP = PublicIP, LocalIP, RemoteIP, TorIP = IPAddress, Hostname, CountryCode, ActionType, InitiatingProcessFileName, InitiatingProcessFolderPath
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Command and Control, Exfiltration
+    - **Technique**: T1090.003 - Proxy: Multi-hop Proxy
+
+    ## Severity
+    Medium to High
+
+    ## Investigation Steps
+    1. Compare results with the primary Tor detection rule
+    2. Identify patterns in Tor usage across the organization
+    3. Check for data staging activities before Tor connections
+    4. Review user activity and justification for Tor usage
+    5. Implement blocking if Tor usage violates policy
+query_type: kql
+version: "1"

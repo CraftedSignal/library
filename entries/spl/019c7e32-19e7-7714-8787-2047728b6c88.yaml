@@ -1,0 +1,18 @@
+id: 019c7e32-19e7-7714-8787-2047728b6c88
+name: GitHub Suspicious Persistence Established
+description: Detects a suspicious sequence where a new credential (PAT, SSH key, or OAuth authorization) is created and then used to establish durable persistence via webhooks or deploy keys. This behavior typically occurs after an account compromise as an attacker attempts to "lock in" access that survives credential rotation and provides real-time exfiltration of repository data.
+query: "````\r\nAuthor: Tayvion P (@tayontech\r\nDescription: \r\n  Detects a suspicious sequence where a new credential (PAT, SSH key, or OAuth authorization) \r\n  is created and then used to establish durable persistence via webhooks or deploy keys. \r\n  This behavior typically occurs after an account compromise as an \r\n  attacker attempts to \"lock in\" access that survives credential rotation and provides \r\n  real-time exfiltration of repository data.\r\n\r\n````\r\nindex=\"github\" action IN (\r\n  \"personal_access_token.create\",\r\n  \"public_key.create\",\r\n  \"oauth_authorization.create\",\r\n  \"repo.create_deploy_key\",\r\n  \"hook.create\",\"hook.config_changed\",\"hook.events_changed\",\"hook.active_changed\"\r\n)\r\n| where actor_is_bot=\"false\"\r\n| sort 0 actor _time\r\n\r\n| eval is_pat   = if(action=\"personal_access_token.create\",1,0)\r\n| eval is_ssh   = if(action=\"public_key.create\",1,0)\r\n| eval is_oauth = if(action=\"oauth_authorization.create\",1,0)\r\n\r\n| eval is_persist = if(match(action,\"^hook\\.\") OR action=\"repo.create_deploy_key\",1,0)\r\n\r\n| streamstats current=f last(eval(if(is_pat=1,_time,null())))   as pat_time   by actor\r\n| streamstats current=f last(eval(if(is_ssh=1,_time,null())))   as ssh_time   by actor\r\n| streamstats current=f last(eval(if(is_oauth=1,_time,null()))) as oauth_time by actor\r\n\r\n| eval pat_prog_name = if(is_pat=1 AND isnotnull(user_programmatic_access_name) AND user_programmatic_access_name!=\"\", user_programmatic_access_name, null())\r\n| streamstats current=f last(pat_prog_name) as user_programmatic_access_name by actor\r\n\r\n| eval credential_time = case(\r\n    isnotnull(pat_time) AND pat_time>=coalesce(ssh_time,0) AND pat_time>=coalesce(oauth_time,0), pat_time,\r\n    isnotnull(ssh_time) AND ssh_time>=coalesce(pat_time,0) AND ssh_time>=coalesce(oauth_time,0), ssh_time,\r\n    isnotnull(oauth_time), oauth_time\r\n  )\r\n\r\n| eval credential_event_type = case(\r\n    credential_time=pat_time, \"PAT created\",\r\n    credential_time=ssh_time, \"SSH key added\",\r\n    credential_time=oauth_time, \"OAuth authorization created\"\r\n  )\r\n\r\n| eval time_to_persistence = _time - credential_time\r\n| where is_persist=1 AND isnotnull(credential_time) AND time_to_persistence>=0 AND time_to_persistence<=1800\r\n\r\n| stats\r\n    min(_time) as initial_detection_time\r\n    values(actor_ip) as source_ip\r\n    values(action) as action\r\n    values(credential_event_type) as credential_event_type\r\n    values(config.url) as webhook_url\r\n    values(repo) as repo\r\n    values(org) as org\r\n    values(user_agent) as user_agent\r\n    values(programmatic_access_type) as programmatic_access_type\r\n    values(oauth_application_id) as oauth_app_ids\r\n    values(user_programmatic_access_name) as programmatic_access_name\r\n    values(hashed_token) as hashed_tokens\r\n    values(token_scopes) as token_scopes\r\n  by actor \r\n\r\n| eval initial_detection_time = strftime(initial_detection_time, \"%F %T %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+techniques:
+    - T1098
+    - T1136
+    - T1078
+tags:
+    - spl
+version: "1"

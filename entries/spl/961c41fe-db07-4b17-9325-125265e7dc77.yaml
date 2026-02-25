@@ -1,0 +1,34 @@
+id: 961c41fe-db07-4b17-9325-125265e7dc77
+name: SLOW#TEMPEST Obfuscated Control Flow Detection
+description: This rule detects the execution of DLLs that exhibit signs of advanced code obfuscation, such as dynamic jumps (e.g., JMP RAX) or indirect function calls (e.g., CALL RAX). This technique is used by malware like SLOW#TEMPEST to hinder static and dynamic analysis. The rule specifically looks for indicators from an advanced EDR, sandbox, or memory analysis tool.
+query: |
+    `comment("name: SLOW#TEMPEST Obfuscated Control Flow Detection")`
+    `comment("author: detections.ai")`
+    `comment("date: 2025-07-23")`
+    `comment("description: This rule detects the execution of DLLs that exhibit signs of advanced code obfuscation, such as dynamic jumps (e.g., JMP RAX) or indirect function calls (e.g., CALL RAX). This technique is used by malware like SLOW#TEMPEST to hinder static and dynamic analysis.")`
+    `comment("references: https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/")`
+    `comment("mitre_ttp: T1027")`
+
+    `comment("PREREQUISITE: This detection requires an advanced EDR, sandbox, or memory analysis tool that can identify and alert on specific code obfuscation patterns at runtime or through analysis. The sourcetype, signature, and threat_name fields are placeholders and must be configured for your environment's data source.")`
+    search (index=endpoint sourcetype=edr_advanced_threats) (signature IN ("DynamicJumpInstruction", "IndirectCallInstruction", "ObfuscatedCodeExecution") OR threat_name="*Obfuscated Control Flow*")
+    `comment("The threat intelligence specifies this technique was observed in DLLs.")`
+    | where match(file_name, "(?i)\.dll$")
+
+    `comment("Aggregate alerts to summarize the activity for investigation.")`
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, process_name, process_path, file_name, file_path, file_hash, signature, threat_name, user
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+
+    `comment("Analyst Note: An alert from this rule is a strong indicator of malicious code attempting to evade analysis. Investigate the process that loaded the DLL. Examine the DLL's reputation, its origin on disk, and any subsequent suspicious activity from the parent process.")`
+    | table firstTime, lastTime, host, user, process_name, process_path, file_name, file_path, file_hash, signature, threat_name, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - spl
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/

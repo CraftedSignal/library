@@ -1,0 +1,16 @@
+id: 019a254e-08c0-70b3-92cb-1c0210a03c7e
+name: Script Interpreter Executing Commands with Non-ASCII Characters
+description: This rule detects the execution of script interpreters (such as PowerShell, cmd, bash, python, etc.) where the command line contains non-ASCII characters, specifically Cyrillic, Arabic, or Chinese Unicode characters. This pattern can be indicative of obfuscation techniques used by adversaries to evade detection or to target specific regions.
+query: "let CyrillicChar = datatable (CyrillicCharacter: string)\r\n[\r\n    // (Uppercase)\r\n    \"А\", \"Б\", \"В\", \"Г\", \"Д\", \"Е\", \"Ё\", \"Ж\", \"З\", \"И\", \"Й\", \"К\", \"Л\", \"М\", \"Н\", \r\n    \"О\", \"П\", \"Р\", \"С\", \"Т\", \"У\", \"Ф\", \"Х\", \"Ц\", \"Ч\", \"Ш\", \"Щ\", \"Ъ\", \"Ы\", \"Ь\", \r\n    \"Э\", \"Ю\", \"Я\",\r\n    //  (Lowercase)\r\n    \"а\", \"б\", \"в\", \"г\", \"д\", \"е\", \"ё\", \"ж\", \"з\", \"и\", \"й\", \"к\", \"л\", \"м\", \"н\", \r\n    \"о\", \"п\", \"р\", \"с\", \"т\", \"у\", \"ф\", \"х\", \"ц\", \"ч\", \"ш\", \"щ\", \"ъ\", \"ы\", \"ь\", \r\n    \"э\", \"ю\", \"я\"\r\n];\r\nlet ArabicChar = datatable (ArabicCharacter: string)\r\n[\r\n    \"ا\",  \"ب\", \"ت\", \"ث\", \"ج\", \"ح\", \"خ\", \"د\", \"ذ\", \"ر\", \"ز\", \"س\", \"ش\", \"ص\", \"ض\", \"ط\", \"ظ\", \"ع\", \"غ\", \"ف\", \"ق\", \"ك\", \"ل\", \"م\", \"ن\", \"ه\", \"و\", \"ي\"\r\n];\r\nlet ChineseunicodeChar = \"[\\u4e00-\\u9fff]\";\r\nlet ScriptInterpreter = datatable (OS: string, ScriptInterpreter: string)\r\n[\r\n    // macOS & Linux\r\n    \"macOS / Linux\", \"/bin/bash\",\r\n    \"macOS / Linux\", \"/bin/sh\",\r\n    \"macOS / Linux\", \"/bin/zsh\",\r\n    \"macOS / Linux\", \"/usr/bin/python\",\r\n    \"macOS / Linux\", \"/usr/bin/python3\",\r\n    \"macOS / Linux\", \"/usr/bin/perl\",\r\n    \"macOS / Linux\", \"/usr/bin/ruby\",\r\n    \"macOS / Linux\", \"/usr/bin/osascript\",\r\n    \"macOS / Linux\", \"/usr/bin/php\",\r\n    // Windows\r\n    \"Windows\", \"powershell.exe\",\r\n    \"Windows\", \"pwsh.exe\", // PowerShell Core\r\n    \"Windows\", \"cmd.exe\",\r\n    \"Windows\", \"wscript.exe\", // Windows Script Host \r\n    \"Windows\", \"cscript.exe\", // Windows Script Host \r\n    \"Windows\", \"mshta.exe\", // HTML Application Host \r\n    \"Windows\", \"regsvr32.exe\", \r\n    \"Windows\", \"rundll32.exe\"\r\n];\r\nDeviceProcessEvents\r\n| where FileName has_any (ScriptInterpreter)\r\n| where ProcessCommandLine has_any ( CyrillicChar) or ProcessCommandLine has_any (ArabicChar) or ProcessCommandLine matches regex ChineseunicodeChar"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

@@ -1,0 +1,116 @@
+id: 019c2441-6b00-755c-a242-2ab9894c4473
+name: Multi-Stage Notepad++ hunting Activity
+description: Detection content for the Notepad++ supply-chain compromise and the Chrysalis backdoor, attributed to Lotus Blossom. Detection rules use KQL only.
+query: |
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName =~ "GUP.exe"
+    | where FileName =~ "update.exe" or FileName =~ "install.exe" or FileName =~ "AutoUpdater.exe"
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteIP in (dynamic(["45.76.155.202", "45.32.144.255", "95.179.213.0"]))
+    | where RemoteUrl contains "/update/update.exe" or RemoteUrl contains "/update/install.exe" or RemoteUrl contains "/update/AutoUpdater.exe"
+    | project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteUrl contains "temp.sh" or InitiatingProcessCommandLine contains "temp.sh"
+    | project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteUrl has_any (dynamic(["temp.sh", "self-dns.it.com", "safe-dns.it.com", "cdncheck.it.com", "api.skycloudcenter.com", "api.wiresguard.com"]))
+    | project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteIP in (dynamic(["45.77.31.210", "61.4.102.97", "59.110.7.32", "124.222.137.114"]))
+    | project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceFileEvents
+    | where ActionType in ("FileCreated", "FileModified")
+    | where (FolderPath contains "ProShow" and (FileName =~ "load" or FileName =~ "ProShow.exe" or FileName =~ "update.exe"))
+       or (FolderPath contains "ProShow" and FileName endswith ".exe")
+    | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceFileEvents
+    | where ActionType in ("FileCreated", "FileModified")
+    | where FolderPath contains "Adobe\\Scripts" or FolderPath contains "Adobe/Scripts"
+    | where FileName =~ "alien.ini" or FileName =~ "alien.dll" or FileName =~ "script.exe" or FileName =~ "lua5.1.dll"
+    | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceFileEvents
+    | where ActionType in ("FileCreated", "FileModified")
+    | where (FolderPath contains "Bluetooth" and (FolderPath contains "AppData" or FolderPath contains "Roaming"))
+    | where FileName =~ "BluetoothService.exe" or FileName =~ "log.dll" or FileName =~ "BluetoothService"
+    | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    | where FolderPath contains "Temp\\ns.tmp" or FolderPath contains "Temp/ns.tmp"
+    | where InitiatingProcessFileName =~ "update.exe" or InitiatingProcessFileName =~ "install.exe"
+    | project Timestamp, DeviceName, FolderPath, FileName, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where (ProcessCommandLine contains "whoami" and ProcessCommandLine contains "tasklist")
+       or (ProcessCommandLine contains "systeminfo" and ProcessCommandLine contains "netstat")
+       or (ProcessCommandLine contains "curl" and (ProcessCommandLine contains "temp.sh" or ProcessCommandLine contains "upload"))
+    | where ProcessCommandLine contains "1.txt" or ProcessCommandLine contains "a.txt" or ProcessCommandLine contains "temp.sh"
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where ProcessCommandLine contains "USOShared" and (ProcessCommandLine contains "svchost.exe" or ProcessCommandLine contains "conf.c")
+       or (ProcessCommandLine contains "-nostdlib" and ProcessCommandLine contains "-run")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where ProcessCommandLine contains "script.exe" and ProcessCommandLine contains "alien.ini"
+    | where ProcessCommandLine contains "Adobe" or ProcessCommandLine contains "Scripts"
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+    DeviceFileEvents
+    | where ActionType in ("FileCreated", "FileModified")
+    | where SHA256 in (dynamic([
+        "a511be5164dc1122fb5a7daa3eef9467e43d8458425b15a640235796006590c9",
+        "8ea8b83645fba6e23d48075a0d3fc73ad2ba515b4536710cda4f1f232718f53e",
+        "2da00de67720f5f13b17e9d985fe70f10f153da60c9ab1086fe58f069a156924",
+        "77bfea78def679aa1117f569a35e8fd1542df21f7e00e27f192c907e61d63a2e",
+        "3bdc4c0637591533f1d4198a72a33426c01f69bd2e15ceee547866f65e26b7ad",
+        "f4d829739f2d6ba7e3ede83dad428a0ced1a703ec582fc73a4eee3df3704629a",
+        "b4169a831292e245ebdffedd5820584d73b129411546e7d3eccf4663d5fc5be3",
+        "fcc2765305bcd213b7558025b2039df2265c3e0b6401e4833123c461df2de51a"
+    ]))
+    | project Timestamp, DeviceName, FileName, FolderPath, SHA256, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteUrl contains "/users/admin" or RemoteUrl contains "/api/FileUpload/submit"
+       or RemoteUrl contains "/api/update/v1" or RemoteUrl contains "/api/getInfo/v1"
+       or RemoteUrl contains "/api/Metadata/submit" or RemoteUrl contains "/api/Info/submit"
+       or RemoteUrl contains "/resolve" or RemoteUrl contains "/dns-query"
+       or RemoteUrl contains "/help/Get-Start"
+    | where RemoteUrl has_any (dynamic(["temp.sh", "self-dns.it.com", "safe-dns.it.com", "cdncheck.it.com", "api.skycloudcenter.com", "api.wiresguard.com"]))
+       or RemoteIP in (dynamic(["45.77.31.210", "61.4.102.97", "124.222.137.114", "45.76.155.202", "45.32.144.255", "95.179.213.0"]))
+    | project Timestamp, DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059
+    - T1071
+    - T1036
+    - T1105
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "7"
+references:
+    - https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit

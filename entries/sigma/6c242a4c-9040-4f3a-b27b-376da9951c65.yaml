@@ -1,0 +1,64 @@
+id: 6c242a4c-9040-4f3a-b27b-376da9951c65
+name: BugSleep Backdoor Scheduled Task Creation
+description: Detects the creation of a scheduled task with specific names and comments used by the BugSleep backdoor for persistence, as seen in recent MuddyWater campaigns.
+query: |
+    title: BugSleep Backdoor Scheduled Task Creation
+    id: 0644eb89-b5fb-47e8-ac80-0abe0b86efe6
+    status: experimental
+    description: Detects the creation of a scheduled task with specific names and
+      comments used by the BugSleep backdoor for persistence, as seen in recent
+      MuddyWater campaigns.
+    references:
+      - https://research.checkpoint.com/2024/new-bugsleep-backdoor-deployed-in-recent-muddywater-campaigns/
+    author: detections.ai
+    date: 2025-07-12
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+      - threat_actor.muddywater
+      - malware.bugsleep
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects the schtasks.exe process
+      schtasks:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create'
+          - '/tn'
+          - '/sc'
+          - 'sample comment' # Specific comment used by BugSleep
+      # Detects the specific task names used by BugSleep
+      task_names:
+        CommandLine|contains:
+          - ' PackageManager' # Note the leading space to avoid matching parts of other words
+          - ' DocumentUpdater'
+      condition: schtasks and task_names
+    falsepositives:
+      - The combination of these specific task names and the comment "sample
+        comment" is highly indicative of malicious activity. However
+      - an administrator or developer could theoretically use the same combination
+        for testing purposes
+      - though this is highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - threat_actor.muddywater
+    - malware.bugsleep
+author: detections.ai
+version: "1"
+references:
+    - https://research.checkpoint.com/2024/new-bugsleep-backdoor-deployed-in-recent-muddywater-campaigns/
+data_sources:
+    - process_creation
+    - windows

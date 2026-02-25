@@ -1,0 +1,24 @@
+id: 019aa6c6-3c98-73c9-a40f-f8a97bf40eff
+name: LCRYX Ransomware Hosts File Modification and Payload Download
+description: Detects behaviors associated with the LCRYX VBScript ransomware, including modification of the hosts file to block security sites and the download of additional malicious payloads from known malicious URLs.
+query: "title: LCRYX Ransomware Hosts File Modification and Payload Download\r\nid: fbc93b5c-afc4-46dd-91c3-30dfaaad6f97\r\nstatus: experimental\r\ndescription: Detects behaviors associated with the LCRYX VBScript ransomware,\r\n  including modification of the hosts file to block security sites and the\r\n  download of additional malicious payloads from known malicious URLs.\r\nreferences:\r\n  - https://medium.com/@shubhandrew/analysis-of-lcryx-ransomware-vbs-script-e34d2d2112f6\r\nauthor: Subhankar H.\r\ndate: 2025-11-21\r\ntags:\r\n  - attack.t1562.001\r\n  - attack.t1105\r\n  - attack.defense_evasion\r\n  - attack.ingress_tool_transfer\r\nlogsource:\r\n  product: windows\r\n  category: file_event\r\n    # For hosts file modification and payload creation\r\n    # The network IOC portion of this rule requires a log source with network connection data (e.g., Sysmon Event ID 3)\r\ndetection:\r\n  selection_hosts_mod:\r\n    # Detects a script engine modifying the hosts file\r\n    Image|endswith:\r\n      - '\\wscript.exe'\r\n      - '\\cscript.exe'\r\n    TargetFilename|endswith: '\\drivers\\etc\\hosts'\r\n  selection_payload_create:\r\n    # Detects the creation of known LCRYX payloads in the Windows directory\r\n    TargetFilename|startswith: 'C:\\Windows\\'\r\n    TargetFilename|endswith:\r\n      - '\\TikTok.exe'\r\n      - '\\setup.exe'\r\n      - '\\build3.exe'\r\n      - '\\HJC.exe'\r\n      - '\\pei.exe'\r\n      - '\\gidro.exe'\r\n      - '\\fud_new.exe'\r\n      - '\\loadme.exe'\r\n      - '\\amady.exe'\r\n      - '\\gcrybground.png'\r\n  selection_network_ip:\r\n    # Detects network connections to known malicious IPs\r\n    DestinationIp:\r\n      - '185.172.128.203'\r\n      - '5.42.64.17'\r\n      - '103.198.26.173'\r\n      - '185.215.113.84'\r\n      - '193.233.132.139'\r\n      - '163.5.215.125'\r\n  selection_network_domain:\r\n    # Detects network connections to known malicious domains\r\n    DestinationHostname:\r\n      - 'cajgtus.com'\r\n      - 'topgamecheats.dev'\r\n      - 'twizt.net'\r\n      - 's10.krakenfiles.com'\r\n  condition: 1 of them\r\nfalsepositives:\r\n  - The network IOCs are specific to this threat but may become stale over time\r\n    or could be sinkholed by security researchers.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1562.001
+    - T1105
+tags:
+    - attack.t1562.001
+    - attack.t1105
+    - attack.defense_evasion
+    - attack.ingress_tool_transfer
+author: Subhankar H.
+version: "2"
+references:
+    - https://medium.com/@shubhandrew/analysis-of-lcryx-ransomware-vbs-script-e34d2d2112f6
+data_sources:
+    - file_event
+    - windows

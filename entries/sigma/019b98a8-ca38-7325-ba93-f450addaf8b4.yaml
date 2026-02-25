@@ -1,0 +1,55 @@
+id: 019b98a8-ca38-7325-ba93-f450addaf8b4
+name: GoBruteforcer Process Name Masquerading
+description: Detects processes that masquerade as the 'init' process, a technique used by the GoBruteforcer malware. The rule identifies processes named 'init' while filtering out legitimate system init processes based on their process ID, parent process ID, and executable path.
+query: |
+    title: GoBruteforcer Process Name Masquerading
+    id: d9b1a3ac-7649-4b70-9938-5bb8eed9d9c0
+    status: experimental
+    description: Detects processes that masquerade as the 'init' process, a
+      technique used by the GoBruteforcer malware. The rule identifies processes
+      named 'init' while filtering out legitimate system init processes based on
+      their process ID, parent process ID, and executable path.
+    references:
+      - https://research.checkpoint.com/2026/inside-gobruteforcer-ai-generated-server-defaults-weak-passwords-and-crypto-focused-campaigns/
+    author: tim@detections.ai
+    date: 2026-01-07
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.004
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # GoBruteforcer renames its process to 'init' to blend in.
+        Image: 'init'
+      filter:
+        # Exclude the legitimate init process and its direct children.
+        - ProcessId: 1
+        - ProcessId: 1 # Exclude known legitimate paths for the init process.
+        - ParentImage|endswith:
+            - '/sbin/init'
+            - '/usr/lib/systemd/systemd'
+      condition: selection and not 1 of filter
+    falsepositives:
+      - Some legitimate system management scripts or container entrypoints might
+        rename themselves. The provided filters should reduce most common false
+        positives, but environment-specific tuning may be required.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.004
+tags:
+    - attack.defense_evasion
+    - attack.t1036.004
+author: tim@detections.ai
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/inside-gobruteforcer-ai-generated-server-defaults-weak-passwords-and-crypto-focused-campaigns/
+data_sources:
+    - process_creation
+    - linux

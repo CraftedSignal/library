@@ -1,0 +1,19 @@
+id: 019a2adb-2812-70ff-92d0-637f07ab6a19
+name: Suspicious Process Creation by IIS Worker Process - Potential Exploit of CVE-2025-59287
+description: This rule detects the creation of common Windows command-line interpreters and utilities (cmd.exe, powershell.exe, pwsh.exe, powershell_ise.exe, whoami.exe, net.exe, net1.exe) when initiated by 'w3wp.exe'. The 'w3wp.exe' process is the IIS worker process, and the execution of these utilities from an IIS worker process can be indicative of web shell activity, compromise of the web server, or other malicious activity.
+query: "DeviceProcessEvents\r\n| where InitiatingProcessFileName =~ \"w3wp.exe\"\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\", \"pwsh.exe\", \"powershell_ise.exe\", \"whoami.exe\", \"net.exe\", \"net1.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    AccountUpn,\r\n    ReportId,\r\n    ActionType,\r\n    FolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059
+tags:
+    - kql
+author: Stanislas MEDRANO
+version: "7"
+references:
+    - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2025-59287
+    - https://research.eye.security/wsus-deserialization-exploit-in-the-wild-cve-2025-59287/
+    - https://unit42.paloaltonetworks.com/microsoft-cve-2025-59287/

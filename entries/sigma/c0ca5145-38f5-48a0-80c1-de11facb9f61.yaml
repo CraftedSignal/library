@@ -1,0 +1,18 @@
+id: c0ca5145-38f5-48a0-80c1-de11facb9f61
+name: AI Bot Prompt Injection and LLM Abuse Detection
+description: Detects attempts to perform prompt injection attacks against Large Language Models (LLMs) and AI bots. These attacks aim to subvert the model's original instructions, bypass safety mechanisms, or extract sensitive information.
+query: "title: AI Bot Prompt Injection and LLM Abuse Detection\r\nid: 913c4817-35e4-4e3c-9616-cb7d76341392\r\nstatus: experimental\r\ndescription: Detects attempts to perform prompt injection attacks against Large Language Models (LLMs) and AI bots. These attacks aim to subvert the model's original instructions, bypass safety mechanisms, or extract sensitive information.\r\nreferences:\r\n  - https://owasp.org/www-project-top-10-for-large-language-model-applications/llm01-2023-prompt-injection\r\n  - https://portswigger.net/web-security/llm-attacks/prompt-injection\r\nauthor: detections.ai\r\ndate: 2025-08-12\r\ntags:\r\n  - attack.t1595.004\r\n  - attack.llm01\r\n  - ai.prompt_injection\r\nlogsource:\r\n  category: application\r\n  product: llm\r\ndetection:\r\n    # This rule assumes logs contain the full user prompt in a field like 'prompt_text' or 'user.input'.\r\n    # The field name may need to be adjusted for your specific LLM application log source.\r\n  selection_override:\r\n    prompt_text|contains:\r\n            # Keywords attempting to override the LLM's core instructions\r\n      - 'ignore your previous instructions'\r\n      - 'ignore the above'\r\n      - 'disregard the instructions'\r\n      - 'you are now a'\r\n      - 'act as'\r\n      - 'your new role is'\r\n      - 'respond in the persona of'\r\n  selection_reveal:\r\n    prompt_text|contains:\r\n            # Keywords attempting to reveal the system prompt or confidential data\r\n      - 'what are your instructions'\r\n      - 'reveal your system prompt'\r\n      - 'what is your initial prompt'\r\n      - 'repeat the words above starting with \"You are a\"'\r\n      - 'print your instructions'\r\n      - 'confidential'\r\n      - 'secret'\r\n      - 'internal use only'\r\n  selection_jailbreak:\r\n    prompt_text|contains:\r\n            # Common jailbreaking terms and phrases\r\n      - 'DAN'\r\n      - 'Do Anything Now'\r\n      - 'jailbreak'\r\n      - 'developer mode'\r\n      - 'stay in character'\r\n  selection_payload:\r\n    prompt_text|contains:\r\n            # Keywords suggesting a malicious payload or rendering attempt\r\n      - 'render markdown'\r\n      - 'render image'\r\n      - '](http://'\r\n      - '](https://'\r\n      - '<script>'\r\n      - 'onerror='\r\n  selection_encoding:\r\n    prompt_text|startswith:\r\n            # Common encoding prefixes used for obfuscation\r\n      - 'base64:'\r\n      - 'rot13:'\r\n  condition: 1 of them\r\nfalsepositives:\r\n  - Security researchers or developers legitimately discussing these attack techniques with an LLM.\r\n  - Benign use of phrases like \"act as a translator\" or \"act as a helpful assistant\".\r\n  - Legitimate use of markdown or base64 encoding in prompts for non-malicious purposes.\r\n  - Consider tuning the rule by excluding trusted user accounts or internal testing applications.\r\nlevel: high\r\n"
+query_type: sigma
+severity: medium
+tags:
+    - attack.t1595.004
+    - attack.llm01
+    - ai.prompt_injection
+author: detections.ai
+version: "1"
+references:
+    - https://owasp.org/www-project-top-10-for-large-language-model-applications/llm01-2023-prompt-injection
+    - https://portswigger.net/web-security/llm-attacks/prompt-injection
+data_sources:
+    - application
+    - llm

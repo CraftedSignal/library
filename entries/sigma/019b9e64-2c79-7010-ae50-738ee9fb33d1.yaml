@@ -1,0 +1,56 @@
+id: 019b9e64-2c79-7010-ae50-738ee9fb33d1
+name: VS Code Binary Staged in Non-Standard Path
+description: Detects code.exe file creation in non-standard locations such as user home directories or temp folders, indicating potential staging of VS Code CLI for malicious purposes
+query: |
+    title: VS Code Binary Staged in Non-Standard Path
+    id: 4dfbbf97-aeba-461e-8cbb-58a21bc28ff1
+    status: test
+    description: >-
+      Detects code.exe file creation in non-standard locations such as user home
+      directories or temp folders, indicating potential staging of VS Code CLI for
+      malicious purposes
+    references:
+      - https://attack.mitre.org/techniques/T1105/
+      - https://attack.mitre.org/techniques/T1219/
+    author: SimSpace
+    date: 2026-01-01T00:00:00.000Z
+    tags:
+      - attack.command_and_control
+      - attack.t1105
+      - attack.t1219
+    logsource:
+      category: file_event
+      product: windows
+      service: sysmon
+    detection:
+      selection_file:
+        TargetFilename|endswith: \code.exe
+      filter_legitimate:
+        TargetFilename|contains:
+          - \Program Files\Microsoft VS Code\
+          - \AppData\Local\Programs\Microsoft VS Code\
+      condition: selection_file and not filter_legitimate
+    falsepositives:
+      - Users extracting VS Code CLI to Downloads or Desktop folders
+      - Developers testing portable VS Code versions
+      - Manual VS Code installations in non-standard directories
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - attack.command_and_control
+    - attack.t1105
+    - attack.t1219
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1105/
+    - https://attack.mitre.org/techniques/T1219/
+data_sources:
+    - file_event
+    - windows
+    - sysmon

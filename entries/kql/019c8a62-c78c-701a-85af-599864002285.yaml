@@ -1,0 +1,18 @@
+id: 019c8a62-c78c-701a-85af-599864002285
+name: Suspicious ServiceNow AI Agent Invocation (BodySnatcher)
+description: This rule detects attempts to exploit the BodySnatcher vulnerability (CVE-2025-12420) by invoking a specific internal AI agent topic ("AIA-Agent Invoker AutoChat") via the Virtual Agent API. This behavior is a key step in the exploit chain, allowing an attacker to execute arbitrary AI agents under an impersonated user's context.
+query: "// Name: Suspicious ServiceNow AI Agent Invocation\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects attempts to exploit the BodySnatcher vulnerability (CVE-2025-12420) by invoking a specific internal AI agent topic (\"AIA-Agent Invoker AutoChat\") via the Virtual Agent API. This behavior is a key step in the exploit chain, allowing an attacker to execute arbitrary AI agents under an impersonated user's context.\r\n// False Positives: Medium. The combination of the specific API endpoint, provider, and topic ID is a strong indicator of malicious activity. However, legitimate custom integrations, while unlikely, could potentially trigger this if they were built using non-public, internal components. Such integrations would be highly irregular and should be investigated.\r\n// References: https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/\r\n// Tactic: Initial Access, Privilege Escalation\r\n// Technique: T1190, T1548\r\nlet time_window = 1h;\r\nlet servicenow_domains = dynamic([]); // Add your ServiceNow instance domains here, e.g., [\"myinstance.service-now.com\"]\r\nlet suspicious_topic_id = \"d5986940ff702210e819fffffffffffe\"; // Corresponds to the \"AIA-Agent Invoker AutoChat\" topic\r\n// Assuming a table like 'HttpLogs' with fields for URL, HTTP Method, and Request Body.\r\n// Adjust table and field names (e.g., Url, HttpMethod, HttpRequestBody) for your environment.\r\nHttpLogs\r\n| where TimeGenerated > ago(time_window)\r\n// Filter for POST requests to the Virtual Agent API endpoint\r\n| where HttpMethod == \"POST\" and Url has \"/api/sn_va_as_service/bot/integration\"\r\n// Optional: Filter to only your known ServiceNow domains to reduce noise from internet-wide scanning.\r\n| where isempty(servicenow_domains) or Url has_any (servicenow_domains)\r\n// Perform an initial check on the raw request body for performance before parsing JSON\r\n| where HttpRequestBody has \"default-external-agent\" and HttpRequestBody has suspicious_topic_id\r\n| extend RequestBody = todynamic(HttpRequestBody)\r\n// Check for the specific provider and the malicious topic ID in the context variables\r\n| where RequestBody.appInboundId == \"default-external-agent\"\r\n    and (\r\n        RequestBody.contextVariables.default_topic == suspicious_topic_id or\r\n        RequestBody.contextVariables.topic == suspicious_topic_id\r\n    )\r\n| project\r\n    TimeGenerated,\r\n    SrcIpAddr,\r\n    Url,\r\n    HttpMethod,\r\n    HttpUserAgent,\r\n    HttpRequestBody,\r\n    ImpersonatedUserEmail = tostring(RequestBody.metadata.email_id)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0004
+    - TA0005
+techniques:
+    - T1190
+    - T1548
+tags:
+    - kql
+version: "2"
+references:
+    - https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/

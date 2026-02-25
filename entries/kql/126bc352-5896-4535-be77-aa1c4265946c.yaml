@@ -1,0 +1,38 @@
+id: 126bc352-5896-4535-be77-aa1c4265946c
+name: External User Subscription Write in Azure
+description: KQL Query
+query: |-
+    AzureActivity
+    | where OperationNameValue == "Microsoft.Subscription/subscriptions/write"
+    | where ActivityStatus == "Succeeded"
+    | extend CallerUpn = tostring(parse_json(Authorization).claims.upn)
+    | where CallerUpn contains "#EXT#"
+    | project
+        TimeGenerated,
+        OperationName,
+        OperationNameValue,
+        ActivityStatus,
+        Caller,
+        CallerUpn,
+        SubscriptionId,
+        _ResourceId,
+        ResourceGroup,
+        Resource,
+        CallerIpAddress,
+        CorrelationId,
+        TenantId
+    | extend AccountCustomEntity = CallerUpn
+    | extend IPCustomEntity = CallerIpAddress
+    // https://www.beyondtrust.com/blog/entry/restless-guests
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1666
+    - T1098
+tags:
+    - kql
+version: "1"

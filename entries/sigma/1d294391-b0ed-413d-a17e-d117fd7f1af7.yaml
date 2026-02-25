@@ -1,0 +1,80 @@
+id: 1d294391-b0ed-413d-a17e-d117fd7f1af7
+name: GoldMelody Post-Exploitation Activity
+description: Detects post-exploitation techniques used by the GoldMelody Initial Access Broker (also tracked as TGR-CRI-0045 and UNC961). This activity includes the use of a specific staging directory 'C:\Windows\Temp\111t' for custom tooling like 'updf.exe' for privilege escalation and 'txp.exe'/'txpm.exe' for port scanning.
+query: |
+    title: GoldMelody Post-Exploitation Activity
+    id: 0e327fff-ad4a-4f6b-abd3-36c5e308ad9e
+    status: experimental
+    description: Detects post-exploitation techniques used by the GoldMelody Initial
+      Access Broker (also tracked as TGR-CRI-0045 and UNC961). This activity
+      includes the use of a specific staging directory 'C:\Windows\Temp\111t' for
+      custom tooling like 'updf.exe' for privilege escalation and
+      'txp.exe'/'txpm.exe' for port scanning.
+    references:
+      - https://unit42.paloaltonetworks.com/initial-access-broker-exploits-leaked-machine-keys/
+    author: Aaron Mog - detections.ai
+    date: 2025-07-11
+    tags:
+      - attack.t1059.003
+      - attack.t1136.001
+      - attack.t1046
+      - attack.t1105
+      - attack.t1036.005
+      - attack.initial_access
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_tools:
+        # Detects execution of known tools from the actor's staging directory
+        Image|endswith:
+          - '\c:\windows\temp\111t\updf.exe'
+          - '\c:\windows\temp\111t\txp.exe'
+          - '\c:\windows\temp\111t\txpm.exe'
+          - '\c:\windows\temp\111t\wget.exe'
+      selection_rename:
+        # Detects the specific command used to rename downloaded tools
+        Image|endswith: '\cmd.exe'
+        CommandLine|contains|all:
+          - ' /c move '
+          - 'c:\windows\temp\111t\'
+          - '.exe'
+      selection_privesc:
+        # Detects the use of the custom privilege escalation tool
+        Image|endswith: '\c:\windows\temp\111t\updf.exe'
+        CommandLine|contains: ' -nadm '
+      condition: 1 of them
+    falsepositives:
+      - The staging directory 'C:\Windows\Temp\111t' is a key indicator but could be
+        changed by the threat actor in the future. Legitimate administrative
+        activity is unlikely to match these specific patterns but should be
+        considered.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0007
+    - TA0011
+    - TA0005
+techniques:
+    - T1059.003
+    - T1136.001
+    - T1046
+    - T1105
+    - T1036.005
+tags:
+    - attack.t1059.003
+    - attack.t1136.001
+    - attack.t1046
+    - attack.t1105
+    - attack.t1036.005
+    - attack.initial_access
+author: Aaron Mog - detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/initial-access-broker-exploits-leaked-machine-keys/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: 0199fed4-745e-7115-a7e8-f453545bd927
+name: Detect Uncommon or Suspicious WSL Child Process
+description: Detects uncommon or suspicious child processes spawning from a WSL process. This could indicate an attempt to evade parent/child relationship detections or persistence attempts via cron using WSL.
+query: "// Rule Name: Detect Uncommon or Suspicious WSL Child Process\r\n// Author: Arnold Chan\r\n// Date: 2025-10-20\r\n// Description: Detects uncommon or suspicious child processes spawning from a WSL process. This could indicate an attempt to evade parent/child relationship detections or persistence attempts via cron using WSL.\r\n// References:\r\n// - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/\r\n// - https://twitter.com/nas_bench/status/1535431474429808642\r\nlet suspicious_children = dynamic([\r\n    \"calc.exe\",\r\n    \"cmd.exe\",\r\n    \"cscript.exe\",\r\n    \"mshta.exe\",\r\n    \"powershell.exe\",\r\n    \"pwsh.exe\",\r\n    \"regsvr32.exe\",\r\n    \"rundll32.exe\",\r\n    \"wscript.exe\"\r\n]);\r\nlet suspicious_paths = dynamic([\r\n    \"\\\\AppData\\\\Local\\\\Temp\\\\\",\r\n    \"C:\\\\Users\\\\Public\\\\\",\r\n    \"C:\\\\Windows\\\\Temp\\\\\",\r\n    \"C:\\\\Temp\\\\\",\r\n    \"\\\\Downloads\\\\\",\r\n    \"\\\\Desktop\\\\\"\r\n]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n// Filter for child processes of wsl.exe or wslhost.exe\r\n| where InitiatingProcessFileName in~ (\"wsl.exe\", \"wslhost.exe\")\r\n// Exclude common, legitimate child processes of WSL to reduce noise\r\n| where not(ProcessVersionInfoInternalFileName in~ (\"wslhost.exe\", \"wslservice.exe\"))\r\n// Apply detection logic: child is a suspicious binary OR runs from a suspicious path\r\n| where FileName has_any (suspicious_children) or FolderPath has_any (suspicious_paths)\r\n// False Positive Tuning: Spawning cmd.exe or powershell.exe can be legitimate for Windows/Linux interop.\r\n// Consider adding more specific command-line filters or excluding known developer machines if this is noisy in your environment.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    SHA256,\r\n    ReportId,\r\n    InitiatingProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1218
+    - T1202
+tags:
+    - kql
+version: "7"
+references:
+    - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/
+    - https://twitter.com/nas_bench/status/1535431474429808642

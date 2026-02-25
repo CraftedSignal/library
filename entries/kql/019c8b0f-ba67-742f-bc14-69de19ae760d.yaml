@@ -1,0 +1,18 @@
+id: 019c8b0f-ba67-742f-bc14-69de19ae760d
+name: Malicious SANDWORM GitHub Action Usage
+description: This rule detects the use of the malicious GitHub Action 'ci-quality/code-quality-check@v1' associated with the SANDWORM_MODE campaign. This action is designed to harvest CI secrets and propagate the malware by being referenced in a GitHub workflow file. The rule searches for the specific string of the malicious GitHub action within file content or file/audit paths, specifically targeting GitHub workflow files (.yml or .yaml) in '.github/workflows/' directories.
+query: "// Name: Malicious SANDWORM GitHub Action Usage\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Tactic: Collection, Lateral Movement\r\n// Technique: T1552.001, Credentials In Files; T1195.002, Compromise Software Supply Chain\r\n// Description: This rule detects the use of the malicious GitHub Action 'ci-quality/code-quality-check@v1' associated with the SANDWORM_MODE campaign. This action is designed to harvest CI secrets and propagate the malware by being referenced in a GitHub workflow file.\r\n// False Positive Sensitivity: Medium\r\n// References: https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning\r\n// This query searches for the specific string of the malicious GitHub action.\r\n// Note: This relies on file content or file/audit paths being logged to your workspace (e.g., from a source code scanner, FIM, or GitHub audit logs).\r\nsearch \"ci-quality/code-quality-check\"\r\n// Filter results to events that are likely related to GitHub workflow files.\r\n| where FilePath has \".github/workflows/\" and (FilePath endswith \".yml\" or FilePath endswith \".yaml\")\r\n    or (FolderPath has \".github\\\\workflows\\\\\" and (FileName endswith \".yml\" or FileName endswith \".yaml\"))\r\n// FP Tuning: This string is highly specific. False positives would likely only occur if an internal, benign tool was given the same name.\r\n// If your environment uses a different data source (e.g., GitHubAudit), you may need to adjust the 'where' clause to match that schema.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FilePath,\r\n    FileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1195.002
+    - T1552.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning

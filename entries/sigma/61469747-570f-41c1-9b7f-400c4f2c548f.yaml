@@ -1,0 +1,76 @@
+id: 61469747-570f-41c1-9b7f-400c4f2c548f
+name: IOC Detection for Matanbuchus malware loader
+description: Detects Matanbuchus malware loader IOCs including file hashes, a scheduled task name, domains, and an IP address.
+query: |
+    title: IOC Detection for Matanbuchus malware loader
+    id: 1acec328-52ed-4548-9204-f703e88dc6e0
+    status: experimental
+    description: Detects Matanbuchus malware loader IOCs including file hashes, a
+      scheduled task name, domains, and an IP address.
+    references: https://engage.morphisec.com/hubfs/Matanbuchus%20Threat%20Analysis.pdf
+    author: Kaung Khant Ko
+    date: 2025-07-18
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.command_and_control
+    logsource:
+      # Define log sources for each type of indicator
+      - category: process_creation
+        product: windows
+      - category: file_event
+        product: windows
+      - category: network_connection
+        product: windows
+      - category: task_creation
+        product: windows
+    detection:
+      selection_hash:
+        # Detects known malicious file hashes from file or process events
+        sha256:
+          - 'da9585d578f367cd6cd4b0e6821e67ff02eab731ae78593ab69674f649514872'
+          - '2ee3a202233625cdcdec9f687d74271ac0f9cb5877c96cf08cf1ae88087bec2e'
+          - '19fb41244558f3a7d469b79b9d91cd7d321b6c82d1660738256ecf39fe3c8421'
+          - '211cea7a5fe12205fee4e72837279409ace663567c5b8c36828a3818aabef456'
+          - '0f41536cd9982a5c1d6993fac8cd5eb4e7f8304627f2019a17e1aa283ac3f47c'
+      selection_task:
+        # Detects creation of a suspicious scheduled task
+        TaskName: '\EventLogBackupTask'
+      selection_domain:
+        # Detects network connections to malicious domains
+        DestinationHostname:
+          - 'notepad-plus-plu.org'
+          - 'emorista.org'
+          - 'nicewk.com'
+          - 'bretux.com'
+          - 'fixuplink.com'
+      selection_ip:
+        # Detects network connections to a malicious IP
+        DestinationIp: '94.159.113.33'
+      condition: 1 of them
+    level: high
+    falsepositives:
+      - The scheduled task name "EventLogBackupTask" could potentially be used by
+        legitimate backup utilities.
+      - If false positives occur, consider adding filters based on the process that
+        created the task (InitiatingProcessCommandLine) or the user context.
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0011
+    - TA0004
+techniques:
+    - T1053
+    - T1053.005
+    - T1071
+    - T1105
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.command_and_control
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://engage.morphisec.com/hubfs/Matanbuchus%20Threat%20Analysis.pdf

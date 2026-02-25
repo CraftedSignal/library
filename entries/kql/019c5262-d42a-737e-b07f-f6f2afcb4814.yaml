@@ -1,0 +1,21 @@
+id: 019c5262-d42a-737e-b07f-f6f2afcb4814
+name: OpenClaw AI Agent Suspicious Command Execution
+description: Detects when a known OpenClaw AI agent process executes commands associated with credential access or system discovery. This behavior can indicate a "0-click" prompt injection attack, where the agent is manipulated into executing malicious commands received through external data streams like emails or IM messages.
+query: "// Name: OpenClaw 0-Click Prompt Injection Execution\n// Author: detections.ai\n// Date: 2026-02-12\n// Tactic: Credential Access, Discovery, Execution\n// Technique: T1552.004, T1059.004, T1566.002\n// Description: Detects when a known OpenClaw AI agent process executes commands associated with credential access or system discovery. This behavior can indicate a \"0-click\" prompt injection attack, where the agent is manipulated into executing malicious commands received through external data streams like emails or IM messages.\n// False Positive Sensitivity: Medium\n// References: https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/\nlet agent_processes = dynamic([\"openclaw\", \"clawdbot\", \"moltbot\"]);\n// List of suspicious commands indicative of discovery or credential access.\nlet suspicious_command_patterns = dynamic([\n    \"cat /etc/shadow\", \n    \"cat /etc/passwd\", \n    \"cat ~/.ssh/\",\n    \"whoami\",\n    \"id\"\n]);\nDeviceProcessEvents\n// Focus on shell processes spawned to execute commands.\n| where FileName in~ (\"bash\", \"sh\", \"zsh\")\n// The parent process must be a known OpenClaw agent.\n| where InitiatingProcessFileName in~ (agent_processes)\n// The command line should contain patterns associated with reconnaissance or credential theft.\n| where ProcessCommandLine has_any (suspicious_command_patterns)\n// FP Tuning: Commands like 'whoami' or 'id' can be used for legitimate diagnostic purposes.\n// If this rule is too noisy, consider removing them or raising the alert severity only when\n// more sensitive file access (e.g., 'cat ~/.ssh/') is observed.\n| project\n    TimeGenerated,\n    DeviceName,\n    AccountName,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    FileName,\n    ProcessCommandLine,\n    InitiatingProcessParentFileName\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0002
+    - TA0007
+techniques:
+    - T1552.004
+    - T1059.004
+    - T1083
+    - T1033
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/

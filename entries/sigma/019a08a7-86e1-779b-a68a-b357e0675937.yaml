@@ -1,0 +1,54 @@
+id: 019a08a7-86e1-779b-a68a-b357e0675937
+name: Godzilla Webshell File Creation
+description: Detects the creation of files commonly associated with Godzilla-forked webshells, such as 'error.aspx', on a web server. Threat actors deploy these webshells for persistent access after exploiting vulnerabilities in web applications like IIS.
+query: |
+    title: Godzilla Webshell File Creation
+    id: deb34d33-fd1d-4ff4-b39b-f979205d94b1
+    status: experimental
+    description: Detects the creation of files commonly associated with
+      Godzilla-forked webshells, such as 'error.aspx', on a web server. Threat
+      actors deploy these webshells for persistent access after exploiting
+      vulnerabilities in web applications like IIS.
+    references:
+      - https://www.elastic.co/security-labs/tollbooth
+      - https://github.com/ekkoo-z/Z-Godzilla_ekp
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.persistence
+      - attack.t1505.003
+    logsource:
+      category: file_creation
+      product: windows
+    detection:
+      selection_file:
+        # Detects a common filename used by Godzilla webshells
+        TargetFilename|endswith: '\error.aspx'
+      selection_hash:
+        # Detects a known hash for a Godzilla-forked webshell
+        Hashes|contains: 'SHA256=bae5a7722814948fbba197e9b0f8ec5a6fe8328c7078c3adcca0022a533a84fe'
+      filter_process:
+        # File created by the IIS Worker Process
+        Image|endswith: '\w3wp.exe'
+      condition: selection_hash or (selection_file and filter_process)
+    falsepositives:
+      - Legitimate web applications may create or modify a file named 'error.aspx'.
+        Tuning may be required to exclude legitimate application paths or processes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - attack.persistence
+    - attack.t1505.003
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/tollbooth
+    - https://github.com/ekkoo-z/Z-Godzilla_ekp
+data_sources:
+    - file_creation
+    - windows

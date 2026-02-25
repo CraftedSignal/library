@@ -1,0 +1,34 @@
+id: 427e2b2f-3682-41b1-82c2-3e63fb463996
+name: XWorm C2/Exfiltration via Telegram API
+description: Detects outbound network connections to the Telegram API, a technique used by XWorm for command and control (C2) and data exfiltration. The rule specifically looks for connections to "api.telegram.org/bot" and "/sendMessage" paths, originating from suspicious processes like WmiPrvSE.exe or Soundman.exe, or from common user-writable locations.
+query: |
+    DeviceNetworkEvents
+    | where RemoteUrl has "api.telegram.org/bot" and RemoteUrl has "/sendMessage"
+    | where not(InitiatingProcessFileName in~ ("telegram.exe", "discord.exe"))
+    | where InitiatingProcessFileName in~ ("WmiPrvSE.exe", "Soundman.exe")
+        or InitiatingProcessFolderPath has_any (@"C:\Users\", @"C:\ProgramData\", @"\AppData\", @"C:\Windows\Temp\")
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        RequestCount = count(),
+        RemoteUrls = make_set(RemoteUrl, 10),
+        InitiatingProcessFileNames = make_set(InitiatingProcessFileName)
+        by DeviceId, DeviceName, AccountDomain, AccountName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, RemoteIP
+    | extend
+        timestamp = StartTime,
+        HostName = tostring(split(DeviceName, ".")[0]),
+        DnsComputerName = DeviceName
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1071.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://media.licdn.com/dms/document/media/v2/D4D1FAQEkGuxUK7j4sQ/feedshare-document-pdf-analyzed/B4DZk4VA8IgAY-/0/1757586661600?e=1758758400&v=beta&t=NqEhkrPqdXrj1E9smALUeSbXAhqXb00i4U8iIRhfd6k

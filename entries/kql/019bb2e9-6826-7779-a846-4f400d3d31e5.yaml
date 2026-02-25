@@ -1,0 +1,17 @@
+id: 019bb2e9-6826-7779-a846-4f400d3d31e5
+name: pkr_mtsi Invalid Page Protection Errors
+description: This rule identifies processes that trigger three or more STATUS_INVALID_PAGE_PROTECTION (0xC0000045) errors within a one-second interval. This specific behavior is caused by a recurring programming flaw in the pkr_mtsi packer, where it attempts to call NtProtectVirtualMemory with invalid memory protection constants.
+query: "// Name: pkr_mtsi Invalid Page Protection Errors\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-12\r\n// Description: This rule identifies processes that trigger three or more STATUS_INVALID_PAGE_PROTECTION (0xC0000045) errors within a one-second interval. This specific behavior is caused by a recurring programming flaw in the pkr_mtsi packer, where it attempts to call NtProtectVirtualMemory with invalid memory protection constants.\r\n// False Positives: Medium. While this is a high-fidelity indicator for the pkr_mtsi packer, it is possible that other legitimate but buggy software could produce similar errors. Investigate the responsible process and its file path to rule out known applications.\r\n// References: https://www.reversinglabs.com/blog/unpacking-pkr_mtsi\r\n// MITRE TTPs: T1055, T1129\r\n// Pyramid of Pain: TTPs\r\nDeviceEvents\r\n// The pkr_mtsi packer makes several calls to NtProtectVirtualMemory with invalid parameters.\r\n| where ActionType == \"NtProtectVirtualMemoryApiCall\"\r\n// This results in the specific error STATUS_INVALID_PAGE_PROTECTION.\r\n| where AdditionalFields.ErrorCode == \"0xc0000045\"\r\n// Group events by process and a short time window to detect the rapid succession of errors.\r\n| summarize ErrorCount = count(), ReportIds = make_set(ReportId) by DeviceId, DeviceName, ProcessId, InitiatingProcessFileName, bin(Timestamp, 1s)\r\n// The packer is known to make at least three such calls in a row.\r\n| where ErrorCount >= 3\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ProcessId,\r\n    InitiatingProcessFileName,\r\n    ErrorCount,\r\n    ReportIds\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055
+tags:
+    - kql
+author: Ethan Andrews + detections.ai
+version: "3"
+references:
+    - https://www.reversinglabs.com/blog/unpacking-pkr_mtsi

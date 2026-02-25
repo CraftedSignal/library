@@ -1,0 +1,12 @@
+id: 496148f3-4d66-4c67-bf5f-a56740f25c48
+name: Detection of Binaries Signed by 'OneStart Technologies LLC'
+description: This rule identifies potentially suspicious signed binaries in the environment by looking for files signed by 'OneStart Technologies LLC' and excluding common, known good vendors. This helps detect the abuse of code signing certificates by threat actors to bypass security controls and can support threat hunting and malware analysis.
+query: "## \U0001F50D KQL Description\n#### This query is used to:\n#### 1.Identify potentially suspicious signed binaries in the environment.\n#### 2.Detect abuse of code signing certificates by threat actors.\n#### 3.Support threat hunting and malware analysis.\n#### 4.Reduce false positives by excluding known good vendors.\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic:Defense Evasion\n#### Goal: Adversaries may use signed binaries to bypass security controls.\n#### Technique: Signed Binary Proxy Execution (T1218)\n#### Attackers may use signed, trusted binaries to execute malicious payloads, leveraging the trust associated with digital signatures.\n### Query:\n```KQL\nDeviceFileCertificateInfo\n| join kind=inner (DeviceFileEvents) on SHA1\n| extend VT_hash = strcat(\"https://www.virustotal.com/gui/file/\", SHA1)\n| where Signer !contains \"Google \"\n| where not(Signer has_any(\"Intel\", \"fortinet\", \".net\", \"citrix\", \"microsoft\", \"HP Inc.\", \"adobe\", \"cisco\", \n                           \"Avaya Inc.\", \"Zoom Video Communications, Inc.\", \"zscaler\", \"oracle\", \n                           \"Advanced Micro Devices Inc.\", \"Lenovo\", \"Hewlett-Packard Company\", \n                           \"RingCentral\", \"Symantec\", \"Mozilla\", \"Dell Technologies Inc.\"))\n| where Signer == \"OneStart Technologies LLC\"\n| project TimeGenerated, Signer, FileName, SHA1, VT_hash, DeviceName\n```\n"
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1218
+tags:
+    - kql
+version: "1"

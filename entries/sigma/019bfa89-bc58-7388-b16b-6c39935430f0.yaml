@@ -1,0 +1,72 @@
+id: 019bfa89-bc58-7388-b16b-6c39935430f0
+name: Suspicious PowerShell from IDE
+description: Detects PowerShell processes spawned by Visual Studio Code or Cursor IDEs that use suspicious flags like '-WindowStyle Hidden' and commands typical of download cradles. This behavior is associated with malicious extensions that execute second-stage payloads.
+query: |
+    title: Suspicious PowerShell from IDE
+    id: 003e6458-5d5c-445d-852a-126baa33bcbf
+    status: experimental
+    description: >-
+      Detects PowerShell processes spawned by Visual Studio Code or Cursor IDEs that
+      use suspicious flags like '-WindowStyle Hidden' and commands typical of
+      download cradles. This behavior is associated with malicious extensions that
+      execute second-stage payloads.
+    references:
+      - https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/
+    author: tim@detections.ai
+    date: 2026-01-26T00:00:00.000Z
+    tags:
+      - attack.t1059.001
+      - attack.t1548.002
+      - attack.execution
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - '\Code.exe'
+          - '\Cursor.exe'
+      selection_process:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+      selection_flags:
+        CommandLine|contains:
+          - '-WindowStyle Hidden'
+          - '-w hidden'
+          - '-w 1'
+      selection_cradle:
+        CommandLine|contains:
+          - 'irm'
+          - 'iwr'
+          - 'iex'
+          - 'Invoke-RestMethod'
+          - 'Invoke-WebRequest'
+          - 'Invoke-Expression'
+          - '.DownloadString('
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate developer scripts or extensions might use these commands for
+        automation, although the combination with a hidden window is suspicious.
+        Review the script's origin and purpose.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.t1059.001
+    - attack.t1548.002
+    - attack.execution
+author: tim@detections.ai
+version: "3"
+references:
+    - https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/
+data_sources:
+    - process_creation
+    - windows

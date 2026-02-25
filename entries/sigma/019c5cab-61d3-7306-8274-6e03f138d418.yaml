@@ -1,0 +1,48 @@
+id: 019c5cab-61d3-7306-8274-6e03f138d418
+name: OysterLoader DLL Dropped in AppData Roaming
+description: 'This rule detects the dropping of specific DLL files associated with OysterLoader malware within the ''AppData\Roaming'' directory. The detection logic specifically looks for file creation events where the target filename contains ''AppData\Roaming'' and one of the following strings: ''COPYING3.dll'', ''VisualUpdater'', ''AlphaSecurity'', or ''DetectorSpywareSecurity''. This activity is indicative of a stage 3 drop by OysterLoader before a scheduled task is created, as detailed in a Sekoia report.'
+query: |
+    title: OysterLoader DLL Dropped in AppData Roaming
+    id: b2c3d4e5-f6a7-4b8c-9d0e-oyster02
+    status: experimental
+    description: |
+        DLL write in AppData\Roaming with known OysterLoader names (COPYING3.dll or VisualUpdater, AlphaSecurity, DetectorSpywareSecurity). Stage 3 drops before scheduled task. Sekoia report.
+    references:
+        - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+    author: Daniel Jeremiah
+    date: 2026/02/14
+    tags:
+        - attack.t1036.005
+        - attack.t1027
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_path:
+            TargetFilename|contains: 'AppData\Roaming'
+            TargetFilename|contains|any:
+                - 'COPYING3.dll'
+                - 'VisualUpdater'
+                - 'AlphaSecurity'
+                - 'DetectorSpywareSecurity'
+        condition: selection_path
+    falsepositives:
+        - Legitimate installers dropping DLLs in AppData with similar names
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+    - T1027
+tags:
+    - attack.t1036.005
+    - attack.t1027
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+data_sources:
+    - file_event
+    - windows

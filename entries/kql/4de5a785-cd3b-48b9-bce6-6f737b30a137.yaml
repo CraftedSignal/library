@@ -1,0 +1,25 @@
+id: 4de5a785-cd3b-48b9-bce6-6f737b30a137
+name: Detecting WafflesExploits Shellcode in Image Files
+description: KQL Query
+query: |+
+    // Detecting WafflesExploits Shellcode in Image Files
+    // https://wafflesexploits.github.io/posts/Hide_a_Payload_in_Plain_Sight_Embedding_Shellcode_in_a_Image_file/
+
+    let ImageExtension = dynamic([".apng", ".png", ".avif", ".gif", ".jpg", ".jpeg", ".jfif", ".pjpeg", ".pjp", ".png", ".svg", ".webp", ".bmp", ".tif", ".tiff"]);
+    let CPPId = dynamic(["Microsoft Visual C++"]);
+    let WhiteListedFileName = dynamic(["logo.png","vcredist.bmp","watermark.bmp","header.bmp","SplashScreen.bmp"]);
+    DeviceFileEvents
+    | where InitiatingProcessVersionInfoFileDescription has_any(CPPId)
+    | where ActionType == @"FileCreated"
+    | where FileName has_any(ImageExtension)
+    | where not(FileName has_any(WhiteListedFileName))
+
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1027
+    - T1027.001
+tags:
+    - kql
+version: "1"

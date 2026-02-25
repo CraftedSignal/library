@@ -1,0 +1,19 @@
+id: 019c77a0-5023-724e-aeea-d82cd81acfc1
+name: Guest User from Public Domain Added to AAD Security Group
+description: This rule detects when a guest user from a common public email domain (e.g., gmail.com, outlook.com) is invited to an Azure Active Directory (AAD) tenant and subsequently added to an AAD security group. This could indicate an attempt to grant unauthorized access to an external account or a misconfiguration allowing guest users to be added to sensitive groups.
+query: "//Repo - T1078.004 Guest user added to AAD Security group\r\n\r\n/// KQL to detect if any user from novel domain added to AAD group///\r\nlet novelDomains = dynamic([\r\n    \"gmail.com\", \"outlook.com\", \"hotmail.com\", \"live.com\", \"yahoo.com\",\r\n    \"icloud.com\", \"aol.com\", \"mail.com\", \"protonmail.com\", \"zoho.com\",\r\n    \"gmx.com\", \"yandex.com\", \"tuta.com\", \"fastmail.com\", \"msn.com\",\r\n    \"ymail.com\", \"qq.com\", \"163.com\", \"126.com\", \"mail.ru\",\r\n    \"web.de\", \"t-online.de\", \"naver.com\", \"rediffmail.com\",\r\n    \"libero.it\", \"freenet.de\", \"comcast.net\", \"xtra.co.nz\"\r\n]);\r\nlet InvitedUsers = AuditLogs\r\n| where ActivityDisplayName == \"Invite external user\"\r\n| extend InvitedUser = tostring(AdditionalDetails[5].value)\r\n| extend InvitedUserDomain = tostring(split(InvitedUser, \"@\")[1])\r\n| where InvitedUserDomain in~ (novelDomains)\r\n| extend InvitationMethod = tostring(AdditionalDetails[6].value)\r\n| extend InvitingUser = tostring(InitiatedBy.user.userPrincipalName)\r\n| project InvitedUser, InvitationTime = TimeGenerated, InvitationMethod, InvitingUser;\r\nlet GroupAdditions = AuditLogs\r\n| where OperationName in~ (\"Add member to group\", \"Add member to role\", \"Add eligible member to role\", \"Add active member to role\")\r\n| extend TargetUser = tostring(TargetResources[0].userPrincipalName)\r\n| mv-expand ModifiedProps = TargetResources[0].modifiedProperties\r\n| extend PropName = tostring(ModifiedProps.displayName), NewValue = tostring(ModifiedProps.newValue)\r\n| where PropName == \"Group.DisplayName\"\r\n| extend GroupName = trim(@'\"', NewValue);\r\nGroupAdditions\r\n| join kind=inner (\r\n    InvitedUsers\r\n) on $left.TargetUser == $right.InvitedUser\r\n| summarize LatestGroupAddTime = max(TimeGenerated), any(OperationName), any(InvitationMethod), any(InvitingUser)\r\n    by InvitedUser=TargetUser, GroupName\r\n| project LatestGroupAddTime, InvitedUser, GroupName, OperationName = any_OperationName, InvitationMethod = any_InvitationMethod, InvitingUser = any_InvitingUser\r\n| order by LatestGroupAddTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1098
+    - T1136
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

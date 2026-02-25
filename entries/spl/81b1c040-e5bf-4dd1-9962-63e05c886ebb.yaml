@@ -1,0 +1,16 @@
+id: 81b1c040-e5bf-4dd1-9962-63e05c886ebb
+name: Powershell encoded command observed
+description: 'SPL Query from file: Powershell encoded command observed'
+query: "index=windows LogName=Security TaskCategory=\"Process Creation\" new_process_name IN (powershell.exe,pwsh.exe) OR Creator_Process_Name IN (*powershell.exe,*pwsh.exe) Process_Command_Line IN (\"*EncodedCommand*\",\"*-E *\",\"*-Enc*\",\"*-enco *\",\"*-encod *\", \"*frombase64string*\", \"*gnirtS46esaBmorF*\") \r\n| rex field=Process_Command_Line \".+-EncodedCommand(?P<EncodedCommand>.+)\" \r\n| rex field=EncodedCommand \"(?<check>^.{0,300})\"\r\n| stats values(host) as host values(Account_Name) AS user values(Creator_Process_Name) AS parent_process values(new_process_name) AS process_name values(EncodedCommand) as EncodedCommand by check, _time\r\n| eval EncodedCommand = mvindex(EncodedCommand, 0)\r\n| stats latest(_time) as time values(user) as user by host parent_process process_name EncodedCommand\r\n| decrypt field=EncodedCommand b64 emit('decrypted_command')\r\n| eval time=strftime(time, \"%d-%m-%Y %X\") \r\n| table time host user parent_process process_name decrypted_command EncodedCommand"
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - spl
+author: Andre Zeemering
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/unit42-pulling-back-the-curtains-on-encodedcommand-powershell-attacks/

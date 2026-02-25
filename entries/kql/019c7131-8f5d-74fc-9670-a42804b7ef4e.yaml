@@ -1,0 +1,18 @@
+id: 019c7131-8f5d-74fc-9670-a42804b7ef4e
+name: Tomcat Manager Malicious WAR Deployment
+description: Detects suspicious web requests to the Tomcat Manager on Dell RecoverPoint appliances. This technique is used by UNC6201 to exploit CVE-2026-22769 and upload malicious WAR files.
+query: "// Name: Tomcat Manager Malicious WAR Deployment\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: Detects suspicious web requests to the Tomcat Manager on Dell RecoverPoint appliances. Technique is used by UNC6201 to exploit CVE-2026-22769 and upload malicious WAR files.\r\n// Reference: https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day\r\n// Tactic: Initial Access\r\n// Technique: T1190, T1105\r\n// False Positive Sensitivity: Medium\r\nDeviceNetworkEvents\r\n// This query looks for web requests associated with Tomcat Manager application deployment.\r\n// These are the specific endpoints used for text-based and HTML-based application deployment in Tomcat Manager.\r\n| where RemoteUrl has \"/manager/text/deploy\" or RemoteUrl has \"/manager/html/upload\"\r\n// False Positive Tuning: Legitimate application deployments will trigger this rule.\r\n// This activity is highly suspicious if not part of a planned administrative action.\r\n// To reduce noise, filter this detection to run only on known Dell RecoverPoint appliances using asset tags or other device inventory data.\r\n// The threat actor was observed using the username 'admin'. Investigate the authenticating user if available in logs.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    DeviceId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1190
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day

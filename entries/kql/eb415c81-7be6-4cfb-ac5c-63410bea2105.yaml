@@ -1,0 +1,18 @@
+id: eb415c81-7be6-4cfb-ac5c-63410bea2105
+name: LOLAD - LDAP - Suspicious LDAP Queries for possible recon/exploitation
+description: 'Detects potential malicious use of LDAP queries associated with Metasploit activity targeting Active Directory. LDAP enumeration can reveal detailed information about users, groups, computers, and other objects within a network that can be exploited by attackers. '
+query: "let SuspiciousLdapQueries = dynamic([\r\n\"(&(objectCategory=user)(memberOf=CN=Domain Admins,CN=Users,DOM_REPL))\", //Metasploit Enumerate servicePrincipalName in the default AD directory\r\n\"(&(objectClass=organizationalPerson)(objectClass=user)(objectClass=person)(!(objectClass=computer)))\"//Metasploit Enumerate AD Wordlist Builder\r\n\"(&(objectCategory=computer)(operatingSystem=*server*))\",//Metasploit Enumerate AD Computers\r\n\"(&(&(objectCategory=person)(objectClass=user))(|(description=*pass*)(comment=*pass*)))\",//Metasploit Enumerate AD Users with Password\r\n\"(&(objectClass=group)(managedBy=*))\",//Metasploit Enumerate AD Groups on specified domain\r\n\"(&(objectClass=group)(managedBy=*)(groupType:1.2.840.113556.1.4.803:=2147483648))\",//Metasploit Enumerate AD Managed by Groups\r\n\"(objectClass=msFVE-RecoveryInformation)\"//Metasploit Enumerate Bitlocker Recovery Passwords \r\n]);\r\nIdentityQueryEvents\r\n| where ActionType == \"LDAP query\"\r\n| where Query has_any (SuspiciousLdapQueries)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1087
+    - T1615
+    - T1082
+tags:
+    - kql
+author: Xavier
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderatpblog/hunting-for-reconnaissance-activities-using-ldap-search-filters/824726

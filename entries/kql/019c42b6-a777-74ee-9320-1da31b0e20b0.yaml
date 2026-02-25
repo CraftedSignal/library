@@ -1,0 +1,17 @@
+id: 019c42b6-a777-74ee-9320-1da31b0e20b0
+name: MSDTC OracleOciLibPath Registry Modification and OCI.DLL Load
+description: This rule detects suspicious activity related to Microsoft Distributed Transaction Coordinator (MSDTC) where the OracleOciLibPath registry value is modified, followed by msdtc.exe loading an unsigned oci.dll within a 4-hour window. This behavior can indicate an attempt to hijack the DLL loading process for persistence or privilege escalation, potentially by an attacker replacing the legitimate Oracle OCI library with a malicious one.
+query: "let RegistryModifications = \r\n    DeviceRegistryEvents\r\n    | where RegistryKey has @\"SOFTWARE\\Microsoft\\MSDTC\\MTxOCI\"\r\n    | where RegistryValueName == \"OracleOciLibPath\"\r\n    | project TimeOfRegistryWrite = TimeGenerated, DeviceId, DeviceName, \r\n              NewLibPath = RegistryValueData, InitiatingProcessFileName, \r\n              InitiatingProcessAccountName;\r\nlet DllLoads = \r\n    DeviceImageLoadEvents\r\n    | where InitiatingProcessFileName =~ \"msdtc.exe\"\r\n    | where FileName =~ \"oci.dll\"\r\n    | project TimeOfDllLoad = TimeGenerated, DeviceId, LoadedDllPath = FolderPath, SHA256;\r\nRegistryModifications\r\n| join kind=inner DllLoads on DeviceId\r\n| where TimeOfDllLoad between (TimeOfRegistryWrite .. (TimeOfRegistryWrite + 4h))\r\n| invoke FileProfile(SHA256)\r\n| where Signer !contains \"Oracle\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.linkedin.com/posts/mauricefielenbach_threatintel-threathunting-malwareanalysis-activity-7416547577200021505--ht8

@@ -1,0 +1,29 @@
+id: eeacb0cf-91f4-49da-bee4-195a1b564abd
+name: Detecting Unauthorized RMM Instances in Your MDE Environment
+description: KQL Query
+query: |+
+    // Detecting Unauthorized RMM Instances in Your MDE Environment
+
+    let SanctionRMM = dynamic("bomgarcloud.com"); // E.g Approved RMM - whitelisting
+    let RMMList=externaldata(URI: string, RMMTool: string)
+        [h'https://raw.githubusercontent.com/jischell-msft/RemoteManagementMonitoringTools/refs/heads/main/Network%20Indicators/RMM_SummaryNetworkURI.csv'];
+    let RMMUrl =
+        RMMList
+        | project URI;
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(1h)
+    | where ActionType == @"ConnectionSuccess"
+    | where RemoteUrl has_any(RMMUrl)
+    | where not (RemoteUrl has_any(SanctionRMM))
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+    - T1219
+    - T1219.003
+tags:
+    - kql
+version: "1"

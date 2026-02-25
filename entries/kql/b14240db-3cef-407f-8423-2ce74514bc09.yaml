@@ -1,0 +1,26 @@
+id: b14240db-3cef-407f-8423-2ce74514bc09
+name: Monitor Azure API Secrets Extraction
+description: 'KQL Query from file: Monitor Azure API Secrets Extraction'
+query: "// Monitor Azure API Secrets Extraction\n// https://www.linkedin.com/posts/activity-7199783025038008320-PSqg/\n\n// Compromised Azure API secrets pose significant risks, including the potential for unauthorized access to confidential data within Azure services, which could result in a data breach. Additionally, attackers may modify settings or interrupt services, causing operational downtime. Consequently, it is crucial for security teams to oversee the management of Azure API secret extractions. The recent integration of the CloudAuditEvents advanced hunting table into DefenderXDR enables the monitoring of activities such as the extraction of Azure API secrets, ensuring that actions undertaken by cloud administrators are verified and authorized.\n\nCloudAuditEvents\n| where Timestamp > ago(30d)\n| where OperationName == \"Microsoft.ApiManagement/service/tenant/listSecrets/action\"\n| extend SubscriptionID = tostring(RawEventData.subscriptionId)\n| extend PrincipalOID = tostring(RawEventData.principalOid)\n| extend ApplicationID = tostring(RawEventData.applicationId)\n| extend HttpRequest = tostring(RawEventData.httpRequest)\n| extend Properties = tostring(RawEventData.properties)\n| project Timestamp, OperationName, PrincipalOID, SubscriptionID, ApplicationID, HttpRequest, Properties \n\n\n// MITRE ATT&CK Mapping\n\n// The operation Microsoft.ApiManagement/service/tenant/listSecrets/action involves listing secrets, which can be associated with the following MITRE ATT&CK techniques:\n\n// T1070.004 - Indicator Removal on Host: File Deletion:\n// This technique involves adversaries attempting to delete or alter generated artifacts on a host system, including logs or captured files. Listing secrets could be a precursor to such actions.\n// T1552.001 - Unsecured Credentials: Credentials In Files:\n// This technique involves adversaries searching for credentials in files. Listing secrets can be part of this process, as secrets often contain sensitive information like credentials.\n// T1078 - Valid Accounts:\n// Adversaries may use valid accounts to access and list secrets. This technique involves the use of legitimate credentials to gain access to resources.\n// T1087.001 - Account Discovery: Local Account:\n// This technique involves adversaries enumerating accounts to understand the environment. Listing secrets can help in discovering accounts and their associated secrets.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0006
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0002
+techniques:
+    - T1070.004
+    - T1552.001
+    - T1078
+    - T1087.001
+    - T1106
+    - T1059.009
+    - T1552.007
+    - T1003.004
+    - T1555.006
+tags:
+    - kql
+version: "1"

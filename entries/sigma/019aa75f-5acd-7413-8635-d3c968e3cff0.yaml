@@ -1,0 +1,23 @@
+id: 019aa75f-5acd-7413-8635-d3c968e3cff0
+name: AWS Network Firewall High-Risk TLD Blocking
+description: This rule blocks HTTP and TLS connections to domains with high-risk TLDs like .xyz, .info, and .top due to their frequent association with malicious activities.
+query: "title: AWS Network Firewall - High-Risk TLD Blocking (HTTP/TLS)\nid: 202501040-202501045-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that blocks HTTP and TLS connections to domains using\n  high-risk top-level domains (TLDs) such as .xyz, .info, and .top. These TLDs are considered high-risk due to their low\n  cost and frequent use in phishing campaigns, malware distribution, spam, and command-and-control infrastructure. This is\n  a typical security control that customers configure to reduce exposure to potentially malicious domains. AWS Network\n  Firewall uses Suricata as its underlying engine. The rules inspect both the TLS SNI field and HTTP Host header to\n  identify and reject connections. This is not a specific threat detection but rather a preventive control based on TLD\n  risk assessment.\n  \n  Suricata Rules (Examples):\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".xyz\"; nocase; endswith; msg:\"High risk TLD .xyz blocked\"; flow:to_server; sid:202501040;)\n  reject http $HOME_NET any -> any any (http.host; content:\".xyz\"; endswith; msg:\"High risk TLD .xyz blocked\"; flow:to_server; sid:202501041;)\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".info\"; nocase; endswith; msg:\"High risk TLD .info blocked\"; flow:to_server; sid:202501042;)\n  reject http $HOME_NET any -> any any (http.host; content:\".info\"; endswith; msg:\"High risk TLD .info blocked\"; flow:to_server; sid:202501043;)\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".top\"; nocase; endswith; msg:\"High risk TLD .top blocked\"; flow:to_server; sid:202501044;)\n  reject http $HOME_NET any -> any any (http.host; content:\".top\"; endswith; msg:\"High risk TLD .top blocked\"; flow:to_server; sid:202501045;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1071/001/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071.001\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_tls:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n    tls_sni|endswith:\n      - '.xyz'\n      - '.info'\n      - '.top'\n  selection_http:\n    protocol: http\n    direction: outbound\n    source_network: internal\n    http_host|endswith:\n      - '.xyz'\n      - '.info'\n      - '.top'\n  condition: selection_tls or selection_http\nfalsepositives:\n  - Legitimate websites using these TLDs\n  - Startups or tech companies using .xyz branding\n  - Informational or educational sites using .info\n  - Chinese businesses (popular TLD in China for .top)\nlevel: low\n"
+query_type: sigma
+severity: low
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1071/001/
+data_sources:
+    - firewall
+    - aws_network_firewall

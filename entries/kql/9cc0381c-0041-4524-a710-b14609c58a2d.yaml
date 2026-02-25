@@ -1,0 +1,6 @@
+id: 9cc0381c-0041-4524-a710-b14609c58a2d
+name: Known Exploited Vulnerabilities on Devices Detection
+description: Identifies devices with known exploited vulnerabilities by cross-referencing detected CVEs with a specified external data source, and summarizes the vulnerabilities count and severity per device.
+query: "let KEV=externaldata(cveID:string, vendorProject: string, product: string, vulnerabilityName: string, dateAdded: datetime, shortDescription: string, requiredAction: string, dueDate: datetime)\r\n    [\r\n    h@\"https://www.cisa.gov/sites/default/files/csv/known_exploited_vulnerabilities.csv\"\r\n    ]\r\nwith(format=\"csv\",ignorefirstrecord=true);\r\nDeviceTvmSoftwareVulnerabilities\r\n| project DeviceName, OSPlatform, cveID=CveId, VulnerabilitySeverityLevel\r\n| join kind=inner KEV on cveID\r\n| summarize [\"Vulnerabilities\"]=make_set(cveID),[\"Count of Known Exploited Vulnerabilities\"]=dcount(cveID), severity=make_set(VulnerabilitySeverityLevel) by DeviceName\r\n| sort by ['Count of Known Exploited Vulnerabilities'] desc"
+query_type: kql
+version: "1"

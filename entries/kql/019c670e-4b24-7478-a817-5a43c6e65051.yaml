@@ -1,0 +1,13 @@
+id: 019c670e-4b24-7478-a817-5a43c6e65051
+name: PXA Stealer - Suspicious Python Command-Line Execution with Requests and Exec
+description: This rule detects suspicious Python command-line executions that involve importing the 'requests' library, using 'exec()' for dynamic code execution, and making HTTP/HTTPS requests. This pattern is often observed in malicious Python scripts used for command and control, data exfiltration, or downloading additional payloads.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where ProcessCommandLine has \" -c \"\r\n| where ProcessCommandLine has \"import requests\"\r\n| where ProcessCommandLine has \"exec(\"\r\n| where ProcessCommandLine has_any (\"requests.get\",\"urllib\",\"http://\",\"https://\")\r\n| project Timestamp,\r\n          DeviceName,\r\n          AccountName,\r\n          FileName,\r\n          ProcessCommandLine,\r\n          InitiatingProcessFileName\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.006
+tags:
+    - kql
+version: "6"

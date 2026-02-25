@@ -1,0 +1,60 @@
+id: 019c248f-6798-77ee-9d47-be4520fb2162
+name: Evasive Panda Secondary Loader libpython2.4.dll Sideloading
+description: |
+    Detection of Evasive Panda secondary loader. Context: evteng.exe (signed Python wrapper) must run from C:\ProgramData\Microsoft\eHome (abuse path), not from standard Python install. Process image path contains eHome and executable is evteng.exe; parent may be same path or MFloader. Excludes evteng from Program Files or standard Python locations.
+query: |
+    title: Evasive Panda Secondary Loader libpython2.4.dll Sideloading
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda002
+    status: experimental
+    description: >
+      Detection of Evasive Panda secondary loader. Context: evteng.exe
+      (signed Python wrapper) must run from C:\ProgramData\Microsoft\eHome (abuse
+      path), not from standard Python install. Process image path contains eHome and
+      executable is evteng.exe; parent may be same path or MFloader. Excludes evteng
+      from Program Files or standard Python locations.
+    references:
+      - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+      - attack.t1574.002
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_evteng_ehome:
+        Image|re: .*\\ProgramData\\Microsoft\\eHome\\\\evteng\.exe
+      selection_evteng_parent_context:
+        Image|endswith: \evteng.exe
+        ParentImage|re: .*\\(Microsoft\\eHome|Microsoft\\MF)\\.*
+      exclude_legit_python:
+        Image|re: .*\\(Program Files|Python.*|python2\.4).*evteng\.exe
+        negate: true
+      condition: >-
+        (selection_evteng_ehome or selection_evteng_parent_context) and
+        exclude_legit_python
+    falsepositives:
+      - Legitimate Python 2.4 / evteng from Program Files or Python install path
+        (excluded)
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+    - DS0009
+tags:
+    - attack.t1574.002
+    - attack.defense_evasion
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://securelist.com/evasive-panda-apt/118576/
+data_sources:
+    - process_creation
+    - windows

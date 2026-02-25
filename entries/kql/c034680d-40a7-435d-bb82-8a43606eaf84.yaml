@@ -1,0 +1,15 @@
+id: c034680d-40a7-435d-bb82-8a43606eaf84
+name: Suspicious Outbound SSL Connections Using Rare Certificate Metadata – Possible PureRAT Activity
+description: This detection identifies outbound SSL connections where the certificate issuer or subject matches suspicious strings associated with PureRAT infrastructure.
+query: "let IssuerContent = dynamic([@\"Wggrtlfl\"]);\r\nlet SubjectContent = dynamic([@\"Wggrtlfl\"]);\r\nlet Timeframe = 60d; \r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(Timeframe)\r\n| where ActionType == \"SslConnectionInspected\"\r\n| extend AdditionalFields = todynamic(AdditionalFields)\r\n| extend issuer = tostring(AdditionalFields.issuer), subject = tostring(AdditionalFields.subject), direction = tostring(AdditionalFields.direction)\r\n| where direction == \"Out\" and not(ipv4_is_private(RemoteIP))\r\n| where issuer has_any (IssuerContent) or subject has_any (SubjectContent)\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1588.004
+    - T1071.001
+tags:
+    - kql
+author: Kyaw Pyiyt Htet
+version: "1"
+references:
+    - https://www.esentire.com/blog/ghost-crypt-powers-purerat-with-hypnosis

@@ -1,0 +1,61 @@
+id: 019ac6ec-e6a0-761f-9182-d7c50f193a17
+name: SERPENTINE#CLOUD Malicious LNK Execution
+description: Detects the execution of a command pattern associated with malicious .lnk files used in the SERPENTINE#CLOUD campaign. The threat actor uses a .lnk file to launch cmd.exe, which then uses robocopy to download a .wsf script from a WebDAV share hosted on a Cloudflare Tunnel, and finally executes it with cscript.exe.
+query: |
+    # Name: SERPENTINE#CLOUD Malicious LNK Execution
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # Detects the execution of a command pattern associated with malicious .lnk files used in the SERPENTINE#CLOUD campaign.
+    # The threat actor uses a .lnk file to launch cmd.exe, which then uses robocopy to download a .wsf script from a
+    # WebDAV share hosted on a Cloudflare Tunnel, and finally executes it with cscript.exe.
+    #
+    # Data Source:
+    # This search requires process creation logs, such as Sysmon (Event Code 1) or other EDR data.
+    # The macro `process_creation_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., process_name, process_command_line, parent_process_name).
+    #
+    # References:
+    # - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Initial Access, Execution, Defense Evasion
+    # - Technique: T1566.001 (Phishing: Spearphishing Attachment)
+    # - Technique: T1204.001 (User Execution: Malicious Link)
+    # - Technique: T1027.012 (Obfuscated Files or Information: LNK Icon Smuggling)
+    # - Technique: T1059.003 (Command and Scripting Interpreter: Windows Command Shell)
+    #
+    # False Positives:
+    # False positives are unlikely due to the highly specific combination of robocopy, cscript, and the WebDAV path format
+    # pointing to a trycloudflare.com domain. However, developers testing similar functionality could trigger this.
+    # Investigation should focus on the user context and the parent process, which is typically explorer.exe for .lnk execution.
+
+    `process_creation_events`
+
+    # Filter for cmd.exe being launched, typically by a user clicking a .lnk file (parent is explorer.exe).
+    | search process_name="cmd.exe" AND parent_process_name="explorer.exe"
+
+    # Look for the specific command pattern used by SERPENTINE#CLOUD.
+    # This involves robocopy pulling a .wsf file from a WebDAV share on a Cloudflare Tunnel and executing it with cscript.
+    | search process_command_line LIKE "%robocopy%\\\\%.trycloudflare.com@SSL\\DavWWWRoot%%.wsf%" AND process_command_line LIKE "%cscript.exe%.wsf%"
+
+    # Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, parent_process_name, process_name, process_command_line
+    | `serpentine_cloud_malicious_lnk_execution_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1566.001
+    - T1204.001
+    - T1027.012
+    - T1059.003
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/

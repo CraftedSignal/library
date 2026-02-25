@@ -1,0 +1,41 @@
+id: 302fddcb-c0fd-4cdf-93db-9faf9c21d717
+name: Warlock Dark Army HKCR Persistence
+description: Detects the creation of a new HKEY_CLASSES_ROOT (HKCR) shell open command entry that points to an executable in a temporary directory. This persistence technique is used by Warlock Dark Army ransomware.
+query: |
+    -- name: Warlock Dark Army HKCR Persistence
+    -- author: detections.ai
+    -- date: 2025-07-23
+    -- description: Detects the creation of a new HKEY_CLASSES_ROOT (HKCR) shell open command entry that points to an executable in a temporary directory. This persistence technique is used by Warlock Dark Army ransomware.
+    -- references:
+    --   - https://labs.k7computing.com/index.php/ransomed-by-warlock-dark-army-officials/
+
+    -- Use the Registry data model to look for registry modification events.
+    from datamodel=Endpoint.Registry
+
+    -- Filter for registry set events targeting a shell\open\command path under HKCR.
+    | where Registry.action = "set" AND Registry.registry_path LIKE "HKEY_CLASSES_ROOT\\%\\shell\\open\\command"
+
+    -- Filter for values that point to an executable in a common temporary directory.
+    | where (Registry.registry_value_data LIKE "%\\AppData\\Local\\Temp\\%.exe" OR Registry.registry_value_data LIKE "%\\Windows\\Temp\\%.exe")
+
+    -- Extract the HKCR key name for further analysis. The example key is "KRKKHCRAPPRJISH".
+    | rex field=Registry.registry_path "HKEY_CLASSES_ROOT\\\\(?<hkcr_key>[^\\\\]+)\\\\"
+
+    -- Potential for False Positives: Legitimate installers might briefly create HKCR entries pointing to temp locations.
+    -- To reduce noise, consider filtering for unusual key names (e.g., long, random-looking strings like the example "KRKKHCRAPPRJISH") if legitimate application names appear.
+    -- For example: | where len(hkcr_key) > 10 AND match(hkcr_key, /^[A-Z0-9]+$/)
+
+    -- Format the results for analysis.
+    | table _time, dest, user, Registry.process_guid, Registry.registry_path, Registry.registry_value_data, hkcr_key
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.001
+tags:
+    - spl
+version: "1"
+references:
+    - https://labs.k7computing.com/index.php/ransomed-by-warlock-dark-army-officials/

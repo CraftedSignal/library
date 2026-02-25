@@ -1,0 +1,67 @@
+id: 019c04f6-b429-741b-988f-38f4b4d88aca
+name: Tsundere Bot Node.js Execution
+description: |
+    Detects the execution of Node.js (node.exe) when spawned by PowerShell or the Command Prompt from a user-writable directory. This behavior is characteristic of the Tsundere Bot delivery chain used by threat actors like TA584 (Storm-0900), who use a PowerShell script to install and run the Node.js-based malware.
+query: |
+    title: Tsundere Bot Node.js Execution
+    id: 07f1402c-8ac4-4eed-963d-6903e48b5ef7
+    status: experimental
+    description: |
+      Detects the execution of Node.js (node.exe) when spawned by PowerShell or the Command Prompt from a user-writable directory. This behavior is characteristic of the Tsundere Bot delivery chain used by threat actors like TA584 (Storm-0900), who use a PowerShell script to install and run the Node.js-based malware.
+    references:
+      - https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access
+    author: tim@detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.t1059.001
+      - attack.t1059.007
+      - attack.t1105
+      - attack.storm-0900
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_1:
+        ParentImage|endswith:
+          - '\powershell.exe'
+          - '\cmd.exe'
+      selection_2:
+        - Image|endswith: '\node.exe'
+        - OriginalFileName: 'node.exe'
+      selection_3:
+        Image|contains:
+          - '\AppData\Local\'
+          - '\AppData\Roaming\'
+          - '\Users\Public\'
+          - '\ProgramData\'
+          - '\Temp\'
+      condition: all of selection_*
+    falsepositives:
+      - Developers legitimately using Node.js from a terminal, especially if their
+        development environment is within their user profile.
+      - Legitimate software installers that might use a Node.js script as part of
+        their setup process.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1059.007
+    - T1105
+tags:
+    - attack.t1059.001
+    - attack.t1059.007
+    - attack.t1105
+    - attack.storm-0900
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

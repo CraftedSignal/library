@@ -1,0 +1,20 @@
+id: cca8c68c-c671-4ed7-a804-e6e3ded5de18
+name: Sentinel - Rapid Sharepoint downloads after Sign-in
+description: This rule detects suspicious bulk file downloads from SharePoint by correlating successful sign-in events with subsequent file download activities. It specifically looks for sign-ins that are not from registered devices, followed by multiple file downloads (at least 3) within a short time window (up to 10 minutes) from the same IP address. The rule flags scenarios where a user downloads a significant number of unique files (at least 2) or has a high download count (5 or more), or a combination of moderate downloads (3 or more) within a very short duration (1 minute). This pattern can indicate data exfiltration attempts.
+query: "let TimeRange = 1d; // Define time range\r\nlet TimeWindow = 10s; // Time window for correlation\r\nlet MinDownloads = 3; // Minimum downloads to trigger alert\r\nlet MaxTimeWindow = 10m; // Maximum time between first and last download\r\n// Get suspicious sign-ins from unregistered devices\r\nlet SuspiciousSignIns = SigninLogs\r\n| where TimeGenerated >= ago(TimeRange)\r\n| where ResultType == \"0\" // Successful sign-ins\r\n| where isnotempty(UserPrincipalName) and isnotempty(IPAddress) // complete data only\r\n| where isempty(DeviceDetail.displayName) // where the sign in isn't coming from a registered device\r\n| project SignInTime = TimeGenerated, UserId = UserPrincipalName, UserPrincipalName, IPAddress, RiskLevel = RiskLevelDuringSignIn, Location;\r\n// Get file download operations with suspicious patterns\r\nlet SuspiciousFileDownloads = OfficeActivity\r\n| where TimeGenerated >= ago(TimeRange)\r\n| where RecordType == \"SharePointFileOperation\" \r\n| where Operation == \"FileDownloaded\" // can be expanded to include more sharepoint activity\r\n| where isnotempty(UserId) and isnotempty(SourceFileName) // complete data only\r\n// Filter out common system/temp files\r\n| where not(SourceFileName matches regex @\"(?i)\\.(tmp|temp|cache|log|~)$\")\r\n| where not(SourceFileName startswith \"~\")\r\n// uncomment this to only match specific filetypes\r\n// | where SourceFileName matches regex @\"(?i)\\.(doc|docx|pdf|xls|xlsx|ppt|pptx|zip|rar|csv|txt)$\"\r\n| project DownloadTime = TimeGenerated, UserId, FileName = SourceFileName, IPAddress1 = ClientIP, UserAgent;\r\n// Time for correlation!\r\nlet CorrelatedEvents = SuspiciousSignIns\r\n| join kind=inner (\r\n    SuspiciousFileDownloads\r\n    | where isnotempty(UserId)\r\n) on UserId\r\n| where DownloadTime between (SignInTime .. (SignInTime + TimeWindow))\r\n| where IPAddress == IPAddress1 // Same IP for sign-in and download\r\n| project SignInTime, UserPrincipalName, IPAddress, RiskLevel, Location, DownloadTime, FileName, UserAgent;\r\n// Identify bulk download patterns\r\nCorrelatedEvents\r\n| summarize FirstDownload = min(DownloadTime), LastDownload = max(DownloadTime), DownloadCount = count(), UniqueFiles = dcount(FileName), FileNames = make_list(FileName, 20), UserAgents = make_set(UserAgent) by SignInTime, UserPrincipalName, IPAddress, RiskLevel, tostring(Location)\r\n| extend DownloadDuration = LastDownload - FirstDownload\r\n// Filter for bulk download patterns\r\n| where (DownloadCount >= MinDownloads and DownloadDuration <= MaxTimeWindow and UniqueFiles >= 2) or (DownloadCount >= 5 or (DownloadCount >= 3 and DownloadDuration <= 1m)) // Bulk downloads OR many/fast downloads\r\n| project SignInTime, UserPrincipalName, IPAddress, Location, RiskLevel, DownloadCount, UniqueFiles, DownloadDuration, FirstDownload, LastDownload, SampleFiles = strcat_array(array_slice(FileNames, 0, 5), \"; \"), UserAgents\r\n| order by DownloadCount desc, SignInTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0009
+    - TA0042
+techniques:
+    - T1213.002
+    - T1586
+    - T1020
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://github.com/dylanevans-cybersec/KQL-Queries/blob/main/Sentinel/Rapid%20Sharepoint%20Downloads%20after%20Signing%20in.kql

@@ -1,0 +1,12 @@
+id: 5ad50c10-234e-4902-bbf0-b4ad2c4f47bd
+name: Unusual Process AI/ML API Usage Detection
+description: This KQL query is designed to identify potentially unauthorized communications with popular AI services and large language models (LLMs) from organizational endpoints.
+query: "DeviceNetworkEvents\n| where RemoteUrl contains \"openai.com\" \n    or RemoteUrl contains \"api.anthropic.com\"\n    or RemoteUrl contains \"api.cohere.ai\"\n    or RemoteUrl contains \"api.stability.ai\"\n    or RemoteUrl contains \"huggingface.co\"\n    or RemoteUrl contains \"api.replicate.com\"\n    or RemoteUrl contains \"ml.googleapis.com\"\n    or RemoteUrl contains \"api.together.xyz\"\n    or RemoteUrl contains \".cognitiveservices.azure.com\"\n// Add other AI/ML API domains as needed\n| where InitiatingProcessFileName !in~ (\"browser.exe\", \"msedge.exe\", \"chrome.exe\", \"firefox.exe\", \"safari.exe\", \"opera.exe\")\n// Exclude legitimate applications known to use these services\n| summarize \n    TotalConnections=count(),\n    UniqueDestinationIPs=dcount(RemoteIP),\n    DestinationURLs=make_set(RemoteUrl),\n    LastSeen=max(Timestamp)\n    by bin(Timestamp, 30m), DeviceId, DeviceName, InitiatingProcessFileName, InitiatingProcessId\n| where TotalConnections > 5 // Adjust threshold as needed\n| project-reorder DeviceName, InitiatingProcessFileName, TotalConnections, UniqueDestinationIPs, DestinationURLs, LastSeen\n| sort by TotalConnections desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+author: danzero
+version: "1"

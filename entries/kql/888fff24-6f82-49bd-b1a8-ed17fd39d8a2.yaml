@@ -1,0 +1,43 @@
+id: 888fff24-6f82-49bd-b1a8-ed17fd39d8a2
+name: 'SVG Phishing Campaign '
+description: This detection identifies potential phishing or staging activity where Microsoft Outlook creates an SVG file, followed shortly by a web browser downloading a ZIP archive. The correlation between Outlook-based SVG creation and a browser-initiated ZIP download within one minute may indicate an attacker-controlled workflow for delivering additional payloads.
+query: |-
+    let Browsers = dynamic(["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "iexplore.exe"]);
+    // Find SVG files created by Outlook, likely from an email attachment being saved
+    let suspiciousSVGfile =
+    DeviceFileEvents
+    | where Timestamp > ago(1d)
+    | where ActionType == "FileCreated"
+    | where InitiatingProcessFileName =~ "outlook.exe"
+    | where FileName endswith "svg"
+    | project SVGCreationTimeStamp = Timestamp, DeviceId, DeviceName, SVGFileName = FileName, SVG_SHA256 = SHA256;
+    let suspiciousZIPDownload =
+    DeviceFileEvents
+    | where Timestamp > ago(1d)
+    | where ActionType == "FileCreated"
+    | where InitiatingProcessFileName in~ (Browsers)
+    | where FileName endswith"zip"
+    | project ZIPCreationTimeStamp = Timestamp, DeviceId, ZIPFileName = FileName, ZIP_SHA256 = SHA256, BrowserProcess = InitiatingProcessFileName;
+    // Correlate the two events happening on the same device
+    suspiciousSVGfile
+    | join kind=inner (
+        suspiciousZIPDownload
+    ) on DeviceId
+    | where ZIPCreationTimeStamp between (SVGCreationTimeStamp .. (SVGCreationTimeStamp + 1m))
+    | project
+        Timestamp = ZIPCreationTimeStamp,
+        DeviceId,
+        DeviceName,
+        SVGFileName,
+        SVG_SHA256,
+        ZIPFileName,
+        ZIP_SHA256,
+        BrowserProcess
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Martin Baran
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/virustotal-finds-hidden-malware-phishing-campaign-in-svg-files/

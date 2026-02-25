@@ -1,0 +1,19 @@
+id: 019bc766-61e0-702d-acce-04363942a94e
+name: Kazuar VBScript Downloader Behavior
+description: Detects a script process (wscript.exe/cscript.exe) creating files in a specific HP-themed path and then creating a Run key for persistence, indicative of the Turla Kazuar VBScript dropper.
+query: "// Name: Kazuar VBScript Downloader Behavior\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-16\r\n// Description: Detects a script process creating files in a specific HP-themed path and then creating a Run key for persistence, indicative of the Turla Kazuar VBScript dropper.\r\n// MITRE TTPs: T1059.005, T1547.001, T1071.001\r\n// References: https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/\r\nlet timeframe = 1h;\r\n// Find script processes (wscript.exe/cscript.exe) creating files in the specific staging directory.\r\nlet file_events = DeviceFileEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where InitiatingProcessFileName in~ (\"wscript.exe\", \"cscript.exe\")\r\n    | where FolderPath has_all (@\"\\Programs\\HP\\Printer\\Driver\") and ActionType == \"FileCreated\";\r\n// Find the same script processes creating the specific Run key for persistence.\r\nlet registry_events = DeviceRegistryEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where InitiatingProcessFileName in~ (\"wscript.exe\", \"cscript.exe\")\r\n    | where RegistryKey has @\"\\SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\"\r\n    | where RegistryValueData has @\"\\Programs\\HP\\Printer\\Driver\\hpbprndi.exe\";\r\n// Join file creation and persistence events originating from the same process.\r\nfile_events\r\n| join kind=inner (\r\n    registry_events\r\n) on InitiatingProcessUniqueId\r\n| summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime = max(Timestamp),\r\n    CreatedFiles = make_set(FileName, 10),\r\n    PersistenceRegistryKey = take_any(RegistryKey),\r\n    PersistenceRegistryValue = take_any(RegistryValueName),\r\n    PersistenceRegistryData = take_any(RegistryValueData)\r\n    by\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessUniqueId,\r\n    InitiatingProcessParentFileName\r\n// FP Tuning: While the combination of behaviors is specific, legitimate (but poorly written)\r\n// HP update scripts could potentially cause false positives.\r\n// Consider filtering by parent process or excluding known good script paths if noise occurs.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059.005
+    - T1547.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/

@@ -1,0 +1,25 @@
+id: 019c48f6-0d29-71fb-bce9-d0a8a2aa6be0
+name: PowerShell Hidden Window with Suspicious Commands
+description: Detects PowerShell execution where the window is hidden, combined with suspicious commands such as encoded payloads, direct execution of expressions (iex, Invoke-Expression), web requests (DownloadString, iwr, Invoke-WebRequest), base64 decoding (FromBase64String), or execution policy bypass. The rule specifically excludes legitimate application package management operations involving 'AppxPackage' and certain Visual Studio Code (VS Code) installer and process management activities.
+query: "title: PowerShell Hidden Window with Suspicious Commands\r\nid: 693d8f15-6e9c-4902-9fc5-8cb6fc86a13d\r\nstatus: experimental\r\ndescription: Detects PowerShell execution with hidden window combined with suspicious commands like encoded payloads, downloads, or execution policy bypass. Excludes legitimate application package management operations and VS Code process management.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1059.001/\r\n    - https://attack.mitre.org/techniques/T1564.003/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\nmodified: 2026-01-23\r\ntags:\r\n    - attack.execution\r\n    - attack.defense-evasion\r\n    - attack.t1059.001\r\n    - attack.t1564.003\r\nlogsource:\r\n    product: windows\r\n    category: process_creation\r\ndetection:\r\n    selection_image:\r\n        Image|endswith:\r\n            - '\\powershell.exe'\r\n            - '\\pwsh.exe'\r\n    selection_hidden:\r\n        CommandLine|contains:\r\n            - '-w hidden'\r\n            - '-windowstyle hidden'\r\n            - '-w h'\r\n    selection_high_confidence:\r\n        CommandLine|contains:\r\n            - '-enc '\r\n            - '-encodedcommand'\r\n            - 'iex'\r\n            - 'Invoke-Expression'\r\n            - 'DownloadString'\r\n            - 'iwr'\r\n            - 'Invoke-WebRequest'\r\n            - 'FromBase64String'\r\n    selection_bypass:\r\n        CommandLine|contains:\r\n            - '-ep bypass'\r\n            - '-executionpolicy bypass'\r\n    filter_appx:\r\n        CommandLine|contains: 'AppxPackage'\r\n    filter_vscode_parent:\r\n        ParentImage|endswith:\r\n            - '\\CodeSetup.exe'\r\n            - '.tmp'\r\n    filter_vscode_cmdline:\r\n        CommandLine|contains:\r\n            - 'VisualStudioCode'\r\n            - 'Windsurf'\r\n            - '\\appx\\'\r\n    filter_vscode_process_mgmt:\r\n        CommandLine|contains|all:\r\n            - '-executionpolicy bypass'\r\n            - 'code-tunnel.exe'\r\n            - 'Stop-Process'\r\n    condition: selection_image and selection_hidden and (selection_high_confidence or (selection_bypass and not filter_appx)) and not 1 of filter_vscode_*\r\nfields:\r\n    - CommandLine\r\n    - User\r\n    - Image\r\n    - ParentImage\r\nfalsepositives:\r\n    - Software installers using encoded deployment scripts\r\n    - VS Code installers and process management operations\r\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1564.003
+tags:
+    - attack.execution
+    - attack.defense-evasion
+    - attack.t1059.001
+    - attack.t1564.003
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059.001/
+    - https://attack.mitre.org/techniques/T1564.003/
+data_sources:
+    - process_creation
+    - windows

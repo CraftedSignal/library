@@ -1,0 +1,19 @@
+id: 0199cf8b-50ed-7068-85c6-84aeab26efc6
+name: Malicious SVG Phishing Detection Pack
+description: This rule detects potential SVG-based phishing attempts originating from Microsoft Outlook. It correlates network access, file downloads, and URL click telemetry to identify instances where Outlook initiates connections to or downloads files ending with '.svg'. This is particularly relevant for detecting phishing campaigns that leverage malicious SVG files to embed JavaScript, redirectors, or Base64-encoded HTML payloads for credential harvesting or other malicious activities.
+query: "// ============================================================================\n// Malicious SVG Phishing Detection Pack\n// Author: KillBillKill98\n// Last Updated: 2025-10-10\n// ============================================================================\n// Background:\n//  - Malicious SVG attachments and links are increasingly abused for phishing.\n//  - SVG files can embed JavaScript, redirectors, or Base64-encoded HTML payloads\n//    that render fake login prompts (e.g., O365 credential harvesters).\n//  - Campaigns often leverage embedded <iframe> or <script> tags pointing to\n//    attacker-controlled domains.\n//\n// Detection Summary:\n//  - Detects potential SVG-based phishing from Outlook email client activity.\n//  - Correlates network access, file downloads, and URL click telemetry.\n//  - Designed for Microsoft Defender XDR with minimal false positives.\n//\n// ============================================================================\n// MITRE ATT&CK Mapping:\n//  - T1566.002 — Phishing: Spearphishing via Service\n//  - T1204.002 — User Execution: Malicious File\n//  - T1059.007 — Command and Scripting Interpreter: JavaScript (embedded SVG)\n//  - T1105 — Ingress Tool Transfer (if SVG fetches second-stage payload)\n// ============================================================================\n//\n// Response Recommendations:\n//  - Collect investigation package.\n//  - Initiate automated investigation (auto-correlation with mail message ID).\n//  - If malicious content confirmed, mark sender or recipient user as compromised.\n//  - Optional: isolate endpoint if subsequent execution activity is detected.\n// ============================================================================\nDeviceNetworkEvents\n| where InitiatingProcessParentFileName contains \"outlook.exe\"\n| where RemoteUrl endswith \".svg\"\n| union (\n    DeviceNetworkEvents\n    | where InitiatingProcessFileName contains \"outlook.exe\"\n    | where RemoteUrl endswith \".svg\"\n)\n| union (\n    UrlClickEvents\n    | where todynamic(UrlChain)[0] endswith \".svg\" and array_length(todynamic(UrlChain)) > 1\n)\n| union (\n    DeviceFileEvents \n    | where InitiatingProcessFileName contains \"outlook.exe\" \n    | where FileName endswith \".svg\" \n    | project-reorder TimeGenerated, DeviceName, FileName, SHA256, FileOriginUrl\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1566.002
+    - T1204.002
+    - T1059.007
+    - T1105
+    - T1566
+tags:
+    - kql
+version: "4"

@@ -1,0 +1,24 @@
+id: bfb533a7-5c91-4cfa-b56c-b4c56ee84318
+name: Malicious NPM Packed - Exfiltration Attempts Identified through Discord and FTP Protocols
+description: KQL Query
+query: "DeviceNetworkEvents\r\n| where InitiatingProcessFileName in (\"node.exe\", \"npm.exe\")\r\n| where (RemoteUrl has_any (\"discord.com/api/webhooks/\", \"oast.fun\", \"cdn.discordapp.com\")\r\n         or RemoteIP == \"185.62.57.60\" \r\n         or (RemotePort == 21 and InitiatingProcessCommandLine has \"ftpclient\")) \r\n| extend\r\n    ThreatType = case(\r\n        RemoteUrl has \"discord.com/api/webhooks/\", \"Discord Webhook Exfiltration\",\r\n        RemoteUrl has \"oast.fun\", \"OAST Service Exfiltration\",\r\n        RemoteUrl has \"cdn.discordapp.com\", \"Malicious File Download\",\r\n        RemoteIP == \"185.62.57.60\" or (RemotePort == 21 and InitiatingProcessCommandLine has \"ftpclient\"), \"FTP Exfiltration\",\r\n        InitiatingProcessCommandLine has \"NODE_TLS_REJECT_UNAUTHORIZED=0\", \"TLS Validation Bypass\",\r\n        \"Unknown Malicious NPM Activity\"\r\n    )\r\n| project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort, ActionType, ThreatType\r\n| extend AccountName = InitiatingProcessAccountName, AccountSid = InitiatingProcessAccountSid\r\n| summarize arg_max(Timestamp, *) by DeviceId, InitiatingProcessId, RemoteUrl, RemoteIP, ThreatType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+    - TA0002
+    - TA0009
+techniques:
+    - T1020
+    - T1567.004
+    - T1041
+    - T1567
+    - T1102
+    - T1572
+    - T1071
+    - T1059
+    - T1560
+tags:
+    - kql
+version: "1"

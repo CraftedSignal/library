@@ -1,0 +1,63 @@
+id: 0199eb03-e7c9-7418-a72d-7ba030f43f10
+name: 7-Zip Creating Executable in Sensitive Location
+description: Detects when a 7-Zip process creates an executable file in a sensitive system directory. This could indicate exploitation of a vulnerability like CVE-2025-11001 or CVE-2025-11002, where a malicious archive writes a file to an unexpected location to achieve persistence or code execution.
+query: |
+    // Name: 7-Zip Creating Executable in Sensitive Location
+    // Author: @malwarejutsu
+    // Date: 2025-10-16
+    // Description: Detects when a 7-Zip process creates an executable file in a sensitive system directory. This could indicate exploitation of a vulnerability like CVE-2025-11001 or CVE-2025-11002, where a malicious archive writes a file to an unexpected location to achieve persistence or code execution.
+    // MITRE TTPs: T1036, T1564
+    // References: https://github.com/pacbypass/CVE-2025-11001/blob/main/exploit.py
+    // False Positive Sensitivity: Medium
+
+    // Define known 7-Zip process names
+    let sevenZipProcesses = dynamic(["7z.exe", "7zG.exe", "7zFM.exe"]);
+    // Define sensitive directories where executables are not typically extracted
+    let sensitiveFolders = dynamic([
+        @"C:\Windows\",
+        @"C:\Windows\System32\",
+        @"C:\Windows\SysWOW64\",
+        @"C:\ProgramData\",
+        @"\Microsoft\Windows\Start Menu\Programs\Startup\" // Partial path for user startup folders
+    ]);
+    // Define common executable file extensions
+    let executableExtensions = dynamic([".exe", ".dll", ".sys", ".scr", ".cpl", ".ps1", ".bat", ".vbs", ".com"]);
+
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    // Filter for file creation events initiated by a 7-Zip process
+    | where InitiatingProcessFileName in~ (sevenZipProcesses)
+    // Filter for executable file types being created
+    | where parse_path(FileName).Extension in~ (executableExtensions)
+    // Filter for files written to sensitive system locations
+    | where FolderPath has_any (sensitiveFolders)
+    // FP Tuning: Legitimate software installers may use 7-Zip to extract files.
+    // You may need to exclude specific installer processes or company-approved software if this generates noise.
+    // Exclude common temp folders which can be noisy, but consider monitoring them separately.
+    | where not (FolderPath has_any (@"C:\Windows\Temp", @"\AppData\Local\Temp"))
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA1,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessAccountName,
+        InitiatingProcessAccountDomain
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0005
+techniques:
+    - T1036
+    - T1564
+tags:
+    - kql
+version: "2"
+references:
+    - https://github.com/pacbypass/CVE-2025-11001/blob/main/exploit.py

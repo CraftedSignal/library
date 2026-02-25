@@ -1,0 +1,14 @@
+id: 019c8eb9-ba26-70da-a92f-c0aaa79288ec
+name: PsExec-Based Lateral Movement Detection
+description: This rule detects the execution of PsExec or similar tools (psexec.exe, psexec64.exe, paexec.exe) which are commonly used for lateral movement within a network. It also identifies the use of PsExec service (psexesvc.exe) or command-line arguments indicative of PsExec activity, such as accessing administrative shares (ADMIN$, C$, IPC$) or the '-accepteula' flag.
+query: "// Detection: PsExec-Based Lateral Movement\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1021.002 - Remote Services: SMB/Windows Admin Shares\r\n\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n| where FileName has_any (\"psexec.exe\",\"psexec64.exe\",\"paexec.exe\")\r\n    or InitiatingProcessFileName has_any (\"psexec.exe\",\"psexesvc.exe\",\"paexec.exe\")\r\n    or ProcessCommandLine has_any (\r\n        \"\\\\\\\\admin$\",\"\\\\\\\\c$\",\"\\\\\\\\ipc$\",\r\n        \"psexesvc\",\"PSEXESVC\",\"-accepteula\"\r\n    )\r\n| project TimeGenerated, DeviceName, FileName,\r\n          ProcessCommandLine, InitiatingProcessFileName,\r\n          AccountName, AccountDomain, SHA256\r\n| extend AlertDescription =\r\n    \"PsExec lateral movement detected — remote code execution via admin shares\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.002
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

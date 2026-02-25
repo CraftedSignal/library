@@ -1,0 +1,21 @@
+id: 019985c4-6efe-707e-b497-ec4498df6336
+name: Risky Sign-in from New or Rare IP Address
+description: This rule identifies risky sign-in attempts in Azure Active Directory where the sign-in originates from an IP address that has not been seen before or has been seen fewer than 3 times in the last 29 days for that specific user. It filters out guest users, non-compliant devices, and unmanaged devices, focusing on sign-ins with an aggregated risk level greater than 1 and a sign-in risk level of 50 or higher. Excluded applications are specified to reduce false positives.
+query: "let ExcludedApps = pack_array(\"TestAppTEST1\", \"TestAppTEST2\");\r\nlet RiskySignIns = AADSignInEventsBeta\r\n| where TimeGenerated > ago(1d)\r\n| where isnotempty(RiskLevelDuringSignIn) \r\n| where Application !in (ExcludedApps)\r\n| where RiskLevelDuringSignIn >= 50\r\n| where IsGuestUser == 0\r\n| where IsCompliant == 0\r\n| where IsManaged == 0\r\n| where RiskLevelAggregated > 1\r\n| project Timestamp, AccountUpn, Application, IPAddress, RiskLevelAggregated, RiskLevelDuringSignIn, RiskState, City, Country, ReportId;\r\n// Step 1: Count how often an IP was used per account in the last 29 days\r\nlet HistoricalIPCounts = AADSignInEventsBeta\r\n| where ErrorCode == 0\r\n| where Timestamp >= ago(29d)\r\n| summarize IPSeenCount = count() by AccountUpn, IPAddress;\r\n// Step 2: Build the IP list per account\r\nlet HistoricalIPs = AADSignInEventsBeta\r\n| where ErrorCode == 0\r\n| where Timestamp >= ago(29d)\r\n| summarize HistoricalIPs = make_set(IPAddress) by AccountUpn;\r\n// Step 3: Join with RiskySignIns and Counts\r\nRiskySignIns\r\n| join kind=leftouter HistoricalIPs on AccountUpn\r\n| join kind=leftouter HistoricalIPCounts on AccountUpn, IPAddress\r\n| extend \r\n    IPSeenBefore = iff(isnotempty(IPSeenCount), true, false),\r\n    IPSeenCount = coalesce(IPSeenCount, 0)\r\n| extend IPRiskLevel = case(\r\n        IPSeenBefore == false, \"High Risk - New IP\",\r\n        IPSeenBefore == true and IPSeenCount < 3, \"Medium Risk - Rare IP\",\r\n        IPSeenBefore == true and IPSeenCount >= 3, \"Lower Risk - Frequent IP\",\r\n        \"Unknown\"\r\n    )\r\n// Step 4: Filter for only New IPs. here you can adapt the value\r\n| where IPRiskLevel startswith \"High\"\r\n| project Timestamp, ReportId, AccountUpn, Application, IPAddress, \r\n          RiskLevelAggregated, RiskLevelDuringSignIn, RiskState, \r\n          IPSeenBefore, IPSeenCount, IPRiskLevel, City, Country"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0005
+    - TA0003
+techniques:
+    - T1110.004
+    - T1111
+    - T1621
+    - T1556.006
+    - T1556.009
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "5"

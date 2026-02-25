@@ -1,0 +1,84 @@
+id: 7e82bf3a-b821-4f35-a1f4-a9be2f635f70
+name: BERT Ransomware IOC - Payload Download and Hash Match
+description: Detects execution or download of known BERT Ransomware payload hosted at http://185.100.157.74/payload.exe or matching known hash indicators.
+query: |
+    title: BERT Ransomware IOC - Payload Download and Hash Match
+    id: d8fc6a42-1c76-4bcb-90f1-bert-ioc-all-01
+    description: Detects execution or download of known BERT Ransomware payload hosted at http://185.100.157.74/payload.exe or matching known hash indicators.
+    author: Detections.ai
+    date: 2025/07/08
+    references:
+      - https://otx.alienvault.com/pulse/686bb6597ce02f8f4a33b453
+    logsource:
+      product: windows
+      service: sysmon
+      category: process_creation
+    detection:
+      powershell_download:
+        Image|endswith:
+          - '\powershell.exe'
+        CommandLine|contains:
+          - 'http://185.100.157.74/payload.exe'
+
+      curl_or_wget:
+        CommandLine|contains:
+          - 'curl'
+          - 'wget'
+          - '185.100.157.74'
+
+      hash_match_md5:
+        Hashes|contains:
+          - 'MD5=1b5c3c458e31bede55145d0644e88d75'
+          - 'MD5=b365af317ae730a67c936f21432b9c71'
+
+      hash_match_sha1:
+        Hashes|contains:
+          - 'SHA1=a0bdfac3ce1880b32ff9b696458327ce352e3b1d'
+          - 'SHA1=a21c84c6bf2e21d69fa06daaf19b4cc34b589347'
+
+      hash_match_sha256:
+        Hashes|contains:
+          - 'SHA256=70211a3f90376bbc61f49c22a63075d1d4ddd53f0aefa976216c46e6ba39a9f4'
+          - 'SHA256=bd2c2cf0631d881ed382817afcce2b093f4e412ffb170a719e2762f250abfea4'
+
+      condition: powershell_download or curl_or_wget or hash_match_md5 or hash_match_sha1 or hash_match_sha256
+    level: high
+    tags:
+      - attack.command_and_control
+      - attack.t1105
+      - attack.t1204
+      - threat.bertransomware
+      - ioc.external
+      - hash.md5
+      - hash.sha1
+      - hash.sha256
+      - alienvault.otx
+    falsepositives:
+      - Red team simulation
+      - Internal pentest
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1204
+tags:
+    - attack.command_and_control
+    - attack.t1105
+    - attack.t1204
+    - threat.bertransomware
+    - ioc.external
+    - hash.md5
+    - hash.sha1
+    - hash.sha256
+    - alienvault.otx
+author: Detections.ai
+version: "1"
+references:
+    - https://otx.alienvault.com/pulse/686bb6597ce02f8f4a33b453
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

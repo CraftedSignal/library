@@ -1,0 +1,22 @@
+id: 019b46ab-7a9f-764f-8e60-6bfbad4a0848
+name: Insider Brute Force Attack Detection
+description: |-
+    Spot rogue or compromised endpoints attempting brute force attacks across your MDE fleet.
+    Author: Steven Lim
+query: |
+    DeviceEvents
+    | where TimeGenerated > ago(3h)
+    | where ActionType == "BruteForceActivityDetected"
+    | extend AttackCredential = tostring(AdditionalFields.Username)
+    | extend AttackerIP = tostring(AdditionalFields.IP)
+    | where ipv4_is_private(AttackerIP)
+    | summarize AttackCount=count(), HostBeingAttacked=dcount(DeviceName) by AttackerIP
+    | sort by AttackCount desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "4"
+references:
+    - https://github.com/SlimKQL

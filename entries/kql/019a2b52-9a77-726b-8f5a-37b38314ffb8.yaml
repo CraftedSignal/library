@@ -1,0 +1,23 @@
+id: 019a2b52-9a77-726b-8f5a-37b38314ffb8
+name: macOS User added to Admin Group
+description: This rule detects when a user is added to the local 'admin' group on a macOS system using either the `dscl` or `dseditgroup` command-line utilities. It specifically looks for command-line arguments indicative of adding a user to the 'admin' group. There is a whitelist for legitimate MDM solutions like 'jamfmanager' to reduce false positives.
+query: "//if you are using an MDM Solution whitelist in the following line\r\nlet legitimAdmin = dynamic([\"jamfmanager\"]); \r\n//User Added To Admin Group Via Dscl\r\n//https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1078.003/T1078.003.md#atomic-test-2---create-local-account-with-admin-privileges---macos\r\nlet NewAdminDSCL = DeviceProcessEvents\r\n| where FileName == \"dscl\"\r\n| where ProcessCommandLine has_all (\"-append\", \"/Groups/admin\", \"GroupMembership\")\r\n| extend Activity = \"User Added To Admin Group Via Dscl\";\r\n//User Added To Admin Group Via DseditGroup\r\n//https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1078.003/T1078.003.md#atomic-test-5---add-a-newexisting-user-to-the-admin-group-using-dseditgroup-utility---macos\r\nlet NewAdminDSEDIT = DeviceProcessEvents\r\n| where FileName == \"dseditgroup\"\r\n| where ProcessCommandLine has_all (\"-o edit\", \"-a\", \"-t\", \"admin\")\r\n| where not(ProcessCommandLine has_any (legitimAdmin))\r\n| extend Activity = \"User Added To Admin Group Via Dseditgroup\";\r\n//Root Account Enable Via Dsenableroot\r\nNewAdminDSCL\r\n| union NewAdminDSEDIT"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+techniques:
+    - T1078.003
+    - T1136.001
+    - T1069.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1078.003/T1078.003.md#atomic-test-2---create-local-account-with-admin-privileges---macos
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1078.003/T1078.003.md#atomic-test-5---add-a-newexisting-user-to-the-admin-group-using-dseditgroup-utility---macos

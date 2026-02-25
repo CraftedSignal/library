@@ -1,0 +1,16 @@
+id: 019b97cf-e07e-72bd-973b-47f59739b37c
+name: PHALT#BLYX C2 Network Traffic Detection
+description: This detection identifies outbound network traffic to domains, IP addresses, or a specific port known to be associated with the PHALT#BLYX campaign's infrastructure. The campaign uses these for malware delivery and DCRat command and control (C2). The rule specifically looks for connections to known malicious IPs or domains, or connections on port 3535 (used by DCRat) originating from processes associated with the malware (staxs.exe, tybd7.exe, aspnet_compiler.exe).
+query: "// Name: PHALT#BLYX C2 Network Traffic\n// Author: detections.ai\n// Date: 2026-01-07\n// Description: This detection identifies outbound network traffic to domains, IP addresses, or a specific port known to be associated with the PHALT#BLYX campaign's infrastructure. The campaign uses these for malware delivery and DCRat command and control (C2).\n// False Positive Sensitivity: Medium\n// Tactics: Command and Control\n// Techniques: T1095\n// References: https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/\n\nlet knownDomains = dynamic([\n    \"asj77.com\",\n    \"asj88.com\",\n    \"asj99.com\",\n    \"2fa-bns.com\",\n    \"low-house.com\",\n    \"oncameraworkout.com\",\n    \"wmk77.com\",\n    \"8eh18dhq9wd.click\"\n]);\nlet knownIps = dynamic([\n    \"194.169.163.140\",\n    \"193.221.200.233\",\n    \"13.223.25.84\"\n]);\nDeviceNetworkEvents\n// Focus on successful outbound connections.\n| where ActionType == \"NetworkConnectionSuccess\" and isnotempty(RemoteIP)\n| where \n    // Match known malicious IPs or domains from the PHALT#BLYX campaign.\n    RemoteIP in (knownIps)\n    or parse_url(RemoteUrl).Host in (knownDomains)\n    or \n    (\n        // The C2 protocol for DCRat in this campaign uses port 3535.\n        RemotePort == 3535 and\n        // Correlate with processes known to be used by the malware (loader, copy, or injected process).\n        InitiatingProcessFileName in~ (\"staxs.exe\", \"tybd7.exe\", \"aspnet_compiler.exe\")\n    )\n// FP Tuning: IOC-based rules can generate FPs if domains/IPs are reallocated. The port-based logic is specific to reduce noise.\n// If FPs occur, investigate the initiating process and its command line for legitimacy.\n| project\n    TimeGenerated,\n    DeviceName,\n    ActionType,\n    RemoteIP,\n    RemoteUrl,\n    RemotePort,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    ReportId,\n    InitiatingProcessId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1095
+    - T1571
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/

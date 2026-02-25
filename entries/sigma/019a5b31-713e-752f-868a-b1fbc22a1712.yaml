@@ -1,0 +1,59 @@
+id: 019a5b31-713e-752f-868a-b1fbc22a1712
+name: F5 BIG-IP Webshell or Exfiltration Staging via HTTP POST
+description: Detects HTTP POST requests to F5 BIG-IP management or shared endpoints that contain long, base64-encoded payloads. Threat actors may use this technique to upload webshells or stage data for exfiltration.
+query: |
+    title: F5 BIG-IP Webshell or Exfiltration Staging via HTTP POST
+    id: 30af1baf-15e8-4ee1-9985-d593ab6de360
+    status: experimental
+    description: >-
+      Detects HTTP POST requests to F5 BIG-IP management or shared endpoints that
+      contain long, base64-encoded payloads. Threat actors may use this technique to
+      upload webshells or stage data for exfiltration.
+    references:
+      - https://medium.com/@abdul.myid/hunting-playbook-f5-incident-detection-using-sigma-rules-and-multi-signal-correlation-techniques-774630c1fc29
+    author: detections.ai
+    date: 2025-11-06
+    tags:
+      - attack.t1505.003
+      - attack.t1041
+      - attack.persistence
+      - attack.exfiltration
+    logsource:
+      category: webserver
+      product: f5
+    detection:
+      selection:
+        http.request.method: 'POST'
+        url.path|contains:
+          # Targets F5 BIG-IP management and shared paths.
+          - '/mgmt'
+          - '/shared'
+        http.request.body.content|re: '[A-Za-z0-9+/]{200,}={0,2}' # Looks for long Base64 encoded strings, common in webshells or data staging.
+      condition: selection
+    falsepositives:
+      - Legitimate API calls that use long encoded payloads (e.g., API tokens,
+        multipart file uploads).
+      - Consider tuning the regex length (e.g., >200) based on normal traffic.
+      - Whitelisting known automation source IPs or user agents can help reduce
+        noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0010
+techniques:
+    - T1505.003
+    - T1041
+tags:
+    - attack.t1505.003
+    - attack.t1041
+    - attack.persistence
+    - attack.exfiltration
+author: detections.ai
+version: "3"
+references:
+    - https://medium.com/@abdul.myid/hunting-playbook-f5-incident-detection-using-sigma-rules-and-multi-signal-correlation-techniques-774630c1fc29
+data_sources:
+    - webserver
+    - f5

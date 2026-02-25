@@ -1,0 +1,12 @@
+id: 0199e2ee-1009-75fd-8ef3-e013b820aa07
+name: 'Threat Hunt: APT35 - Subtle Snail - Persistence via Registry Run - RunOnce '
+description: Detects registry persistence attempts via Run and RunOnce keys in both user and machine hives, focusing on value names and data referencing known Subtle Snail malicious files and suspicious payload names. Tracks registry modifications indicating adversary attempts to maintain persistent execution through stealthy implant DLLs and executables.
+query: "let SuspiciousNames = dynamic([\"MiniBike\", \"SenseSampleUploader\", \"MigAutoPlay\", \"MiniJunk\", \"setup\", \"userenv\", \"xmllite\"]);\r\nlet SuspiciousFiles = dynamic([\"MiniBike.dll\", \"MiniJunk.exe\", \"SenseSampleUploader.exe\", \"MigAutoPlay.exe\", \"setup.exe\", \"userenv.dll\", \"xmllite.dll\"]);\r\n// Known user/machine Run/RunOnce keys\r\nlet RunKeys = dynamic([\r\n    @\"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\",\r\n    @\"HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\",\r\n    @\"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\",\r\n    @\"HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce\"\r\n]);\r\nDeviceRegistryEvents\r\n| where Timestamp >= ago(7d)\r\n| where RegistryKey in (RunKeys)\r\n| where ActionType in (\"RegistryValueSet\", \"RegistryValueCreated\")\r\n| where RegistryValueData has_any (SuspiciousFiles) or RegistryValueName has_any (SuspiciousNames)\r\n| project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: AwaisM
+version: "1"

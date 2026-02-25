@@ -1,0 +1,92 @@
+id: 582b60d6-7b6f-4ad1-82f6-718463eb7cfa
+name: Velociraptor C2 - New RMM abuse tool for Remote Access & Control
+description: Detects hard IoCs and activity associated with a trojanized installer of Velociraptor incident response tool making callbacks to C2 domains from workers[.]dev and tunneling with Visual Studio Code (code.exe). The detection looks for the creation of hard IoCs from this malicious Velociraptor installer V2.msi, followed by network connections to known C2 domains and the execution of related processes, including PowerShell (with support for detecting encoded commands to install code.exe) and msiexec activity tied to malicious domains.
+query: |
+    // Name: Velociraptor C2 - New RMM abuse tool for Remote Access & Control
+    // Author: Reyben T. Cortes
+    // Date: 2025-08-28
+    // Description: Detects hard IoCs and activity associated with a trojanized installer of Velociraptor incident response tool making callbacks to C2 domains from workers[.]dev and tunneling with Visual Studio Code (code.exe). The detection looks for the creation of hard IoCs from this malicious Velociraptor installer V2.msi, followed by network connections to known C2 domains and the execution of related processes, including PowerShell (with support for detecting encoded commands to install code.exe) and msiexec activity tied to malicious domains.
+    // Tactics: Execution, Command and Control
+    // Techniques: T1204.002, T1071.001
+    // Data Sources: DeviceFileEvents, DeviceNetworkEvents, DeviceProcessEvents
+    // Severity: High
+
+    let TimeFrame = 1h;
+    let CorrelationWindow = 5m;
+
+    // Define known indicators of C2 staging domains (IOCs)
+    let VelociraptorRMMC2Domains = dynamic(["files.qaubctgg.workers.dev", "velo.qaubctgg.workers.dev", "elo.qaubctgg.workers.dev", "api.blueberrystorage.com"]);
+    // Define known malicious file hashes
+    let MaliciousSHA256 = dynamic([
+        "649bdaa38e60ede6d140bd54ca5412f1091186a803d3905465219053393f6421", // v2.msi, Velociraptor C2 Installer
+        "a29125333ad72138d299cc9ef09718ddb417c3485f6b8fe05ba88a08bb0e5023", // Execution parent, C2 communication
+        "59810d2327652fb073f3c22f0d498af6506b0af862ce348f47cead331f3d4178", // Execution parent, C2 communication
+        "4c04ec20ff5e5841911971333a5afb157b385388aab7d17e21d9d2950ecebe59"  // Execution parent, C2 communication
+    ]);
+    // Define discovered recent hashes for similar trojanized Velociraptor .msi installers
+    let TrojanizedVelociraptorSHA256 = dynamic([
+        "da19f5bd0426ea4bfe458f4942cafa4889b993dc7921b75b8f6cead55b4c760f", // Trojanized Velociraptor, low VT
+        "e0f8850ff89919d54f9a84175cfa91c9f14f1311d0e4832ce9af3c1349a23d25"  // Trojanized Velociraptor, low VT
+    ]);
+
+    // Start with file creation events matching known malicious indicators
+    DeviceFileEvents
+    | where Timestamp > ago(TimeFrame)
+    | where SHA256 in (MaliciousSHA256) or SHA256 in (TrojanizedVelociraptorSHA256) or FileName == "sc.msi" or FileName == "code.exe"
+    // Correlate with network connections to C2 domains from the same device
+    | join kind=inner (
+        DeviceNetworkEvents
+        | where Timestamp > ago(TimeFrame)
+        | where RemoteUrl has_any (VelociraptorRMMC2Domains)
+    ) on DeviceId
+    // FP Tuning: Correlate events within a short time window to ensure they are related.
+    // Time-based correlation is more robust than joining on potentially generic process names or accounts.
+    | where Timestamp1 between (Timestamp .. (Timestamp + CorrelationWindow)) // Timestamp1 is from DeviceNetworkEvents
+    // Correlate with related process execution events
+    | join kind=leftouter (
+        DeviceProcessEvents
+        | where Timestamp > ago(TimeFrame)
+        // Extract and decode encoded PowerShell commands for targeted inspection
+        | extend EncodedPart = extract(@"(?:-|/)enc(?:odedCommand)?\s+([A-Za-z0-9+/=]+)", 1, ProcessCommandLine)
+        | extend DecodedCommand = iff(EncodedPart != "", base64_decode_tostring(EncodedPart), "")
+        | where InitiatingProcessSHA256 in (MaliciousSHA256)
+           or InitiatingProcessSHA256 in (TrojanizedVelociraptorSHA256)
+           or FileName == "velociraptor.exe"
+           or InitiatingProcessFileName == "velociraptor.exe"
+           or ProcessCommandLine contains "Velociraptor"
+           or InitiatingProcessCommandLine contains "Velociraptor"
+           or (FileName == "powershell.exe" and (ProcessCommandLine has "files.qaubctgg.workers.dev" or DecodedCommand has_any (VelociraptorRMMC2Domains, "code.exe", "Visual Studio Code")))
+           or (FileName == "msiexec.exe" and ProcessCommandLine has_any (VelociraptorRMMC2Domains))
+    ) on DeviceId
+    | where Timestamp2 between (Timestamp .. (Timestamp + CorrelationWindow)) // Timestamp2 is from DeviceProcessEvents
+    // Summarize the correlated activity to generate a single alert per incident
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        EventCount = count(),
+        RemoteUrls = make_set(RemoteUrl),
+        ProcessesCreated = make_set(FileName1), // FileName1 is from DeviceProcessEvents
+        ProcessCommandLines = make_set(ProcessCommandLine1), // ProcessCommandLine1 is from DeviceProcessEvents
+        InitiatingProcessSHA256s = make_set(InitiatingProcessSHA2561) // InitiatingProcessSHA2561 is from DeviceProcessEvents
+        by
+        DeviceId,
+        DeviceName,
+        MaliciousFileName = FileName,
+        MaliciousFileSHA256 = SHA256,
+        FolderPath,
+        AccountName = InitiatingProcessAccountName, // From the initial DeviceFileEvents
+        InitiatingProcess = InitiatingProcessFileName // From the initial DeviceFileEvents
+query_type: kql
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1204.002
+    - T1071.001
+    - T1059.001
+    - T1218.007
+    - T1105
+tags:
+    - kql
+version: "1"

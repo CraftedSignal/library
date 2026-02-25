@@ -1,0 +1,48 @@
+id: 019ac36f-bcd7-72db-8f7a-77fdcda753b3
+name: Data Archiving and Exfiltration to temp.sh
+description: This detection rule identifies hosts where data archiving using 7-Zip is closely followed by network traffic to the temp.sh file-sharing service. This correlation suggests a potential data staging and exfiltration sequence, a TTP observed in the Lynx Ransomware campaign.
+query: |
+    `comment("This detection rule identifies hosts where data archiving using 7-Zip is closely followed by network traffic to the temp.sh file-sharing service, a TTP observed in the Lynx Ransomware campaign. This correlation suggests a potential data staging and exfiltration sequence.")`
+
+    `comment("The search requires process execution logs (e.g., Sysmon EventCode 1) and network data (e.g., DNS, web proxy, or firewall logs). Adjust sourcetypes and field names for your environment.")`
+    (index=* sourcetype IN (XmlWinEventLog:Microsoft-Windows-Sysmon/Operational, pan:traffic, stream:dns, stream:http, zscaler, cisco:asa))
+    `comment("Detect either the archiving activity OR the network exfiltration indicators.")`
+    ( (EventCode=1 process_name IN ("7z.exe", "7zG.exe") parent_process_name="explorer.exe") OR (url="*temp.sh*" OR query="temp.sh" OR dest_ip="51.91.79.17") )
+
+    `comment("Normalize host and user fields across different data sources.")`
+    | eval host=coalesce(host, dest, src), user=coalesce(user, suser, duser)
+    `comment("Categorize the event as either 'Archiving' or 'Exfiltration' for correlation.")`
+    | eval activity_type=if(EventCode=1 AND process_name IN ("7z.exe", "7zG.exe"), "Archiving", "Exfiltration")
+
+    `comment("Group events by host and user to correlate the two activities.")`
+    | stats earliest(_time) as first_seen, latest(_time) as last_seen,
+        values(sourcetype) as sourcetypes,
+        dc(activity_type) as distinct_activities,
+        values(eval(if(activity_type="Archiving", process_name, null))) as archiving_process,
+        values(eval(if(activity_type="Archiving", parent_process_name, null))) as archiving_parent,
+        values(eval(if(activity_type="Archiving", CommandLine, null))) as archiving_command,
+        values(eval(if(activity_type="Exfiltration", url, null))) as exfil_url,
+        values(eval(if(activity_type="Exfiltration", query, null))) as exfil_dns_query,
+        values(eval(if(activity_type="Exfiltration", dest_ip, null))) as exfil_dest_ip
+        by host, user
+
+    `comment("Filter for hosts where both activities occurred within a 30-minute window. This time window can be tuned to reduce false positives or increase detection scope.")`
+    | where distinct_activities > 1 AND (last_seen - first_seen) <= 1800
+
+    `comment("Format the output for clear and actionable alerting.")`
+    | eval first_seen=strftime(first_seen, "%Y-%m-%d %H:%M:%S"), last_seen=strftime(last_seen, "%Y-%m-%d %H:%M:%S")
+    | table first_seen, last_seen, host, user, sourcetypes, archiving_process, archiving_parent, archiving_command, exfil_url, exfil_dns_query, exfil_dest_ip
+
+    `comment("This macro can be used for allow-listing known good behavior, such as legitimate use of temp.sh by specific users or hosts.")`
+    | `data_archiving_and_exfiltration_to_temp_sh_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+techniques:
+    - T1560.001
+    - T1041
+tags:
+    - spl
+version: "2"

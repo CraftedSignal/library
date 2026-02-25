@@ -1,0 +1,30 @@
+id: 019c20fb-efaa-746a-a9f8-1b3aad15c3d5
+name: Notepad++ GUP Spawning Update.exe
+description: Detects the Notepad++ updater process (GUP.exe) spawning a child process named 'update.exe'. This behavior was observed during the Lotus Blossom supply chain attack where the Notepad++ update infrastructure was compromised to deliver the Chrysalis backdoor.
+query: |
+    // title: Notepad++ GUP Spawning Update.exe
+    // description: Detects the Notepad++ updater process (GUP.exe) spawning a child process named 'update.exe'. This behavior was observed during the Lotus Blossom supply chain attack where the Notepad++ update infrastructure was compromised to deliver the Chrysalis backdoor.
+    // author: detections.ai
+    // date: 2026-02-02
+    // references:
+    // - https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/
+    // tags: attack.t1195.002, attack.g0047
+    // level: High
+    // status: experimental
+    // falsepositives: While other software updaters might use a process named 'update.exe', the specific parent-child relationship with the Notepad++ updater 'GUP.exe' is highly suspicious and characteristic of this attack.
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    // Detects the Notepad++ updater as the parent process. Using endswith is more specific than just the filename.
+    | where InitiatingProcessFolderPath endswith @"\GUP.exe"
+    // Detects the suspicious child process spawned by the updater.
+    | where FolderPath endswith @"\update.exe"
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/

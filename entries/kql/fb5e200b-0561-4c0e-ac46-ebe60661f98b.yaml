@@ -1,0 +1,63 @@
+id: fb5e200b-0561-4c0e-ac46-ebe60661f98b
+name: Attacker in the Middle Precision Detection
+description: 'KQL Query from file: Attacker in the Middle Precision Detection'
+query: |
+    // Attacker in the Middle Precision Detection
+
+    //** A premium detection requiring Entra P2 license **
+
+    // Beginning in July 2024, the ‘Attacker in the Middle’ detection is now generally available in Identity Protection. By combining this offline detection with ‘Anomalous Token’ detection, it provides high-precision detection when a malicious actor attempts to replay a token. AAD Identity Protection will raise a security alert under ‘Anomalous Token’ with the ‘attackerInTheMiddle’ risk event type, ensuring reliable detection.
+
+    let AnomalousTokenRequestId=
+    SecurityAlert
+    | where AlertName == "Anomalous Token"
+    | mv-expand todynamic(Entities)
+    | project Entities
+    | extend RequestId = tostring(Entities.RequestId)
+    | distinct RequestId;
+    AADUserRiskEvents
+    | where RequestId has_any(AnomalousTokenRequestId)
+    | where RiskEventType == "attackerinTheMiddle"
+
+    // #Sentinel #AiTM #AnomalousToken #IdentityProtection #Entra #PremiumDetection
+
+    // MITRE ATT&CK Mapping
+
+    // The KQL code is designed to detect anomalous token activities and correlate them with specific risk events. The associated MITRE ATT&CK techniques are:
+
+    // T1550.004 - Use Alternate Authentication Material: Web Session Cookie:
+    // This technique involves using stolen web session cookies to authenticate to web applications.
+    // T1071.001 - Application Layer Protocol: Web Protocols:
+    // This technique involves using web protocols for command and control.
+    // T1078 - Valid Accounts:
+    // This technique involves using valid accounts to gain access to systems.
+    // T1556.004 - Modify Authentication Process: Network Device Authentication:
+    // This technique involves modifying the authentication process to gain unauthorized access.
+
+    // The specific detection of “attackerinTheMiddle” suggests a focus on T1557.002 - Adversary-in-the-Middle: Man-in-the-Middle attacks, where attackers intercept and manipulate communications between two parties.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0008
+    - TA0011
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+    - TA0009
+techniques:
+    - T1550.004
+    - T1071.001
+    - T1078
+    - T1556.004
+    - T1557.002
+    - T1134.001
+    - T1527
+    - T1134
+    - T1185
+    - T1563
+    - T1563.002
+    - T1557
+tags:
+    - kql
+version: "1"

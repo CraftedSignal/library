@@ -1,0 +1,18 @@
+id: 019b17a5-532e-75b8-8e36-718bdc66fe31
+name: Docker Desktop malware campaign
+description: 'This rule detects suspicious network connections to known malicious URLs associated with a Docker Desktop malware campaign. It also identifies instances where ''DockerDesktop.exe'' is executed or present in unusual file paths, suggesting potential masquerading or unauthorized deployment outside of its standard installation directory. The rule is broken into three parts: network events, file events, and process events. The network part looks for connections to specific malicious domains. The file and process parts look for ''DockerDesktop.exe'' in folders other than the assumed legitimate installation path, indicating potential malicious activity.'
+query: "// Network Stage 1\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (\r\n    \"desktop-api.us\",\r\n    \"ofiwuqc.online\",\r\n    \"desktop-api.app\"\r\n)\r\n| project Timestamp, DeviceName, InitiatingProcessFileName,\r\n          RemoteUrl, RemoteIP, ActionType\r\n| order by Timestamp desc\r\n\r\n// File\r\nDeviceFileEvents\r\n| where FileName =~ \"DockerDesktop.exe\"\r\n| where FolderPath !has @\"Docker\\Docker\" // assuming docker is installed at C:\\Program Files\\Docker\\Docker\\\r\n| project Timestamp, DeviceName, FolderPath,\r\n          FileName, SHA256, InitiatingProcessFileName\r\n| order by Timestamp desc\r\n\r\n// Process\r\nDeviceProcessEvents\r\n| where FileName =~ \"DockerDesktop.exe\"\r\n| where FolderPath !has @\"Docker\\Docker\" // assuming docker is installed at C:\\Program Files\\Docker\\Docker\\\r\n| project Timestamp, DeviceName, FolderPath,\r\n          FileName, ProcessCommandLine,\r\n          InitiatingProcessAccountName\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1071.001
+    - T1036.003
+    - T1036.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.linkedin.com/posts/eyesecurity_eyesecurity-soc-mdr-activity-7404245468546920448-mz0P?utm_source=share&utm_medium=member_desktop&rcm=ACoAAApXI1MBB1qGe8vUM64nf0z7lqIwLB1xbbI&trk=public_post_comment-text

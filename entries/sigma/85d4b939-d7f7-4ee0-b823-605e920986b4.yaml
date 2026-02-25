@@ -1,0 +1,81 @@
+id: 85d4b939-d7f7-4ee0-b823-605e920986b4
+name: MFA Fatigue Attack
+description: Detects a high number of failed or denied Multi-Factor Authentication (MFA) attempts followed by a success for the same user account within a short time frame. This pattern, known as MFA fatigue or push bombing, is a technique actively used by threat actors like Scattered Spider to overwhelm a user with push notifications until they approve one, granting the attacker access.
+query: |
+    title: MFA Fatigue Attack
+    id: 816bcaed-4c88-4bb8-b9b5-90ce7c76247f
+    status: experimental
+    description: |-
+      Detects a high number of failed or denied Multi-Factor Authentication (MFA) attempts followed by a success for the same user account within a short time frame.
+      This pattern, known as MFA fatigue or push bombing, is a technique actively used by threat actors like Scattered Spider to overwhelm a user with push notifications until they approve one, granting the attacker access.
+    references:
+      - https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf
+    author: detections.ai
+    date: 2025-08-03
+    tags:
+      - attack.t1621
+      - attack.initial_access
+      - threat_actor.scattered_spider
+    logsource:
+      - product: azure
+        service: signinlogs
+      - product: okta
+      - product: duo
+    fields:
+      - user.name # This rule requires a normalized field for the user identifier across different log sources (e.g., Azure 'userPrincipalName', Okta 'actor.alternateId', Duo 'user.name').
+    detection:
+      # This section defines what a failed/denied MFA event looks like across different platforms.
+      failed_mfa:
+        - product: azure
+          service: signinlogs
+          status.errorCode: '500121' # Standard code for MFA denied, timed out, or otherwise failed.
+          status.failureReason|contains: 'User declined the authentication'
+        - product: okta
+          eventType: 'user.authentication.auth_via_mfa'
+          outcome.result: 'DENIED'
+        - product: duo
+          event_type: 'authentication'
+          result: 'denied'
+          reason|contains:
+            - 'user_marked_fraud'
+            - 'user_cancelled'
+
+      # This section defines what a successful MFA event looks like.
+      success_mfa:
+        - product: azure
+          service: signinlogs
+          status.errorCode: 0
+          authenticationDetails.authenticationMethod|contains: # Ensure MFA was actually used and successful
+            - 'Phone App Notification'
+            - 'Microsoft Authenticator Push'
+            - 'Software OATH token'
+        - product: okta
+          eventType: 'user.authentication.auth_via_mfa'
+          outcome.result: 'SUCCESS'
+        - product: duo
+          event_type: 'authentication'
+          result: 'success'
+
+      timeframe: 10m
+      # The condition looks for at least 5 failed MFA attempts followed by a successful one for the same user.
+      # The 'by user.name' clause is crucial and requires log normalization. See the 'fields' section.
+      condition: (failed_mfa and failed_mfa and failed_mfa and failed_mfa and failed_mfa) near success_mfa | by user.name
+    falsepositives:
+      - A user might legitimately make several mistakes before a successful login, but exceeding five attempts is highly anomalous.
+      - Network connectivity issues could cause repeated MFA prompt failures before a success.
+      - The threshold of 5 failed attempts is a starting point and may need to be tuned based on your environment's baseline activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1621
+tags:
+    - attack.t1621
+    - attack.initial_access
+    - threat_actor.scattered_spider
+author: detections.ai
+version: "1"
+references:
+    - https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf

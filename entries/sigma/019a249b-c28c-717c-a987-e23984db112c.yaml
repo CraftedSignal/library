@@ -1,0 +1,49 @@
+id: 019a249b-c28c-717c-a987-e23984db112c
+name: TwinAPI COM Hijacking Persistence - ForumTroll APT
+description: Detects the creation of a specific COM object registry key in the HKEY_CURRENT_USER hive to hijack the legitimate 'twinapi.dll' component. This persistence technique (T1546.015) was used by the ForumTroll APT group to load the LeetAgent and Dante spyware.
+query: |
+    title: TwinAPI COM Hijacking Persistence - ForumTroll APT
+    id: 11a7f159-b2dd-4f1e-884d-522e3b27a889
+    status: experimental
+    description: >-
+      Detects the creation of a specific COM object registry key in the
+      HKEY_CURRENT_USER hive to hijack the legitimate 'twinapi.dll' component. This
+      persistence technique (T1546.015) was used by the ForumTroll APT group to load
+      the LeetAgent and Dante spyware.
+    references:
+      - https://securelist.com/forumtroll-apt-hacking-team-dante-spyware/117851/
+    author: "Daniel Koifman (KoifSec)"
+    date: 2025-10-27
+    tags:
+      - attack.persistence
+      - attack.t1546.015
+    logsource:
+      product: windows
+      category: registry_set
+    detection:
+      selection:
+        TargetObject|startswith: 'HKEY_CURRENT_USER\SOFTWARE\Classes\CLSID\{AA509086-5Ca9-4C25-8F95-589D3C07B48A}\InProcServer32'
+      condition: selection
+    falsepositives:
+      - The legitimate registration for this COM object exists in
+        HKEY_LOCAL_MACHINE. The creation of this key in the user's hive (HKCU) is
+        highly indicative of COM hijacking for persistence. False positives are
+        unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1546.015
+tags:
+    - attack.persistence
+    - attack.t1546.015
+author: Daniel Koifman (KoifSec)
+version: "3"
+references:
+    - https://securelist.com/forumtroll-apt-hacking-team-dante-spyware/117851/
+data_sources:
+    - registry_set
+    - windows

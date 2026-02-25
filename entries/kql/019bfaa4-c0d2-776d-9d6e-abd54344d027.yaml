@@ -1,0 +1,39 @@
+id: 019bfaa4-c0d2-776d-9d6e-abd54344d027
+name: Telnetd Child Process Environment Variable Injection
+description: Detects the telnetd process spawning child processes with highly suspicious environment variables, such as a modified PATH or LD_PRELOAD. This can indicate an attempt to hijack execution or move laterally, and is a technique associated with CVE-2026-24061.
+query: |
+    // Name: Telnetd Child Process Environment Variable Injection
+    // Author: detections.ai
+    // Date: 2026-01-26
+    // Description: Detects the telnetd process spawning child processes with highly suspicious environment variables, such as a modified PATH or LD_PRELOAD. This can indicate an attempt to hijack execution or move laterally, and is a technique associated with CVE-2026-24061.
+    // False Positives: Medium. Legitimate administrative scripts or custom configurations might set environment variables. Tuning may be required to exclude known safe patterns.
+    // References: https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+    // Tags: T1574.006, T1574.007
+    DeviceProcessEvents
+    // Filter for child processes of the telnet daemon.
+    | where InitiatingProcessFileName in~ ("telnetd", "in.telnetd")
+    // Look for command lines where common execution hijacking environment variables are being set.
+    | where ProcessCommandLine has_any ("LD_PRELOAD=", "LD_LIBRARY_PATH=", "PATH=")
+    // Filter for specific suspicious patterns.
+    | where
+        // LD_PRELOAD or LD_LIBRARY_PATH being set by a telnetd child process is highly suspicious.
+        ProcessCommandLine has_any ("LD_PRELOAD=", "LD_LIBRARY_PATH=")
+        or
+        // A modified PATH that excludes standard binary locations is a strong indicator of path interception.
+        // FP Tuning: Add other legitimate paths for your environment if needed (e.g., /sbin, /usr/sbin).
+        (ProcessCommandLine has "PATH=" and not (ProcessCommandLine has "/bin" or ProcessCommandLine has "/usr/bin"))
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.006
+    - T1574.007
+tags:
+    - kql
+author: Paul
+version: "4"
+references:
+    - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/

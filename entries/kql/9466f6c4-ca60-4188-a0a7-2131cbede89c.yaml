@@ -1,0 +1,13 @@
+id: 9466f6c4-ca60-4188-a0a7-2131cbede89c
+name: Windows Defender Real-Time Protection Tampering Attempt
+description: This rule detects attempts to tamper with Windows Defender's real-time protection settings by monitoring specific registry key modifications. It specifically looks for "TamperingAttempt" actions targeting the 'HKEY_LOCAL_MACHINE\SOFTWARE\POLICIES\MICROSOFT\WINDOWS DEFENDER\Real-Time Protection' registry key, which is commonly used to disable or modify Windows Defender's real-time scanning capabilities.
+query: "DeviceEvents\r\n| where ActionType == @\"TamperingAttempt\"\r\n| where RegistryKey == @\"HKEY_LOCAL_MACHINE\\SOFTWARE\\POLICIES\\MICROSOFT\\WINDOWS DEFENDER\\Real-Time Protection\" or RegistryKey == @\"HKEY_LOCAL_MACHINE\\SOFTWARE\\POLICIES\\MICROSOFT\\WINDOWS DEFENDER\\real-time protection\"\r\n| extend Status = parse_json(AdditionalFields)[\"Status\"]\r\n| summarize count() by DeviceName, RegistryValueName, tostring(Status)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+version: "1"

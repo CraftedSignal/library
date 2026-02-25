@@ -1,0 +1,34 @@
+id: cb4b64bb-c7ac-43de-a771-a942d19b9871
+name: Detect Suspicious PowerShell and Network Activity - Cobalt Strike
+description: SPL Query
+query: |-
+    | search (
+        (
+            (index=windows sourcetype=WinEventLog:Microsoft-Windows-PowerShell/Operational EventCode=4104) OR
+            (index=windows sourcetype=WinEventLog:Security EventCode=4688)
+        )
+        AND (Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+        AND (
+            (CommandLine="*func_get_delegate_type*" OR CommandLine="*FromBase64String*" OR CommandLine="*VirtualAlloc*" OR CommandLine="*Add-Type*" OR CommandLine="*Set-StrictMode*") OR
+            (ScriptBlockText="*func_get_delegate_type*" OR ScriptBlockText="*FromBase64String*" OR ScriptBlockText="*VirtualAlloc*" OR ScriptBlockText="*Add-Type*" OR ScriptBlockText="*Set-StrictMode*") OR
+            (Message="*func_get_delegate_type*" OR Message="*FromBase64String*" OR Message="*VirtualAlloc*" OR Message="*Add-Type*" OR Message="*Set-StrictMode*")
+        )
+    )
+    OR (
+        (index=network sourcetype=stream:http OR sourcetype=stream:tcp)
+        AND (
+            dest_ip="46.173.27.142" OR
+            dest_host="y2n273y10j.cfc-execute.bj.baidubce.com"
+        )
+    )
+    OR (
+        (index=network sourcetype=stream:http)
+        AND http_user_agent="Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0; yie9)"
+    )
+    | table _time, host, Image, CommandLine, ScriptBlockText, Message, dest_ip, dest_host, http_user_agent, EventCode, sourcetype
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Thiru
+version: "1"

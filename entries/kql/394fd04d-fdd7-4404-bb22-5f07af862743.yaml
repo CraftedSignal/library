@@ -1,0 +1,12 @@
+id: 394fd04d-fdd7-4404-bb22-5f07af862743
+name: 'Threat Hunt: Network-Based hunting on High-Frequency HTTP/HTTPS Connections'
+description: This query identifies devices with frequent outbound HTTP/HTTPS connections to external IPs, suggesting possible chunked data exfiltration.
+query: "DeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteIPType == \"Public\"\r\n| where RemotePort in (80, 443)\r\n| where InitiatingProcessFileName in~ (\"powershell.exe\", \"cmd.exe\", \"certutil.exe\", \"bitsadmin.exe\", \"curl.exe\", \"wget.exe\")\r\n| summarize ConnectionCount = count() by DeviceName, RemoteIP, RemoteUrl\r\n| where ConnectionCount > 50\r\n| project DeviceName, RemoteIP, RemoteUrl, ConnectionCount\r\n| order by ConnectionCount desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1030
+tags:
+    - kql
+author: AwaisM
+version: "1"

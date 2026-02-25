@@ -1,0 +1,45 @@
+id: 019c9498-5a64-777e-bb83-c89baecfa27b
+name: MSHTA to RegAsm Malware Sideloading
+description: Detects the MSHTA utility (mshta.exe) executing a remote script which then spawns a .NET registration utility (RegAsm.exe or RegSvcs.exe). This specific execution chain is a high-confidence indicator of malware loaders like XWorm and Lumma Stealer, often delivered via ClickFix social engineering lures.
+query: |
+    // Name: MSHTA to RegAsm Malware Sideloading
+    // Author: detections.ai
+    // Date: 2026-02-24
+    // Description: Detects the MSHTA utility (mshta.exe) executing a remote script which then spawns a .NET registration utility (RegAsm.exe or RegSvcs.exe). This specific execution chain is a high-confidence indicator of malware loaders like XWorm and Lumma Stealer, often delivered via ClickFix social engineering lures.
+    // False Positive Sensitivity: Medium
+    // References: https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape
+    // MITRE TTPs: T1218.005, T1218.009
+
+    DeviceProcessEvents
+    // Find instances of mshta.exe executing remote content from a URL
+    | where ProcessFileName =~ "mshta.exe"
+    | where ProcessCommandLine has "http://" or ProcessCommandLine has "https://"
+    // Join with child processes that are .NET registration utilities, indicating potential malware sideloading
+    | join kind=inner (
+        DeviceProcessEvents
+        | where ProcessFileName in~ ("RegAsm.exe", "RegSvcs.exe")
+    ) on $left.DeviceId == $right.DeviceId and $left.ProcessId == $right.InitiatingProcessId
+    // Potential for False Positives: While rare, some legitimate software installers or updaters might use this technique.
+    // Investigate the remote URL and the context of the execution. Consider excluding legitimate software publishers if needed.
+    | project
+        Timestamp = $left.Timestamp,
+        DeviceName = $left.DeviceName,
+        AccountName = $left.AccountName,
+        MSHTA_Process = $left.ProcessFileName,
+        MSHTA_CommandLine = $left.ProcessCommandLine,
+        ChildProcess = $right.ProcessFileName,
+        ChildCommandLine = $right.ProcessCommandLine,
+        MSHTA_ProcessId = $left.ProcessId,
+        ChildProcessId = $right.ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.005
+    - T1218.009
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape

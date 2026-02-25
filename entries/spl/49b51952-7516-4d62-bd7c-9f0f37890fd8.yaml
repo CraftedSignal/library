@@ -1,0 +1,43 @@
+id: 49b51952-7516-4d62-bd7c-9f0f37890fd8
+name: ToolShell GPO Ransomware Deployment
+description: Detects modifications to Group Policy Objects (GPOs) that enable script processing. Threat actors, such as Storm-2603, abuse GPOs to deploy ransomware (like Warlock) by adding malicious startup or logon scripts. This detection identifies when the "Group Policy Scripts" client-side extension is added to a GPO, which is a key step in this attack chain. This activity is logged under Event ID 5136 on Domain Controllers.
+query: |
+    -- GPO Modification for Ransomware Deployment
+    --
+    -- DESCRIPTION: Detects modifications to Group Policy Objects (GPOs) that enable script processing. Threat actors, such as Storm-2603, abuse GPOs to deploy ransomware (like Warlock) by adding malicious startup or logon scripts. This detection identifies when the "Group Policy Scripts" client-side extension is added to a GPO, which is a key step in this attack chain. This activity is logged under Event ID 5136 on Domain Controllers.
+    -- TTPs: T1484.001, T1486
+    -- REF: https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+
+    # Search for Windows Event ID 5136 (directory service object modified) on Domain Controllers.
+    `wineventlog_security` EventCode=5136 ObjectClass=groupPolicyContainer
+
+    # Filter for modifications that add the "Group Policy Scripts" extension GUID to a GPO.
+    # This is a strong indicator that the GPO is being configured to run logon/logoff or startup/shutdown scripts.
+    | where (like(AttributeLDAPDisplayName, "gPC%ExtensionNames") AND match(AttributeValue, "{42B5FAAE-6536-11D2-AE5A-0000F87571E3}"))
+
+    # Extract the GPO's unique identifier for easier correlation.
+    | rex field=ObjectDN "CN=(?<gpo_guid>\{[A-F0-9-]+)"
+
+    # Aggregate results to show the user, host, and GPO involved.
+    | stats count min(_time) as firstTime max(_time) as lastTime values(SubjectUserName) as user values(ObjectDN) as gpo_dn by host, gpo_guid
+    | convert ctime(firstTime) ctime(lastTime)
+    | rename host as dvc, user as src_user
+    | fields firstTime, lastTime, dvc, src_user, gpo_guid, gpo_dn
+
+    # FP Tuning: This may be legitimate admin activity, though rare. Consider filtering for known administrator accounts or changes made during approved change windows using a macro.
+    | `gpo_modification_for_ransomware_deployment_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0040
+techniques:
+    - T1484.001
+    - T1486
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

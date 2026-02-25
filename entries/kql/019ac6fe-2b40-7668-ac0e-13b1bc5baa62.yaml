@@ -1,0 +1,50 @@
+id: 019ac6fe-2b40-7668-ac0e-13b1bc5baa62
+name: AK47C2 Backdoor HTTP C2 Communication
+description: Detects potential Command and Control (C2) communication from the AK47C2 backdoor over HTTP. The backdoor sends a hex-encoded JSON payload via HTTP POST requests. This rule specifically looks for HTTP POST requests with a request body longer than 100 characters that consists entirely of hexadecimal characters, indicative of the AK47C2 communication pattern.
+query: |
+    // Name: AK47C2 HTTP C2 Communication
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects potential C2 communication from the AK47C2 backdoor over HTTP. The backdoor sends a hex-encoded JSON payload via HTTP POST requests.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T1071.001 (Application Layer Protocol: HTTP)
+    // False Positive Sensitivity: Medium. Legitimate applications may send hex-encoded data. Tuning may be required to exclude traffic to known-good destinations.
+
+    // Note: This query requires a log source with HTTP POST body visibility (e.g., web proxy, firewall logs) mapped to the CommonSecurityLog schema.
+    CommonSecurityLog
+    // The backdoor uses HTTP POST for C2.
+    | where RequestMethod == "POST"
+    // The POST body is often found in the 'AdditionalExtensions' field in CEF logs.
+    | where isnotempty(AdditionalExtensions)
+    | extend RequestBody = AdditionalExtensions
+    // The payload is a hex-encoded JSON string. A length check helps filter out small, legitimate POST requests.
+    // The initial beacon is ~50-60 chars, which becomes >100 chars when hex-encoded.
+    | where strlen(RequestBody) > 100
+    // The request body should consist entirely of hexadecimal characters.
+    | where RequestBody matches regex @"^[a-f0-9]+$"
+    // The report mentions the malware uses curl. Filtering on the User-Agent can increase fidelity but may miss variants.
+    // | where RequestClientApplication has "curl"
+    | project
+        TimeGenerated,
+        RequestURL,
+        SourceIP,
+        Computer,
+        RequestClientApplication,
+        RequestBody
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = Computer,
+        IPAddress = SourceIP,
+        Url = RequestURL
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

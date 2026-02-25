@@ -1,0 +1,16 @@
+id: 0199be79-68a3-7568-91ed-226b9c45577a
+name: Network Connection to High-Confidence ThreatView Domain
+description: This rule detects successful network connections from devices to domains identified as high-confidence threats by ThreatView.io. It specifically looks for outbound connections to public IP addresses where the remote URL's domain matches an entry in the ThreatView high-confidence feed.
+query: "let DOMAINHighConfThreatView = externaldata (Domain:string) [@\" https://threatview.io/Downloads/DOMAIN-High-Confidence-Feed.txt\" ] with (format=\"txt\", ignoreFirstRecord = false);\r\nDeviceNetworkEvents\r\n| where isnotempty( RemoteUrl)\r\n| where RemoteIPType == \"Public\"\r\n| where ActionType == \"ConnectionSuccess\"\r\n| extend Domain = extract(@\"^(?:https?://)?([^/]+)\", 1, RemoteUrl)\r\n| join kind=inner DOMAINHighConfThreatView on Domain\r\n\r\n// EXTENDED VERSION below\r\n\r\n//if you like you can use the extended Query wich detects if there is a risky Signin after the DeviceNetworkEvents\r\n\r\nlet DOMAINHighConfThreatView = externaldata (Domain:string) [@\"https://threatview.io/Downloads/DOMAIN-High-Confidence-Feed.txt\"] with (format=\"txt\", ignoreFirstRecord = false);\r\nlet SuspiciousConnections = DeviceNetworkEvents\r\n| where isnotempty(RemoteUrl)\r\n| where RemoteIPType == \"Public\"\r\n| where ActionType == \"ConnectionSuccess\"\r\n| extend Domain = extract(@\"^(?:https?://)?([^/]+)\", 1, RemoteUrl)\r\n| join kind=inner DOMAINHighConfThreatView on Domain\r\n| project SuspiciousConnections_TimeGenerated=TimeGenerated, InitiatingProcessAccountUpn, Domain, DeviceId, DeviceName;\r\nAADSignInEventsBeta\r\n| where isnotempty(RiskLevelDuringSignIn) \r\n| where isnotempty(AccountUpn)\r\n| join kind=inner (\r\n    SuspiciousConnections\r\n) on $left.AccountUpn == $right.InitiatingProcessAccountUpn\r\n| where TimeGenerated > SuspiciousConnections_TimeGenerated\r\n| project Timestamp, ReportId, AccountObjectId, AccountUpn, Domain, IPAddress, Country, Application, ConditionalAccessStatus, DeviceId, DeviceName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "4"
+references:
+    - https://threatview.io/Downloads/DOMAIN-High-Confidence-Feed.txt

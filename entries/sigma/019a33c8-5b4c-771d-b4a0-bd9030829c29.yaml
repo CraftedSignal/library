@@ -1,0 +1,83 @@
+id: 019a33c8-5b4c-771d-b4a0-bd9030829c29
+name: XWORM Delivered Via Ghost Crypt DLL Side-Loading
+description: Detects the execution of XWORM malware delivered via the Ghost Crypt crypter service. The attack chain involves a legitimate but vulnerable PDF reader (HaiHaiSoft PDF Reader) side-loading a malicious 'oledlg.dll', which then uses process hypnosis to inject the final XWORM payload into 'csc.exe'. The rule also detects the persistence mechanism used.
+query: |
+    title: XWORM Delivered Via Ghost Crypt DLL Side-Loading
+    id: 6421fa7c-a650-4ca8-a686-c46b219c758d
+    status: experimental
+    description: Detects the execution of XWORM malware delivered via the Ghost
+      Crypt crypter service. The attack chain involves a legitimate but vulnerable
+      PDF reader (HaiHaiSoft PDF Reader) side-loading a malicious 'oledlg.dll',
+      which then uses process hypnosis to inject the final XWORM payload into
+      'csc.exe'. The rule also detects the persistence mechanism used.
+    references:
+      - https://www.kroll.com/en/publications/cyber/xworm-returns-haunt-systems-ghost-crypt
+    author: "Kaung Khant Ko"
+    date: 2025-10-30
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.t1059.003
+      - attack.t1547.001
+      - attack.t1055.012
+      - attack.t1574.001
+      - detection.emerging-threats
+    logsource:
+      product: windows
+      category:
+        - process_creation
+        - image_load
+    detection:
+      selection_hashes:
+        sha256:
+          - 'e4628593185329daaaa0e48789e7656a25d523aa050a1645b3f7df41615e2f61' # 1095-A_PDF.exe
+          - 'caab15769d85160eeaa053fac63eb20db87125a07d5cdbb55c895136bb225a17' # oledlg.dll
+          - '20f1e0e5dc4e07053013706921a8e47fb428d1d6518211755ffe6dee64fd89d1' # xworm_inmemory.bin
+          - '5d9f84278fe99b5dfe4a8ccb4f5fe35a85e9d16300b340048e0df122e65d83ef' # xworm_unmapped.exe
+      selection_persistence:
+        category: process_creation
+        CommandLine|contains|all:
+          - 'reg add'
+          - '\CurrentVersion\Run'
+          - 'rundll32.exe'
+          - ',EntryPoint'
+      selection_process_creation:
+        category: process_creation
+        ParentImage|endswith: '\hpreader.exe'
+        Image|endswith: '\csc.exe'
+      selection_sideload:
+        category: image_load
+        Image|endswith: '\hpreader.exe'
+        ImageLoaded|endswith: '\oledlg.dll'
+      filter_legitimate_sideload:
+        ImageLoaded|startswith:
+          - 'C:\Windows\System32\'
+          - 'C:\Windows\SysWOW64\'
+      condition: selection_hashes or selection_persistence or
+        selection_process_creation or (selection_sideload and not
+        filter_legitimate_sideload)
+    falsepositives:
+      - The HaiHaiSoft PDF Reader ('hpreader.exe') is a legitimate application. If
+        it is used in the environment, the side-loading detection
+        ('selection_sideload') could trigger if a non-malicious file named
+        'oledlg.dll' exists in the same directory.
+      - The process creation of 'csc.exe' by 'hpreader.exe' is highly anomalous and
+        unlikely to be legitimate activity.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1059.003
+    - T1547.001
+    - T1055.012
+    - T1574.001
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://www.kroll.com/en/publications/cyber/xworm-returns-haunt-systems-ghost-crypt

@@ -1,0 +1,15 @@
+id: 019b9deb-3aff-751b-8cec-01e65805f3f5
+name: 'Schedule task creation by Unsigned  Process '
+description: Detects the creation of scheduled tasks using the 'schtasks.exe' utility with the '/Create' argument. This can indicate an adversary establishing persistence or scheduling malicious activity.
+query: "\r\n// MITRE ATT&CK: T1053.005 (Scheduled Task/Job: Scheduled Task)\r\nDeviceProcessEvents\r\n| where FileName =~ \"schtasks.exe\"\r\n| where ProcessCommandLine has \"/Create\"\r\n|summarize dcount(DeviceId), make_set(DeviceName,20)  by  InitiatingProcessFileName, InitiatingProcessSHA256\r\n|invoke FileProfile(InitiatingProcessSHA256,1000)\r\n| where SignatureState != @\"SignedValid\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+version: "3"

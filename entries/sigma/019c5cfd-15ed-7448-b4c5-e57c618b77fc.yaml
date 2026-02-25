@@ -1,0 +1,66 @@
+id: 019c5cfd-15ed-7448-b4c5-e57c618b77fc
+name: KongTuke Malware - PowerShell DPAPI Payload Loader
+description: This rule detects the execution of PowerShell with an execution policy bypass, specifically looking for a command line that includes 'AzureRemove-NetNatStaticMapping.ps1' and 'AppActions'. This combination is indicative of the KongTuke malware's second-stage loader, which uses a PowerShell script to load a DPAPI-unprotected payload.
+query: |
+    title: KongTuke Malware - PowerShell DPAPI Payload Loader
+    id: c3d4e5f6-a7b8-6c7d-0e1f-2a3b4c5d6e7f
+    status: experimental
+    description: >-
+      This rule detects the execution of PowerShell with an execution policy bypass,
+      specifically looking for a command line that includes
+      'AzureRemove-NetNatStaticMapping.ps1' and 'AppActions'. This combination is
+      indicative of the KongTuke malware's second-stage loader, which uses a
+      PowerShell script to load a DPAPI-unprotected payload.
+    references:
+      - https://malpedia.caad.fkie.fraunhofer.de/details/js.kongtuke
+      - https://isc.sans.edu/diary/32498
+      - >-
+        https://www.recordedfuture.com/research/tag-124-multi-layered-tds-infrastructure-extensive-user-base
+      - >-
+        https://trustwave.com/en-us/resources/blogs/spiderlabs-blog/yet-another-nodejs-backdoor-yanb-a-modern-challenge
+    author: Daniel Jeremiah
+    date: 2026/02/14
+    modified: 2026/02/14
+    logsource:
+      category: process_creation
+      product: windows
+      service: powershell-classic
+    detection:
+      selection_cmd:
+        - Image|endswith: \powershell.exe
+        - CommandLine|contains: AzureRemove-NetNatStaticMapping.ps1
+        - CommandLine|contains: AppActions
+      selection_distinct:
+        - CommandLine|contains: Bypass
+        - CommandLine|contains: '-ep bypass'
+      condition: selection_cmd and 1 of selection_distinct
+    falsepositives:
+      - Legitimate admin script with same name, path, and execution policy bypass
+        (rare)
+    level: high
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.defense_evasion
+      - malware.kongtuke
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense_evasion
+    - malware.kongtuke
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://malpedia.caad.fkie.fraunhofer.de/details/js.kongtuke
+    - https://isc.sans.edu/diary/32498
+    - https://www.recordedfuture.com/research/tag-124-multi-layered-tds-infrastructure-extensive-user-base
+    - https://trustwave.com/en-us/resources/blogs/spiderlabs-blog/yet-another-nodejs-backdoor-yanb-a-modern-challenge
+data_sources:
+    - process_creation
+    - windows

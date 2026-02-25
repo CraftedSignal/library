@@ -1,0 +1,51 @@
+id: 4896a08b-b91e-42a7-ac55-73922e43c7b5
+name: Suspicious ISO File Mounted
+description: Detects the mounting of an ISO file, a common technique used by threat actors, including the SLOW#TEMPEST campaign, to deliver malware. ISO files can bypass some security controls and require user interaction (double-clicking) to mount, after which malicious content can be executed.
+query: |
+    title: Suspicious ISO File Mounted
+    id: b2ba4c1c-3a75-402c-bbf3-a793139a646f
+    status: experimental
+    description: >-
+      Detects the mounting of an ISO file. This is a common technique used by threat actors, including the SLOW#TEMPEST campaign, to deliver malware.
+      The ISO file format can bypass some security controls and requires user interaction (double-clicking) to mount, after which the malicious content can be executed.
+    references:
+      - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/
+    author: detections.ai
+    date: 2025-07-22
+    tags:
+      - attack.t1566.001
+      - attack.defense_evasion
+      - campaign.slow_tempest
+    logsource:
+      product: windows
+      channel: Microsoft-Windows-VHDMP-Operational
+    detection:
+      selection:
+        EventID: 12 # VHD mount event, which also applies to ISO files on modern Windows.
+        VHDFileName|endswith: '.iso' # The file being mounted is an ISO.
+      condition: selection
+    falsepositives:
+      - System administrators or IT support personnel mounting legitimate software installation ISOs.
+      - Developers or other users who legitimately work with ISO files.
+      - Consider filtering by user or hostname if certain roles frequently perform this action.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.001
+    - T1204
+tags:
+    - attack.t1566.001
+    - attack.defense_evasion
+    - campaign.slow_tempest
+author: detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/
+data_sources:
+    - windows

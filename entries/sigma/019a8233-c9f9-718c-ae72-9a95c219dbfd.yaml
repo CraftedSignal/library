@@ -1,0 +1,48 @@
+id: 019a8233-c9f9-718c-ae72-9a95c219dbfd
+name: Windows Defender Real-Time Monitoring Disabled Via Registry
+description: Detects attempts to disable Windows Defender's real-time monitoring feature by modifying its corresponding registry key. This technique is commonly used by malware, such as FormBook RAT, to evade detection.
+query: |
+    title: Windows Defender Real-Time Monitoring Disabled Via Registry
+    id: 64f67e8b-ae4c-4bda-a2c9-9a17b9d3daed
+    status: experimental
+    description: Detects attempts to disable Windows Defender's real-time monitoring feature by modifying its corresponding registry key. This technique is commonly used by malware, such as FormBook RAT, to evade detection.
+    references:
+      - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection:
+            # Detects modification of the specific registry key for disabling real-time monitoring
+        TargetObject|endswith: '\SOFTWARE\Microsoft\Windows Defender\Real-Time Protection\DisableRealtimeMonitoring'
+            # Detects the value being set to '1' (disabled)
+        Details:
+          - 'DWORD (0x00000001)'
+          - '1'
+      condition: selection
+    falsepositives:
+        # Legitimate administrators or security software might disable Windows Defender for maintenance, software installation, or troubleshooting.
+        # Consider tuning this rule based on authorized administrative activity in your environment.
+      - Legitimate administrative activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+data_sources:
+    - registry_set
+    - windows

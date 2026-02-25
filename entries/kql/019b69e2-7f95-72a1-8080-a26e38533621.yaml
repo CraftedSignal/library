@@ -1,0 +1,15 @@
+id: 019b69e2-7f95-72a1-8080-a26e38533621
+name: BitlockMove - BitLocker COM InProcServer32 Hijack (BDEUILauncher CLSID)
+description: Detects suspicious registry writes that change the BitLocker BDEUILauncher CLSID {A7A63E5C-3877-4840-8727-C1EA9D7A4D50} InProcServer32 DLL away from fveui.dll, consistent with BitlockMove-style COM/DCOM hijacking lateral movement.
+query: "DeviceRegistryEvents\r\n| where Timestamp >= ago(30d)\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey has \"{A7A63E5C-3877-4840-8727-C1EA9D7A4D50}\"\r\n| where RegistryKey has \"\\\\InProcServer32\"\r\n| where isempty(RegistryValueName) or RegistryValueName == \"(Default)\"\r\n| extend DllPath = tolower(tostring(RegistryValueData))\r\n| where DllPath endswith \".dll\"\r\n| where not(DllPath has \"\\\\system32\\\\fveui.dll\")\r\n| project Timestamp, DeviceName, RegistryKey, DllPath, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountUpn\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1546.015
+    - T1021.003
+tags:
+    - kql
+version: "1"
+references:
+    - https://github.com/rtecCyberSec/BitlockMove
+    - https://cybersecuritynews.com/bitlockmove/

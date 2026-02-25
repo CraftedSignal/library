@@ -1,0 +1,63 @@
+id: 0199ee2d-768c-706c-8f70-69eacf94e4d7
+name: Blockchain Query via eth_call in HTTP Request
+description: Detects HTTP POST requests containing a JSON-RPC payload with the 'eth_call' method. This is often used by web-based crypto wallets or dApps to interact with the Ethereum blockchain, but can also be used by malicious JavaScript for activities like cryptojacking or wallet draining.
+query: |
+    title: Blockchain Query via eth_call in HTTP Request
+    id: 2ae94f98-9dd5-4e81-92d9-b17ac4a79643
+    status: experimental
+    description: >-
+      Detects HTTP POST requests containing a JSON-RPC payload with the 'eth_call'
+      method. This is often used by web-based crypto wallets or dApps to interact
+      with the Ethereum blockchain, but can also be used by malicious JavaScript for
+      activities like cryptojacking or wallet draining.
+    references:
+      - https://ethereum.org/en/developers/docs/apis/json-rpc/
+      - >-
+        https://thehackernews.com/2025/10/north-korean-hackers-use-etherhiding-to.html?m=1
+      - >-
+        https://www.securonix.com/blog/analysis-of-devpopper-new-attack-campaign-targeting-software-developers-likely-associated-with-north-korean-threat-actors/
+    author: detections.ai
+    date: 2025-10-16T00:00:00.000Z
+    tags:
+      - attack.impact
+      - attack.t1496
+      - detection.emerging_threat
+      - EtherHiding
+    logsource:
+      category: proxy
+    detection:
+      selection:
+        cs-method: POST
+        http.request.body|contains:
+          - '"jsonrpc":"2.0"'
+        http.request.body|contains:
+          - '"method":"eth_call"'
+          - '"method":"eth_getCode"'
+          - '"method":"eth_getTransactionByHash"'
+      condition: selection
+    falsepositives:
+      - Legitimate use of decentralized applications (dApps) or web-based
+        cryptocurrency wallets will trigger this alert.
+      - Consider tuning the rule by excluding traffic to known, trusted blockchain
+        service providers or dApp domains if this activity is expected in your
+        environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1496
+    - T1496.001
+tags:
+    - attack.impact
+    - attack.t1496
+    - detection.emerging_threat
+author: detections.ai
+version: "8"
+references:
+    - https://ethereum.org/en/developers/docs/apis/json-rpc/
+    - https://thehackernews.com/2025/10/north-korean-hackers-use-etherhiding-to.html?m=1
+    - https://www.securonix.com/blog/analysis-of-devpopper-new-attack-campaign-targeting-software-developers-likely-associated-with-north-korean-threat-actors/
+data_sources:
+    - proxy

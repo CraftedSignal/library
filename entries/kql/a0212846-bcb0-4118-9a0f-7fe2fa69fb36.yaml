@@ -1,0 +1,28 @@
+id: a0212846-bcb0-4118-9a0f-7fe2fa69fb36
+name: APT Stealth Falcon - CVE-2025-33053 Detection
+description: 'KQL Query from file: APT Stealth Falcon - CVE-2025-33053 Detection'
+query: |
+    // APT Stealth Falcon - CVE-2025-33053 Detection
+    // https://research.checkpoint.com/2025/stealth-falcon-zero-day/
+
+    let QueryPeriod = 1h;
+    let DevicewithDotURL =
+    DeviceFileEvents
+    | where Timestamp > ago(QueryPeriod)
+    | where ActionType == "FileCreated"
+    | where tolower(FileName) endswith ".url"
+    | distinct DeviceName;
+    DeviceProcessEvents
+    | where Timestamp > ago(QueryPeriod)
+    | where InitiatingProcessFileName =~ "iediagcmd.exe" and FileName =~ "route.exe"
+    | where FolderPath startswith "\\"
+    | where DeviceName has_any(DevicewithDotURL)
+query_type: kql
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059
+tags:
+    - kql
+version: "1"

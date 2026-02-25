@@ -1,0 +1,15 @@
+id: 019ba722-453b-77bc-98c8-b4dd8671321e
+name: Office Applications Creating INI Files in ProgramData ( RustyWater )
+description: This rule detects when Microsoft Office applications (Word, Excel, PowerPoint) create INI files within the `C:\ProgramData\` directory. This behavior can be indicative of malicious activity, such as macro-enabled documents dropping configuration files or payloads, or other forms of malware attempting to establish persistence or store data in a less scrutinized location.
+query: "DeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FolderPath =~ @\"C:\\ProgramData\\\" and FileName endswith \".ini\"\r\n| where InitiatingProcessFileName in~ (\"winword.exe\", \"excel.exe\", \"powerpnt.exe\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    DeviceFileEvents_DeviceName = DeviceName,\r\n    DeviceFileEvents_TimeGenerated = TimeGenerated\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1059.005
+tags:
+    - kql
+version: "2"

@@ -1,0 +1,71 @@
+id: 019c6d05-2e28-716f-8823-ae9f27df58bf
+name: GS7 Phishing Subdomain Pattern
+description: Detects DNS queries for subdomains that match a specific pattern used by the threat actor GS7. The actor uses a semi-automated infrastructure with highly specific subdomain naming conventions, such as 'rss.[random]-auth.com' or 'cpcalendars.[random]-verify.online', to host phishing pages and payloads.
+query: |
+    title: GS7 Phishing Subdomain Pattern
+    id: c094dcbf-82dd-4571-b27e-2ff7d61f7c08
+    status: experimental
+    description: Detects DNS queries for subdomains that match a specific pattern
+      used by the threat actor GS7. The actor uses a semi-automated infrastructure
+      with highly specific subdomain naming conventions, such as
+      'rss.[random]-auth.com' or 'cpcalendars.[random]-verify.online', to host
+      phishing pages and payloads.
+    author: detections.ai
+    references:
+      - https://socradar.io/wp-content/uploads/2026/02/Operation-DoppelBrand_-Weaponizing-Fortune-500-Brands-for-Credential-Theft-and-Remote-Access.pdf
+    date: 2026-02-17
+    tags:
+      - attack.initial_access
+      - attack.t1566.002
+      - attack.resource_development
+      - attack.t1583.001
+    logsource:
+      category: dns
+      product: windows
+    detection:
+      selection_subdomains:
+        # Specific subdomains repurposed by GS7 for payload delivery
+        QueryName|startswith:
+          - 'rss.'
+          - 'cpcalendars.'
+          - 'cpcontacts.'
+          - 'tyd.'
+          - 'dfr.'
+      selection_keywords:
+        # Keywords used in the domain structure to impersonate legitimate functions
+        QueryName|contains:
+          - '-auth.'
+          - '-account.'
+          - '-verify.'
+          - '-secure.'
+          - '-confirm.'
+      selection_tlds:
+        # TLDs commonly used by GS7 in recent campaigns
+        QueryName|endswith:
+          - '.online'
+          - '.com'
+      condition: all of selection_*
+    falsepositives:
+      - Unlikely, but legitimate domains could coincidentally match this structural
+        pattern.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566.002
+    - T1583.001
+tags:
+    - attack.initial_access
+    - attack.t1566.002
+    - attack.resource_development
+    - attack.t1583.001
+author: detections.ai
+version: "2"
+references:
+    - https://socradar.io/wp-content/uploads/2026/02/Operation-DoppelBrand_-Weaponizing-Fortune-500-Brands-for-Credential-Theft-and-Remote-Access.pdf
+data_sources:
+    - dns
+    - windows

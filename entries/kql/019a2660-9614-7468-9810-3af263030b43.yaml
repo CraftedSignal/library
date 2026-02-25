@@ -1,0 +1,55 @@
+id: 019a2660-9614-7468-9810-3af263030b43
+name: 'Telemetry Validation: Microsoft Defender Stack'
+description: "This hunting query validates the health and availability of Microsoft Defender telemetry sources across environments based on their respective common data tables.\nThis includes the different Defender solution: \n\n    Defender for Endpoint\n    Defender for Identity\n    Defender for Office 365\n    Defender for Cloud Apps\n    Defender for Cloud\n\nThe query enumerates all key log tables within the Log Analytics workspace and checks whether they:\n\n    Are present and actively ingesting data (logs seen within the last 7 days)\n\n    Are stale (no new events within the last 7 days)\n\n    Are missing entirely, indicating the data connector is disabled or misconfigured\n\nThe output provides a quick health status (✅ Active, ⚠️ Stale, or ❌ Missing) for each core log source\nMonitoring these sources ensures that critical endpoint, identity, email, and cloud security telemetry is being ingested into Microsoft Sentinel as a singular method."
+query: |-
+    // ----------------------------------------------------------
+    // MS Sentinel HUNT: Telemetry Validation: Microsoft Defender Stack
+    // ----------------------------------------------------------
+
+    let lookback = 7d;
+    let now = now();
+    // Baseline list of Defender sources to check
+    let defenderSources = datatable(SourceName:string, TableName:string)
+    [
+        "Defender for Endpoint - Device Events", "DeviceEvents",
+        "Defender for Endpoint - Process Events", "DeviceProcessEvents",
+        "Defender for Endpoint - File Events", "DeviceFileEvents",
+        "Defender for Endpoint - Network Events", "DeviceNetworkEvents",
+        "Defender for Identity - Logon Events", "IdentityLogonEvents",
+        "Defender for Identity - Security Events", "IdentitySecurityEvents",
+        "Defender for Office 365 - Email Events", "EmailEvents",
+        "Defender for Office 365 - Threat Intelligence", "ThreatIntelligenceIndicator",
+        "Defender for Cloud Apps - CASB Events", "CloudAppEvents",
+        "Defender for Cloud - Azure Security Alerts", "SecurityAlert",
+        "Defender for Cloud - Azure Activity Logs", "AzureActivity"
+    ];
+    // Check each table for recent data
+    defenderSources
+    | join kind=leftouter (
+        union isfuzzy=true
+            (DeviceEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="DeviceEvents"),
+            (DeviceProcessEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="DeviceProcessEvents"),
+            (DeviceFileEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="DeviceFileEvents"),
+            (DeviceNetworkEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="DeviceNetworkEvents"),
+            (IdentityLogonEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="IdentityLogonEvents"),
+            (IdentitySecurityEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="IdentitySecurityEvents"),
+            (EmailEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="EmailEvents"),
+            (ThreatIntelligenceIndicator | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="ThreatIntelligenceIndicator"),
+            (CloudAppEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="CloudAppEvents"),
+            (SecurityAlert | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="SecurityAlert"),
+            (AzureActivity | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="AzureActivity")
+    ) on TableName
+    | extend
+        DataStatus = case(
+            isnull(LastLogTime), "❌ No Data Found (Not Enabled or Not Connected)",
+            LastLogTime < now - lookback, "⚠️ Stale Data (Older than 7 days)",
+            "✅ Active and Ingesting"
+        )
+    | project SourceName, TableName, DataStatus, LastLogTime, EventCount=Count
+    | order by DataStatus, SourceName desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: IronBr@nded
+version: "3"

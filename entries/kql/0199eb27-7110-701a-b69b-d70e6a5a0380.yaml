@@ -1,0 +1,17 @@
+id: 0199eb27-7110-701a-b69b-d70e6a5a0380
+name: PowerShell Case Anomaly Detection
+description: Detects PowerShell command-line execution with unusual or randomized character casing for keywords like "powershell" or "-noprofile". This is a common obfuscation technique used by attackers to evade basic, case-sensitive detections. This rule is inspired by the THOR PowerShell_Case_Anomaly Yara rule.
+query: "// Name: PowerShell Case Anomaly\r\n// Author: @malwarejutsu\r\n// Date: 2025-10-16\r\n// Description: Detects PowerShell command-line execution with unusual or randomized character casing for keywords like \"powershell\" or \"-noprofile\". This is a common obfuscation technique used by attackers to evade basic, case-sensitive detections. This rule is inspired by the THOR PowerShell_Case_Anomaly Yara rule.\r\n// MITRE TTPs: T1027 (Obfuscated Files or Information), T1059.001 (PowerShell)\r\n// References: https://twitter.com/danielhbohannon/status/905096106924761088\r\n\r\n// Define known legitimate casings for \"powershell\" based on the provided Yara rule\r\nlet known_ps_casings = dynamic([\"powershell\", \"Powershell\", \"PowerShell\", \"POWERSHELL\", \"powerShell\", \"PowerShelL\", \"PowershelL\"]);\r\n// Define known legitimate casings for \"-noprofile\"\r\nlet known_noprofile_casings = dynamic([\"-noprofile\", \"-NoProfile\", \"-noProfile\", \"-NOPROFILE\", \"-Noprofile\"]);\r\n\r\nDeviceProcessEvents\r\n// Filter for PowerShell processes or command lines containing relevant keywords\r\n| where (ProcessCommandLine has \"powershell\" or ProcessCommandLine has \"-noprofile\")\r\n  and (FileName in~ (\"powershell.exe\", \"pwsh.exe\") or InitiatingProcessFileName in~ (\"powershell.exe\", \"pwsh.exe\"))\r\n| extend\r\n    // Extract the first occurrence of \"powershell\" (case-insensitive) from the command line\r\n    found_ps_keyword = extract(@'([pP][oO][wW][eE][rR][sS][hH][eE][lL][lL])', 0, ProcessCommandLine),\r\n    // Extract the first occurrence of \"-noprofile\" (case-insensitive) from the command line\r\n    found_noprofile_keyword = extract(@'(-[nN][oO][pP][rR][oO][fF][iI][lL][eE])\\b', 0, ProcessCommandLine)\r\n// The core detection logic for case anomalies\r\n| where\r\n    // Detect if the found \"powershell\" keyword has an unusual casing\r\n    (isnotempty(found_ps_keyword) and found_ps_keyword !in (known_ps_casings))\r\n    or\r\n    // Detect if the found \"-noprofile\" keyword has an unusual casing\r\n    (isnotempty(found_noprofile_keyword) and found_noprofile_keyword !in (known_noprofile_casings))\r\n// FP Tuning: Legitimate scripts or admin tools might use non-standard casing.\r\n// Consider excluding known safe parent processes or script paths if false positives occur.\r\n// Example: | where not(InitiatingProcessFolderPath has_any (\"path_to_safe_tool\", \"another_safe_path\"))\r\n| project-reorder\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://twitter.com/danielhbohannon/status/905096106924761088

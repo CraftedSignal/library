@@ -1,0 +1,18 @@
+id: 019c8a3a-abb0-70be-a9c8-41df02a1af08
+name: BADIIS Service Security Descriptor Hardening
+description: Detects the modification of a service's Security Descriptor using the 'sc sdset' command. This technique is used by the BADIIS threat actor to prevent administrators or security tools from viewing or modifying the malicious 'WalletServiceInfo' service. The rule specifically looks for the 'sc.exe' utility, the 'sdset' command, the service name 'WalletServiceInfo', and the specific SDDL string 'D:(D;;DCLCWPDTSD;;;IU)' which denies access to Interactive Users.
+query: "// Name: BADIIS Service Security Descriptor Hardening\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Tactic: Persistence, Defense Evasion\r\n// Technique: T1543.003, T1564.011\r\n// Description: Detects the modification of a service's Security Descriptor using the 'sc sdset' command. This technique is used by the BADIIS threat actor to prevent administrators or security tools from viewing or modifying the malicious 'WalletServiceInfo' service.\r\n// References: https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for the execution of the Service Control utility\r\n| where ProcessVersionInfoOriginalFileName =~ \"sc.exe\" or FileName =~ \"sc.exe\"\r\n// Filter for the 'sdset' command used to modify service security descriptors\r\n| where ProcessCommandLine has \"sdset\"\r\n// Filter for the specific service name used by the BADIIS malware\r\n| where ProcessCommandLine has \"WalletServiceInfo\"\r\n// Filter for the specific SDDL string used to deny access to Interactive Users (IU)\r\n| where ProcessCommandLine has \"D:(D;;DCLCWPDTSD;;;IU)\"\r\n// This query is highly specific to the BADIIS campaign due to the service name and SDDL string.\r\n// To hunt for similar TTPs, consider removing the 'WalletServiceInfo' filter and looking for any 'sdset' command that includes broad deny permissions.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1543.003
+    - T1668
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign

@@ -1,0 +1,13 @@
+id: 2063a73f-1da9-4336-b302-cbc795ce948c
+name: Azure NSG Rule Modified to Allow Any Source IP
+description: This rule detects the modification of an Azure Network Security Group (NSG) rule to allow traffic from any source IP address ('*'). This configuration change significantly broadens network access and could indicate an adversary attempting to establish persistence, enable command and control, or facilitate data exfiltration by opening up previously restricted network paths.
+query: "AzureActivity\r\n| where OperationNameValue endswith 'NETWORKSECURITYGROUPS/WRITE' //can change this, linkedin turns the full operation name into a shortened link\r\n| where ActivitySubstatusValue == 'OK'\r\n| extend nsgName = split(_ResourceId, \"/\", 8)[0]\r\n| extend data = parse_json(dynamic_to_json(parse_json(dynamic_to_json(parse_json\r\n(dynamic_to_json(parse_json(Properties_d).responseBody)).properties)).securityRules.[0])).properties\r\n| extend description = data.description, sourceAddress = data.sourceAddressPrefix, port = data.destinationPortRange, \r\ndirection = data.direction, destinationAddress = data.destinationAddressPrefix\r\n| where sourceAddress == '*' //looking for any source IP\r\n| project TimeGenerated, sourceAddress, port, direction, destinationAddress, nsgName, description"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.007
+tags:
+    - kql
+version: "1"

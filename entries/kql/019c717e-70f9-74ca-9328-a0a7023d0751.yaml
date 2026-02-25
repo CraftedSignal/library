@@ -1,0 +1,18 @@
+id: 019c717e-70f9-74ca-9328-a0a7023d0751
+name: VSCode Extension Sensitive File Access
+description: Detects when a Visual Studio Code process (Code.exe) or its underlying Node.js process accesses sensitive user directories or files. This could indicate the exploitation of a vulnerable extension, such as in CVE-2025-65717, to steal credentials or other sensitive data.
+query: "// Name: VSCode Extension Sensitive File Access\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: Detects when a Visual Studio Code process (Code.exe) or its underlying Node.js process accesses sensitive user directories or files. This could indicate the exploitation of a vulnerable extension, such as in CVE-2025-65717, to steal credentials or other sensitive data.\r\n// References: https://www.bleepingcomputer.com/news/security/flaws-in-popular-vscode-extensions-expose-developers-to-attacks/\r\n// MITRE TTPs: T1555.003, T1552.001\r\n// False Positive Sensitivity: Medium\r\nlet vsCodeProcesses = dynamic([\"Code.exe\", \"node.exe\"]);\r\nlet sensitivePatterns = dynamic([\r\n    \"/.ssh/\", \"\\\\.ssh\\\\\",\r\n    \"/.aws/\", \"\\\\.aws\\\\\",\r\n    \"/.kube/\", \"\\\\.kube\\\\\",\r\n    \"/.docker/\", \"\\\\.docker\\\\\",\r\n    \"/.config/gcloud\", \"\\\\AppData\\\\Roaming\\\\gcloud\\\\\"\r\n]);\r\nDeviceFileEvents\r\n// Focus on file access events\r\n| where ActionType == \"FileAccessed\"\r\n// Filter for processes related to VSCode\r\n| where InitiatingProcessFileName in~ (vsCodeProcesses)\r\n// To reduce FPs from other node.js apps, ensure the parent node.exe is running from a VSCode path if it's the parent.\r\n| where InitiatingProcessFileName =~ \"Code.exe\" or (InitiatingProcessFileName =~ \"node.exe\" and InitiatingProcessFolderPath has_any (\"Microsoft VS Code\", \"vscode-server\"))\r\n// Filter for access to sensitive files or paths.\r\n| where FolderPath  has_any (sensitivePatterns) or FileName endswith \".env\"\r\n// False Positive Tuning:\r\n// Developers frequently and legitimately open configuration files, SSH keys, and .env files in their editor.\r\n// This rule is prone to high false positives without significant tuning.\r\n// Consider filtering out access to files within the user's current git repository or workspace if that context is available.\r\n// Exclude known developer machines or filter for access followed by a network connection.\r\n// For example:\r\n// | where DeviceName !in (\"known-dev-box-1\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    RequestAccountName,\r\n    InitiatingProcessAccountName,\r\n    ActionType,\r\n    AccessedFile = FolderPath,\r\n    AccessingProcess = InitiatingProcessFileName,\r\n    AccessingProcessCommandLine = InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1552.001
+    - T1555
+    - T1552
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/flaws-in-popular-vscode-extensions-expose-developers-to-attacks/

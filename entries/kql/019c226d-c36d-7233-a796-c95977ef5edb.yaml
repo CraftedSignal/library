@@ -1,0 +1,12 @@
+id: 019c226d-c36d-7233-a796-c95977ef5edb
+name: Investigate Surrounding Firewall Traffic
+description: This is for when we need to investigate user navigation through proxy logs to understand if visit was intentional or if it was a sideload (redirect/iframe/malvertising) causing the navigation.
+query: "//#########################################################################\r\n//##  Data Source: Proxy / Web Gateway (CommonSecurityLog)\r\n//##  AUTHOR: IGOR OLIVEIRA (#IO)\r\n//##  Description: User navigation to malicious or suspicious web resources\r\n//##  MITRE ATT&CK Mapping\r\n//##    Tactic: Initial Access\r\n//##      Technique: T1189 - Drive-by Compromise\r\n//#########################################################################\r\nlet endDate = datetime(2026-02-02T23:00:00Z); // Update DateTime accordingly\r\nlet startDate = endDate -5min; // Update for according timeframe\r\nCommonSecurityLog\r\n    | where DeviceProduct == \"PAN-OS\"\r\n    | where TimeGenerated between (startDate .. endDate)\r\n    | where SourceUserName == \"DOMAIN_NAME\\\\User_Name\"\r\n    // | where RequestURL contains \"domain.tld\"\r\n    | where isnotempty(RequestURL)\r\n    | project-reorder TimeGenerated, RequestURL, SourceUserName, DeviceCustomString2, DeviceAction, SourceIP, DestinationPort, DestinationIP"
+query_type: kql
+severity: medium
+techniques:
+    - T1189
+tags:
+    - kql
+author: Igor Oliveira
+version: "5"

@@ -1,0 +1,19 @@
+id: 019c4468-800f-7354-a1be-b5e07630c8fa
+name: WSUS Service Exploitation - Suspicious Child Processes (CVE-2025-59287)
+description: This rule detects suspicious child processes spawned by 'WsusService.exe', which is indicative of successful exploitation of a vulnerability like CVE-2025-59287. The rule specifically looks for the WSUS service initiating common command-line utilities such as cmd.exe, powershell.exe, curl.exe, wget.exe, certutil.exe, bitsadmin.exe, and msiexec.exe, which are often used for post-exploitation activities like command execution, downloading additional payloads, or system manipulation. The severity is dynamically assigned based on the spawned process, with download utilities like curl.exe, certutil.exe, and bitsadmin.exe being flagged as 'Critical'.
+query: "// Name: WSUS Service Exploitation - Suspicious Child Processes (CVE-2025-59287)\r\n// Author: Rudra Verma - CyberHawk\r\n// Date: 2026-02-10\r\n// MITRE ATT&CK: T1190 (Exploit Public-Facing Application)\r\n// CVE: CVE-2025-59287\r\n// Reference: https://www.fortra.com/blog/velociraptor-dfir-tool-abused-wsus-rce-cve-2025-59287\r\n\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(30d)\r\n| where InitiatingProcessFileName =~ \"WsusService.exe\"\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\", \"curl.exe\", \"wget.exe\", \"certutil.exe\", \"bitsadmin.exe\", \"msiexec.exe\")\r\n| extend Severity = case(\r\n    FileName in~ (\"curl.exe\", \"certutil.exe\", \"bitsadmin.exe\"), \"Critical\",\r\n    FileName in~ (\"powershell.exe\", \"cmd.exe\"), \"High\",\r\n    \"Medium\"\r\n)\r\n| extend ThreatDetails = strcat(\r\n    \" WSUS Service spawned \", FileName, \r\n    \" | CmdLine: \", substring(ProcessCommandLine, 0, 200),\r\n    \" | User: \", AccountName\r\n)\r\n| summarize \r\n    FirstSeen = min(TimeGenerated),\r\n    LastSeen = max(TimeGenerated),\r\n    ExecutionCount = count(),\r\n    ProcessesSpawned = make_set(FileName),\r\n    CommandLines = make_set(substring(ProcessCommandLine, 0, 200), 10)\r\n    by DeviceName, AccountName\r\n| extend \r\n    DaysActive = datetime_diff('day', LastSeen, FirstSeen),\r\n    RequiresIsolation = \"YES - WSUS RCE Exploitation\",\r\n    InvestigationSteps = \"1) ISOLATE device immediately - active RCE exploitation. 2) Check for Velociraptor installation in 'C:\\\\Program Files\\\\Velociraptor'. 3) Review CommandLines for download URLs (Cloudflare Workers domains). 4) Hunt for VS Code tunnel installations in C:\\\\ProgramData. 5) Collect memory dump and full forensic triage.\"\r\n| project \r\n    RequiresIsolation,\r\n    Severity = \"Critical\",\r\n    InvestigationSteps,\r\n    FirstSeen,\r\n    LastSeen,\r\n    DaysActive,\r\n    DeviceName,\r\n    AccountName,\r\n    ExecutionCount,\r\n    ProcessesSpawned,\r\n    CommandLines\r\n| sort by FirstSeen desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1190
+    - T1059.001
+    - T1218.007
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.fortra.com/blog/velociraptor-dfir-tool-abused-wsus-rce-cve-2025-59287

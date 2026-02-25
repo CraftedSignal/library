@@ -1,0 +1,68 @@
+id: 019c5cab-76f3-700d-862b-0ab5945063fc
+name: OysterLoader Scheduled Task and Rundll32 from AppData
+description: OysterLoader stage 3 creates a scheduled task (every 13 min) running rundll32 with a DLL from AppData. Task names include COPYING3, VisualUpdater, AlphaSecurity, DetectorSpywareSecurity. Sekoia report.
+query: |
+    title: OysterLoader Scheduled Task and Rundll32 from AppData
+    id: 5a6b7c8d-9e0f-4123-4567-890abcdef123
+    status: experimental
+    description: >-
+      OysterLoader stage 3 creates a scheduled task (every 13 min) running rundll32
+      with a DLL from AppData. Task names include COPYING3, VisualUpdater,
+      AlphaSecurity, DetectorSpywareSecurity. Sekoia report.
+    references:
+      - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+    author: Daniel Jeremiah
+    date: 2026/02/14
+    tags:
+      - attack.t1053.005
+      - attack.t1218.011
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_task_create:
+        Image|endswith: \schtasks.exe
+        CommandLine|contains:
+          - /Create
+          - /SC MINUTE
+          - /MO 13
+          - rundll32
+          - DllRegisterServer
+      selection_task_names:
+        CommandLine|contains:
+          - COPYING3
+          - VisualUpdater
+          - AlphaSecurity
+          - DetectorSpywareSecurity
+      selection_rundll32_appdata:
+        Image|endswith: ' undll32.exe'
+        CommandLine|contains:
+          - AppData\Roaming
+          - DllRegisterServer
+      selection_rundll32_names:
+        CommandLine|contains:
+          - COPYING3.dll
+          - VisualUpdater
+          - AlphaSecurity
+          - DetectorSpywareSecurity
+      condition: >-
+        (selection_task_create and selection_task_names) or
+        (selection_rundll32_appdata and selection_rundll32_names)
+    falsepositives:
+      - Legitimate software using similar task names and AppData
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.005
+    - T1218.011
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/

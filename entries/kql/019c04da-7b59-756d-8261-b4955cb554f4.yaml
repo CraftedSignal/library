@@ -1,0 +1,71 @@
+id: 019c04da-7b59-756d-8261-b4955cb554f4
+name: Microsoft Office Spawning Suspicious Child Process
+description: Detects Microsoft Office applications (Word, Excel, PowerPoint, Outlook) spawning suspicious child processes like command shells or script interpreters. This behavior can be indicative of malicious macro execution or exploitation of vulnerabilities, where an embedded OLE object leads to code execution.
+query: |-
+    // Name: Microsoft Office Spawning Suspicious Child Process
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects Microsoft Office applications (Word, Excel, PowerPoint) spawning suspicious child processes like command shells or script interpreters. This behavior can be indicative of malicious macro execution or exploitation of vulnerabilities like CVE-2026-21509, where an embedded OLE object leads to code execution.
+    //
+    // Tactics: Execution
+    // Techniques: T1204.002, T1124
+    //
+    // References:
+    // - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509
+    //
+    // False Positive Sensitivity: Medium
+    // - Legitimate add-ins or complex macros may exhibit this behavior.
+    // - To reduce false positives, consider filtering for specific command-line arguments or excluding known good parent-child process relationships based on your environment's baseline.
+
+    let office_apps = dynamic([
+        "winword.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "outlook.exe" // Added Outlook as it's a common vector for malicious documents
+    ]);
+    let suspicious_children = dynamic([
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "wscript.exe",
+        "cscript.exe",
+        "mshta.exe",
+        "rundll32.exe" // Added as it's a common LOLBIN for execution
+    ]);
+    DeviceProcessEvents
+    // Filter for process creation events
+    | where ActionType == "ProcessCreated"
+    // Filter for known Office applications as the parent process. Using 'InitiatingProcessFileName' is generally reliable.
+    | where InitiatingProcessFileName in~ (office_apps)
+    // Filter for suspicious child processes often used for second-stage execution.
+    | where FileName in~ (suspicious_children)
+    // FP Tuning: Exclude common legitimate command lines if necessary.
+    // For example, some applications might legitimately call cmd.exe for a specific, benign purpose.
+    // | where ProcessCommandLine !has "known_benign_string"
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        SHA1,
+        InitiatingProcessId,
+        ProcessId,
+        ReportId,
+        ActionType
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1059
+    - T1218
+tags:
+    - kql
+version: "3"
+references:
+    - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509

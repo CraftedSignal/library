@@ -1,0 +1,29 @@
+id: ef69349a-75a2-4efa-810a-e900840139d9
+name: CVE-2024-26234 and CVE-2024-29988
+description: 'KQL Query from file: CVE-2024-26234 and CVE-2024-29988'
+query: "//  CVE-2024-26234 and CVE-2024-29988\n// \U0001F6A8Patching Prioritization - Zero-Day Exploits\U0001F6A8\n// https://www.linkedin.com/posts/activity-7183738500502990848-9rdu/\n\n// Using DefenderXDR Exposure Management to determine the list of devices accessible by critical identities holding highly privilege roles and that the devices are also vulnerable to both CVE-2024-26234 and CVE-2024-29988 that currently exploited in malware attacks. As critical identities are part of your organization attack surface areas holding keys to your tenant, plugging this hole significantly reduce your organization risk against the Zero-Day exploits. \U0001FAE1\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet CriticalDevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nDeviceTvmSoftwareVulnerabilities \n| where CveId == \"CVE-2024-26234\" or CveId == \"CVE-2024-29988\"\n| where DeviceName has_any (CriticalDevices)\n\n// MITRE ATT&CK Mapping\n// The KQL code is designed to identify critical identities and devices, and then check for specific vulnerabilities on those devices. The associated MITRE ATT&CK techniques include:\n\n// T1078: Valid Accounts\n// T1078.001: Valid Accounts: Local Accounts\n// T1078.003: Valid Accounts: Local Administrator Accounts\n// T1190: Exploit Public-Facing Application\n// T1210: Exploitation of Remote Services\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+    - TA0002
+    - TA0043
+    - TA0006
+    - TA0007
+techniques:
+    - T1078
+    - T1078.001
+    - T1078.003
+    - T1190
+    - T1210
+    - T1047
+    - T1021.006
+    - T1595.002
+    - T1212
+    - T1069.002
+tags:
+    - kql
+version: "1"

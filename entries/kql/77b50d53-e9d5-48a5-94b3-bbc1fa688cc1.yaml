@@ -1,0 +1,22 @@
+id: 77b50d53-e9d5-48a5-94b3-bbc1fa688cc1
+name: Monitoring restricted management administrative units abuse
+description: KQL Query
+query: "// Monitoring restricted management administrative units abuse\n// https://securitylabs.datadoghq.com/articles/abusing-entra-id-administrative-units/\n\n// Yesterday, I read an insightful article by Katie Knowles on the potential abuse of the new Entra Restricted Management Units (currently in preview) for sticky persistence if a global administrator or privileged role administrator is compromised. Although exploiting this feature requires a high-privileged role, it remains a significant risk for organizations that do not implement privileged role access management using PIM. The possibility of high-privileged roles being compromised through AiTM attacks, even with MFA enforced, makes this a critical issue.\n// Therefore, it is crucial for SecOps to monitor the creation of restricted AUs to detect potential sticky persistence abuses. This is particularly important due to the lack of visibility of the members and the inability of regular privileged role admins to reset user credentials within these restricted AUs. In my SlimKQL GitHub repository, I have shared a Sentinel KQL rule to monitor the creation of Restricted AUs, enabling SecOps to take necessary mitigation actions.\n\n// Hourly Sentinel Monitoring Rule\n\nAuditLogs\n| where TimeGenerated > (1h)\n| where (OperationName == \"Add administrative unit\" and \nparse_json(tostring(TargetResources[0].modifiedProperties))[2].displayName == \"IsMemberManagementRestricted\" and\nparse_json(tostring(parse_json(tostring(TargetResources[0].modifiedProperties))[2].newValue))[0] == true) or\nOperationName == \"Add member to restricted management administrative unit\"\n| extend RestrictedAUs = TargetResources[0].displayName\n| extend UPN = parse_json(tostring(InitiatedBy.user)).userPrincipalName\n| extend IPAddress = parse_json(tostring(InitiatedBy.user)).ipAddress\n| project TimeGenerated, OperationName, RestrictedAUs, UPN, IPAddress, AdditionalDetails\n\n// MITRE ATT&CK Technique Mapping\n\n// Tactic: Initial Access\n// Technique: Valid Accounts (T1078)\n// Sub-technique: Domain Accounts (T1078.002)\n// Description: The query identifies actions performed by specific user accounts, which could indicate the use of valid accounts to gain initial access.\n\n// Tactic: Persistence\n// Technique: Account Manipulation (T1098)\n// Sub-technique: Additional Cloud Credentials (T1098.001)\n// Description: Adding administrative units and modifying properties can be a form of account manipulation to maintain persistence within the environment.\n\n// Tactic: Privilege Escalation\n// Technique: Abuse Elevation Control Mechanism (T1548)\n// Sub-technique: Bypass User Account Control (T1548.002)\n// Description: The operation of adding administrative units with restricted member management could be an attempt to escalate privileges\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+techniques:
+    - T1078
+    - T1078.002
+    - T1098
+    - T1098.001
+    - T1548
+    - T1548.002
+    - T1651
+tags:
+    - kql
+version: "1"

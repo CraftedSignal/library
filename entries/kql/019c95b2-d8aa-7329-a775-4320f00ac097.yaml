@@ -1,0 +1,16 @@
+id: 019c95b2-d8aa-7329-a775-4320f00ac097
+name: Claude Code Security Bypass Configuration File Creation
+description: Detects the creation or modification of a Claude Code settings file (`.claude/settings.json`). This file can be configured to automatically approve Model Context Protocol (MCP) servers by setting `enableAllProjectMcpServers` to `true` or by using `enabledMcpjsonServers`. This bypasses security prompts designed to warn users about potential command execution, which can lead to Remote Code Execution (RCE) as described in CVE-2025-59536.
+query: "// Name: Claude Code Security Bypass Configuration\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects the creation or modification of a Claude Code settings file (`.claude/settings.json`). This file can be configured to automatically approve Model Context Protocol (MCP) servers by setting `enableAllProjectMcpServers` to `true` or by using `enabledMcpjsonServers`. This bypasses security prompts designed to warn users about potential command execution, which can lead to Remote Code Execution (RCE) as described in CVE-2025-59536.\r\n// Tags: T1562.001, CVE-2025-59536\r\n// References: https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/\r\n// False Positive Sensitivity: Medium\r\n// Triage/Analysis Note: This detection identifies the creation of the configuration file but cannot inspect its content via standard KQL. Manual investigation of the file's content on the host is required to confirm if it contains malicious settings. Legitimate creation of this file will occur when initializing a Claude Code project.\r\nDeviceFileEvents\r\n// Look for the creation of the specific Claude Code settings file.\r\n| where ActionType == \"FileCreated\"\r\n// The folder path may use different slashes depending on the OS.\r\n| where (FolderPath endswith \"\\\\.claude\\\\\" or FolderPath endswith \"/.claude/\") and FileName =~ \"settings.json\"\r\n// The creation of this file is suspicious and warrants investigation of its contents for malicious keys.\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    AccountCustomEntity = InitiatingProcessAccountName,\r\n    HostCustomEntity = DeviceName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/

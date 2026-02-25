@@ -1,0 +1,8 @@
+id: 4bd51d77-c3e7-4748-b53e-93626d030370
+name: Global Admin Entra Cookie with Chrome ZeroDay
+description: 'KQL Query from file: Global Admin Entra Cookie with Chrome ZeroDay'
+query: "// Global Admin Entra Cookie with Chrome Zero-Day\n// CVE-2025-4664 Chrome flaw with public exploit\n// https://www.bleepingcomputer.com/news/security/cisa-tags-recently-patched-chrome-bug-as-actively-exploited-zero-day/\n// https://www.bleepingcomputer.com/news/security/google-fixes-high-severity-chrome-flaw-with-public-exploit/\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) \nand NodeProperties.rawData.criticalityLevel.criticalityLevel < 4\n| where NodeProperties has \"Global Administrator\" // Remove this line to include all Critical Identities\n| distinct NodeName;\nlet VulnerableEndPointwithBCookie =\nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties has \"BrowserCookies\"\n| where TargetNodeName has_any (CriticalIdentities)\n// SourceNodeName = Devices that contains GA browser cookie \n| distinct SourceNodeName;\nDeviceProcessEvents\n| where Timestamp > ago(30d)\n| where ProcessVersionInfoProductName == \"Google Chrome\"\n| where ProcessVersionInfoProductVersion != \"136.0.7103.114\" and\nProcessVersionInfoProductVersion != \"136.0.7103.113\"\n| summarize arg_max(Timestamp, *) by DeviceId\n| where DeviceName has_any(VulnerableEndPointwithBCookie)\n"
+query_type: kql
+tags:
+    - kql
+version: "1"

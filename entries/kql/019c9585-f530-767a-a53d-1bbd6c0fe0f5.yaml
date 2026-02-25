@@ -1,0 +1,16 @@
+id: 019c9585-f530-767a-a53d-1bbd6c0fe0f5
+name: Node.js Spawning Python from Temporary Directory
+description: Detects a Node.js process spawning a Python windowless interpreter (pythonw.exe) from a temporary directory. This unusual process chain is a key indicator of the 'Contagious Interview' infection chain, where a portable Python runtime is dropped and executed.
+query: "// Name: Node.js Spawning Python from Temp\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects a Node.js process spawning a Python windowless interpreter (pythonw.exe) from a temporary directory. This unusual process chain is a key indicator of the 'Contagious Interview' infection chain, where a portable Python runtime is dropped and executed.\r\n// MITRE ATT&CK Tactic(s): Execution, Privilege Escalation\r\n// MITRE ATT&CK Technique(s): T1059.006, T1548.002\r\n// References: https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains\r\nDeviceProcessEvents\r\n// Look for pythonw.exe (windowless interpreter) being executed\r\n| where FileName =~ \"pythonw.exe\"\r\n// Check for a Node.js parent process\r\n| where InitiatingProcessFileName =~ \"node.exe\"\r\n// Filter for execution from common temporary directories on Windows or Linux/macOS\r\n| where FolderPath has_any (@\"\\AppData\\Local\\Temp\", @\"/tmp/\")\r\n// FP Tuning: While unusual, some complex build or testing scripts might exhibit this behavior.\r\n// If false positives occur, consider adding exclusions for specific project paths, parent command lines, or known developer machines.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.abstract.security/blog/contagious-interview-evolution-of-vscode-and-cursor-tasks-infection-chains

@@ -1,0 +1,57 @@
+id: 019c10bd-2f7c-7124-9640-9a23c976751c
+name: Interlock Hotta Killer Service Creation
+description: Detects the creation or start of a Windows service with a name pattern 'UpdateCheckerX64_{random-numbers}'. This is a characteristic behavior of the 'Hotta Killer' tool used by the Interlock ransomware group to load a vulnerable driver (CVE-2025-61155) for disabling security products.
+query: |-
+    // title: Interlock Hotta Killer Service Creation
+    // id: 1fbbec12-a8e8-4258-a25d-4c8ce19a9a02
+    // status: experimental
+    // description: Detects the creation or start of a Windows service with a name pattern 'UpdateCheckerX64_{random-numbers}'. This is a characteristic behavior of the 'Hotta Killer' tool used by the Interlock ransomware group to load a vulnerable driver (CVE-2025-61155) for disabling security products.
+    // references:
+    //   - CISA Advisory AA25-203A https://www.cisa.gov/sites/default/files/2025-07/aa25-203a-stopransomware-interlock-072225.pdf
+    //   - Internal Intel ID 84413e18dcc8ea039bcf512168e32d8d75169e2b971e642a21f38cfb31b32cd5
+    //   - https://connect.securonix.com/threat-research-intelligence-62/cve-2025-61155-and-interlock-ransomware-a-converging-threat-198
+    //   - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+    //   - https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-203a
+    // author: detections.ai
+    // date: 2026-01-30
+    // tags:
+    //   - attack.t1543.003
+    //   - attack.t1562.001
+    //   - attack.t1068
+    //   - attack.defense_evasion
+    //   - cve.2025.61155
+    // level: high
+    // associated_cves:
+    //   - CVE-2025-61155
+    // falsepositives:
+    //   - Legitimate software using a similar naming convention.
+    SecurityEvent
+    | where EventID == 4697 or EventID == 7045 or EventID == 7036 // Event IDs for service creation (4697, 7045) or service start (7036)
+    | where ServiceName startswith "UpdateCheckerX64_"
+query_type: kql
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1543.003
+    - T1562.001
+    - T1068
+tags:
+    - attack.t1543.003
+    - attack.t1562.001
+    - attack.t1068
+    - attack.defense_evasion
+    - cve.2025.61155
+author: detections.ai
+version: "2"
+references:
+    - CISA Advisory AA25-203A https://www.cisa.gov/sites/default/files/2025-07/aa25-203a-stopransomware-interlock-072225.pdf
+    - Internal Intel ID 84413e18dcc8ea039bcf512168e32d8d75169e2b971e642a21f38cfb31b32cd5
+    - https://connect.securonix.com/threat-research-intelligence-62/cve-2025-61155-and-interlock-ransomware-a-converging-threat-198
+    - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-203a
+data_sources:
+    - service_creation
+    - windows

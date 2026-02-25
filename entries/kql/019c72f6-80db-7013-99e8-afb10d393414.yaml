@@ -1,0 +1,19 @@
+id: 019c72f6-80db-7013-99e8-afb10d393414
+name: Suspicious WebView2 Process Spawn by Script Interpreters or LOLBins
+description: Detects the Microsoft Edge WebView2 process (msedgewebview2.exe) being spawned by suspicious parent processes that typically do not use embedded web content, such as PowerShell, CMD, or common lolbins. This activity is a key indicator of the 'AI-Proxy' technique where malware uses WebView2 to programmatically interact with AI web interfaces for C2.
+query: "// Name: Suspicious WebView2 Process Spawn\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: Detects the Microsoft Edge WebView2 process (msedgewebview2.exe) being spawned by suspicious parent processes that typically do not use embedded web content, such as PowerShell, CMD, or common lolbins. This activity is a key indicator of the 'AI-Proxy' technique where malware uses WebView2 to programmatically interact with AI web interfaces for C2.\r\n// MITRE ATT&CK: T1071.001, T1090, T1204.002\r\n// References: https://www.bleepingcomputer.com/news/security/ai-platforms-can-be-abused-for-stealthy-malware-communication/\r\n// False Positive Sensitivity: Medium\r\n// Define a list of suspicious parent processes (LOLBins and script interpreters)\r\nlet suspicious_parents = dynamic([\r\n    \"powershell.exe\",\r\n    \"pwsh.exe\",\r\n    \"cmd.exe\",\r\n    \"cscript.exe\",\r\n    \"wscript.exe\",\r\n    \"rundll32.exe\",\r\n    \"regsvr32.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Filter for the creation of the WebView2 process\r\n| where FileName =~ \"msedgewebview2.exe\"\r\n// Check if the parent process is a script interpreter or LOLBin\r\n| where InitiatingProcessFileName in~ (suspicious_parents)\r\n// False Positive Tuning: Legitimate administrative scripts or some third-party applications might use WebView2 from a script host.\r\n// Consider excluding processes signed by trusted publishers or running from known-good application directories.\r\n// Example: | where not(InitiatingProcessFolderPath has_any ('C:\\\\Program Files\\\\', 'C:\\\\Program Files (x86)\\\\'))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessFolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1071.001
+    - T1090
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/ai-platforms-can-be-abused-for-stealthy-malware-communication/

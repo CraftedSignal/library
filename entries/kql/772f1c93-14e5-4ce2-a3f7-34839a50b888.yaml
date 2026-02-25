@@ -1,0 +1,14 @@
+id: 772f1c93-14e5-4ce2-a3f7-34839a50b888
+name: 'Threat Hunt: Suspicious LNK File Execution by Scripting Engines'
+description: Detects .lnk (shortcut) files launched by scripting engines (e.g., PowerShell, CMD, WScript) exhibiting suspicious traits like hidden execution, embedded commands, or admin privilege requests. Common in phishing, LOLBin abuse, and initial access.
+query: "DeviceEvents\r\n| where Timestamp > ago(7d)  // Adjust based on hunting needs\r\n| where FileName endswith \".lnk\"\r\n// Broad process filter (common script interpreters)\r\n| where InitiatingProcessFileName in~ (\r\n    \"powershell.exe\", \"pwsh.exe\", \"cmd.exe\",\r\n    \"wscript.exe\", \"cscript.exe\", \"mshta.exe\",\r\n    \"rundll32.exe\", \"regsvr32.exe\"\r\n)\r\n// Parse key LNK attributes (ignore strict filtering)\r\n| extend ParsedFields = parse_json(AdditionalFields)\r\n| extend\r\n    Container = tostring(ParsedFields.Container),\r\n    CommandLine = tostring(ParsedFields.ShellLinkShowCommand),\r\n    WorkingDirectory = tostring(ParsedFields.ShellLinkWorkingDirectory),\r\n    IsAdmin = tostring(ParsedFields.ShellLinkRunAsAdmin)\r\n// Flag suspicious traits (not filtering yet!)\r\n| extend\r\n    HasEmbeddedCMD = Container has_any (\"CmdEscapeChar\", \"CMDEmbedded\", \"PSEmbedded\"), //High fedality flags\r\n    HasPowerShell = CommandLine has_any (\"powershell\", \" -e \", \" -enc \", \" -nop \", \"mshta\"),\r\n    HasSuspTarget = WorkingDirectory has_any (\"\\\\Temp\\\\\", \"\\\\AppData\\\\\", \"cmd.exe\", \"powershell.exe\", \"mshta.exe\")\r\n// filtering the noice\r\n| where CommandLine != @\"SW_SHOWNORMAL\"\r\n// Project all raw data + risk flags (for analyst triage)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessAccountName,\r\n    WorkingDirectory,\r\n    CommandLine,\r\n    Container,\r\n    IsAdmin,\r\n    HasEmbeddedCMD,\r\n    HasPowerShell,\r\n    HasSuspTarget\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1204.002
+    - T1059
+    - T1566
+tags:
+    - kql
+author: AwaisM
+version: "1"

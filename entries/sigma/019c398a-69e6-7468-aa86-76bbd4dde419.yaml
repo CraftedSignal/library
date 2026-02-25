@@ -1,0 +1,60 @@
+id: 019c398a-69e6-7468-aa86-76bbd4dde419
+name: Detect DeadVax Fake _windows.dll_ Payload
+description: |
+    Malware sometimes creates files with names that look like system files. In this attack, it creates a file with a name that sounds like a Windows DLL. But the file is not a real DLL. It is a text file that holds hidden, encoded data. The malware uses it to pass data between stages of the attack. A script creates this file, not a normal program install. It appears in temp or ProgramData folders, which are common places for malware to hide. Real DLLs are usually installed by installers in specific system folders. Security teams should treat this exact filename being created by a script as highly suspicious. This rule helps catch that behaviour before the next stage runs.
+query: |
+    title: Detect DeadVax Fake _windows.dll_ Payload
+    id: c3d4e5f6-a7b8-4c5d-9e0f-87654321abcd
+    status: experimental
+    description: >
+      Malware sometimes creates files with names that look like system files. In
+      this attack, it creates a file with a name that sounds like a Windows DLL. But
+      the file is not a real DLL. It is a text file that holds hidden, encoded data.
+      The malware uses it to pass data between stages of the attack. A script
+      creates this file, not a normal program install. It appears in temp or
+      ProgramData folders, which are common places for malware to hide. Real DLLs
+      are usually installed by installers in specific system folders. Security teams
+      should treat this exact filename being created by a script as highly
+      suspicious. This rule helps catch that behaviour before the next stage runs.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+      - attack.defense_evasion
+      - attack.t1027
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_file:
+        TargetFilename|endswith: _windows.dll_
+      selection_parent:
+        ParentImage|endswith:
+          - \cmd.exe
+          - \powershell.exe
+          - \mbs.exe
+      selection_path:
+        TargetFilename|contains:
+          - temp
+          - ProgramData
+      condition: selection_file and selection_parent and selection_path
+    falsepositives:
+      - Unlikely - specific artifact name
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - file_event
+    - windows

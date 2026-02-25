@@ -1,0 +1,18 @@
+id: b8d1ddf6-df4a-4d10-b5f5-49007b8ce419
+name: Software Vulnerability Overview
+description: |-
+    This rule identifies and summarizes software vulnerabilities (CVEs) on devices by joining information from device vulnerability assessments, vulnerability knowledge bases, and software inventory. It provides a consolidated view of CVEs affecting specific software versions on each device, including CVSS scores and severity levels.
+    Set the query to the last day or the last couple of hours to get the current state of your Infra
+query: "DeviceTvmSoftwareVulnerabilities\r\n| extend AffectedVersion = SoftwareVersion\r\n| extend AffectedProduct = SoftwareName\r\n| join kind=inner  (\r\n        DeviceTvmSoftwareVulnerabilitiesKB\r\n    | project PublishedDate, CveId,  IsExploitAvailable, CvssScore, VulnerabilitySeverityLevel\r\n) on CveId\r\n| join kind= rightouter (\r\n    DeviceTvmSoftwareInventory\r\n    | project DeviceId, InventarProduct= SoftwareName, Hersteller=SoftwareVendor, InventoryVersion=SoftwareVersion\r\n) on DeviceId, $left.AffectedProduct == $right.InventarProduct\r\n| where AffectedVersion == InventoryVersion\r\n| summarize CVEs = make_set(bag_pack(\"CVEId\", CveId, \"CvssScore\", CvssScore, \"Severity\",VulnerabilitySeverityLevel)) by DeviceName,Hersteller, AffectedProduct, AffectedVersion, InventoryVersion\r\n| project  DeviceName,Hersteller, AffectedProduct, AffectedVersion,InventoryVersion, CVEs"
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+    - TA0042
+techniques:
+    - T1595.002
+    - T1588.006
+tags:
+    - kql
+author: m6r
+version: "1"

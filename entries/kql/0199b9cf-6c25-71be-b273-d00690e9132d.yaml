@@ -1,0 +1,12 @@
+id: 0199b9cf-6c25-71be-b273-d00690e9132d
+name: 'AWS hijackable S3 buckets '
+description: This rule detects attempts to access non-existent AWS S3 buckets, indicated by the 'NoSuchBucket' error code in CloudTrail logs. This could signify reconnaissance activities by an attacker attempting to enumerate accessible S3 buckets or misconfigurations in applications trying to access buckets that no longer exist or have incorrect names. The rule extracts the bucket name and host from the request parameters for further investigation.
+query: "AWSCloudTrail\r\n| where TimeGenerated > ago(90d)\r\n| where ErrorCode == \"NoSuchBucket\"\r\n| extend BucketName = tostring(parse_json(RequestParameters).bucketName)\r\n| extend Host = tostring(parse_json(RequestParameters).Host)\r\n| project TimeGenerated, BucketName, Host, ErrorCode"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: 'F S '
+version: "1"
+references:
+    - https://labs.watchtowr.com/8-million-requests-later-we-made-the-solarwinds-supply-chain-attack-look-amateur/

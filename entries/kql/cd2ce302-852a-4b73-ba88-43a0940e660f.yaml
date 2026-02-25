@@ -1,0 +1,13 @@
+id: cd2ce302-852a-4b73-ba88-43a0940e660f
+name: DFS Coerced Authentication NTLM Credential Harvesting
+description: This detection identifies potential NTLM relay activity by correlating named pipe access to \netdfs (commonly abused in DFSCoerce attacks) with NTLM challenge traffic within a short time window. Attackers can exploit this technique to coerce authentication and perform NTLM relay, enabling lateral movement or privilege escalation in Active Directory environments.
+query: "let timeRange = 1h;\nlet suspiciousEvents = DeviceEvents\n| where TimeGenerated > ago(timeRange)\n| where AdditionalFields.PipeName contains \"netdfs\"\n| where AdditionalFields.RemoteClientsAccess contains \"AcceptRemote\"\n| where isnotempty(AdditionalFields.ShareName)\n| project DFS_TimeGenerated = TimeGenerated,DeviceId,DeviceName,RemoteIP,AccountName = InitiatingProcessAccountName,AccountDomain = InitiatingProcessAccountDomain,DFSPipeName = tostring(parse_json(AdditionalFields).PipeName),DesiredAccess = tostring(parse_json(AdditionalFields).DesiredAccess),ShareName = tostring(parse_json(AdditionalFields).ShareName);\n// Correlação com NTLM Challenges dentro de uma janela de tempo de 30 minutos\nlet NTLMEvents = DeviceNetworkEvents\n| where TimeGenerated > ago(timeRange)\n| where AdditionalFields.SignatureName contains \"NTLM-Challenge\"\n| project NTLM_TimeGenerated = TimeGenerated,DeviceId,DeviceName,RemoteIP,NTLMSignature = tostring(parse_json(AdditionalFields).SignatureMatchedContent),NTLMSampleContent = tostring(parse_json(AdditionalFields).SamplePacketContent);\n// Junção com correlação temporal e detalhes ampliados\nsuspiciousEvents\n| join kind=inner NTLMEvents on RemoteIP, DeviceId, DeviceName\n| where abs(datetime_diff('minute', DFS_TimeGenerated, NTLM_TimeGenerated)) <= 30\n| project DeviceName,RemoteIP,DFS_TimeGenerated,NTLM_TimeGenerated,TimeDifference = datetime_diff('minute', DFS_TimeGenerated, NTLM_TimeGenerated),\n    AccountName,AccountDomain,DFSPipeName,DesiredAccess,ShareName,NTLMSignature,NTLMSampleContent\n| order by DeviceName asc, DFS_TimeGenerated asc\n| summarize \n    DFSCount = count(DFSPipeName),\n    NTLMCount = count(NTLMSignature),\n    FirstSeen = min(DFS_TimeGenerated),\n    LastSeen = max(NTLM_TimeGenerated),\n    DFSAccessTypes = make_set(DesiredAccess)\n    by DeviceName, RemoteIP, AccountName, AccountDomain"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0008
+tags:
+    - kql
+author: danzero
+version: "1"

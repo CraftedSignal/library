@@ -1,0 +1,37 @@
+id: 019bd0df-5970-7468-a2cc-3db0efcb19b6
+name: Turla Kazuar v3 COM Evasion Techniques
+description: Detects COM-based evasion techniques implemented in the Kazuar v3 loader (hpbprndiLOC.dll). This loader uses sophisticated patchless methods to bypass Event Tracing for Windows (ETW) and the Antimalware Scan Interface (AMSI) without modifying memory pages, making detection more difficult. The evasion techniques include COM object manipulation using CoCreateInstance, CLSIDFromString, and IIDFromString to interact with COM objects that can disable ETW and AMSI. Instead of patching EventWrite or EtwEventWrite functions in memory, the loader uses COM interfaces to disable ETW providers without leaving memory modification artifacts. The loader also uses COM objects to disable AmsiScanBuffer functionality without directly patching the function, and implements indirect function calls through control flow redirection to evade static analysis and make reverse engineering more difficult. These techniques are particularly sophisticated because they avoid traditional memory patching methods that are easily detected by security tools. The rule detects processes loading hpbprndiLOC.dll that also show indicators of COM-based ETW/AMSI bypass attempts.
+query: |
+    title: Turla Kazuar v3 COM Evasion Techniques
+    id: 6f04d661-c3e5-495d-82f6-a916cabb0795
+    status: experimental
+    description: |
+        Detects COM-based evasion techniques implemented in the Kazuar v3 loader (hpbprndiLOC.dll). This loader uses sophisticated patchless methods to bypass Event Tracing for Windows (ETW) and the Antimalware Scan Interface (AMSI) without modifying memory pages, making detection more difficult. The evasion techniques include COM object manipulation using CoCreateInstance, CLSIDFromString, and IIDFromString to interact with COM objects that can disable ETW and AMSI. Instead of patching EventWrite or EtwEventWrite functions in memory, the loader uses COM interfaces to disable ETW providers without leaving memory modification artifacts. The loader also uses COM objects to disable AmsiScanBuffer functionality without directly patching the function, and implements indirect function calls through control flow redirection to evade static analysis and make reverse engineering more difficult. These techniques are particularly sophisticated because they avoid traditional memory patching methods that are easily detected by security tools. The rule detects processes loading hpbprndiLOC.dll that also show indicators of COM-based ETW/AMSI bypass attempts.
+    references:
+        - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+        - attack.defense_evasion
+        - attack.t1055
+        - attack.t1562.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\hpbprndiLOC.dll'
+            CommandLine|contains|any:
+                - 'CoCreateInstance'
+                - 'CLSIDFromString'
+                - 'IIDFromString'
+            CommandLine|contains|any:
+                - 'EventWrite'
+                - 'AmsiScanBuffer'
+                - 'EtwEventWrite'
+        condition: selection
+    falsepositives:
+        - Legitimate COM object usage
+    level: medium
+query_type: sigma
+version: "3"

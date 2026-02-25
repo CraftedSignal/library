@@ -1,0 +1,52 @@
+id: 019c1f42-26d6-70d3-aab1-4a61a7f8ec36
+name: GUP.exe Anomalous Network Connection
+description: Detects network connections from the Notepad++ updater process (gup.exe) to domains that are not part of the official update infrastructure. The primary attack vector for this threat involves intercepting GUP traffic to redirect downloads to malicious third-party servers.
+query: |
+    title: GUP.exe Anomalous Network Connection
+    id: 0168e07d-90b2-4503-97ec-99e51553bece
+    status: experimental
+    description: Detects network connections from the Notepad++ updater process
+      (gup.exe) to domains that are not part of the official update infrastructure.
+      The primary attack vector for this threat involves intercepting GUP traffic to
+      redirect downloads to malicious third-party servers.
+    references:
+      - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.t1105
+      - attack.command_and_control
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\gup.exe' # Process is the Notepad++ updater
+      filter:
+        DestinationHostname|endswith:
+          # Legitimate update domains
+          - 'notepad-plus-plus.org'
+          - 'github.com'
+          - 'release-assets.githubusercontent.com'
+      condition: selection and not filter
+    falsepositives:
+      - This activity is highly suspicious. However, false positives could occur if
+        Notepad++ changes its update infrastructure to include new domains not
+        listed in this rule.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - attack.t1105
+    - attack.command_and_control
+author: detections.ai
+version: "2"
+references:
+    - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+data_sources:
+    - network_connection
+    - windows

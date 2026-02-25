@@ -1,0 +1,38 @@
+id: 18e06008-4505-49f6-b947-b5fa8731baf3
+name: Detect Active Exploitation of Critical Apache Tomcat RCE Vulnerability
+description: KQL Query
+query: |
+    // https://www.greynoise.io/blog/active-exploitation-critical-apache-tomcat-rce-vulnerability-cve-2025-24813
+
+    let GreyNoiseMaliciousIPs = dynamic(["176.65.138.172","38.126.114.186",
+    "188.213.161.98","140.143.182.115","196.240.54.120"]);
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    let PublicFacingTomcatInstances =
+    DeviceProcessEvents
+    | where TimeGenerated > ago(30d)
+    | where InitiatingProcessFileName has "tomcat"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where DeviceId has_any(InternetFacing)
+    | project DeviceId;
+    DeviceNetworkEvents
+    | where Timestamp > ago(7d)
+    | where DeviceId has_any(PublicFacingTomcatInstances)
+    | where RemoteIP has_any(GreyNoiseMaliciousIPs)
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0006
+    - TA0001
+techniques:
+    - T1037.004
+    - T1164
+    - T1547.007
+    - T1558.005
+    - T1190
+tags:
+    - kql
+version: "1"

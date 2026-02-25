@@ -1,0 +1,63 @@
+id: 019c0a12-2d7e-71ae-a03b-9c7e9a3ec525
+name: UAT-8099 Hidden Persistence Account Creation
+description: Detects the creation of hidden local user accounts (`admin$`, `mysql$`, `mssql$`, `admin1$`, `admin2$`, `power$`) using `net.exe` or `net1.exe` as used by the threat actor UAT-8099 for persistence on compromised IIS servers. The rule also broadly detects any account creation ending with a '$' symbol, which often indicates a hidden account.
+query: |
+    title: UAT-8099 Hidden Persistence Account Creation
+    id: 370b639f-f042-4f7c-a71e-7e3d54b6e583
+    status: experimental
+    description: >-
+      Detects the creation of hidden local user accounts (`admin$`, `mysql$`,
+      `mssql$`, `admin1$`, `admin2$`, `power$`) using `net.exe` or `net1.exe` as
+      used by the threat actor UAT-8099 for persistence on compromised IIS servers.
+      The rule also broadly detects any account creation ending with a '$' symbol,
+      which often indicates a hidden account.
+    references:
+      - >-
+        https://blog.talosintelligence.com/uat-8099-new-persistence-mechanisms-and-regional-focus/
+    author: tim@detections.ai
+    date: 2026-01-29T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1136.001
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_img:
+        Image|endswith:
+          - '\net.exe'
+          - '\net1.exe'
+        CommandLine|contains|all:
+          - ' /add '
+      selection_account:
+        CommandLine|contains:
+          - ' admin$'
+          - ' mysql$'
+          - ' mssql$'
+          - ' admin1$'
+          - ' admin2$'
+          - ' power$'
+      selection_account_reg:
+        CommandLine|re: '\s\S+\$(\s|$)'
+      condition: selection_img and (selection_account or selection_account_reg)
+    falsepositives:
+      - Legitimate administrative scripts that create users with these specific
+        names, although this is unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+techniques:
+    - T1136.001
+tags:
+    - attack.persistence
+    - attack.t1136.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.talosintelligence.com/uat-8099-new-persistence-mechanisms-and-regional-focus/
+data_sources:
+    - process_creation
+    - windows

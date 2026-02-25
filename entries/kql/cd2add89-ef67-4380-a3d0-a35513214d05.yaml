@@ -1,0 +1,20 @@
+id: cd2add89-ef67-4380-a3d0-a35513214d05
+name: 'Threat Hunt: Potential APT28 NotDoor VBA Outlook Backdoor Activity'
+description: "Looking for several activities that are documented as being part of the initial infection chain for NotDoor (https://lab52.io/blog/analyzing-notdoor-inside-apt28s-expanding-arsenal/).\nNice as a quick historical check for any potentially interesting things to investigate further. "
+query: "let notdoor_phonehome=DeviceProcessEvents\r\n|where TimeGenerated > ago(500d)\r\n|where FileName has_any(\"nslookup.exe\",\"curl.exe\")\r\n|where ProcessCommandLine has_any (\"webhook\",\"dnshook\")\r\n|project TimeGenerated,Detection=\"NotDoor Initial Ping Home\",DeviceName,InitiatingProcessAccountName,FileName,InitiatingProcessCommandLine,ProcessCommandLine;\r\nlet notdoor_backdoorsetup=DeviceRegistryEvents\r\n|where TimeGenerated > ago(500d)\r\n|where RegistryValueName contains @\"LoadMacroProviderOnBoot\"\r\n|where RegistryValueData==1\r\n|project TimeGenerated,Detection=\"Potential APT28 NotDoor Outlook Persistence\",ActionType,DeviceName,InitiatingProcessAccountName,InitiatingProcessFolderPath,RegistryKey,RegistryValueName,RegistryValueType;\r\nlet notdoor_emailexfil=EmailEvents\r\n|where TimeGenerated > ago(500d)\r\n|where RecipientEmailAddress==\"a.matti444@proton.me\"\r\n|project TimeGenerated,Detection=\"NotDoor Email Exfiltration\",SenderMailFromAddress,RecipientEmailAddress,EmailDirection,Subject;\r\nunion kind=outer notdoor_phonehome,notdoor_backdoorsetup,notdoor_emailexfil\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1048.003
+    - T1071.001
+    - T1071.004
+    - T1112
+tags:
+    - hunting
+    - threat hunt
+    - NotDoor
+    - APT
+    - kql
+version: "1"
+references:
+    - https://lab52.io/blog/analyzing-notdoor-inside-apt28s-expanding-arsenal/

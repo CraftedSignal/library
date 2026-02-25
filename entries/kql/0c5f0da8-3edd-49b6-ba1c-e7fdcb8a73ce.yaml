@@ -1,0 +1,22 @@
+id: 0c5f0da8-3edd-49b6-ba1c-e7fdcb8a73ce
+name: Exfil via Email or Teams using Power Automate (Microsoft Flow)
+description: This rule detects the creation of new Microsoft Power Automate flows that are configured to use connectors capable of exfiltrating data via email or collaboration platforms like Microsoft Teams. It specifically looks for flows created with connectors which could indicate an attempt to send sensitive information outside the organization.
+query: "//Title: Exfil via Email/Teams using Power Automate (Microsoft Flow)\n// Description: This rule detects the creation of new Microsoft Power Automate flows that are configured to use connectors capable of exfiltrating data via email or collaboration platforms like Microsoft Teams. It specifically looks for flows created with connectors which could indicate an attempt to send sensitive information outside the organization.\n// Author: Dylan Evans (detections.ai/user/Decksy), https://github.com/dylanevans-cybersec/KQL-Queries\n\nCloudAppEvents\n| where Timestamp > ago(7d)  // Change to suit your environment/risk appetite\n| where Application in (\"Microsoft Power Automate\", \"Microsoft Flow\")\n| where ActionType == \"CreateFlow\"  // Only new flow creations, use: has_any(\"CreateFlow\", \"EditFlow\") // to see previously created flows that have been edited \n| where isnotempty(RawEventData.FlowConnectorNames)  // Must have connector info\n| extend FlowConnectorNames = RawEventData.FlowConnectorNames\n| extend AccountUPN = RawEventData.UserId\n| where tostring(FlowConnectorNames) has_any(\"Outlook\",\"Gmail\",\"SMTP\", \"SendGrid\",\"SparkPost\",\"Mail\",\"MailChimp\",\"Mandrill\", \"Teams\") // Potential exfil via email/teams. Taken from the current connector page from MS Learn\n| project Timestamp, AccountUPN, AccountDisplayName, ActivityObjects, ObjectName, FlowConnectorNames\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1567
+    - T1567.004
+    - T1078.004
+tags:
+    - kql
+version: "1"
+references:
+    - https://detections.ai/user/Decksy
+    - https://github.com/dylanevans-cybersec/KQL-Queries

@@ -1,0 +1,16 @@
+id: 019c8b03-12f4-725b-862c-efc086b913ff
+name: ValleyRAT Campaign Infrastructure Network Connections
+description: This rule identifies network connections to known command and control (C2) infrastructure and typosquatted domains associated with the ValleyRAT malware, specifically those used in the Huorong impersonation campaign. It looks for connections to a hardcoded malicious IP address or a list of malicious domains.
+query: "// Name: ValleyRAT Campaign Infrastructure\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Identifies network connections to the specific hardcoded C2 infrastructure and typosquatted domains used in the Huorong impersonation campaign to distribute ValleyRAT.\r\n// Tactics: Command and Control\r\n// Techniques: T1071.001\r\n// References: https://www.malwarebytes.com/blog/scams/2026/02/huorong\r\nlet malicious_domains = dynamic([\r\n    \"huoronga.com\",\r\n    \"huorongcn.com\",\r\n    \"huorongh.com\",\r\n    \"huorongpc.com\",\r\n    \"huorongs.com\",\r\n    \"hndqiuebgibuiwqdhr.cyou\",\r\n    \"pub-b7ce0512b9744e2db68f993e355a03f9.r2.dev\",\r\n    \"yandibaiji0203.com\"\r\n]);\r\nDeviceNetworkEvents\r\n// Looks for network connections to the known C2 IP or malicious domains.\r\n| where RemoteIP == \"161.248.87.250\" or RemoteUrl has_any (malicious_domains)\r\n// FP Tuning: These indicators are specific to this campaign and are high-confidence.\r\n// False positives are not expected, but domains can be sinkholed or change ownership over time.\r\n| project InitiatingProcessAccountName, DeviceName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessId, RemoteIP, RemoteUrl, RemotePort"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong

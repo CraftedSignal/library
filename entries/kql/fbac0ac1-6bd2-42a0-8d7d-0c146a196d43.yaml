@@ -1,0 +1,22 @@
+id: fbac0ac1-6bd2-42a0-8d7d-0c146a196d43
+name: mshta.exe used to execute malicious file from internet
+description: Detects mshta.exe executing with command-line arguments containing 'http', which is indicative of mshta.exe being used to download and execute remote HTA files or scripts. This procedure is known to be used in ClickFix attacks where threat actors use fake Captcha portals to download malware payloads.
+query: "union \r\n( \r\n    DeviceNetworkEvents \r\n    | where InitiatingProcessCommandLine contains \"mshta.exe\" or InitiatingProcessVersionInfoInternalFileName contains \"mshta.exe\" \r\n    | where InitiatingProcessCommandLine contains \"http\" \r\n), \r\n( \r\n    DeviceProcessEvents \r\n    | where ProcessCommandLine contains \"mshta.exe\" or ProcessVersionInfoInternalFileName contains \"mshta.exe\" \r\n    | where ProcessCommandLine contains \"http\" \r\n) \r\n| project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessCommandLine, InitiatingProcessParentFileName, RemoteUrl, RemoteIP"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1218.005
+tags:
+    - clickfix
+    - mshta.exe
+    - hta
+    - lolbas
+    - kql
+author: Salten Fisk
+version: "1"
+references:
+    - https://www.reliaquest.com/blog/using-captcha-for-compromise/
+    - https://redcanary.com/threat-detection-report/techniques/mshta/

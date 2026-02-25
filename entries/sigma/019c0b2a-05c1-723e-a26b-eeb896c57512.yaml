@@ -1,0 +1,73 @@
+id: 019c0b2a-05c1-723e-a26b-eeb896c57512
+name: DeadLock BYOVD EDR Termination
+description: Detects the loading of a vulnerable Baidu Antivirus driver (CVE-2024-51324), a technique used by DeadLock ransomware, followed by the termination of a security product process on the same host. This indicates a 'Bring Your Own Vulnerable Driver' (BYOVD) attack to disable defenses.
+query: |-
+    title: DeadLock BYOVD EDR Termination
+    id: 12345678-1234-1234-1234-123456789012
+    status: experimental
+    description: Detects the loading of a vulnerable Baidu Antivirus driver (CVE-2024-51324), a technique used by DeadLock ransomware, followed by the termination of a security product process on the same host. This indicates a 'Bring Your Own Vulnerable Driver' (BYOVD) attack to disable defenses.
+    author: Nomit Vyas
+    date: 2026/01/30
+    references:
+      - https://securityonline.info/deadlock-ransomware-new-strain-hides-c2-in-polygon-smart-contracts/
+      - https://www.itpro.com/security/ransomware/deadlock-ransomware-polygon-smart-contract-abuse
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - attack.privilege_escalation
+      - attack.t1068
+      - attack.persistence
+      - attack.t1543.003
+      - malware.deadlock
+      - malware.ransomware
+      - defense_evasion.byovd
+      - defense_evasion.edr_evasion
+      - os.windows
+    falsepositives:
+      - Legitimate administrative actions involving the Baidu driver, although unlikely in most environments. The list of terminated security processes may need tuning for specific environments.
+    level: high
+    logsource:
+      category: driver_load
+      product: windows
+    detection:
+      driver_load_selection:
+        # Detection by file name or hash. The hash value is a placeholder and should be updated.
+        Image|endswith:
+          - 'BaiduNetPay.sys'
+        # Or by hash, if available and specific enough
+        # Hashes: '<Insert_Vulnerable_Driver_Hash_Here>'
+      edr_terminated_selection:
+        EventID: 5
+        # This regex identifies common EDR/AV processes. It may need to be customized.
+        TargetImage|re: '(?i)^(MsSense|SavService|healthservice|sense|csfalconservice|sentinelone|cb|cybereason|tanium|carbonblack)\.exe$'
+      condition: driver_load_selection and edr_terminated_selection
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+    - TA0003
+techniques:
+    - T1068
+    - T1562.001
+    - T1543.003
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.privilege_escalation
+    - attack.t1068
+    - attack.persistence
+    - attack.t1543.003
+    - malware.deadlock
+    - malware.ransomware
+    - defense_evasion.byovd
+    - defense_evasion.edr_evasion
+    - os.windows
+author: Nomit Vyas
+version: "1"
+references:
+    - https://securityonline.info/deadlock-ransomware-new-strain-hides-c2-in-polygon-smart-contracts/
+    - https://www.itpro.com/security/ransomware/deadlock-ransomware-polygon-smart-contract-abuse
+data_sources:
+    - driver_load
+    - windows

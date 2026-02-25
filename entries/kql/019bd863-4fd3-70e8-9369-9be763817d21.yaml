@@ -1,0 +1,18 @@
+id: 019bd863-4fd3-70e8-9369-9be763817d21
+name: PDFSIDER DLL Side-Loading of cryptbase.dll
+description: Detects when a legitimate application, such as pdf24.exe, loads 'cryptbase.dll' from a non-standard directory. This is a known DLL side-loading technique used by the PDFSIDER malware.
+query: "// Name: PDFSIDER DLL Side-Loading of cryptbase.dll\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-19\r\n// Description: Detects when a legitimate application, such as pdf24.exe, loads 'cryptbase.dll' from a non-standard directory. This is a known DLL side-loading technique used by the PDFSIDER malware.\r\n// Tactic: Defense Evasion, Privilege Escalation\r\n// Technique: T1574.002 - DLL Side-Loading\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion\r\nDeviceImageLoadEvents\r\n// Look for the specific DLL used by PDFSIDER\r\n| where FileName =~ \"cryptbase.dll\"\r\n// Focus on the known vulnerable application used for side-loading\r\n| where InitiatingProcessFileName =~ \"pdf24.exe\"\r\n// The legitimate cryptbase.dll resides in system directories. Loading from elsewhere is suspicious.\r\n| where not(FolderPath has_any (@\"C:\\Windows\\System32\\\", @\"C:\\Windows\\SysWOW64\\\"))\r\n// Potential for False Positives: Some legitimate software installers or portable applications might load DLLs from non-standard paths.\r\n// You can tune this by adding exclusions for known good software paths or publisher names if necessary.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFolderPath,\r\n    FileName,\r\n    FolderPath,\r\n    SHA1,\r\n    InitiatingProcessId,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0003
+techniques:
+    - T1574.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion

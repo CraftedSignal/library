@@ -1,0 +1,47 @@
+id: e491e265-f03a-4d1c-b7ec-02beac87f454
+name: Generating title...
+description: Detects network traffic to or from IP addresses known to be associated with the active exploitation of the SharePoint vulnerability CVE-2025-53770.
+query: |
+    #
+    # Name: CVE-2025-53770 Malicious IPs
+    #
+    # Author: detections.ai
+    #
+    # Date: 2025-07-24
+    #
+    # Description: Detects network traffic to or from IP addresses known to be associated with the active exploitation of the SharePoint vulnerability CVE-2025-53770.
+    #
+    # MITRE TTPs:
+    # - T1190: Exploit Public-Facing Application
+    #
+    # References:
+    # - https://www.cisa.gov/news-events/alerts/2025/07/20/microsoft-releases-guidance-exploitation-sharepoint-vulnerability-cve-2025-53770
+    # - https://arcticwolf.com/resources/blog/cve-2025-53770/
+    #
+
+    # Data source: Network traffic logs (e.g., firewall, Zeek, EDR) mapped to the Network_Traffic data model.
+    `tstats` `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Traffic.All_Traffic
+    # Filter for traffic involving the known malicious IPs.
+    where All_Traffic.src_ip IN ("107.191.58.76", "104.238.159.149", "96.9.125.147") OR All_Traffic.dest_ip IN ("107.191.58.76", "104.238.159.149", "96.9.125.147")
+    # Group results for alerting and context.
+    by All_Traffic.src_ip, All_Traffic.dest_ip, All_Traffic.dest_port, All_Traffic.user, All_Traffic.action
+    | `drop_dm_object_name("All_Traffic")`
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+    | rename src_ip as "Source IP", dest_ip as "Destination IP", dest_port as "Destination Port", user as "User", action as "Action", count as "Event Count", firstTime as "First Seen", lastTime as "Last Seen"
+
+    # Comment: This detection is based on static IP IOCs. While effective for known threats, these IPs may become inactive or be part of shared infrastructure over time, potentially leading to false positives.
+    # It is recommended to verify any alerts by correlating with other activity, especially checking if the internal host is a SharePoint server.
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - spl
+author: Rajshekar Vijay
+version: "1"
+references:
+    - https://www.cisa.gov/news-events/alerts/2025/07/20/microsoft-releases-guidance-exploitation-sharepoint-vulnerability-cve-2025-53770
+    - https://arcticwolf.com/resources/blog/cve-2025-53770/

@@ -1,0 +1,44 @@
+id: 019c4dc2-c34c-71b8-aab8-09f972c49ed2
+name: SHub Stealer Fake GoogleUpdate Persistence
+description: This rule detects the creation or modification of specific files associated with the SHub v2.0 infostealer on macOS. It looks for a fake 'GoogleUpdate' binary within the '~/Library/Application Support/Google/' directory or a LaunchAgent plist file named 'com.google.keystone.agent.plist' in the 'LaunchAgents/' directory. These file paths are indicative of the SHub stealer's persistence mechanism, which impersonates legitimate Google update components.
+query: |
+    title: SHub Stealer Fake GoogleUpdate Persistence
+    id: e2f3a4b5-c6d7-4f4a-8697-datadog02
+    status: experimental
+    description: |
+        SHub v2.0 installs as fake GoogleUpdate binary under ~/Library/Application Support/Google/ and LaunchAgent com.google.keystone.agent.plist. Datadog Tech Impersonators.
+    references:
+        - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1547.011
+        - attack.t1036.005
+    logsource:
+        category: file_event
+        product: macos
+    detection:
+        selection_path:
+            TargetFilePath|contains: 'Library/Application Support/Google/GoogleUpdate'
+        selection_plist:
+            TargetFilePath|contains: 'LaunchAgents/com.google.keystone.agent.plist'
+        condition: selection_path or selection_plist
+    falsepositives:
+        - Real Google Update (different path; vendor-signed)
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - attack.t1547.011
+    - attack.t1036.005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+data_sources:
+    - file_event
+    - macos

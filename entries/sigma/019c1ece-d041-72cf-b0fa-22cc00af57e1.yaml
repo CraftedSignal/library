@@ -1,0 +1,53 @@
+id: 019c1ece-d041-72cf-b0fa-22cc00af57e1
+name: Suspicious PowerShell In-Memory C# Compilation
+description: Detects the use of the 'Add-Type' cmdlet in PowerShell to compile and load C# code directly into memory. This technique is used by the TAMECAT backdoor to pivot from PowerShell to C# modules for tasks like exfiltration and browser data theft, bypassing file-on-disk scanning.
+query: |
+    title: Suspicious PowerShell In-Memory C# Compilation
+    id: da234131-4980-4425-b5cb-678031761470
+    status: experimental
+    description: >-
+      Detects the use of the 'Add-Type' cmdlet in PowerShell to compile and load C#
+      code directly into memory. This technique is used by the TAMECAT backdoor to
+      pivot from PowerShell to C# modules for tasks like exfiltration and browser
+      data theft, bypassing file-on-disk scanning.
+    references:
+      - >-
+        https://blog.pulsedive.com/tamecat-analysis-of-an-iranian-powershell-based-backdoor/
+    author: tim@detections.ai
+    date: 2026-02-02T00:00:00.000Z
+    tags:
+      - attack.t1059.001
+      - attack.t1027.013
+    logsource:
+      product: windows
+      service: powershell-classic
+      category: ps_script
+    detection:
+      selection:
+        ScriptBlockText|contains|all:
+          - 'Add-Type'
+          - 'AppProject.Program'
+          - 'Main()'
+      condition: selection
+    falsepositives:
+      - Legitimate use of 'Add-Type' to compile C# code in-memory is possible, but
+        the specific combination of 'AppProject.Program' and 'Main()' is highly
+        indicative of this malicious tool. Review the full script block for context.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.t1059.001
+    - attack.t1027.013
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.pulsedive.com/tamecat-analysis-of-an-iranian-powershell-based-backdoor/
+data_sources:
+    - ps_script
+    - windows
+    - powershell

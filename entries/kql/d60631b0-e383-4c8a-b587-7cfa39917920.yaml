@@ -1,0 +1,44 @@
+id: d60631b0-e383-4c8a-b587-7cfa39917920
+name: MC847884 - Check iOS 16 mobile outlook users due to out of support in Sep 2024
+description: KQL Query
+query: |
+    // MC847884 - Check iOS 16 mobile outlook users due to out of support in Sep 2024
+
+    // With iOS 18 releasing in mid September, the minimum supported iOS version would be iOS 17 as over time, Outlook for iOS on iOS 16 devices will eventually stop synchronizing email and calendar data. Do you know how many of your organization users are impacted by this new iOS released ? Use the below KQL to determine the list of impacted users.
+
+    SigninLogs
+    | where TimeGenerated > ago(90d)
+    | where ResultType == "0"
+    | extend OS = tostring(DeviceDetail.operatingSystem)
+    | where OS contains "Ios 16."
+    | where AppDisplayName == "Outlook Mobile"
+    | distinct UserPrincipalName, OS
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the query, the following MITRE ATT&CK techniques are relevant:
+
+    // T1078 - Valid Accounts:
+    // The query focuses on successful sign-ins, which involves the use of valid accounts1.
+    // T1071.001 - Application Layer Protocol: Web Protocols:
+    // Since the query filters for the Outlook Mobile app, it involves web protocols for communication2.
+    // T1087 - Account Discovery:
+    // By identifying distinct user principal names, the query aligns with account discovery techniques3.
+    // T1201 - Password Policy Discovery:
+    // Although not directly related, successful sign-ins can imply adherence to password policies4.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0007
+techniques:
+    - T1078
+    - T1071.001
+    - T1087
+    - T1201
+tags:
+    - kql
+version: "1"

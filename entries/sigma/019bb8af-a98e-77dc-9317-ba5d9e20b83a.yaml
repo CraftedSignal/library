@@ -1,0 +1,62 @@
+id: 019bb8af-a98e-77dc-9317-ba5d9e20b83a
+name: Malicious WebDAV Shortcut Execution via TryCloudflare
+description: Detects commands accessing a remote WebDAV share hosted on a trycloudflare.com domain. This technique has been observed in AsyncRAT campaigns where a malicious Internet Shortcut (.url) file initiates the connection to download and execute further payloads.
+query: |
+    title: Malicious WebDAV Shortcut Execution via TryCloudflare
+    id: 3f9e71b9-1d65-409c-b577-8b1209cefdc5
+    status: experimental
+    description: Detects commands accessing a remote WebDAV share hosted on a
+      trycloudflare.com domain. This technique has been observed in AsyncRAT
+      campaigns where a malicious Internet Shortcut (.url) file initiates the
+      connection to download and execute further payloads.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+    author: detections.ai
+    date: 2026-01-13
+    tags:
+      - attack.t1204.002
+      - attack.t1566.002
+      - attack.execution
+      - attack.initial_access
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_unc:
+        # Detects script execution from a malicious WebDAV UNC path as seen with wscript.exe
+        CommandLine|contains|all:
+          - '\\'
+          - '.trycloudflare.com@SSL\DavWWWRoot\'
+      selection_rundll:
+        # Detects rundll32 setting a cookie for the malicious WebDAV server
+        Image|endswith: '\rundll32.exe'
+        CommandLine|contains|all:
+          - 'davclnt.dll,DavSetCookie'
+          - '.trycloudflare.com@SSL'
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate use of trycloudflare.com for WebDAV is highly unlikely but
+        possible. The combination of artifacts makes this detection high-fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+    - TA0006
+techniques:
+    - T1204.002
+    - T1566.002
+    - T1187
+tags:
+    - attack.t1204.002
+    - attack.t1566.002
+    - attack.execution
+    - attack.initial_access
+author: detections.ai
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,15 @@
+id: 019c8a46-3206-73dc-9378-3f5eb09fc682
+name: Suspicious SimpleHelp RMM Execution
+description: This rule detects the execution of 'windowslauncher.exe' from a path associated with the SimpleHelp Remote Monitoring and Management (RMM) tool. Medusa ransomware actors are known to abuse this legitimate software for command and control, persistence, and lateral movement.
+query: "// Name: Suspicious SimpleHelp RMM Execution\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects the execution of 'windowslauncher.exe' from a path associated with the SimpleHelp Remote Monitoring and Management (RMM) tool. Medusa ransomware actors are known to abuse this legitimate software for command and control, persistence, and lateral movement.\r\n// Tactics: Command and Control\r\n// Techniques: T1219\r\n// False Positive Sensitivity: Medium. SimpleHelp is a legitimate RMM tool, and its presence may be authorized in some environments. Investigate the context of the execution, such as the parent process, user account, and whether the host is expected to have this software installed. Consider excluding known administrative hosts or users if this is standard software.\r\n// References: https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns\r\nDeviceProcessEvents\r\n// Look for the specific executable associated with SimpleHelp RMM\r\n| where ProcessFileName =~ \"windowslauncher.exe\"\r\n// Check if the process is running from the known JWrapper path for this tool\r\n| where FolderPath has \"JWrapper-Remote Access\"\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Host = DeviceName,\r\n    Account = InitiatingProcessAccountName\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    ProcessFileName,\r\n    ProcessCommandLine,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessParentFileName,\r\n    ProcessId,\r\n    ParentProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns

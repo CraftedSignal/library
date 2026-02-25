@@ -1,0 +1,28 @@
+id: d18a888f-c73f-49a8-a687-ff00b500cb27
+name: Rare Process Execution on Host (Not Seen in Last 30 Days)
+description: |
+    This detection identifies processes that have executed on a host in the last 7 days but were not observed in the previous 30 days. This is useful for detecting potentially malicious or anomalous activity, such as new software installations, LOLBins, or attacker tools introduced during a compromise.
+query: "let LookupPeriod = 30d;\r\nlet RecentWindows = 7d;\r\n// Build baseline from 30 days\r\nlet KnownProcs = \r\n    DeviceProcessEvents\r\n    | where TimeGenerated >= ago(LookupPeriod)\r\n    | where isnotempty(FileName)\r\n    | summarize SeenCount = count() by ProcessName = tolower(FileName)\r\n    | project ProcessName;\r\n// Main analysis\r\nDeviceProcessEvents\r\n| where TimeGenerated >= ago(RecentWindows)\r\n| where isnotempty(FileName)\r\n| extend ProcessName = tolower(FileName)\r\n| summarize \r\n    FirstSeen = min(TimeGenerated), \r\n    HostCount = dcount(DeviceName), \r\n    Hosts = make_set(DeviceName), \r\n    AnyCount = count()\r\n    by ProcessName\r\n| where ProcessName !in (KnownProcs)\r\n| where ProcessName !in~ (\"svchost.exe\", \"explorer.exe\", \"wmiadap.exe\", \"microsoftedge.exe\")\r\n| sort by HostCount desc, AnyCount desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1059
+    - T1047
+    - T1106
+    - T1204
+    - T1569.002
+tags:
+    - rare process
+    - endpoint anomaly
+    - process anomaly
+    - behavioral detection
+    - host-based detection
+    - hunting
+    - new binary
+    - suspicious process
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/azure/sentinel/hunting
+    - https://analyticsrules.exchange/analyticrules/91a451e3-178f-41b2-9e5d-da97d75b9971/

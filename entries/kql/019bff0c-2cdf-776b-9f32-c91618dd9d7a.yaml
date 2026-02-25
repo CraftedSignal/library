@@ -1,0 +1,17 @@
+id: 019bff0c-2cdf-776b-9f32-c91618dd9d7a
+name: Suspicious Child Process Execution from Known Parent Processes (CoolClient Backdoor)
+description: This rule detects the execution of specific child processes (write.exe, cmd.exe) when initiated by a predefined list of parent processes (Sang.exe, googleupdate.exe, vlc.exe, clreg.exe, Nlasvr.exe, qutppy.exe) and when the parent process command line contains certain keywords ('install', 'work', 'passuac'). This pattern can indicate suspicious activity, potentially related to malware installation, persistence, or command and control.
+query: "let parentProcesses = dynamic([\r\n    \"Sang.exe\",\r\n    \"googleupdate.exe\",\r\n    \"vlc.exe\",\r\n    \"clreg.exe\",\r\n    \"Nlasvr.exe\",\r\n    \"qutppy.exe\"\r\n]);\r\nlet childProcesses = dynamic([\r\n    \"write.exe\",\r\n    \"cmd.exe\"\r\n]);\r\nlet commandKeywords = dynamic([\r\n    \"install\",\r\n    \"work\",\r\n    \"passuac\"\r\n]);\r\nDeviceProcessEvents\r\n| where FileName in~ (childProcesses)\r\n| where InitiatingProcessFileName in~ (parentProcesses)\r\n| where InitiatingProcessCommandLine has_any (commandKeywords)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    ParentProcessName = InitiatingProcessFileName,\r\n    ParentProcessCommandLine = InitiatingProcessCommandLine,\r\n    ChildProcessName = FileName,\r\n    ChildProcessCommandLine = ProcessCommandLine,\r\n    SHA1,\r\n    InitiatingProcessSHA1\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.003
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/

@@ -1,0 +1,18 @@
+id: 019c7c02-e004-70bd-9958-8cde0347c283
+name: Signal-Based Rootkit Command Trigger Detected
+description: This detection identifies the use of the 'kill' command with a specific, non-standard real-time signal (-59). Rootkits like 'Singularity' use these 'magic' signals as an out-of-band communication channel to trigger actions within a malicious kernel module, such as toggling stealth features or granting root privileges.
+query: "// Name: Signal-Based Rootkit Command Trigger Detected\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: This detection identifies the use of the 'kill' command with a specific, non-standard real-time signal (-59). Rootkits like 'Singularity' use these 'magic' signals as an out-of-band communication channel to trigger actions within a malicious kernel module, such as toggling stealth features or granting root privileges.\r\n// False Positive Sensitivity: Medium\r\n// References:\r\n// - https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools\r\n// MITRE ATT&CK: T1059.004 (Command and Scripting Interpreter: Unix Shell), T1548.001 (Abuse Elevation Control Mechanism)\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n// Look for the execution of the 'kill' command, which is used to send signals.\r\n| where FileName =~ \"kill\"\r\n// Check for the specific signal used by the Singularity rootkit. Signal 59 is SIGRTMIN+25 on many systems.\r\n| where ProcessCommandLine has \"-59\" or ProcessCommandLine has \"-SIGRTMIN+25\"\r\n// False Positive Tuning: Some custom applications may use real-time signals for legitimate inter-process communication.\r\n// If you have such applications, consider excluding them by the parent process or user account.\r\n// For example: `| where InitiatingProcessParentFileName != \"legit_app_spawner.sh\"`\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.004
+    - T1014
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools

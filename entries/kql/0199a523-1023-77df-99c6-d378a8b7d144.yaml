@@ -1,0 +1,14 @@
+id: 0199a523-1023-77df-99c6-d378a8b7d144
+name: T1098 - User Added to Domain Privileged Groups
+description: Detects when a user account is added to a high-privilege domain group (e.g., Domain Admins, Enterprise Admins, etc.)
+query: "IdentityDirectoryEvents \r\n// Author: Thiago Calegari\r\n// Detects additions of accounts to privileged domain groups\r\n| where ActionType == \"Group Membership changed\"\r\n| extend target_sid = tostring(parse_json(AdditionalFields).[\"TargetAccountSid\"])\r\n| extend Modification = tostring(parse_json(AdditionalFields).MembershipChange)\r\n| where Modification == \"added\"\r\n| extend GroupName = tostring(parse_json(AdditionalFields).[\"TO.GROUP\"])\r\n| where GroupName in~ (\"DnsAdmins\", \"Domain Admins\", \"Remote Desktop Users\", \"Backup Operators\", \"Enterprise Admins\", \"Schema Admins\", \"Account Operators\", \"Server Operators\", \"Print Operators\")\r\n| project Timestamp, DestinationDeviceName, ActionType, Modification, \r\n    [\"Added By\"] = AccountName, \r\n    AccountSid, \r\n    [\"Added User\"] = TargetAccountDisplayName, \r\n    [\"Added User (Identity)\"] = TargetAccountUpn, \r\n    [\"Added User (SID)\"] = target_sid, \r\n    [\"Target Group\"] = GroupName, \r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1098
+    - T1098.007
+tags:
+    - kql
+version: "2"

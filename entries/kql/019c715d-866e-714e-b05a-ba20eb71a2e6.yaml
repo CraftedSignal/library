@@ -1,0 +1,22 @@
+id: 019c715d-866e-714e-b05a-ba20eb71a2e6
+name: ClickFix Base64 Shell Execution on macOS
+description: This detection identifies a command-line pattern characteristic of "ClickFix" attacks on macOS. It looks for a shell process (like zsh, bash, sh) that is spawned by a known terminal application and executes a command involving echoing a string, decoding it with 'base64 -D', and piping it into another shell for execution. This technique is used by adversaries to trick users into running malicious code, bypassing standard OS protections.
+query: "// Name: ClickFix Base64 Shell Execution\r\n// Description:\r\n// This detection identifies a command-line pattern characteristic of \"ClickFix\" attacks on macOS.\r\n// It looks for a shell process (like zsh, bash, sh) that is spawned by a known terminal application\r\n// and executes a command involving echoing a string, decoding it with 'base64 -D', and piping it\r\n// into another shell for execution. This technique is used by adversaries to trick users into\r\n// running malicious code, bypassing standard OS protections.\r\n//\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n//\r\n// Mitre ATT&CK:\r\n// - T1059.004: Command and Scripting Interpreter: Unix Shell\r\n// - T1027: Obfuscated Files or Information\r\n// - T1105: Ingress Tool Transfer\r\n// - T1566.002: Phishing: Spearphishing Link\r\n// References:\r\n// - https://objective-see.org/blog/blog_0x85.html\r\n// False Positive Sensitivity: Medium\r\nlet terminalProcesses = dynamic([\r\n    \"Terminal\",\r\n    \"iTerm.app\",\r\n    \"iTerm2\",\r\n    \"Warp\",\r\n    \"ghostty\",\r\n    \"kitty\"\r\n]);\r\nlet shellInterpreters = dynamic([\r\n    \"bash\",\r\n    \"sh\",\r\n    \"zsh\"\r\n]);\r\nDeviceProcessEvents\r\n// The process being created is a shell interpreter, which is a common final stage in this attack chain.\r\n| where FileName in (shellInterpreters)\r\n    // The parent process is a known terminal application, indicating an interactive user session.\r\n    and InitiatingProcessFileName in (terminalProcesses)\r\n    // The command line contains the core components of the ClickFix technique.\r\n    // This pattern is highly indicative of decoding and executing a payload.\r\n    and ProcessCommandLine has \"echo\"\r\n    and ProcessCommandLine has \"base64\" and ProcessCommandLine has \"-D\"\r\n    and (ProcessCommandLine has \"| bash\" or ProcessCommandLine has \"| sh\" or ProcessCommandLine has \"| zsh\")\r\n// Tuning and False Positive Considerations:\r\n// This detection assumes the entire malicious command is passed to the new shell process's command line.\r\n// While common, sophisticated attacks might use different methods (e.g., process hollowing, environment variables)\r\n// which may not be captured here.\r\n// Legitimate scripts, especially complex DevOps or developer tools, might use similar patterns.\r\n// If false positives occur, consider adding more specific keywords or excluding known safe scripts/parent processes.\r\n// For example: `and not(InitiatingProcessFolderPath has_any (\"/path/to/safe/tool\", \"/another/safe/path/\"))`\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0011
+    - TA0001
+techniques:
+    - T1059.004
+    - T1027
+    - T1105
+    - T1566.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://objective-see.org/blog/blog_0x85.html

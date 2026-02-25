@@ -1,0 +1,40 @@
+id: f2d9859d-f9de-4801-919c-4b367c85f183
+name: Java JAR File Execution Detection
+description: This detection monitors Java JAR file execution, often used for malicious purposes, and flags unexpected activity for investigation.
+query: |-
+    # Java JAR File Execution Detection
+
+    ## Description
+    This detection monitors for Java JAR file execution, which can be used for malicious purposes including remote access tools, cryptocurrency miners, and other malware. While JAR files have legitimate uses, unexpected execution should be investigated.
+
+    ## Detection Logic
+    The query identifies:
+    - Execution of `javaw.exe` (Java Windows executable)
+    - Command line containing JAR-related parameters:
+      - `-jar` flag
+      - `.jar` file references
+
+    ## Query
+    ```kusto
+    DeviceProcessEvents
+    | where (FolderPath endswith "javaw.exe" and (ProcessCommandLine contains "-jar" or ProcessCommandLine contains ".jar"))
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Execution
+    - **Technique**: T1059.007 - Command and Scripting Interpreter: JavaScript
+    - **Technique**: T1036.001 - Masquerading: Invalid Code Signature
+
+    ## Severity
+    Low to Medium (context-dependent)
+
+    ## Investigation Steps
+    1. Identify the specific JAR file being executed
+    2. Check if Java execution is expected on this system
+    3. Review the source of the JAR file (download, email, etc.)
+    4. Analyze the JAR file for malicious content if suspicious
+    5. Check for network connections initiated by the Java process
+    6. Review user activity leading to the JAR execution
+    7. Verify if this is part of legitimate business applications
+query_type: kql
+version: "1"

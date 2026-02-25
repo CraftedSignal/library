@@ -1,0 +1,20 @@
+id: c9d7829a-a1c9-4c83-ae0d-ea7fd3f9f7af
+name: DefenderXDR Exposure Management for hashtag#RegreSSHion
+description: KQL Query
+query: "// DefenderXDR Exposure Management for hashtag#RegreSSHion\n// https://www.linkedin.com/posts/activity-7214788756237639680-rGkW/\n\n//Use below KQL to determine your internet facing VM with OpenSSH and prioritize the following:\n// - Access Control\n// - Host-based Intrusion Prevention (E.g fail2ban)\n// - SSH Configuration Hardening\n// (E.g LoginGraceTime/MaxStartups/PerSourceMaxStartups)\n\n// Refer to Splunk Mitigation Strategies for CVE-2024-6387\n// Link: https://lnkd.in/gFPsbcaW\n\nlet InternetFacingVM=\nExposureGraphNodes\n| where NodeLabel == 'device' or (Categories has 'virtual_machine' and set_has_element(Categories, 'virtual_machine'))\n| where NodeProperties.rawData.isInternetFacing == true\n| extend InternetFacingDeviceName=tostring(NodeProperties.rawData.deviceName)\n| project InternetFacingDeviceName;\nDeviceTvmSoftwareInventory\n| where SoftwareName contains \"openssh\"\n| where DeviceName has_any(InternetFacingVM)\n\n \n// MITRE ATT&CK Mapping\n\n// Based on the operations performed in the KQL code, here are the relevant MITRE ATT&CK techniques:\n\n// T1133 - External Remote Services:\n// Description: Adversaries may leverage external remote services to access and control systems over the internet.\n// Relevance: The query identifies internet-facing devices, which could be targeted for remote access via services like OpenSSH.\n\n// T1210 - Exploitation of Remote Services:\n// Description: Adversaries may exploit vulnerabilities in remote services to gain unauthorized access.\n// Relevance: By identifying devices with OpenSSH, the query highlights potential targets for exploitation.\n\n// T1078 - Valid Accounts:\n// Description: Adversaries may use valid accounts to gain access to remote services.\n// Relevance: OpenSSH is often used for secure remote access, and valid accounts could be used to log in to these services.\n\n// T1046 - Network Service Scanning:\n// Description: Adversaries may scan for network services to identify potential entry points.\n// Relevance: The query’s focus on internet-facing devices and specific software (OpenSSH) aligns with the reconnaissance phase of identifying exploitable services.\n"
+query_type: kql
+tactics:
+    - TA0003
+    - TA0001
+    - TA0008
+    - TA0005
+    - TA0004
+    - TA0007
+techniques:
+    - T1133
+    - T1210
+    - T1078
+    - T1046
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,19 @@
+id: 019c95b9-df9d-74ae-8b22-2c51f6b3dc7d
+name: GRIDTIDE C2 Communication via Google Sheets API
+description: Detects non-browser processes making outbound connections to specific Google Sheets API endpoints used by the GRIDTIDE backdoor for command and control. This activity is indicative of the malware using legitimate cloud services to disguise its C2 traffic.
+query: "// Name: GRIDTIDE C2 Communication via Google Sheets API\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects non-browser processes making outbound connections to specific Google Sheets API endpoints used by the GRIDTIDE backdoor for command and control. This activity is indicative of the malware using legitimate cloud services to disguise its C2 traffic.\r\n// Tactics: Command and Control\r\n// Techniques: T1071.001, T1102.002, T1567.002\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/\r\n// False Positive Sensitivity: Medium\r\nlet gridtide_user_agents = dynamic([\r\n    \"Directory API Google-API-Java-Client/2.0.0 Google-HTTP-Java-Client/1.42.3 (gzip)\",\r\n    \"Google-HTTP-Java-Client/1.42.3 (gzip)\"\r\n]);\r\n(union isfuzzy=true\r\n    (\r\n        DeviceNetworkEvents\r\n        // Look for connections to the Google Sheets API domain.\r\n        | where RemoteUrl has \"sheets.googleapis.com\"\r\n        // Filter for specific API calls used by GRIDTIDE for C2.\r\n        | where RemoteUrl has \"batchClear\" or RemoteUrl has \"batchUpdate\" or RemoteUrl has \"valueRenderOption=FORMULA\"\r\n        // Exclude common web browsers to focus on background processes.\r\n        | where InitiatingProcessFileName !in~ (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"safari.exe\")\r\n        // Potential for False Positives: Legitimate scripts (PowerShell, Python) or third-party applications may use these APIs.\r\n        // Consider adding more specific process names to the exclusion list or filtering for specific user agents if known legitimate tools are causing noise.\r\n        | project-reorder TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, AdditionalFields\r\n    ),\r\n    (\r\n        // This part of the query looks for the specific User-Agent strings associated with GRIDTIDE.\r\n        // This can be useful if the URL patterns change but the User-Agent remains the same.\r\n        // This requires a log source that captures User-Agent strings, such as proxy logs.\r\n        CommonSecurityLog\r\n        | where isnotempty(RequestClientApplication) and RequestClientApplication in (gridtide_user_agents)\r\n        | project TimeGenerated, DeviceName=Computer, InitiatingProcessFileName=ProcessName, RemoteUrl=RequestURL, RemoteIP=DestinationIP, AdditionalFields=AdditionalExtensions\r\n    )\r\n)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1102.002
+    - T1567.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/

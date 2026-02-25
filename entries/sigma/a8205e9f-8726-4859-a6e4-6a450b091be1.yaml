@@ -1,0 +1,60 @@
+id: a8205e9f-8726-4859-a6e4-6a450b091be1
+name: Kimsuky PowerShell String Reversal and Padding Obfuscation
+description: Detects PowerShell commands using string reversal techniques and specific numeric padding, methods observed in Kimsuky's "ClickFix" campaigns to obfuscate malicious code. The rule looks for a combination of PowerShell string manipulation functions and a unique numeric string.
+query: |
+    title: Kimsuky PowerShell String Reversal Obfuscation
+    id: 784eada2-2fca-4b02-8510-b141fe8f6f34
+    status: experimental
+    description: Detects PowerShell commands using string reversal techniques, a method observed in Kimsuky's "ClickFix" campaigns to obfuscate malicious code.
+    references:
+      - https://www.genians.co.kr/en/blog/threat_intelligence/suky-castle
+    author: detections.ai
+    date: 2025-07-17
+    tags:
+      - attack.kimsuky
+      - attack.t1027
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_reversal:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+                # Detects a specific PowerShell string reversal technique used for obfuscation.
+                # This combination is uncommon in legitimate scripts.
+          - '[-1..-'
+          - '.ToCharArray()'
+          - '-join'
+      selection_padding:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+            # Detects a specific padding string used by Kimsuky to obfuscate commands.
+        CommandLine|contains: '7539518426'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate scripts may use similar string manipulation techniques, though this specific combination is uncommon.
+      - The numeric padding string is highly specific to this campaign and is unlikely to generate false positives, but could be changed by the threat actor in future campaigns.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.kimsuky
+    - attack.t1027
+    - attack.t1059.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.genians.co.kr/en/blog/threat_intelligence/suky-castle
+data_sources:
+    - process_creation
+    - windows

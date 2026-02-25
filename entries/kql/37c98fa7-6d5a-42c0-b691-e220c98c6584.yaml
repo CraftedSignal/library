@@ -1,0 +1,19 @@
+id: 37c98fa7-6d5a-42c0-b691-e220c98c6584
+name: XWorm Persistence via Scheduled Task, Run Key or Startup Folder
+description: This rule detects XWorm persistence mechanisms. It looks for the creation of scheduled tasks, registry run keys, or startup folder shortcuts that execute suspicious payloads from the AppData\Roaming directory. The malware is known to use filenames like "WmiPrvSE.exe" (masquerading as a legitimate system file) and "Soundman.exe").
+query: "let suspiciousFilenames = dynamic([\"WmiPrvSE.exe\", \"Soundman.exe\"]);\r\nlet suspiciousLnkFiles = dynamic([\"WmiPrvSE.lnk\", \"Soundman.lnk\"]);\r\nlet registryPersistence =\r\n    DeviceRegistryEvents\r\n    | where ActionType == \"RegistryValueSet\"\r\n    | where RegistryKey has_any (\r\n        @\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Run\",\r\n        @\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\RunOnce\"\r\n    )\r\n    | where RegistryValueData has_any (suspiciousFilenames) and RegistryValueData contains @\"\\AppData\\Roaming\\\";\r\n\r\nlet scheduledTaskPersistence =\r\n    DeviceProcessEvents\r\n    // Look for the command-line task scheduler creating a task\r\n    | where FileName =~ \"schtasks.exe\" and ProcessCommandLine has \"/create\"\r\n    // Check for the payload path in the task's command\r\n    | where ProcessCommandLine has_any (suspiciousFilenames) and ProcessCommandLine contains @\"\\AppData\\Roaming\\\";\r\n\r\n// Find shortcut files dropped in the startup folder\r\nlet startupFolderPersistence =\r\n    DeviceFileEvents\r\n    | where ActionType == \"FileCreated\"\r\n    // The startup folder is a common persistence location\r\n    | where FolderPath endswith @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\\"\r\n    | where FileName has_any (suspiciousLnkFiles);\r\n\r\nunion registryPersistence, scheduledTaskPersistence, startupFolderPersistence\r\n| extend\r\n    DetectionMethod = case(\r\n        TableName == \"DeviceRegistryEvents\", \"Registry Run Key\",\r\n        TableName == \"DeviceProcessEvents\", \"Scheduled Task Creation\",\r\n        TableName == \"DeviceFileEvents\", \"Startup Folder Shortcut\",\r\n        \"Unknown\"\r\n    ),\r\n    SuspiciousCommand = case(\r\n        DetectionMethod == \"Registry Run Key\", RegistryValueData,\r\n        DetectionMethod == \"Scheduled Task Creation\", ProcessCommandLine,\r\n        DetectionMethod == \"Startup Folder Shortcut\", strcat(FolderPath, FileName),\r\n        \"Unknown\"\r\n    )\r\n| project-reorder\r\n    Timestamp,\r\n    DeviceName,\r\n    DetectionMethod,\r\n    SuspiciousCommand,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+    - T1547.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://media.licdn.com/dms/document/media/v2/D4D1FAQEkGuxUK7j4sQ/feedshare-document-pdf-analyzed/B4DZk4VAq8IgAY-/0/1757586661600?e=1758758400&v=beta&t=NqEhkrPqdXrj1E9smALUeSbAhqXb00i4U8iIRhfd6k

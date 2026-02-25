@@ -1,0 +1,36 @@
+id: 019bb0c9-7de3-7795-b6b6-d79443230237
+name: Common Web Attack Patterns (SQLi, XSS, LFI)
+description: 'This detection identifies common web attack patterns including SQL Injection (SQLi), Cross-Site Scripting (XSS), and Local File Inclusion (LFI) by inspecting URL and POST data for specific malicious patterns. It looks for indicators such as script tags, onerror/onload attributes, javascript: URIs, alert() functions for XSS; SQL keywords like UNION SELECT, xp_cmdshell, sp_configure, and common SQLi bypass patterns for SQLi; and directory traversal sequences (../../, ..%2f..%2f), and sensitive file paths like /etc/passwd, /windows/win.ini, php://filter for LFI.'
+query: |
+    `comment("This detection identifies common web attack patterns including SQL Injection (SQLi), Cross-Site Scripting (XSS), and Local File Inclusion (LFI) by inspecting URL and POST data. MITRE ATT&CK: T1190")`
+    | from datamodel=Web.Web
+    | eval decoded_url=urldecode(url)
+    `comment("Search for patterns related to XSS, SQLi, and LFI in the decoded URL and form_data fields.")`
+    | where (
+        `comment("XSS Patterns")`
+        (like(decoded_url, "%<script%") OR like(decoded_url, "%onerror=%") OR like(decoded_url, "%onload=%") OR like(decoded_url, "%javascript:%") OR like(decoded_url, "%alert(%)") OR like(form_data, "%<script%") OR like(form_data, "%onerror=%") OR like(form_data, "%onload=%") OR like(form_data, "%javascript:%") OR like(form_data, "%alert(%)"))
+        OR
+        `comment("SQLi Patterns")`
+        (match(decoded_url, /(?i)('|\"|\s)OR(\s|\"|')\d+=(\s|\"|')\d+/ ) OR like(decoded_url, "%UNION%SELECT%") OR like(decoded_url, "%xp_cmdshell%") OR like(decoded_url, "%--%") OR like(decoded_url, "%sp_configure%") OR match(form_data, /(?i)('|\"|\s)OR(\s|\"|')\d+=(\s|\"|')\d+/ ) OR like(form_data, "%UNION%SELECT%") OR like(form_data, "%xp_cmdshell%") OR like(form_data, "%--%") OR like(form_data, "%sp_configure%"))
+        OR
+        `comment("LFI/Directory Traversal Patterns")`
+        (like(decoded_url, "%../../%") OR like(decoded_url, "%..%2f..%2f%") OR like(decoded_url, "%etc/passwd%") OR like(decoded_url, "%windows/win.ini%") OR like(decoded_url, "%php://filter%") OR like(form_data, "%../../%") OR like(form_data, "%etc/passwd%") OR like(form_data, "%windows/win.ini%") OR like(form_data, "%php://filter%"))
+    )
+    `comment("Group events to identify unique attack attempts and reduce alert volume.")`
+    | stats count min(_time) as firstTime max(_time) as lastTime values(decoded_url) as urls values(form_data) as post_data by src, dest, user, http_user_agent
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | rename src as source_ip, dest as destination_ip
+    `comment("FP Note: This is a broad detection. Legitimate applications may use similar patterns. Tune by filtering known-safe source IPs, user agents, or specific URL patterns. Example: | where NOT (source_ip=\\\"10.0.0.55\\\" AND urls LIKE \\\"%safe_app_url%\\\")")`
+    | `generic_web_attack_attempt_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059
+tags:
+    - spl
+version: "3"

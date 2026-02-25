@@ -1,0 +1,66 @@
+id: 5a338e4a-ae31-4847-847f-3bb09434fe35
+name: SparkKitty Mobile Spyware Network Communication
+description: Detects network communication patterns associated with the SparkKitty mobile spyware, which exfiltrates sensitive data, including images, by connecting to known command and control servers or using specific API endpoints.
+query: |-
+    title: SparkKitty Mobile Spyware Network Communication
+    id: f1e2d3c4-a5b6-7c8d-9e0f-1a2b3c4d5e6f
+    status: experimental
+    description: Detects network communication patterns associated with the SparkKitty mobile spyware, which exfiltrates sensitive data, including images, by connecting to known command and control servers or using specific API endpoints.
+    author: Detections.ai
+    date: 2025-07-08
+    references:
+        - https://securelist.com/sparkkitty-ios-android-malware/116793/
+    logsource:
+        category: network_connection
+        product: proxy # This rule is best applied to proxy, firewall, or web server logs that capture destination IPs, DNS names, and full URLs/URIs.
+    detection:
+        selection_ips:
+            DestinationIp:
+                - '23.249.28.88'
+                - '120.79.8.107'
+                - '23.249.28.200'
+                - '47.119.171.161'
+        selection_domains:
+            DestinationDnsName|contains: 'api.fxsdk.com'
+        selection_paths:
+            Url|contains:
+                - '/api/getImageStatus'
+                - '/api/anheartbeat'
+                - '/api/putImages'
+                - '/api/putDataInfo'
+        condition: 1 of selection_*
+    tags:
+        - attack.command_and_control
+        - attack.exfiltration
+        - attack.t1041 # Exfiltration Over C2 Channel
+        - attack.t1567 # Exfiltration Over Web Service
+        - mobile.ios
+        - mobile.android
+        - malware
+        - sparkkitty
+        - spyware
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1567
+tags:
+    - attack.command_and_control
+    - attack.exfiltration
+    - attack.t1041
+    - attack.t1567
+    - mobile.ios
+    - mobile.android
+    - malware
+    - sparkkitty
+    - spyware
+author: Detections.ai
+version: "1"
+references:
+    - https://securelist.com/sparkkitty-ios-android-malware/116793/
+data_sources:
+    - network_connection
+    - proxy

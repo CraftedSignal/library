@@ -1,0 +1,21 @@
+id: f2769974-b381-416d-a288-236b8c4a5e4b
+name: NauthNRPC Detection
+description: 'KQL Query from file: NauthNRPC Detection'
+query: "let QueryPeriod = 1h;\r\nlet IP_HighEumeration =\r\nSecurityEvent\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where EventID in (4624, 5140) \r\n| where AccountType == \"User\"\r\n| where (TargetUserName == \"ANONYMOUS LOGON\") or (SubjectUserName == \"ANONYMOUS LOGON\")\r\n| summarize EnumerationCount=count() by IpAddress\r\n| where EnumerationCount > 10\r\n| distinct IpAddress;\r\nlet PythonBinary = dynamic([\"python.exe\", \"python3.exe\", \"pythonw.exe\"]);\r\nlet EP_PythonExecution =\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where ProcessCommandLine has_any(PythonBinary)\r\n| distinct DeviceName;\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where DeviceName has_any(EP_PythonExecution)\r\n| where LocalIP has_any(IP_HighEumeration)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+    - TA0010
+techniques:
+    - T1087
+    - T1059.006
+    - T1041
+    - T1020
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://github.com/sud0Ru/NauthNRPC?tab=readme-ov-file

@@ -1,0 +1,46 @@
+id: 019c9198-8285-745e-96da-13222b3b54c6
+name: DKnife Gateway AitM Components and Artifacts Detection
+description: This rule detects activities related to the DKnife gateway, which is associated with Adversary-in-the-Middle (AitM) attacks. It identifies the creation of specific DKnife process names (dknife.bin, sslmm.bin, postapi.bin, rules.bin, sshapi.bin, inotify.bin, curlapi.bin), file events involving DKnife configuration artifacts (rules.conf, sslmm.cfg, url.cfg), and the presence of specific marker strings ("dkimsi=", "460110672021628", "PASSWORD") in logs or captured payloads. The rule aims to identify the presence and activity of DKnife components on Linux systems.
+query: |+
+    ## DKnife gateway AitM hunts (edge/Linux components + config artifacts)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://blog.talosintelligence.com/knife-cutting-the-edge/
+
+    ### 1) Linux process creation for named components (requires process telemetry)
+    (index=os OR index=edr OR index=auditd) (
+      process_name IN ("dknife.bin","sslmm.bin","postapi.bin","rules.bin","sshapi.bin","inotify.bin","curlapi.bin")
+      OR Image IN ("*/dknife.bin","*/sslmm.bin","*/postapi.bin","*/rules.bin","*/sshapi.bin","*/inotify.bin","*/curlapi.bin")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines values(parent_process) as parents by host, user, process_name
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) File events for config artifacts (load-then-delete of rules.conf is a strong lead)
+    (index=os OR index=edr OR index=auditd) (
+      file_name IN ("rules.conf","sslmm.cfg","url.cfg")
+      OR file_path="*/rules.conf" OR file_path="*/sslmm.cfg" OR file_path="*/url.cfg"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(action) as actions values(process_name) as processes values(_raw) as examples by host, user, file_path
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Marker strings (when present in captured payload logs/artifacts)
+    (index=os OR index=edr OR index=proxy) ("dkimsi=" OR "460110672021628" OR "PASSWORD")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(_raw) as examples by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059
+    - T1071
+    - T1036
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.talosintelligence.com/knife-cutting-the-edge/

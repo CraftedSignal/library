@@ -1,0 +1,14 @@
+id: 019c8ec4-6a78-766d-8757-d52d1365cf16
+name: Azure Storage Account Public/Anonymous Access Enabled
+description: This rule detects when public or anonymous access is enabled for an Azure Storage Account. This configuration change can lead to potential data exposure, as it allows unauthenticated users to access blobs within the storage account. The rule specifically looks for 'STORAGEACCOUNTS/WRITE' or 'STORAGEACCOUNTS/BLOBSERVICES/WRITE' operations that successfully modify the storage account configuration to allow public access.
+query: "// Detection: Azure Storage Account Public/Anonymous Access Enabled\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1190 - Exploit Public-Facing Application\r\n\r\nAzureActivity\r\n| where TimeGenerated > ago(1d)\r\n| where ResourceProviderValue =~ \"MICROSOFT.STORAGE\"\r\n| where OperationNameValue has_any (\r\n    \"STORAGEACCOUNTS/WRITE\",\r\n    \"STORAGEACCOUNTS/BLOBSERVICES/WRITE\"\r\n)\r\n| where ActivityStatusValue =~ \"Success\"\r\n| extend RequestBody = tostring(todynamic(Properties).requestbody)\r\n| where RequestBody has_any (\r\n    \"AllowBlobPublicAccess\",\r\n    \"\\\"publicAccess\\\"\",\r\n    \"allowBlobPublicAccess\"\r\n)\r\n| project TimeGenerated, Caller, CallerIpAddress,\r\n          OperationNameValue, ResourceGroup,\r\n          SubscriptionId, RequestBody\r\n| extend AlertDescription =\r\n    \"Azure Storage public/anonymous blob access may have been enabled — potential data exposure\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

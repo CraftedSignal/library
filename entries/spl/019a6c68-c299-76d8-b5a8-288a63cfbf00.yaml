@@ -1,0 +1,19 @@
+id: 019a6c68-c299-76d8-b5a8-288a63cfbf00
+name: 'Suspicious Impossible-Travel Login Activity: Same User Logging In From Two Cities in the Same Country Within 30 Minutes'
+description: |-
+    * Compare distances and times of consecutive sign-ins for the same user.
+    * Flag events where travel speed exceeds physical limits as potential unauthorized access.
+
+    Example: Same user signing in from Chennai to Mumbai (India) in 30 minutes triggers an alert.
+    Distance - 5,560 km.
+    Required speed - 11,000 km/h
+    The event is flagged as impossible travel.
+query: "index=\"o365\" sourcetype=\"o365:management:activity\"\r\nOperation=\"UserLoggedIn\"\r\n| search NOT (ClientIP=\"::1\" OR ClientIP=\"127.0.0.1\" OR ClientIP=null)\r\n| iplocation ClientIP\r\n| search Country!=\"\" (City!=\"\" OR Region!=\"\")\r\n| dedup UserId, ClientIP, CreationTime\r\n| sort UserId, CreationTime\r\n| streamstats current=f window=1 global=f \r\n    last(_time) as prev_time, \r\n    last(lat) as prev_lat, \r\n    last(lon) as prev_lon, \r\n    last(City) as prev_city, \r\n    last(ClientIP) as prev_ip \r\n    by UserId\r\n| where isnotnull(prev_time) AND ClientIP!=prev_ip\r\n| eval time_diff_hours=round((_time-prev_time)/3600,2)\r\n| eval distance_km = 6371 * acos(\r\n    cos(prev_lat * 3.14159265359/180) * cos(lat * 3.14159265359/180) *\r\n    cos((lon - prev_lon) * 3.14159265359/180) +\r\n    sin(prev_lat * 3.14159265359/180) * sin(lat * 3.14159265359/180)\r\n  )\r\n| eval speed_kmh = distance_km / time_diff_hours\r\n| eval risk_score = case(\r\n    speed_kmh > 15000, 100,\r\n    speed_kmh > 5000, 85,\r\n    speed_kmh > 1000, 70,\r\n    true(), 0\r\n)\r\n| where speed_kmh > 1000 AND time_diff_hours < 24\r\n| eval _time=strftime(_time, \"%Y-%m-%d %H:%M:%S\"),\r\n       prev_time=strftime(prev_time, \"%Y-%m-%d %H:%M:%S\")\r\n| eval VPN = if(isnull(VPNStatus) OR VPNStatus==\"No\", \"No\", \"Yes\")\r\n| eval MFA = case(\r\n    MFAStatus==\"Yes\", \"Yes\",\r\n    MFAStatus==\"No\", \"No\",\r\n    MFAStatus==\"NotRequired\", \"No Required\",\r\n    true(), \"Unknown\"\r\n)\r\n| table UserId, ClientIP, Country, Region, City, _time, prev_ip, prev_city, prev_time, distance_km, time_diff_hours, speed_kmh, risk_score, ResultStatus, VPN, MFA, index, sourcetype   "
+query_type: spl
+severity: medium
+techniques:
+    - T1078
+tags:
+    - spl
+author: AnoozillaHunterX
+version: "2"

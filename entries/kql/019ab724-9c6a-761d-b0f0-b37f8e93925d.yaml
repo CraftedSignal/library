@@ -1,0 +1,14 @@
+id: 019ab724-9c6a-761d-b0f0-b37f8e93925d
+name: Suspicious Inbox Rule to Hide Mails
+description: This query monitors and detects the creation of Outlook rules that move emails to the “Conversation History” or “Deleted Items” folders. The goal is to promptly identify potential attempts to hide suspicious emails by a possible threat actor.
+query: "OfficeActivity\r\n| where OfficeWorkload == \"Exchange\"\r\n| where Operation in~ (\"New-InboxRule\", \"Set-InboxRule\")\r\n| extend Parameters2 = parse_json(Parameters)\r\n| mv-expand Parameters2\r\n| extend Name = Parameters2.Name\r\n| extend Value = Parameters2.Value\r\n| where  (Name == \"MoveToFolder\" and Value in~ (\"Deleted Items\", \"Posta Eliminata\", \"Cronologia delle conversazioni\", \"Conversation History\")) or (Name has \"DeleteMessage\" and Value has \"True\")\r\n| extend ClientIPOnly = tostring(extract_all(@'\\[?(::ffff:)?(?P<IPAddress>(\\d+\\.\\d+\\.\\d+\\.\\d+)|[^\\]]+)\\]?', dynamic([\"IPAddress\"]), ClientIP)[0])\r\n| project \r\n    TimeGenerated,\r\n    UserId,\r\n    ClientIPOnly,\r\n    Operation,\r\n    Parameters\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1564.008
+tags:
+    - kql
+author: kappanello
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1564/008/

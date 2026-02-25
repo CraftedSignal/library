@@ -1,0 +1,8 @@
+id: 019c48f6-d60e-7755-9dc9-9bddb9966963
+name: Palo Alto Networks Possible Command Injection in User Field
+description: This rule detects potential command injection attempts within the username field of Palo Alto Networks system logs. It specifically looks for various command injection indicators such as backticks, semicolons, logical operators (&&, ||), command substitution ($()), directory traversal (../), and common command-line utilities (wget, curl, chmod, sh, bash, ./, nc) within the 'User ' string in the raw log. The rule then extracts the potentially injected username and the source IP address for further investigation.
+query: "index=palo sourcetype=”pan:system” \"User \"\r\n| where (match(_raw, \"User `\") OR match(_raw, \";\") OR match(_raw, \"&&\") OR match(_raw, \"\\|\\|\") OR match(_raw, \"\\$\\(\") OR match(_raw, \"\\.\\./\") OR match(_raw, \"wget \") OR match(_raw, \"curl \") OR match(_raw, \"chmod \") OR match(_raw, \"sh \") OR match(_raw, \"bash \") OR match(_raw, \"\\./\") OR match(_raw, \"nc \"))\r\n| rex field=_raw \"User (?<injected_username>[^\\s]+)\"\r\n| rex field=_raw \"from (?<src>[0-9\\.]+)\"\r\n| table _time, host, src, injected_username, _raw"
+query_type: spl
+tags:
+    - spl
+version: "1"

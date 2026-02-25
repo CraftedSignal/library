@@ -1,0 +1,59 @@
+id: 3afc14fc-c8db-4f21-8c20-6c1d6c94d8b3
+name: Suspicious Execution of Remote Access and Credential Tools
+description: Detects the execution of remote access, tunneling, and credential access tools from suspicious directories. This rule specifically targets tools commonly abused by threat actors like Scattered Spider, such as AnyDesk, TeamViewer, ngrok, Teleport, Tailscale, and Mimikatz, when executed from user-writable or temporary folders. It excludes legitimate installations in standard Program Files directories to reduce false positives.
+query: |
+    let remoteTools = dynamic([
+        // RMM and Remote Access Tools from CISA Advisory AA23-320A
+        "anydesk.exe",
+        "teamviewer.exe",
+        "tv_x64.exe",
+        "tv_x86.exe",
+        "screenconnect.clientservice.exe",
+        "connectwisecontrol.clientservice.exe", // ScreenConnect is now ConnectWise Control
+        "splashtop streamer.exe",
+        "srclient.exe",
+        "pulseway.exe",
+        "level.exe",
+        "fleetdeck.exe",
+        "tacticalrmm.exe",
+        // Tunneling and VPN Tools
+        "ngrok.exe",
+        "tsh.exe", // Teleport client
+        "tailscale.exe",
+        "tailscaled.exe",
+        // Credential Access Tools
+        "mimikatz.exe"
+    ]);
+    // Key logic: Detects execution of tools commonly abused by Scattered Spider.
+    DeviceProcessEvents
+    | where FileName in~ (remoteTools)
+    // Filter for execution from user-writable or temporary directories, which is suspicious for these tools.
+    | where FolderPath has_any (@"\Users\", @"\ProgramData\", @"\Temp\", @"\Windows\Temp\", @"\PerfLogs\")
+    // Exclude legitimate installations in standard Program Files directories.
+    and not(FolderPath matches regex @"C:\\Program Files( \(x86\))?\\")
+    // FP Tuning: Legitimate portable use by IT staff may occur.
+    // Consider excluding known IT admin hostnames or usernames if this is noisy.
+    // For example: and DeviceName !in ("IT-ADMIN-01", "IT-SUPPORT-LAPPY")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+tags:
+    - kql
+version: "1"
+references:
+    - CISA Advisory AA23-320A

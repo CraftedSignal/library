@@ -1,0 +1,72 @@
+id: 019b4b93-f592-77a8-af15-5d0a302314aa
+name: Unprivileged iwpriv Execution for MediaTek LPE
+description: Detects the execution of the `iwpriv` utility by an unprivileged user targeting subcommands that are vulnerable to Local Privilege Escalation (LPE) in certain MediaTek Wi-Fi drivers. The exploitation of these vulnerabilities is demonstrated to be possible by unprivileged users, making the execution of kernel-level configuration tools like `iwpriv` by non-root users a highly suspicious activity.
+query: |
+    title: Unprivileged iwpriv Execution for MediaTek LPE
+    id: ecce8184-ae48-4276-a5b9-ef0caf7255e3
+    status: experimental
+    description: Detects the execution of the `iwpriv` utility by an unprivileged
+      user targeting subcommands that are vulnerable to Local Privilege Escalation
+      (LPE) in certain MediaTek Wi-Fi drivers. The exploitation of these
+      vulnerabilities is demonstrated to be possible by unprivileged users, making
+      the execution of kernel-level configuration tools like `iwpriv` by non-root
+      users a highly suspicious activity.
+    references:
+      - https://blog.coffinsec.com/0days/2025/12/15/more-like-mediarekt-amirite.html
+    author: tim@detections.ai
+    date: 2025-12-23
+    tags:
+      - attack.execution
+      - attack.t1059.004
+      - attack.privilege_escalation
+      - attack.t1548
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        Image|endswith: '/iwpriv' # Detects the iwpriv utility, which is used to manipulate wireless extensions.
+        CommandLine|contains:
+          # Keywords for subcommands identified as vulnerable in the research.
+          - 'set BcnReq='
+          - 'set WPAPSK='
+          - 'set IgmpFloodingCIDR='
+          - 'set RxvRecordEn='
+          - 'set IgmpSnExemptIP='
+          - 'set IgmpDel='
+          - 'set IgmpAdd='
+          - 'set ApScanChannel='
+          - 'set vie_op='
+          - 'e2p '
+      filter_root:
+        User: 'root'
+          # Filter out legitimate executions by the root user.
+          # Depending on the log source, you might need to use UserId: 0 instead.
+          # UserId: 0
+      condition: selection and not filter_root
+    falsepositives:
+      - Legitimate administrative scripts or tools that use `iwpriv` and are run by
+        a non-root user with specific capabilities (e.g., CAP_NET_ADMIN). This is
+        expected to be rare in most environments.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1059.004
+    - T1548
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - attack.privilege_escalation
+    - attack.t1548
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.coffinsec.com/0days/2025/12/15/more-like-mediarekt-amirite.html
+data_sources:
+    - process_creation
+    - linux

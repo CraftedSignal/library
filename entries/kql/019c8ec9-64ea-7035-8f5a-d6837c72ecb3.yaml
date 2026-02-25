@@ -1,0 +1,16 @@
+id: 019c8ec9-64ea-7035-8f5a-d6837c72ecb3
+name: Clawdbot ScreenConnect C2 Connection
+description: Detects outbound network connections to the command-and-control (C2) infrastructure used by the weaponized ScreenConnect client dropped by the fake 'ClawdBot Agent' VS Code extension. This provides direct evidence of active remote access by the threat actor.
+query: "// Rule Title: Clawdbot ScreenConnect C2 Connection\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects outbound network connections to the command-and-control (C2) infrastructure used by the weaponized ScreenConnect client dropped by the fake 'ClawdBot Agent' VS Code extension. This provides direct evidence of active remote access by the threat actor.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware\r\n// MITRE ATT&CK: T1219 (Remote Access Software), T1071.001 (Application Layer Protocol: Web Protocols)\r\nDeviceNetworkEvents\r\n// Look for successful outbound network connections.\r\n| where ActionType == \"NetworkConnectionSuccess\"\r\n// Filter for the specific port and C2 indicators associated with the campaign's ScreenConnect relay.\r\n| where RemotePort == 8041 and (RemoteUrl has \"meeting.bulletmailer.net\" or RemoteIP == \"179.43.176.32\")\r\n// FP Tuning: This is a highly specific IOC-based detection. False positives are unlikely unless the IP is reallocated.\r\n// Correlating with the initiating process name (e.g., 'Code.exe' or 'ScreenConnect.ClientService.exe') can add further confidence.\r\n| project-reorder Timestamp, DeviceName, InitiatingProcessFileName, RemoteUrl, RemoteIP, RemotePort, ActionType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware

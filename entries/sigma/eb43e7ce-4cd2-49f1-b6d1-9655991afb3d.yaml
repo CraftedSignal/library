@@ -1,0 +1,24 @@
+id: eb43e7ce-4cd2-49f1-b6d1-9655991afb3d
+name: IIS Application Pool credential dumping
+description: Detects scenarios where an attacker
+query: "title: IIS Application Pool credential dumping \ndescription: Detects scenarios where an attacker \nreferences:\n- https://www.netspi.com/blog/technical/network-penetration-testing/decrypting-iis-passwords-to-break-out-of-the-dmz-part-1/\n- https://www.netspi.com/blog/technical/network-penetration-testing/decrypting-iis-passwords-to-break-out-of-the-dmz-part-2/\n- https://www.elastic.co/guide/en/security/current/microsoft-iis-service-account-password-dumped.html\n- https://tdm.socprime.com/tdm/info/3n7KrfogcqRG/#sigma\n- https://twitter.com/0gtweet/status/1588815661085917186\ntags:\n- attack.credential_access\n- attack.t1003\nauthor: mdecrevoisier (adapted from Tim Rauch and Grzegorz Tworek feedback)\nstatus: experimental\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  selection_name:\n    - Image|endswith: '\\appcmd.exe'\n    - OriginalFilename: 'appcmd.exe'\n  selection_arg:\n    CommandLine|contains|all:\n      - 'list'\n      - 'apppool' # can also be 'apppools'\n    #CommandLine|contains: # use in case of too many false positives\n      #- '/@'\n      #- text\n      #- password\n      #- config\n  condition: selection_name and selection_arg\nfalsepositives:\n- Unknown\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1003
+tags:
+    - attack.credential_access
+    - attack.t1003
+author: mdecrevoisier (adapted from Tim Rauch and Grzegorz Tworek feedback)
+version: "1"
+references:
+    - https://www.netspi.com/blog/technical/network-penetration-testing/decrypting-iis-passwords-to-break-out-of-the-dmz-part-1/
+    - https://www.netspi.com/blog/technical/network-penetration-testing/decrypting-iis-passwords-to-break-out-of-the-dmz-part-2/
+    - https://www.elastic.co/guide/en/security/current/microsoft-iis-service-account-password-dumped.html
+    - https://tdm.socprime.com/tdm/info/3n7KrfogcqRG/#sigma
+    - https://twitter.com/0gtweet/status/1588815661085917186
+data_sources:
+    - process_creation
+    - windows

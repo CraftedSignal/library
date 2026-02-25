@@ -1,0 +1,16 @@
+id: acbbffa7-4436-4d24-82cf-ba91c10661c8
+name: Browser Initiated Curl Download via Command Shell
+description: This rule detects suspicious command-line activity, specifically file downloads using 'curl' initiated by a web browser. This behavior may indicate malicious JavaScript or HTML triggering command execution, a user being tricked into clicking a link that launches a command, or initial access/payload download in a phishing or drive-by attack.
+query: "## \U0001F50D KQL Description\n#### The objective of this KQL script is to detect To suspicious command-line activity (especially file downloads using curl) that was triggered by a browser, which may indicate:\n#### 1. Malicious JavaScript or HTML triggering command execution\n#### 2. User tricked into clicking a link that launches a command\n#### 3. Initial access or payload download in a phishing or drive-by attack\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic: Execution\n#### Goal: Run unauthorized or malicious code on the system.\n#### Technique: T1059 – Command and Scripting Interpreter\n#### Sub-techniques - T1059.001 – PowerShell, T1059.003 – Windows Command Shell\n### Query:\n```KQL\nlet MonitoredCommands = dynamic([\"powershell\",\"pwsh\",\"regsvr32\",\"bitsadmin\",\"certutil\", \"mshta\", \"cmd\"]);\nlet BrowserList = dynamic([\"chrome\",\"msedge\",\"firefox\",\"brave\"]);\nDeviceProcessEvents\n| where TimeGenerated >= ago(7d)\n| where FileName has_any(MonitoredCommands) and InitiatingProcessFileName has_any(BrowserList)\n| extend CommandLine = tostring(InitiatingProcessCommandLine)\n| where (FileName == \"cmd.exe\" and CommandLine contains \"curl\")\n```\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059
+    - T1059.003
+    - T1204.001
+    - T1105
+tags:
+    - kql
+version: "1"

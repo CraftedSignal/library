@@ -1,0 +1,75 @@
+id: 019bec86-8df1-72fe-b2ba-8a73f0f13cdb
+name: Inetutils Telnetd Post-Exploitation Activity
+description: 'This rule detects post-exploitation activities originating from the `telnetd` process, specifically targeting scenarios following an Inetutils Telnetd authentication bypass. It identifies three main categories of malicious activity: reconnaissance, SSH key injection for persistence, and malware deployment. Reconnaissance activities are detected by commands like `uname -a`, `id`, `cat /proc/cpuinfo`, or `cat /etc/passwd` executed via common shells (`/bin/sh`, `/bin/bash`, `/bin/ash`). SSH key injection is identified by `echo` commands attempting to write SSH public keys (e.g., `ssh-rsa`, `ssh-ed25519`) into `~/.ssh/authorized_keys` or `/root/.ssh/authorized_keys`. Malware deployment is detected by `nohup` commands executing `curl` or `wget` to download and pipe content to interpreters like `python`, `python3`, `sh`, or `bash`.'
+query: |
+    title: Inetutils Telnetd Post-Exploitation Activity
+    id: bdc464cd-1341-4972-b178-1a6a35db8753
+    status: experimental
+    description: Detection of post-exploitation activities following Inetutils Telnetd authentication bypass including reconnaissance, SSH key injection, and malware deployment
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://www.labs.greynoise.io/grimoire/2026-01-22-f-around-and-find-out-18-hours-of-unsolicited-houseguests/
+    tags:
+        - attack.discovery
+        - attack.persistence
+        - attack.command_and_control
+        - attack.t1083
+        - attack.t1098.004
+        - attack.t1105
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection_reconnaissance:
+            Image|endswith|any:
+                - '/bin/sh'
+                - '/bin/bash'
+                - '/bin/ash'
+            CommandLine|re: '(?i)(uname\s+-a|id\s*;|cat\s+/proc/cpuinfo|cat\s+/etc/passwd).*(echo\s+-n\s+[SU]|echo\s+blah.*hostname)'
+            ParentImage|endswith: '/telnetd'
+        selection_ssh_persistence:
+            Image|endswith|any:
+                - '/bin/sh'
+                - '/bin/bash'
+                - '/bin/echo'
+            CommandLine|re: '(?i)(echo\s+[''"]ssh-rsa|echo\s+[''"]ssh-ed25519).*(>>\s+~?/\\.ssh/authorized_keys|>>\s+/root/\\.ssh/authorized_keys)'
+            ParentImage|endswith: '/telnetd'
+        selection_malware_deployment:
+            Image|endswith|any:
+                - '/bin/sh'
+                - '/bin/bash'
+                - '/usr/bin/curl'
+                - '/usr/bin/wget'
+            CommandLine|re: '(?i)(nohup.*curl|nohup.*wget).*(curl.*-fsSL|wget.*-q).*(python\s+-|python3\s+-|sh\s+-|bash\s+-)'
+            ParentImage|endswith: '/telnetd'
+        condition: selection_reconnaissance or selection_ssh_persistence or selection_malware_deployment
+    falsepositives:
+        - Legitimate system administration over Telnet (rare, check for authentication bypass)
+        - Automated system monitoring scripts
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1083
+    - T1098.004
+    - T1105
+tags:
+    - attack.discovery
+    - attack.persistence
+    - attack.command_and_control
+    - attack.t1083
+    - attack.t1098.004
+    - attack.t1105
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.labs.greynoise.io/grimoire/2026-01-22-f-around-and-find-out-18-hours-of-unsolicited-houseguests/
+data_sources:
+    - process_creation
+    - linux

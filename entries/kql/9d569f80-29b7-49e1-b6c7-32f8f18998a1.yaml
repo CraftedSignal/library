@@ -1,0 +1,17 @@
+id: 9d569f80-29b7-49e1-b6c7-32f8f18998a1
+name: Suspicious Connection to TLDs or Steamcommunity API as Seen in Lumma Infections
+description: Detects possible Lumma infections based on non-browser network connections to TLDs or steamcommunity API as often seen in Lumma infections
+query: "DeviceNetworkEvents\r\n| where isnotempty(RemoteUrl) and isnotempty(InitiatingProcessFileName)\r\n//Detects connections to suspicious TLDs or steamcommunity.com often associated with Lumma C2\r\n| where RemoteUrl endswith \".help\"\r\n    or RemoteUrl endswith \".top\"\r\n    or RemoteUrl endswith \".shop\"\r\n    or RemoteUrl endswith \".biz\"\r\n    or RemoteUrl endswith \".pro\"\r\n    or RemoteUrl endswith \".xyz\"\r\n    or RemoteUrl endswith \"steamcommunity.com\"\r\n//Filters out legitimate browser processes to focus on other applications\r\n| where not (InitiatingProcessFileName endswith \"\\\\brave.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\chrome.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\firefox.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\iexplore.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\microsoftedge.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\msedge.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\msedgewebview2.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\opera.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\safari.exe\"\r\n    or InitiatingProcessFileName endswith \"\\\\vivaldi.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort,\r\n    InitiatingProcessParentFileName"
+query_type: kql
+severity: medium
+techniques:
+    - T1071.001
+    - T1102
+    - T1041
+tags:
+    - Lumma Stealer
+    - kql
+author: Spyros Boulasikis (ren-zxcyq)
+version: "1"
+references:
+    - https://labs.withsecure.com/publications/reverse-engineering-a-lumma-infection

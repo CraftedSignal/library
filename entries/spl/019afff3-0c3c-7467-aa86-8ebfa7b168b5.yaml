@@ -1,0 +1,17 @@
+id: 019afff3-0c3c-7467-aa86-8ebfa7b168b5
+name: AWS IAM Role Trust Policy Modification to External Account
+description: "Detects the creation or modification of an IAM Role trust policy that grants assume-role permissions to an AWS account that is not part of the organization. This action creates a backdoor for an external entity to gain persistent access to your environment, often used by attackers to maintain unauthorized access. This rule relies on an `aws_org_accounts.csv` lookup table to identify accounts belonging to the organization. If this lookup is not established, manual filtering of AWS accounts will be required. \n\nService Accounts may need to be filtered. "
+query: "index=cloudtrail sourcetype=aws:cloudtrail eventSource=\"iam.amazonaws.com\" eventName IN (\"CreateRole\",\"UpdateAssumeRolePolicy\")\r\n  | eval assume_doc = coalesce(\r\n      'requestParameters.assumeRolePolicyDocument',\r\n      'requestParameters.policyDocument'\r\n  )\r\n  ```\r\n  Filter known automations, user, or roles\r\n  \\ search\r\n    NOT userIdentity.arn = <service-account>\r\n  ```\r\n  | eval assume_doc = urldecode(assume_doc)\r\n  | rex field=assume_doc max_match=0 \"\\\"arn:aws:iam::(?<principal_account_ids>\\d{12})\"\r\n  | mvexpand principal_account_ids\r\n  | where isnotnull(principal_account_ids)\r\n  | where principal_account_ids != aws_account_id\r\n  | lookup aws_org_accounts.csv account_id as principal_account_ids OUTPUT account_id as org_account_id\r\n  | where isnull(org_account_id)\r\n\r\n  | stats\r\n      min(_time)                        as initial_detection_time\r\n      values(sourceIPAddress)           as src_ip\r\n      values(eventName)                 as eventName\r\n      values(assume_doc)                as assumed_policies\r\n      values(aws_account_id)            as cloudaccount\r\n      values(principal_account_ids)     as external_account\r\n      values(awsRegion)                 as awsregion\r\n    by user_arn,requestParameters.roleName\r\n  | where isnotnull(external_account) AND external_account!=\"\"\r\n  | rename requestParameters.roleName as role_assumed\r\n  | eval initial_detection_time = strftime(initial_detection_time,\"%F %T %Z\")\r\n  "
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0001
+techniques:
+    - T1199
+    - T1133
+tags:
+    - spl
+author: tayvion p. (@tayontech)
+version: "3"

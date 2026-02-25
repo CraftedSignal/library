@@ -1,0 +1,14 @@
+id: 6de38253-5631-4700-b002-70cffec5310a
+name: Suspicious Email Attachment Detection by Type or Size
+description: This rule identifies suspicious email attachments based on their file type (e.g., executables, scripts) or if they exceed a defined size threshold. It aims to detect potential data exfiltration or the delivery of malicious files via email.
+query: "#### You can create a detection rule to identify any suspicious file being shared over the e-mails. \n#### This query identifies any files being shared over the e-mails. Filetypes like .exe, bat etc..\n## Mitre Attack Technique: Data Transfer Size Limits (T1030) \n#### Query:\n```KQL\n// Define the size threshold (e.g., 10 MB)\nlet sizeThreshold = 10 * 1024 * 1024;  // 10 MB in bytes\n// Define suspicious file types\nlet suspiciousFileTypes = pack_array(\".exe\", \".bat\", \".cmd\", \".com\", \".scr\", \".pif\", \".cpl\", \".dll\", \".sys\", \".js\", \".vbs\");\n// Query to monitor large attachments and suspicious file types\nEmailAttachmentInfo_CL\n| where FileSize_d > sizeThreshold or FileType_s in (suspiciousFileTypes)\n| project TimeGenerated, TenantId, SenderFromAddress_s, RecipientEmailAddress_s, FileName_s, FileType_s, FileSize_d, SHA256_s, NetworkMessageId_g, ReportId_s\n| extend Description = strcat(\"Suspicious attachment detected: \", FileName_s, \" (\", FileType_s, \") with size \", tostring(FileSize_d / 1024 / 1024), \" MB\")\n| summarize Count = count() by TenantId, SenderFromAddress_s, RecipientEmailAddress_s, FileSize_d, FileType_s, bin(TimeGenerated, 1h)\n```\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0010
+techniques:
+    - T1566.001
+    - T1030
+tags:
+    - kql
+version: "1"

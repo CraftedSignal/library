@@ -1,0 +1,19 @@
+id: 421cfcc2-2561-4c12-9e87-5681af4de752
+name: OAuth App Consent & Privilege Changes for High-Value Apps (Workday & Salesforce)
+description: Detects suspicious OAuth app consents, role assignments, and group changes involving Workday and Salesforce, indicating potential account compromise or privilege escalation.
+query: "AuditLogs\r\n| where OperationName in (\r\n    \"Consent to application\",\r\n    \"Add app role assignment grant to user\",\r\n    \"Add service principal\",\r\n    \"Remove member from group\",\r\n    \"Add member to group\",\r\n    \"Update user\",\r\n    \"Reset user password\",\r\n    \"Update user authentication methods\",\r\n    \"StrongAuthenticationMethodChanged\",\r\n    \"StrongAuthenticationRequirementRemoved\",\r\n    \"Directory role assignment added\",\r\n    \"Directory role assignment removed\",\r\n    \"Add owner to group\",\r\n    \"Remove owner from group\",\r\n    \"Update application\"\r\n)\r\n| extend AppName = tostring(TargetResources[0].displayName)\r\n| extend AppId = tostring(TargetResources[0].id)\r\n| extend Permissions = tostring(TargetResources[0].modifiedProperties[0].newValue)\r\n| extend GroupName = iif(\r\n    array_length(TargetResources[0].modifiedProperties) > 1 \r\n        and TargetResources[0].modifiedProperties[1].displayName =~ \"Group.DisplayName\",\r\n    tostring(parse_json(TargetResources[0].modifiedProperties[1].newValue)),\r\n    \"\"\r\n)\r\n| extend InitiatedByUser = tostring(InitiatedBy.user.userPrincipalName)\r\n| extend InitiatedByApp = tostring(InitiatedBy.app.displayName)\r\n| extend Initiator = iif(isnotempty(InitiatedByUser), InitiatedByUser, InitiatedByApp)\r\n| where AppName has_any (\"Workday\", \"Salesforce\")\r\n| project \r\n    TimeGenerated, OperationName, AppName, AppId, GroupName, Initiator, Permissions, TargetResources, InitiatedBy\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1566
+    - T1078.004
+    - T1098.003
+    - T1098
+    - T1556
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.mine2.io/blog/2025-08-19-workday-warns-phishing-risks-crm-breach/

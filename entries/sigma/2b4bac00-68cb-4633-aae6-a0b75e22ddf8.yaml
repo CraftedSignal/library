@@ -1,0 +1,24 @@
+id: 2b4bac00-68cb-4633-aae6-a0b75e22ddf8
+name: Vice Society directory crawling script for data exfiltration (via ps_script)
+description: Detects data exfiltration performed by the Vice Society ransomware gang using a custom built PowerShell script. More precisely, the script enumerates the volumes mounted on the system, then starts crawling the different directories before initiating the data exfiltration over HTTP by creating multiple different jobs. As PowerShell script block logs the script execution into multiple events, the detection aggregates the different log chunks using the ScriptBlockId and then ensure that at least 3 of the 4 detection strings are found.
+query: "title: Vice Society directory crawling script for data exfiltration (via ps_script)\ndescription: Detects data exfiltration performed by the Vice Society ransomware gang using a custom built PowerShell script. More precisely, the script enumerates the volumes mounted on the system, then starts crawling the different directories before initiating the data exfiltration over HTTP by creating multiple different jobs. As PowerShell script block logs the script execution into multiple events, the detection aggregates the different log chunks using the ScriptBlockId and then ensure that at least 3 of the 4 detection strings are found.\nreferences:\n- https://unit42.paloaltonetworks.com/vice-society-ransomware-powershell/\ntags:\n- attack.execution\n- attack.t1059.001 # Command and Scripting Interpreter: PowerShell\n- attack.exfiltration\n- attack.t1041 # Exfiltration Over C2 Channel \nauthor: mdecrevoisier\nstatus: stable\nlogsource:\n  product: windows\n  category: ps_script # ID 4104\ndetection:\n  selection:\n    ScriptBlockText|contains|all:\n      - 'Work( $disk )'\n      - 'Show( $name )'\n      - 'CreateJobLocal( $folders )'\n      - 'fill( [string]$filename )'\n  condition: selection | count() by ScriptBlockId > 3\nfalsepositives:\n- unknown\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0010
+techniques:
+    - T1059.001
+    - T1041
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.exfiltration
+    - attack.t1041
+author: mdecrevoisier
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/vice-society-ransomware-powershell/
+data_sources:
+    - ps_script
+    - windows

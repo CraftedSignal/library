@@ -1,0 +1,46 @@
+id: 019bfc5e-6ae8-71ea-94a5-ab7a04adfc83
+name: Telnetd Authentication Bypass via Login Flag Injection (CVE-2026-24061)
+description: Detects instances where the telnetd process spawns the login binary with the '-f' flag. This behavior is indicative of exploitation of CVE-2026-24061, which allows an attacker to bypass authentication by injecting arguments into the login process via a crafted USER environment variable.
+query: |
+    // Name: Telnetd Authentication Bypass via Login Flag Injection (CVE-2026-24061)
+    // Author: detections.ai
+    // Date: 2026-01-26
+    // Description: Detects instances where the telnetd process spawns the login binary with the '-f' flag. This behavior is indicative of exploitation of CVE-2026-24061, which allows an attacker to bypass authentication by injecting arguments into the login process via a crafted USER environment variable.
+    // References: https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+    // Tactic: Initial Access, Privilege Escalation
+    // Technique: T1190, T1068
+    // False Positive Sensitivity: Medium
+    // Comment: While the '-f' flag for login is highly suspicious when spawned by telnetd, some custom administrative or automated scripts might use this functionality legitimately. Review the context of any alerts and consider adding exclusions for known administrative hosts or scripts if necessary.
+
+    let lookback = 1d;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Look for the telnet daemon as the parent process.
+    | where InitiatingProcessFileName endswith "telnetd"
+    // The vulnerable process spawns the 'login' binary to handle authentication.
+    | where FileName endswith "login"
+    // The exploit injects the '-f' flag to skip authentication. The spaces help avoid matching substrings.
+    | where ProcessCommandLine has " -f "
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessId,
+        ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0004
+techniques:
+    - T1190
+    - T1068
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/

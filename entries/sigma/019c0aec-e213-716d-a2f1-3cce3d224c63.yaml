@@ -1,0 +1,58 @@
+id: 019c0aec-e213-716d-a2f1-3cce3d224c63
+name: IPIDEA Signed Trojanized Binaries
+description: Identifies Windows executable files signed by Hong Kong-based entities associated with IPIDEA's trojanized software distribution (e.g., masquerading as OneDriveSync or Windows Update).
+query: |
+    title: IPIDEA Signed Trojanized Binaries
+    id: 2dab7c7e-6558-44ac-971e-4471fd6f29da
+    status: experimental
+    description: Identifies Windows executable files signed by Hong Kong-based
+      entities associated with IPIDEA's trojanized software distribution (e.g.,
+      masquerading as OneDriveSync or Windows Update).
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/disrupting-largest-residential-proxy-network/
+    author: detections.ai
+    date: 2026-01-29
+    tags:
+      - attack.t1036.005
+      - attack.t1553.002
+      - detection.emerging-threats
+    logsource:
+      product: windows
+      category:
+        - process_creation
+        - file_event
+    detection:
+      # The signer names are associated with the IPIDEA proxy network.
+      signer_names:
+        - 'HONGKONG LINGYUN MDT INFOTECH LIMITED'
+        - 'FIRENET LIMITED'
+        - 'PRINCE LEGEND LIMITED'
+        - 'MARS BROTHERS LIMITED'
+        - 'DATALABS LIMITED'
+      selection_process:
+        # Detects execution of a PE file signed by a malicious entity.
+        # Note: The field 'process.code_signature.subject_name' may vary by data source (e.g., 'process.signer').
+        process.code_signature.subject_name: signer_names
+        process.executable|endswith: '.exe'
+      selection_file:
+        # Detects creation of a PE file signed by a malicious entity.
+        # Note: The field 'file.code_signature.subject_name' may vary by data source (e.g., 'file.signer').
+        file.code_signature.subject_name: signer_names
+        file.path|endswith: '.exe'
+      condition: 1 of selection_*
+    falsepositives:
+      - These certificates could theoretically be stolen and used to sign other,
+        unrelated software. However, any software signed by these specific entities
+        should be considered highly suspicious and investigated.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+    - T1553.002
+author: detections.ai
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/disrupting-largest-residential-proxy-network/

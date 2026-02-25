@@ -1,0 +1,20 @@
+id: c756fdc6-d6ef-4e4e-a4af-c7bbf8ddc8a5
+name: Connect Sync Application Credential Changes
+description: 'This detection flags any changes happening on the Connect Sync Application in Entra ID. Since this is a very interesting account for attackers to abuse when moving laterally between AD DS and Entra ID, any change to the account should be investigated. We try to exclude legitimate certificate renewal processes, and a new account onboarding in the detection rule. '
+query: "// Flag everything except a renewal process and onboarding\nlet base = materialize (\n    AuditLogs\n    // Search events happening on the Sync Account\n    | extend AppName = tostring(TargetResources[0].displayName)\n    | where AppName startswith \"ConnectSyncProvisioning_\"\n    // Only get cretificate or secret changes\n    | where OperationName contains \"Update application – Certificates and secrets management\"\n    // Expand the target resources and modified properties, and only use events ralted to KeyDescription\n    | mv-expand TargetResources\n    | extend ModifiedProperties = TargetResources.modifiedProperties\n    | mv-expand ModifiedProperties\n    | where ModifiedProperties.displayName == \"KeyDescription\"\n    // Save the old and new values of the secrets on the application\n    | extend OldValue = tostring(ModifiedProperties.oldValue), \n        NewValue = tostring(ModifiedProperties.newValue)\n    // Save the old and new credential names in an array\n    | extend OldCredentialNames = extract_all(@\"DisplayName=([^\\]]+)\", dynamic([1]), OldValue),\n        NewCredentialNames = extract_all(@\"DisplayName=([^\\]]+)\", dynamic([1]), NewValue)\n);\nlet newCredsAdd = (\n    base\n    // Flag when there are more new credentials than old ones\n    | where array_length(OldCredentialNames) < array_length(NewCredentialNames)\n    | project-rename NewCredAddTimeGenerated = TimeGenerated\n);\nlet credRemove = (\n    base\n    // Get events where credentials are being removed\n    | where array_length(OldCredentialNames) > array_length(NewCredentialNames)\n    | project-rename CredRemoveTimeGenerated = TimeGenerated\n);\nlet credRenewal = (\n    // Find legitimate credential renewals\n    newCredsAdd\n    | join kind=leftouter credRemove on AppName\n    | where CredRemoveTimeGenerated - NewCredAddTimeGenerated <= 1m\n);\nAuditLogs\n| extend AppName = tostring(TargetResources[0].displayName)\n| where AppName startswith \"ConnectSyncProvisioning_\"\n| join kind=leftanti credRenewal on CorrelationId\n// Exclude cred removes (duplicate / not interesting)\n| join kind=leftanti credRemove on CorrelationId\n// Exclude new deployment\n| where OperationName !in (\"Add service principal\", \"Add application\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+    - TA0006
+techniques:
+    - T1098
+    - T1078.004
+    - T1556.007
+author: Robbe Van den Daele
+version: "1"
+references:
+    - https://specterops.io/blog/2025/06/09/update-dumping-entra-connect-sync-credentials/

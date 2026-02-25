@@ -1,0 +1,58 @@
+id: 019a8b6e-d278-76ce-bacd-806d024e4587
+name: Suspicious LNK File in Startup Folder
+description: This query hunts for .lnk (shortcut) files that are either newly created or have the hidden attribute set, located in common Windows startup folders. Attackers often place LNK files in these locations to establish persistence.
+query: |
+    // Name: Suspicious LNK File in Startup Folder
+    // Author: detections.ai
+    // Date: 2025-11-16
+    // Description: This query hunts for .lnk (shortcut) files that are either newly created or have the hidden attribute set, located in common Windows startup folders. Attackers often place LNK files in these locations to establish persistence.
+    // False Positive Sensitivity: Medium
+    // Tags: persistence, startup, lnk
+    // References:
+    // - https://attack.mitre.org/techniques/T1547/001/ (Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder)
+    // Define the lookback period for the hunt
+    let lookback = 7d;
+    // Define common startup folder paths. The wildcard handles different user profiles.
+    let startup_folders = dynamic([
+        @"C:\ProgramData\Microsoft\Windows\Start Menu\Programs\Startup\",
+        @"\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\"
+    ]);
+    DeviceFileEvents
+    // Filter for file events within the lookback period
+    | where Timestamp > ago(lookback)
+    // Filter for .lnk files
+    | where FileName endswith ".lnk"
+    // Filter for files located in one of the defined startup folders
+    | where FolderPath has_any (startup_folders)
+    // Detect if the file was newly created OR has the 'Hidden' attribute, both of which can be suspicious
+    | where ActionType == "FileCreated" or FileAttributes has "Hidden"
+    // Potential for False Positives: Legitimate software installers frequently create LNK files in startup folders.
+    // To reduce noise, consider filtering out known good installer processes (e.g., msiexec.exe, setup.exe, specific application installers)
+    // or focusing on files created by unusual processes like scripting engines (powershell.exe, cscript.exe) or LOLBAS.
+    // Example tuning: | where InitiatingProcessFileName !in ("msiexec.exe", "setup.exe", "update.exe")
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        FileAttributes,
+        SHA1,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessParentFileName,
+        Actor=tostring(InitiatingProcessAccountName)
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: AJ
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1547/001/

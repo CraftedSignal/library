@@ -1,0 +1,14 @@
+id: d4360925-01c1-4e2d-98c8-4318c97bba33
+name: Potential ClickFix Execution
+description: 'KQL Query from file: Potential ClickFix Execution'
+query: "let ps_keywords = dynamic ([\"start-process\", \"hidden\", \"command\", \"bypass\", \"new-object\", \"http\", \"invoke\", \"iex\", \"-exec\", \"verification\", \"classname\", \"cimmethod\", \"methodname\", \"win32_process\", \"system.diagnostics.process\", \"system.management.automation\", \"Reflection.Assembly\", \"FromBase64String\", \"import-module\", \"add-type\", \"webclient\"]);\r\nlet script_keywords = dynamic ([\"http\", \"javascript:\", \"verification\", \"eval\", \".js\", \".vbs\", \".hta\", \".bat\"]);\r\nlet registry_activity = (\r\n    DeviceRegistryEvents\r\n    | where Timestamp >= now() - 5m\r\n    | where InitiatingProcessAccountName != \"system\"\r\n    | where InitiatingProcessFileName =~ \"explorer.exe\"\r\n    | where ActionType == \"RegistryValueSet\"\r\n    | where isnotempty(RegistryValueData)\r\n    | where RegistryKey endswith @\"\\CurrentVersion\\Explorer\\RunMRU\"\r\n    | extend regkey_length = strlen(RegistryValueData)\r\n    | where regkey_length >= 50\r\n    | where RegistryValueData has_any (\"powershell\", \"pwsh\", \"cmd\", \"mshta\") \r\n          and (RegistryValueData has_any (ps_keywords) or RegistryValueData has_any (script_keywords))\r\n    | project registry_change=Timestamp, DeviceName, InitiatingProcessAccountName, RegistryKey, RegistryValueData, regkey_length\r\n);\r\nDeviceNetworkEvents\r\n| where Timestamp >= now() - 5m\r\n| where InitiatingProcessAccountName != \"system\"\r\n| where InitiatingProcessParentFileName =~ \"explorer.exe\"\r\n| where InitiatingProcessFileName has_any (\"powershell\", \"pwsh\", \"cmd\", \"mshta\")\r\n| where isnotempty(RemoteUrl) or isnotempty(RemoteIP)\r\n| join kind=inner (registry_activity) on DeviceName\r\n| where Timestamp between (registry_change .. -5s ) or Timestamp between (registry_change .. +5s )\r\n| project process_execution=Timestamp, registry_change, DeviceName, DeviceId, Timestamp, ReportId, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteIP, RemoteUrl, RemotePort, RemoteIPType, ActionType, RegistryKey, RegistryValueData, regkey_length\r\n| order by registry_change asc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://detect.fyi/hunting-clickfix-initial-access-techniques-8c1b38d5ef9b

@@ -1,0 +1,53 @@
+id: 019c782d-c6c2-77df-886e-58479ababebe
+name: Suspicious Procdump Targeting LSASS
+description: |
+    Detects procdump execution targeting lsass.exe
+    A variation of https://github.com/SigmaHQ/sigma/blob/6fe7343bf79306884b05837d5e03bcbcb141ce50/rules/windows/builtin/security/win_security_susp_lsass_dump.yml#L19
+query: |
+    title: Suspicious Procdump Targeting LSASS
+    id: 9783741d-4968-4d5f-848f-c8ed6ca3fc38
+    description: |
+      Detects procdump execution targeting lsass.exe
+      A variation of https://github.com/SigmaHQ/sigma/blob/6fe7343bf79306884b05837d5e03bcbcb141ce50/rules/windows/builtin/security/win_security_susp_lsass_dump.yml#L19
+
+    status: experimental
+    logsource:
+      product: windows
+      service: sysmon
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith: 'procdump.exe'
+        CommandLine|endswith:
+          - 'lsass.dmp'
+          - 'lsass.exe'
+
+      filter_fp_comsvcs:
+        CommandLine|contains: 'comsvcs.dll'
+      condition: selection and not filter_fp_comsvcs
+    fields:
+      - Image
+      - CommandLine
+      - User
+      - ParentImage
+    falsepositives:
+      - Legitimate memory dumps for troubleshooting (e.g., using something similar
+        to comsvcs.dll)
+    level: high
+    references:
+      - https://github.com/SigmaHQ/sigma/blob/6fe7343bf79306884b05837d5e03bcbcb141ce50/rules/windows/builtin/security/win_security_susp_lsass_dump.yml#L19
+    author: zendannyy
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.001
+author: zendannyy
+version: "1"
+references:
+    - https://github.com/SigmaHQ/sigma/blob/6fe7343bf79306884b05837d5e03bcbcb141ce50/rules/windows/builtin/security/win_security_susp_lsass_dump.yml#L19
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

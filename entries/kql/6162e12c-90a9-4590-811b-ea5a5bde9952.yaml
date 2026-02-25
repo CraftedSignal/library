@@ -1,0 +1,19 @@
+id: 6162e12c-90a9-4590-811b-ea5a5bde9952
+name: ANY.RUN Obfuscated BAT Dropper Delivers NetSupport RAT post
+description: 'KQL Query from file: ANY.RUN Obfuscated BAT Dropper Delivers NetSupport RAT post'
+query: "// ANY.RUN Obfuscated BAT Dropper Delivers NetSupport RAT post\n// https://www.linkedin.com/posts/any-run_obfuscated-virustotal-powershell-activity-7336393368698028034-cayg/\n\nlet QueryLookup = 1h;\nlet ObfuscatedBAT =\nDeviceProcessEvents\n| where Timestamp > ago(QueryLookup)\n| where InitiatingProcessFileName =~ \"cmd.exe\" and \nInitiatingProcessCommandLine has \".bat\"\n| where FileName =~ \"powershell.exe\" and \nProcessCommandLine has \"-WindowsStyle Hidden\" and \nProcessCommandLine has \"Invoke-WebRequest\"\n| distinct DeviceName;\nDeviceRegistryEvents\n| where Timestamp > ago(QueryLookup)\n| where ActionType == \"RegistryValueSet\"\n| where RegistryKey has \"\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\"\n| where RegistryValueData has \"client32.exe\"\n| where DeviceName has_any(ObfuscatedBAT)\n\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.003
+    - T1027
+    - T1547.001
+tags:
+    - kql
+version: "1"

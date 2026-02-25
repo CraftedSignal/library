@@ -1,0 +1,55 @@
+id: 019c671f-73c2-73ac-a657-1cf991dbdbe3
+name: APT28 - GUID-Named Script Cluster Dropped
+description: Detects the creation of multiple files with the same GUID-like name but different extensions (VBS, BAT, CMD, HTM, XHTML) within a short time frame in the user profile directory. This pattern is characteristic of the APT28 "Operation MacroMaze" dropper behavior.
+query: |-
+    // Name: APT28 - GUID-Named Script Cluster Dropped
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-16
+    // Description: Detects the creation of multiple files with the same GUID-like name but different extensions (VBS, BAT, CMD, HTM, XHTML) within a short time frame in the user profile directory. This pattern is characteristic of the APT28 "Operation MacroMaze" dropper behavior.
+    // Tactic: Execution, Command and Control
+    // Technique: T1059.005, T1204.002, T1105
+    // References: https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+    // False Positive Sensitivity: Medium. Legitimate installers or software updaters could potentially drop multiple file types with similar names. Further filtering on the initiating process (e.g., WINWORD.EXE, OUTLOOK.EXE) may be required.
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    | where FolderPath contains "\\Users\\" // Focus on files dropped in user profiles
+    // Extract the GUID-like base name and the file extension
+    | extend GuidPart = extract(@"^([a-f0-9]{8}-(?:[a-f0-9]{4}-){3}[a-f0-9]{12})", 1, FileName)
+    | extend Extension = tolower(tostring(split(FileName, '.')[-1]))
+    | where isnotempty(GuidPart) and Extension in ("vbs", "bat", "cmd", "htm", "xhtml")
+    // Group files by the GUID part, device, and user within a short time window
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        ExtensionCount = dcount(Extension),
+        Extensions = make_set(Extension),
+        FileNames = make_set(FileName),
+        InitiatingProcesses = make_set(InitiatingProcessFileName)
+        by bin(Timestamp, 2m), DeviceName, RequestAccountName, GuidPart
+    // Alert when 3 or more distinct, suspicious file types with the same GUID name are created
+    | where ExtensionCount >= 3
+    | project
+        StartTime,
+        EndTime,
+        DeviceName,
+        RequestAccountName,
+        GuidPart,
+        ExtensionCount,
+        Extensions,
+        FileNames,
+        InitiatingProcesses
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.005
+    - T1204.002
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/

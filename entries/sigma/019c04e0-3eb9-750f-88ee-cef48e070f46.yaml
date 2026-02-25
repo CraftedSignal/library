@@ -1,0 +1,70 @@
+id: 019c04e0-3eb9-750f-88ee-cef48e070f46
+name: Python Script Injection into InstallUtil.exe
+description: Detects a Python process, potentially renamed, injecting code into the InstallUtil.exe utility. This behavior is a known TTP used by a Vietnamese threat actor in PureRAT campaigns, where a Python loader fetches a payload and injects it into a legitimate .NET utility to execute shellcode and evade defenses.
+query: |
+    title: Python Script Injection into InstallUtil.exe
+    id: 47579c01-100b-4bb0-b38c-38e051681a25
+    status: experimental
+    description: Detects a Python process, potentially renamed, injecting code into
+      the InstallUtil.exe utility. This behavior is a known TTP used by a Vietnamese
+      threat actor in PureRAT campaigns, where a Python loader fetches a payload and
+      injects it into a legitimate .NET utility to execute shellcode and evade
+      defenses.
+    references:
+      - https://www.security.com/threat-intelligence/ai-purerat-phishing
+    author: tim@detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.t1055.002
+      - attack.t1059.006
+      - attack.t1105
+      - attack.defense_evasion
+      - attack.execution
+    logsource:
+      category: process_injection # Corresponds to an EDR's process injection or cross-process event.
+      product: windows
+      service: sysmon
+    detection:
+      selection_source:
+        # The source of the injection is a Python interpreter or a known masqueraded name.
+        ParentImage|endswith:
+          - '\python.exe'
+          - '\pythonw.exe'
+      selection_source_orig:
+        # Catches cases where the Python interpreter is renamed.
+        OriginalFileName:
+          - 'python.exe'
+          - 'pythonw.exe'
+      selection_target:
+        # The target of the injection is the .NET InstallUtil utility.
+        Image|endswith: '\InstallUtil.exe'
+      condition: (selection_source or selection_source_orig) and selection_target
+    falsepositives:
+      - Environments with extensive Python-based automation for Windows management
+        should be reviewed.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+    - TA0011
+techniques:
+    - T1055.002
+    - T1059.006
+    - T1105
+tags:
+    - attack.t1055.002
+    - attack.t1059.006
+    - attack.t1105
+    - attack.defense_evasion
+    - attack.execution
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.security.com/threat-intelligence/ai-purerat-phishing
+data_sources:
+    - process_injection
+    - windows
+    - sysmon

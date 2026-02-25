@@ -1,0 +1,17 @@
+id: 84924942-0748-4452-ab2a-dfc8858546a0
+name: LDAPNightmare POC Detection
+description: 'KQL Query from file: LDAPNightmare POC Detection'
+query: "// LDAPNightmare POC Detection\n\n// https://www.safebreach.com/blog/ldapnightmare-safebreach-labs-publishes-first-proof-of-concept-exploit-for-cve-2024-49113/\n\n// SafeBreach Labs Researchers developed a zero-click PoC exploit that crashes unpatched Windows Servers using the Windows Lightweight Directory Access Protocol (LDAP) remote code execution vulnerability.\n\nDnsEvents\n| where TimeGenerated > ago(1h)\n| where Name has \"_ldap._tcp.dc._msdcs.\" or Name has \"_ldap._tcp.Default-First-Site-Name._sites.dc._msdcs.\"\n| extend LDAPQueryHost = iff((Name has \"_ldap._tcp.dc._msdcs.\"),\ntostring(split(Name, \"_ldap._tcp.dc._msdcs.\", 1)),\ntostring(split(Name, \"_ldap._tcp.Default-First-Site-Name._sites.dc._msdcs.\", 1)))\n| where isnotempty(LDAPQueryHost)\n| where not (LDAPQueryHost has \".local\" or LDAPQueryHost has \"workgroup\" or LDAPQueryHost has \"-DC\")\n| where QueryType == \"33\"\n| where ResultCode == 0\n\n\n// MITRE ATT&CK \n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0043
+    - TA0011
+    - TA0042
+techniques:
+    - T1590.002
+    - T1071.004
+    - T1584.002
+tags:
+    - kql
+version: "1"

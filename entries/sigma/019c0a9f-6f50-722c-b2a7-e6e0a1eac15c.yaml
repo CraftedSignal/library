@@ -1,0 +1,66 @@
+id: 019c0a9f-6f50-722c-b2a7-e6e0a1eac15c
+name: Telnetd Authentication Bypass via Login Flag (CVE-2026-24061)
+description: Detects the GNU telnetd service spawning the login binary with the '-f' flag, which is used to skip authentication. This is the primary indicator of the CVE-2026-24061 exploitation. This detection requires process creation logging on Linux, which can be enabled via tools like Sysmon for Linux.
+query: |
+    title: Telnetd Authentication Bypass via Login Flag (CVE-2026-24061)
+    id: f3fa71a8-6922-493c-9389-8e6c416d9c7a
+    status: experimental
+    description: Detects the GNU telnetd service spawning the login binary with the
+      '-f' flag, which is used to skip authentication. This is the primary indicator
+      of the CVE-2026-24061 exploitation. This detection requires process creation
+      logging on Linux, which can be enabled via tools like Sysmon for Linux.
+    references:
+      - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+      - https://github.com/fluffybunnies-h4x/FT-Linux-Sysmon-Config
+    author: "detections.ai, Aaron Beardslee"
+    date: 2026-01-29
+    tags:
+      - attack.t1210
+      - attack.t1068
+      - attack.t1548.001
+      - cve.2026.24061
+      - sysmon.process_creation
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - '/telnetd'
+          - '/usr/sbin/telnetd'
+      selection_child:
+        Image|endswith:
+          - '/login'
+          - '/bin/login'
+          - '/usr/bin/login'
+      selection_flag:
+        CommandLine|contains: ' -f '
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts could potentially use this functionality,
+        but it is highly unlikely and considered poor practice.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0008
+    - TA0004
+    - TA0005
+techniques:
+    - T1210
+    - T1068
+    - T1548.001
+tags:
+    - attack.t1210
+    - attack.t1068
+    - attack.t1548.001
+    - cve.2026.24061
+    - sysmon.process_creation
+author: detections.ai, Aaron Beardslee
+version: "2"
+references:
+    - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+    - https://github.com/fluffybunnies-h4x/FT-Linux-Sysmon-Config
+data_sources:
+    - process_creation
+    - linux

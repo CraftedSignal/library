@@ -1,0 +1,58 @@
+id: 019c4de3-dbca-7779-aa7d-621a8b0d6034
+name: Microsoft ClickFix PowerShell/MSHTA from Explorer Run Dialog
+description: This rule detects the execution of PowerShell, pwsh, mshta, or curl initiated by explorer.exe (specifically from the Run dialog) when the command line contains indicators of web requests, expression invocation, or encoded commands. This behavior is often associated with the 'ClickFix' social engineering technique, where users are tricked into running malicious one-liners from the Windows Run dialog. The rule looks for common PowerShell commandlets like 'Invoke-WebRequest', 'Invoke-Expression', or their aliases, as well as '-EncodedCommand' or methods like 'DownloadString' and 'FromBase64String', indicating an attempt to fetch and execute remote content or obfuscated commands.
+query: |
+    title: Microsoft ClickFix PowerShell from Explorer Run Dialog
+    id: c3d4e5f6-a7b8-4c9d-0e1f-microsoft03
+    status: experimental
+    description: |
+        PowerShell or mshta launched by explorer.exe (Run dialog). Common ClickFix execution path; combined with encoded/Invoke-WebRequest for high fidelity.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059.001
+        - attack.t1204
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_child:
+            Image|endswith|any:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\mshta.exe'
+                - '\curl.exe'
+            CommandLine|contains|any:
+                - 'Invoke-WebRequest'
+                - 'iwr'
+                - 'Invoke-Expression'
+                - 'iex'
+                - '-EncodedCommand'
+                - '-eC'
+                - 'DownloadString'
+                - 'FromBase64String'
+        selection_parent:
+            ParentImage|endswith: '\explorer.exe'
+        condition: selection_child and selection_parent
+    falsepositives:
+        - User running legitimate one-liner from Run
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204
+tags:
+    - attack.t1059.001
+    - attack.t1204
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+data_sources:
+    - process_creation
+    - windows

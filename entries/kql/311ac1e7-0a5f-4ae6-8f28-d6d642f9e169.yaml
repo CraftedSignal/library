@@ -1,0 +1,12 @@
+id: 311ac1e7-0a5f-4ae6-8f28-d6d642f9e169
+name: Detecting Rouge OAuth Consented Graph App
+description: A user inadvertently granted consent to an external, unverified OAuth application. Exploiting the high-level permissions obtained, a threat actor initiated an attack targeting the tenant’s environment via Microsoft Graph.
+query: "let ConsentedAppSvcP =\r\nOAuthAppInfo\r\n| where AddedOnTime > ago(1h)\r\n| where AppOrigin == \"External\"\r\n| where VerifiedPublisher == \"{}\"\r\n| where PrivilegeLevel == \"High\"\r\n| where Permissions has \"Microsoft Graph\"\r\n| distinct ServicePrincipalId;\r\nGraphAPIAuditEvents\r\n| where Timestamp > ago(1h)\r\n| where EntityType == \"app\"\r\n| where AccountObjectId has_any(ConsentedAppSvcP)\r\n| where ResponseStatusCode == \"200\"\r\n| summarize GraphAPICall=count() by AccountObjectId\r\n| where GraphAPICall > 60"
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+tags:
+    - kql
+author: Steven Lim
+version: "1"

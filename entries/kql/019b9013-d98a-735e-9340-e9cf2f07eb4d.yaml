@@ -1,0 +1,44 @@
+id: 019b9013-d98a-735e-9340-e9cf2f07eb4d
+name: Oversized LNK File Masquerading as PDF (APT36 TTP)
+description: Detects the creation of abnormally large Windows shortcut (.lnk) files. This is a known TTP of APT36 (Transparent Tribe), who embed PDF content within LNK files to inflate their size and masquerade as legitimate documents to deceive users. The rule specifically looks for .lnk files with a size greater than 1MB.
+query: |
+    // Name: APT36 - Oversized LNK File Masquerading as PDF
+    // Author: detections.ai
+    // Date: 2026-01-05
+    // Description: Detects the creation of an abnormally large Windows shortcut (.lnk) file. This is a known TTP of APT36 (Transparent Tribe), who embed PDF content within LNK files to inflate their size and masquerade as legitimate documents to deceive users.
+    // False Positives: Medium. While highly unusual, some legitimate software installers or applications might create larger-than-normal shortcut files. Tuning may be required to exclude legitimate software publishers or specific file paths.
+    // References: https://www.cyfirma.com/research/apt36-multi-stage-lnk-malware-campaign-targeting-indian-government-entities/
+    // MITRE ATT&CK: T1036.005 (Masquerading: Match Legitimate Name or Location), T1204.002 (User Execution: Malicious File)
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    // Filter for Windows shortcut files (.lnk)
+    | where FileName endswith ".lnk"
+    // Filter for abnormally large files. Normal LNK files are a few KBs. APT36 was observed using files >2MB.
+    // A 1MB threshold provides a good buffer.
+    | where FileSize > 1000000
+    // Note: This rule does not inspect file content for PDF markers ("%PDF-", "endstream", "endobj") as standard log sources do not provide this.
+    // If available, enriching this detection with file content analysis would increase fidelity.
+    | project
+        Timestamp,
+        DeviceName,
+        FileName,
+        FolderPath,
+        FileSize,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1036.005
+    - T1204.002
+tags:
+    - kql
+author: steelo
+version: "4"
+references:
+    - https://www.cyfirma.com/research/apt36-multi-stage-lnk-malware-campaign-targeting-indian-government-entities/

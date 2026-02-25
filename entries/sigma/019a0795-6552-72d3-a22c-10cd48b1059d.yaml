@@ -1,0 +1,66 @@
+id: 019a0795-6552-72d3-a22c-10cd48b1059d
+name: macOS AMOS/Odyssey Stealer Anti-Analysis and Profiling
+description: Detects behaviors associated with AMOS and Odyssey Stealer, including using osascript to perform anti-analysis checks via system_profiler and terminating OneDrive services to impair defenses.
+query: |
+    title: macOS AMOS/Odyssey Stealer Anti-Analysis and Profiling
+    id: 7a92dbc1-d7b9-4792-8498-51703024269e
+    status: experimental
+    description: Detects behaviors associated with AMOS and Odyssey Stealer,
+      including using osascript to perform anti-analysis checks via system_profiler
+      and terminating OneDrive services to impair defenses.
+    references:
+      - https://hunt.io/blog/macos-odyssey-amos-malware-campaign
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.t1497.001
+      - attack.t1082
+      - attack.t1562.001
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_profiler:
+        Image|endswith: '/usr/bin/osascript' # Detects AppleScript execution
+        CommandLine|contains|all:
+          - 'do shell script' # Looks for execution of a shell command from within AppleScript
+          - 'system_profiler'
+        CommandLine|contains:
+          - 'SPHardwareDataType' # Specific data type queried by the malware for host fingerprinting
+          - 'SPMemoryDataType'
+      selection_onedrive_kill:
+        Image|endswith: '/bin/launchctl' # macOS service management tool
+        CommandLine|contains|all:
+          - 'kill'
+          - 'SIGTERM'
+          - 'com.microsoft.OneDrive' # Targets OneDrive daemons to disrupt cloud sync/backup
+      condition: 1 of selection*
+    falsepositives:
+      - Legitimate system administration scripts might use `system_profiler` or
+        `launchctl` to manage services. However, the specific combination of
+        `osascript` calling `system_profiler` for these data types is indicative of
+        the described malware.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+    - TA0002
+techniques:
+    - T1497.001
+    - T1082
+    - T1562.001
+    - T1059.002
+    - T1569.001
+tags:
+    - attack.t1497.001
+    - attack.t1082
+    - attack.t1562.001
+author: detections.ai
+version: "2"
+references:
+    - https://hunt.io/blog/macos-odyssey-amos-malware-campaign
+data_sources:
+    - process_creation
+    - macos

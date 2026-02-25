@@ -1,0 +1,18 @@
+id: 019c8ddc-eff1-75fd-a0c9-e86d39d0ca6c
+name: Multi-Stage Detection for OpenClaw Malware and Related Activity
+description: This rule set detects various stages of activity related to the 'OpenClaw' malware family and associated campaigns. It includes detection for OpenClaw process execution, exposure of a specific administrative port, execution of shell commands via curl (ClawHavoc delivery), outbound webhook exfiltration, and infostealer access to OpenClaw configuration files.
+query: "| ===== DETECTION 1: OpenClaw Process on Corporate Endpoint =====\r\nindex=endpoint sourcetype=crowdstrike_events\r\n| where match(process_name, \"(?i)(openclaw|clawdbot|moltbot)\") \r\n     OR match(process_path, \"(?i)(\\.openclaw|clawd|clawdbot)\")\r\n| eval severity=\"CRITICAL\", campaign=\"Shadow_AI_Deployment\"\r\n| table _time, host, user, process_name, process_path, parent_process, severity\r\n\r\n| ===== DETECTION 2: Port 18789 Exposure (Admin Interface) =====\r\nindex=network sourcetype=firewall\r\n| where dest_port=18789 AND direction=\"inbound\"\r\n     AND NOT cidrmatch(\"10.0.0.0/8\", src_ip) \r\n     AND NOT cidrmatch(\"172.16.0.0/12\", src_ip)\r\n     AND NOT cidrmatch(\"192.168.0.0/16\", src_ip)\r\n| stats count, values(src_ip) as external_sources by dest_ip, dest_port\r\n| where count > 0\r\n| eval severity=\"CRITICAL\", cve=\"CVE-2026-25253\"\r\n\r\n| ===== DETECTION 3: curl → Shell Execution (ClawHavoc Delivery) =====\r\nindex=endpoint sourcetype=sysmon EventCode=1\r\n| where parent_process_name=\"curl\" \r\n     AND match(process_name, \"(?i)(bash|sh|zsh|powershell|cmd)\")\r\n| eval severity=\"CRITICAL\", campaign=\"ClawHavoc\", tactic=\"T1059\"\r\n| table _time, host, user, parent_process, process_name, command_line\r\n\r\n| ===== DETECTION 4: Outbound Webhook Exfiltration =====\r\nindex=proxy sourcetype=bluecoat OR sourcetype=squid\r\n| where match(cs_uri_stem, \"(?i)(webhook\\.site|discord\\.com/api/webhooks|t\\.me|api\\.telegram)\")\r\n     AND match(cs_user_agent, \"(?i)(node|axios|node-fetch)\")\r\n| stats count, sum(sc_bytes) as total_bytes by src_ip, cs_uri_stem, cs_user_agent\r\n| where total_bytes > 10000\r\n| eval severity=\"HIGH\", tactic=\"T1567 - Exfiltration Over Web Service\"\r\n\r\n| ===== DETECTION 5: OpenClaw Config File Access by Infostealer =====\r\nindex=endpoint sourcetype=crowdstrike_events event_type=FileAccess\r\n| where match(target_file_path, \"(?i)(openclaw\\.json|soul\\.md|MEMORY\\.md|device\\.json|AGENTS\\.md)\")\r\n     AND NOT match(process_name, \"(?i)(openclaw|node|clawd)\")\r\n| eval severity=\"CRITICAL\", cve=\"CVE-2026-25157\", stealer_family=\"Vidar/Lumma suspected\"\r\n| table _time, host, user, process_name, target_file_path, severity"
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0010
+techniques:
+    - T1059
+    - T1567
+    - T1567.004
+tags:
+    - spl
+version: "1"
+references:
+    - 'https://flare.io/learn/resources/blog/widespread-openclaw-exploitation '

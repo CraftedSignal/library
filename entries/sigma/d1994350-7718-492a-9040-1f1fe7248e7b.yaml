@@ -1,0 +1,60 @@
+id: d1994350-7718-492a-9040-1f1fe7248e7b
+name: Suspicious DLL Sideloading via Element or VLC
+description: Detects the DLL sideloading of malicious DLLs (ffmpeg.dll, libvlc.dll) by legitimate applications (Element.exe, VLC.exe) as observed in the 'Illusory Wishes' campaign.
+query: |
+    title: Suspicious DLL Sideloading via Element or VLC
+    id: 94b40ebe-e876-4a2c-8e85-82ba30de893b
+    status: experimental
+    description: Detects the DLL sideloading of malicious DLLs (ffmpeg.dll,
+      libvlc.dll) by legitimate applications (Element.exe, VLC.exe) as observed in
+      the 'Illusory Wishes' campaign.
+    references:
+      - https://www.zscaler.com/blogs/security-research/illusory-wishes-china-nexus-apt-targets-tibetan-community
+    author: detections.ai
+    date: 2025-07-25
+    tags:
+      - attack.t1574.001
+      - attack.execution
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      # Detects the specific combination of a legitimate executable loading a malicious DLL
+      selection_element:
+        Image|endswith: '\Element.exe'
+        ImageLoaded|endswith: '\ffmpeg.dll'
+      selection_vlc:
+        Image|endswith: '\vlc.exe'
+        ImageLoaded|endswith: '\libvlc.dll'
+        # Filter for legitimate installation paths to reduce false positives
+      filter_legit_paths:
+        ImageLoaded|startswith:
+          - 'C:\Program Files\VideoLAN\VLC\'
+          - 'C:\Program Files (x86)\VideoLAN\VLC\'
+          - 'C:\Program Files\Element\'
+          - '%LOCALAPPDATA%\Element\'
+      condition: (1 of selection_*) and not filter_legit_paths
+    falsepositives:
+      - Legitimate portable versions of these applications or installations in
+        non-standard directories could trigger this rule. Consider adding more
+        legitimate paths to the filter based on your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.t1574.001
+    - attack.execution
+author: detections.ai
+version: "1"
+references:
+    - https://www.zscaler.com/blogs/security-research/illusory-wishes-china-nexus-apt-targets-tibetan-community
+data_sources:
+    - image_load
+    - windows

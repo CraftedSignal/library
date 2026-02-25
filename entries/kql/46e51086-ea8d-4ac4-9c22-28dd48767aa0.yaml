@@ -1,0 +1,15 @@
+id: 46e51086-ea8d-4ac4-9c22-28dd48767aa0
+name: Lumma Stealer C2 Activity Detection
+description: This rule detects network connections and DNS queries to known command and control (C2) infrastructure associated with Lumma Stealer malware. It leverages a regularly updated external list of indicators of compromise (IOCs) including IP addresses and domains to identify malicious communication attempts.
+query: "//objective to check if there are IP connections/identified domains belonging to Lumma Stealer\r\n//https://github.com/stamparm/maltrail/blob/master/trails/static/malware/lummac2.txt\r\n\r\n//Load List github\r\nlet LummaC2_IOCs = externaldata (Indicator:string)\r\n[\"https://raw.githubusercontent.com/stamparm/maltrail/master/trails/static/malware/lummac2.txt\"]\r\nwith(format='txt')\r\n| where isnotempty(Indicator) and not(Indicator startswith \"#\");\r\n// In github we have IP and domains, this step we separate the two IOC\r\nlet Lumma_IPs = LummaC2_IOCs \r\n    | where Indicator matches regex @\"^\\d{1,3}(\\.\\d{1,3}){3}$\" \r\n    | project Indicator;\r\nlet Lumma_Domains = LummaC2_IOCs \r\n    | where not(Indicator matches regex @\"^\\d{1,3}(\\.\\d{1,3}){3}$\") \r\n    | project IndicatorDomain = Indicator;\r\n//Device network events\r\nlet NetworkEvents = DeviceNetworkEvents\r\n| where Timestamp > ago(1h)\r\n| extend \r\n    Query = iif(ActionType == \"DnsConnectionInspected\", tostring(parse_json(AdditionalFields).query), \"\"),\r\n    RemoteIP = tostring(RemoteIP),\r\n    RemoteUrl = tostring(RemoteUrl);\r\n// Join per IP\r\nlet MatchesByIP = NetworkEvents\r\n| join kind=inner (Lumma_IPs) on $left.RemoteIP == $right.Indicator\r\n| extend MatchType = \"IP Match\";\r\n// Join per domain\r\nlet MatchesByQuery = NetworkEvents\r\n| join kind=inner (Lumma_Domains) on $left.Query == $right.IndicatorDomain\r\n| extend MatchType = \"Domain Match (Query)\";\r\n// Join per domain and remoteurl\r\nlet MatchesByUrl = NetworkEvents\r\n| join kind=inner (Lumma_Domains) on $left.RemoteUrl == $right.IndicatorDomain\r\n| extend MatchType = \"Domain Match (RemoteUrl)\";\r\n// Unify Results\r\nMatchesByIP\r\n| union MatchesByQuery\r\n| union MatchesByUrl\r\n| project Timestamp, DeviceName, ActionType, RemoteIP, RemoteUrl, Query, MatchType\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://github.com/stamparm/maltrail/blob/master/trails/static/malware/lummac2.txt

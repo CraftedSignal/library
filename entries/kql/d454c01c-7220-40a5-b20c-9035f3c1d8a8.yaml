@@ -1,0 +1,46 @@
+id: d454c01c-7220-40a5-b20c-9035f3c1d8a8
+name: Suspicious Excel Child Process Execution
+description: KQL Query
+query: |-
+    DeviceProcessEvents
+    | where InitiatingProcessFileName =~ "EXCEL.EXE"
+    | where FileName in ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "mshta.exe", "rundll32.exe", "regsvr32.exe", "bitsadmin.exe", "certutil.exe", "msiexec.exe")
+    // Whitelist common benign parameters for specific executables
+    | where not (
+        (FileName =~ "cmd.exe" and ProcessCommandLine has_any ("/c exit", "/k exit")) // Common for applications to spawn and immediately close cmd
+        or
+        (FileName in ("powershell.exe", "pwsh.exe") and ProcessCommandLine has_any ("-NoProfile", "-ExecutionPolicy Bypass")) // Common benign flags, though -ExecutionPolicy Bypass can be abused
+        or
+        (FileName =~ "rundll32.exe" and ProcessCommandLine has_any (
+            "shell32.dll,Control_RunDLL",
+            "url.dll,FileProtocolHandler",
+            "printui.dll,PrintUIEntry",
+            "shimgvw.dll,ImageView_Fullscreen",
+            "zipfldr.dll,RouteTheCall",
+            "user32.dll,UpdatePerUserSystemParameters", // Common system update/maintenance
+            "advapi32.dll,ProcessIdleTasks", // Common system maintenance
+            "dfshim.dll,ShOpenVerbApplication" // ClickOnce applications
+        ))
+        or
+        (FileName =~ "msiexec.exe" and ProcessCommandLine has_any ("/i", "/x", "/f", "/qn", "/L*v", "/passive", "/update")) // Common installation/uninstallation/repair parameters
+    )
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath, InitiatingProcessFolderPath, InitiatingProcessParentFileName, InitiatingProcessIntegrityLevel, InitiatingProcessMD5, InitiatingProcessSHA1, InitiatingProcessSHA256
+    | extend RuleName = "Suspicious Excel Child Process Execution"
+    | extend RuleDescription = "Detects suspicious process creation by Microsoft Excel. This is based on the hypothesis that malicious XLL files or other Excel-based malware often execute system utilities or scripting interpreters as child processes to perform malicious actions like downloading additional payloads, establishing C2 communication, or executing commands, indicating an active compromise."
+    | extend Severity = "High"
+    | extend Tactics = "Execution"
+    | extend Techniques = "T1204.002, T1059"
+    | extend References = "https://www.nospamproxy.de/en/excel-as-a-malware-launchpad-danger-from-xll-files/"
+    | extend Author = "Chaitanya AKA Mr.Alien"
+    | extend Date = "2025-07-04"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059
+tags:
+    - kql
+author: Chaitanya AKA Mr.Alien
+version: "1"

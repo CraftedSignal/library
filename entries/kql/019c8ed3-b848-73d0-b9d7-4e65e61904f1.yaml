@@ -1,0 +1,17 @@
+id: 019c8ed3-b848-73d0-b9d7-4e65e61904f1
+name: PCPcat C2 Network Communication Detection
+description: Detects outbound network traffic to the known PCPcat C2 server IP address on ports associated with API communication, reverse tunneling, and payload distribution. This rule identifies potential command and control activity and data exfiltration attempts by monitoring connections to a specific malicious IP and a set of predefined ports used by the PCPcat malware.
+query: "// Name: PCPcat C2 Network Communication\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects outbound network traffic to the known PCPcat C2 server IP address on ports associated with API communication, reverse tunneling, and payload distribution.\r\n// Tactics: Command and Control, Exfiltration\r\n// Techniques: T1571, T1041\r\n// References: https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/\r\nlet pcpcat_c2_ip = \"67.217.57.240\"; // Known C2 server for the PCPcat campaign.\r\nlet pcpcat_c2_ports = dynamic([5656, 888, 666]); // Ports for API (5656), FRP tunnel (888), and payload distribution (666).\r\n(union isfuzzy=true\r\n    DeviceNetworkEvents,\r\n    CommonSecurityLog,\r\n    VMConnection\r\n)\r\n// Main detection logic looking for connections to the C2 IP and specific ports.\r\n| where DestinationIP == pcpcat_c2_ip or RemoteIP == pcpcat_c2_ip\r\n| where DestinationPort in (pcpcat_c2_ports) or RemotePort in (pcpcat_c2_ports)\r\n// Potential for false positives: This IP could be reallocated in the future.\r\n// To increase fidelity, consider filtering for specific URI paths on ports 5656 and 666.\r\n// e.g., | where coalesce(RemoteUrl, RequestURL, '') has_any (\"/result\", \"/domains\", \"/files/proxy.sh\")\r\n| extend Activity = case(\r\n    DestinationPort == 5656 or RemotePort == 5656, \"PCPcat C2 API Communication\",\r\n    DestinationPort == 888 or RemotePort == 888, \"PCPcat FRP Reverse Tunnel\",\r\n    DestinationPort == 666 or RemotePort == 666, \"PCPcat Payload Download\",\r\n    \"PCPcat C2 Generic Traffic\"\r\n)\r\n| project-reorder\r\n    TimeGenerated,\r\n    Activity,\r\n    DeviceName,\r\n    ActionType,\r\n    SourceIP,\r\n    DestinationIP,\r\n    DestinationPort,\r\n    RemoteIP,\r\n    RemotePort,\r\n    ProcessName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RequestURL\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1571
+tags:
+    - kql
+version: "2"
+references:
+    - https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/

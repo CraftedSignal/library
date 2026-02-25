@@ -1,0 +1,17 @@
+id: e065329e-7894-433e-8f9c-856bf9e10ec9
+name: 'Threat Hunt: Successful login with uncommon user agent'
+description: Threat hunting query looking for successful logon events with user agent strings that are uncommon within your environment.
+query: "let UncommonUserAgent = SigninLogs\r\n|where ResultType == 0\r\n|summarize UserAgentCount = dcount(UserPrincipalName) by UserAgent\r\n|extend UserAgentCharLength = string_size(UserAgent)\r\n|where UserAgentCharLength <= 50 //Tweak this for your environment\r\n|where UserAgentCount <= 5 //Tweak this for your environment\r\n|project UserAgent;\r\nSigninLogs\r\n|where UserAgent in (UncommonUserAgent)\r\n|where isnotempty(UserAgent)\r\n|where ResultType == 0\r\n|summarize arg_max(TimeGenerated, *) by UserPrincipalName, UserAgent"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1078
+tags:
+    - threat hunting
+    - proxy
+    - signinlogs
+    - kql
+author: frog
+version: "1"

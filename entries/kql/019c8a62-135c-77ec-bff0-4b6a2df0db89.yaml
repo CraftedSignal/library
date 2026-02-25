@@ -1,0 +1,19 @@
+id: 019c8a62-135c-77ec-bff0-4b6a2df0db89
+name: ServiceNow Hardcoded Token Usage for Virtual Agent API (BodySnatcher)
+description: This rule detects inbound HTTP POST requests to the ServiceNow Virtual Agent API endpoint that use a known hardcoded authentication token. This behavior is indicative of an attempt to exploit the BodySnatcher vulnerability (CVE-2025-12420), which allows for user impersonation and unauthorized AI agent execution.
+query: "kql\r\n// Name: ServiceNow Hardcoded Token Usage for Virtual Agent API\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects inbound HTTP POST requests to the ServiceNow Virtual Agent API endpoint that use a known hardcoded authentication token.\r\n// This behavior is indicative of an attempt to exploit the BodySnatcher vulnerability (CVE-2025-12420), which allows for user impersonation and unauthorized AI agent execution.\r\n// False Positives: This rule is high-fidelity. The token is hardcoded and its use for this specific API endpoint is a strong indicator of malicious activity.\r\n// However, if custom integrations were built using this non-public, hardcoded token, false positives could occur. Such integrations should be considered insecure and updated.\r\n// References: https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/\r\n// Tactic: Initial Access\r\n// Technique: T1190, T1078\r\nlet servicenow_domains = dynamic([]); // Add your ServiceNow instance domains here, e.g., [\"myinstance.service-now.com\"]\r\nlet time_window = 1h;\r\n// Assuming a table named 'HttpLogs' or similar with fields for URI path, HTTP headers, and method.\r\n// Please adjust table and field names to match your environment's schema.\r\nHttpLogs\r\n| where TimeGenerated > ago(time_window)\r\n// Filter for POST requests to the specific Virtual Agent API endpoint\r\n| where HttpMethod == \"POST\" and Url contains \"/api/sn_va_as_service/bot/integration\"\r\n// Check if the hardcoded token is present in the request headers\r\n| where HttpRequestHeaders has \"servicenowexternalagent\"\r\n// Optional: Filter to only your known ServiceNow domains if applicable, to reduce noise from internet-wide scanning.\r\n| where isempty(servicenow_domains) or Url has_any (servicenow_domains)\r\n| extend HttpRequestHeaders = todynamic(HttpRequestHeaders)\r\n// Extract the specific token from the headers for explicit matching\r\n| where HttpRequestHeaders.Token == \"servicenowexternalagent\"\r\n| project\r\n    TimeGenerated,\r\n    SrcIpAddr,\r\n    Url,\r\n    HttpMethod,\r\n    HttpUserAgent,\r\n    HttpRequestHeaders\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1190
+    - T1078
+tags:
+    - kql
+version: "2"
+references:
+    - https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/

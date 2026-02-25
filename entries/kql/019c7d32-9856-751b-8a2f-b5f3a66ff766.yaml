@@ -1,0 +1,18 @@
+id: 019c7d32-9856-751b-8a2f-b5f3a66ff766
+name: Anomalous Tiny C Compiler Usage
+description: Detects the execution or loading of the Tiny C Compiler (TCC) runtime (libtcc.dll, tcc.exe) by non-development processes. This 'living-on-edge' compilation technique, observed in use by actors like Lotus Blossom, helps bypass static file-based detections by compiling malicious code directly on the host.
+query: "// Name: Anomalous Tiny C Compiler Usage\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects the execution or loading of the Tiny C Compiler (TCC) runtime (libtcc.dll, tcc.exe) by non-development processes. This 'living-on-edge' compilation technique, observed in use by actors like Lotus Blossom, helps bypass static file-based detections by compiling malicious code directly on the host.\r\n// Tactic: Defense Evasion, Execution\r\n// Technique: T1027.004, T1106\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://blog.hackandfix.com/the-notepad-supply-chain-attack-2025-2026-technical-breakdown-iocs/\r\nlet tccBinaries = dynamic([\r\n    \"tcc.exe\",      // Tiny C Compiler executable\r\n    \"libtcc.dll\"    // Tiny C Compiler library\r\n]);\r\nlet devProcesses = dynamic([\r\n    \"visualstudio.exe\",\r\n    \"devenv.exe\",\r\n    \"code.exe\",\r\n    \"cl.exe\",\r\n    \"msbuild.exe\",\r\n    \"rider64.exe\",\r\n    \"jetbrains_client64.exe\"\r\n]);\r\n(union isfuzzy=true\r\n    (\r\n        // Detect direct execution of the TCC compiler\r\n        DeviceProcessEvents\r\n        | where FileName in~ (tccBinaries)\r\n        // Exclude known developer tools that might legitimately use TCC\r\n        | where InitiatingProcessFileName !in~ (devProcesses)\r\n        | project\r\n            Timestamp,\r\n            EventType = \"ProcessCreated\",\r\n            DeviceName,\r\n            AccountName,\r\n            InitiatingProcessFileName,\r\n            InitiatingProcessCommandLine,\r\n            FileName,\r\n            ProcessCommandLine,\r\n            SHA256\r\n    ),\r\n    (\r\n        // Detect loading of the TCC library by another process\r\n        DeviceImageLoadEvents\r\n        | where FileName in~ (tccBinaries)\r\n        // Exclude known developer tools that might legitimately use TCC\r\n        | where InitiatingProcessFileName !in~ (devProcesses)\r\n        | project\r\n            Timestamp,\r\n            EventType = \"ImageLoaded\",\r\n            DeviceName,\r\n            InitiatingProcessAccountName,\r\n            InitiatingProcessFileName,\r\n            InitiatingProcessCommandLine,\r\n            FileName,\r\n            ProcessCommandLine = tostring(ProcessCommandLine), // Not available in ImageLoadEvents, added for schema consistency\r\n            SHA256\r\n    )\r\n)\r\n// FP Tuning: The devProcesses list may need to be expanded based on the specific tools used in your environment.\r\n// Consider adding parent process path checks if legitimate usage is confined to specific project directories.\r\n| project-reorder\r\n    Timestamp,\r\n    EventType,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SHA256"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027.004
+    - T1106
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.hackandfix.com/the-notepad-supply-chain-attack-2025-2026-technical-breakdown-iocs/ l

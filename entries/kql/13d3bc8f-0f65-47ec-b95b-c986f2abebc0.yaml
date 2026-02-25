@@ -1,0 +1,20 @@
+id: 13d3bc8f-0f65-47ec-b95b-c986f2abebc0
+name: Tangerine Turkey CryptoMiner Detection
+description: This rule detects suspicious process and file activity that may be indicative of a crypto-miner or other malware. Specifically, it looks for the execution of VBScript files with a specific naming convention ('x#######.vbs') via wscript, or batch files with a similar naming convention initiated by wscript. Additionally, it unions these process events with file events where 'printui.exe' or 'printui.dll' are found in 'C:\Windows \System32\'. The rule then summarizes these events by device and flags if both process and file events are observed on the same device within the specified timeframes, suggesting a multi-stage activity.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where (ProcessCommandLine matches regex @\"[xX]\\d{6}\\.vbs\" and ProcessCommandLine has \"wscript\") or (InitiatingProcessFileName =~ \"wscript.exe\" and ProcessCommandLine matches regex @\"[xX]\\d{6}\\.bat\")\r\n| union (DeviceFileEvents | where Timestamp > ago(7d) | where FolderPath =~ @\"C:\\Windows \\System32\\\" | where FileName in (\"printui.exe\", \"printui.dll\")) //space after windows is intentional, this is a common method used by this threat actor\r\n| summarize FirstSeen = min(Timestamp), LastSeen = max(Timestamp), ActionType = make_set(ActionType), CommandLine = make_set(ProcessCommandLine), FileNames = make_set(FileName) by DeviceId, DeviceName\r\n| where array_length(ActionType) >= 2"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.005
+    - T1059.003
+tags:
+    - Cryptominer
+    - crypto
+    - wscript
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://redcanary.com/blog/threat-intelligence/tangerine-turkey/

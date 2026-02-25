@@ -1,0 +1,60 @@
+id: 019bd122-3c4d-7514-a225-c485bfbea01a
+name: APT24 BADAUDIO First-Stage Downloader Execution
+description: Detects the execution of a DLL that contains specific cryptographic function calls (SystemFunction036 or RtlGenRandom) and is launched by common DLL loading mechanisms (rundll32.exe, regsvr32.exe, or mshta.exe). This pattern is indicative of the BADAUDIO malware, a first-stage downloader used by APT24, which is known for using SystemFunction036 for cryptographic operations and being delivered as a DLL.
+query: |
+    title: APT24 BADAUDIO - First-Stage Downloader Execution
+    id: 3a4b5c6d-7e8f-9012-3456-789abcdef012
+    status: experimental
+    description: |
+        Detects execution of BADAUDIO malware, a highly obfuscated first-stage downloader used by APT24 (PRC-nexus threat actor). BADAUDIO is written in C++ and uses control flow flattening obfuscation to evade detection. The malware collects basic system information, encrypts it using a hard-coded AES key, and sends it as a cookie value with GET requests to fetch encrypted payloads from C2 servers. The payload, often identified as Cobalt Strike Beacon, is decrypted with the same AES key and executed in memory. BADAUDIO typically manifests as a malicious Dynamic Link Library (DLL) and uses SystemFunction036 for cryptographic operations. The malware uses sophisticated obfuscation techniques that systematically dismantle a program's natural logic structure, making reverse engineering difficult.
+    references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/apt24-pivot-to-multi-vector-attacks
+    author: Daniel Jeremiah
+    date: 2025/01/18
+    tags:
+        - attack.command_and_control
+        - attack.defense_evasion
+        - attack.t1105
+        - attack.t1027
+        - attack.t1071.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '.dll'
+            CommandLine|contains|any:
+                - 'SystemFunction036'
+                - 'RtlGenRandom'
+            ParentImage|endswith|any:
+                - '\rundll32.exe'
+                - '\regsvr32.exe'
+                - '\mshta.exe'
+        condition: selection
+    falsepositives:
+        - Legitimate software using SystemFunction036 for cryptographic operations
+        - Security tools and antivirus products calling RtlGenRandom
+        - Application installers using DLL loading mechanisms
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1105
+    - T1027
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.defense_evasion
+    - attack.t1105
+    - attack.t1027
+    - attack.t1071.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/apt24-pivot-to-multi-vector-attacks
+data_sources:
+    - process_creation
+    - windows

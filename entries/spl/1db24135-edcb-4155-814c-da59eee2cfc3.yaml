@@ -1,0 +1,17 @@
+id: 1db24135-edcb-4155-814c-da59eee2cfc3
+name: Suspicious Scheduled Tasks Creation [lolbin]
+description: 'SPL Query from file: Suspicious Scheduled Tasks Creation [lolbin]'
+query: |4
+    index=* source="WinEventLog:*" AND ((Image="*\\schtasks.exe" AND CommandLine="* /create *") AND NOT (User="*AUTHORI*" OR User="*AUTORI*")) | table CommandLine,ParentCommandLine
+
+    index=* source="WinEventLog:Microsoft-Windows-TaskScheduler/Operational" AND (EventCode="129" AND (Path="*\\calc.exe" OR Path="*\\cscript.exe" OR Path="*\\mshta.exe" OR Path="*\\mspaint.exe" OR Path="*\\notepad.exe" OR Path="*\\regsvr32.exe" OR Path="*\\wscript.exe"))
+
+    index=* source="WinEventLog:*" AND ((Image="*\\schtasks.exe" OR OriginalFileName="schtasks.exe") AND CommandLine="*/Create*" AND (CommandLine="*FromBase64String*" OR CommandLine="*encodedcommand*") AND (CommandLine="*Get-ItemProperty*" OR CommandLine="* gp *") AND (CommandLine="*HKCU:*" OR CommandLine="*HKLM:*" OR CommandLine="*registry::*" OR CommandLine="*HKEY_*"))
+
+    index=* source="WinEventLog:*" AND ((Image="*\\schtasks.exe" OR OriginalFileName="schtasks.exe") AND CommandLine="* /create *" AND (CommandLine="*powershell*" OR CommandLine="*pwsh*" OR CommandLine="*cmd /c *" OR CommandLine="*cmd /k *" OR CommandLine="*cmd /r *" OR CommandLine="*cmd.exe /c *" OR CommandLine="*cmd.exe /k *" OR CommandLine="*cmd.exe /r *") AND (CommandLine="*C:\\ProgramData\\*" OR CommandLine="*%ProgramData%*")
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Rob
+version: "1"

@@ -1,0 +1,45 @@
+id: 2ac25500-e5d0-46af-b1b9-00ade300e8eb
+name: Remote service creation via named pipes
+description: Detects scenarios where an attacker remotely creates a service over named pipes. Tools like Tchopper or CrackMapExec can trigger this rule.
+query: |-
+    title: Remote service creation via named pipes
+    description: Detects scenarios where an attacker remotely creates a service over named pipes. Tools like Tchopper or CrackMapExec can trigger this rule.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1569.002-Service%20execution
+    tags:
+    - attack.execution
+    - attack.t1569
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection:
+        EventID: 5145
+        ShareName: '\\*\IPC$'
+        RelativeTargetName: svcctl
+        AccessList|contains: '%%4417' # WriteData
+      filter:
+        SubjectUserName|endswith: '$'
+      condition: selection and not filter
+    falsepositives:
+    - Administrator activity, backup solutions
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1569
+    - T1569.002
+tags:
+    - attack.execution
+    - attack.t1569
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1569.002-Service%20execution
+data_sources:
+    - windows
+    - security

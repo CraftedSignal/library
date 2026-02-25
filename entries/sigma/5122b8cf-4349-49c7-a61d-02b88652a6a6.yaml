@@ -1,0 +1,109 @@
+id: 5122b8cf-4349-49c7-a61d-02b88652a6a6
+name: AsyncRAT & Fork Variants - IOC & Security Tool Evasion Detection
+description: Detects AsyncRAT variants and their forks (DcRat, VenomRAT, etc.) based on process behavior, known IOCs, and security tool evasion techniques.
+query: |
+    title: AsyncRAT & Fork Variants - IOC & Security Tool Evasion Detection
+    id: cyrac-async-forks-full-detection-v1
+    status: experimental
+    description: Detects AsyncRAT variants and their forks (DcRat, VenomRAT, etc.) based on process behavior, known IOCs, and security tool evasion techniques.
+    author: CyRAC Threat Intel
+    date: 2025/07/31
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_security_tools:
+        TargetImage|endswith:
+          - 'Taskmgr.exe'
+          - 'ProcessHacker.exe'
+          - 'procexp.exe'
+          - 'procexp64.exe'
+          - 'perfmon.exe'
+          - 'procmon.exe'
+          - 'regedit.exe'
+          - 'MsMpEng.exe'
+          - 'windbg.exe'
+          - 'x64dbg.exe'
+          - 'x32dbg.exe'
+          - 'OLLYDBG.EXE'
+          - 'ida.exe'
+          - 'ida64.exe'
+          - 'Wireshark.exe'
+
+      selection_malware_processes:
+        Image|endswith:
+          - 'Client.exe'
+          - 'Stub.exe'
+          - 'Servant.exe'
+          - 'tempClient.exe'
+          - 'dwm.exe'
+          - 'AppData\\*.exe'
+          - 'Temp\\*.exe'
+
+      selection_async_iocs:
+        Hashes|contains:
+          - 'F8E31B338123E38757F8B7099797119A038A3538'  # Screamer.dll
+          - '62C9FEFA84067F695032A6939F07C3799AAD80A3'  # Brute.dll
+          - '51B8A5818B7031EDB59A2B2ECF160A78505880BA'  # Cliper.dll
+          - 'FF4592A8BCB58F5CF6BD70B882E886EC6906EECD'  # JasonRAT
+          - '4F69E0CE283D273B724CE107DF89F11C556A7A4E'  # BoratRAT
+          - 'B8AB93E958E0DE4BE2766B2537832EDB37030429'  # DcRat
+          - '68B58483D0E4E7CC2478D6B4FC00064ADE3D7DB3'  # VenomRAT
+          - 'AB2C6F9695346FAA9495B4AB837085C1524FFDDF'  # XieBroRAT
+
+      condition: (selection_security_tools and selection_malware_processes) or selection_async_iocs
+
+    fields:
+      - Image
+      - TargetImage
+      - User
+      - CommandLine
+      - ParentImage
+      - CurrentDirectory
+      - Hashes
+      - ProcessId
+      - TargetProcessId
+
+    level: high
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - attack.credential_access
+      - attack.discovery
+      - attack.collection
+      - attack.impact
+      - asyncRAT
+      - dcrat
+      - venomrat
+      - jasonrat
+      - malware
+      - sigma
+      - cyrac
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0009
+    - TA0040
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.credential_access
+    - attack.discovery
+    - attack.collection
+    - attack.impact
+    - asyncRAT
+    - dcrat
+    - venomrat
+    - jasonrat
+    - malware
+    - sigma
+    - cyrac
+author: CyRAC Threat Intel
+version: "1"
+data_sources:
+    - process_creation
+    - windows

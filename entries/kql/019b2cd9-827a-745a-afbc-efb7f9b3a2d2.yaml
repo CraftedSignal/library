@@ -1,0 +1,15 @@
+id: 019b2cd9-827a-745a-afbc-efb7f9b3a2d2
+name: Suspicious Python Execution Patterns
+description: This rule detects suspicious Python execution patterns that are commonly abused by attackers. It looks for Python interpreters executing commands inline, from user-writable paths (like AppData, Temp, Downloads), or using suspicious modules/functions (requests, socket, subprocess, base64, ctypes, urllib, exec, eval). Additionally, it identifies Python processes that include indicators of downloading or installing tools (pip install, wget, curl, powershell, bitsadmin). The rule filters out common development tools and system accounts to reduce false positives.
+query: "// MITRE ATT&CK: T1059.006 – Command and Scripting Interpreter: Python\r\nlet Lookback = 1d;\r\nlet SuspiciousPaths = dynamic([\"\\\\AppData\\\\\", \"\\\\Temp\\\\\", \"\\\\Downloads\\\\\", \"\\\\Public\\\\\", \"\\\\Users\\\\Public\\\\\"]);\r\nlet SuspiciousImports = dynamic([\"import requests\", \"import socket\", \"import subprocess\", \"import base64\", \"import ctypes\", \"import urllib\", \"exec(\", \"eval(\"]);\r\nlet DownloadIndicators = dynamic([\"pip install\", \"pip3 install\", \"wget\", \"curl\", \"powershell\", \"bitsadmin\"]);\r\nDeviceProcessEvents\r\n| where Timestamp >= ago(Lookback)\r\n// High-confidence malicious execution patterns\r\n// Python interpreters commonly abused by attackers\r\n| where FileName in~ (\"python.exe\", \"python3.exe\", \"pythonw.exe\", \"py.exe\")\r\n// Inline execution (very strong signal)\r\n| where ProcessCommandLine has_any (\" -c \", \" -c\\\"\")\r\n    // Execution from user-writable paths\r\n    or ProcessCommandLine has_any (SuspiciousPaths)\r\n    // Common attacker Python modules / behaviors\r\n    or ProcessCommandLine has_any (SuspiciousImports)\r\n    // Download / execution patterns\r\n    or ProcessCommandLine has_any (DownloadIndicators)\r\n// Reduce developer / enterprise automation noise\r\n| where InitiatingProcessFileName !in~ (\r\n    \"code.exe\", \"pycharm64.exe\", \"idea64.exe\", \"devenv.exe\", \"MsBuild.exe\",\r\n    \"jenkins.exe\", \"python.exe\", \"jupyter.exe\", \"anaconda.exe\", \"spyder.exe\",\r\n    \"vscode.exe\", \"explorer.exe\", \"node.exe\", \"jupyter-notebook.exe\", \"conda.exe\", \"cursor.exe\", \"pythonw.exe\"  // Added common benign/dev tools\r\n)\r\n| where AccountName !~ \"system\"\r\n| project Timestamp, DeviceName, AccountName, FileName, InitiatingProcessFileName, InitiatingProcessSHA1, ProcessCommandLine, FolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.006
+tags:
+    - kql
+author: AwaisM
+version: "5"

@@ -1,0 +1,52 @@
+id: 3f0fca28-e54e-427b-9866-e07f8846a1b3
+name: Detection of High-Risk OAuth App Consent in Azure AD
+description: "Detects when a non-approved application is granted high-risk permissions via consent in Azure AD. \nThis is a common method for attackers to achieve persistence and privilege escalation in Microsoft 365 environments."
+query: |-
+    let highRiskPermissions = dynamic([
+        "Mail.ReadWrite",
+        "Mail.Send",
+        "MailboxSettings.ReadWrite",
+        "Calendars.ReadWrite",
+        "Contacts.ReadWrite",
+        "Files.ReadWrite.All",
+        "Directory.ReadWrite.All",
+        "User.ReadWrite.All",
+        "Group.ReadWrite.All",
+        "Application.ReadWrite.All",
+        "DelegatedPermissionGrant.ReadWrite.All",
+        "AppRoleAssignment.ReadWrite.All",
+        "Policy.ReadWrite.All",
+        "RoleManagement.ReadWrite.Directory"
+    ]);
+    // FP Mitigation: Add the display names of legitimate applications that require high-risk permissions to this list.
+    let approvedApps = dynamic([]);
+    AuditLogs
+    // Filter for successful application consent events in Azure AD.
+    | where Category == "ApplicationManagement" and OperationName == "Consent to application" and Result == "success"
+    // Parse the TargetResources to extract application and permission details.
+    | extend TargetResource = TargetResources[0]
+    | extend AppDisplayName = tostring(TargetResource.displayName)
+    | extend ModifiedProperties = TargetResource.modifiedProperties
+    | mv-expand ModifiedProperties
+    | where ModifiedProperties.displayName == "ConsentAction.Permissions"
+    // Extract the granted permissions string.
+    | extend GrantedPermissions = tostring(parse_json(tostring(ModifiedProperties.newValue)))
+    // Exclude known and approved applications to reduce false positives.
+    | where not(AppDisplayName in (approvedApps))
+    // Check if any of the granted permissions are in our high-risk list.
+    | where GrantedPermissions has_any (highRiskPermissions)
+    // Extract user details.
+    | extend UserPrincipalName = tostring(InitiatedBy.user.userPrincipalName)
+    | extend IpAddress = tostring(InitiatedBy.user.ipAddress)
+    // Summarize the findings for alerting.
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), GrantedPermissions = make_set(GrantedPermissions) by AppDisplayName, UserPrincipalName, IpAddress, OperationName
+    | extend timestamp = StartTime
+query_type: kql
+severity: medium
+techniques:
+    - T1098.001
+    - T1078
+    - T1550
+tags:
+    - kql
+version: "1"

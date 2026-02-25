@@ -1,0 +1,77 @@
+id: 019a6416-1ebc-729a-9317-50947d913f28
+name: LANDFALL Android Spyware C2 Communication
+description: Detects network communication patterns associated with the LANDFALL Android spyware C2 servers. This includes connections to known malicious domains/IPs and specific HTTP POST requests used for beaconing.
+query: |
+    title: LANDFALL Android Spyware C2 Communication
+    id: e70b5615-5ee5-4df3-b042-9a815ef1f8b1
+    status: experimental
+    description: Detects network communication patterns associated with the LANDFALL
+      Android spyware C2 servers. This includes connections to known malicious
+      domains/IPs and specific HTTP POST requests used for beaconing.
+    references:
+      - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    author: detections.ai
+    date: 2025-11-08
+    tags:
+      - attack.t1071.001
+      - attack.t1573.002
+      - attack.command_and_control
+      - malware.landfall
+      - os.android
+      - detection.emerging_threats
+    logsource:
+      category: webproxy
+      product: zeek
+    detection:
+      # Selection for known C2 domains and IPs from the report
+      ioc:
+        destination.domain:
+          - 'brightvideodesigns.com'
+          - 'healthyeatingontherun.com'
+          - 'hotelsitereview.com'
+          - 'projectmanagerskills.com'
+        destination.ip:
+          - '45.155.250.158'
+          - '46.246.28.75'
+          - '91.132.92.35'
+          - '92.243.65.240'
+          - '192.36.57.56'
+          - '194.76.224.127'
+        # Selection for behavioral indicators observed in C2 traffic
+      behavior:
+        http.method: 'POST'
+        http.user_agent: 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_3)
+          AppleWebKit/537.36 (KHTML, like Gecko) Chrome/44.0.2403.89 Safari/537.36' # The POST body contains specific URL-encoded parameters. This may be logged in different fields depending on the source.
+        http.request_body|contains|all:
+          - 'agent_id='
+          - 'command_id='
+          - 'source=bridge_head'
+      condition: ioc or behavior
+    falsepositives:
+      - The domains and IP addresses are high-fidelity indicators but may have a
+        limited shelf life.
+      - The User-Agent is old and could theoretically be used by legitimate clients,
+        but the combination with the specific POST body parameters significantly
+        reduces the chance of false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1573.002
+tags:
+    - attack.t1071.001
+    - attack.t1573.002
+    - attack.command_and_control
+    - malware.landfall
+    - os.android
+    - detection.emerging_threats
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+data_sources:
+    - webproxy
+    - zeek

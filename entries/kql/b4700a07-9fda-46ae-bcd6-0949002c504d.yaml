@@ -1,0 +1,40 @@
+id: b4700a07-9fda-46ae-bcd6-0949002c504d
+name: AutoAdminLogon Registry Modification Detection
+description: This detection identifies modifications to the AutoAdminLogon registry key, which can be exploited by attackers for persistence and to maintain access after system reboots.
+query: |-
+    # AutoAdminLogon Registry Detection
+
+    ## Description
+    This detection identifies modifications to the AutoAdminLogon registry key, which can be used to configure automatic login without requiring credentials. This is often abused by attackers for persistence and to maintain access after system reboots.
+
+    ## Detection Logic
+    The query monitors registry events for any activity involving the AutoAdminLogon key in the Windows registry.
+
+    ## Query
+    ```kusto
+    DeviceRegistryEvents
+    | where (RegistryKey contains @"\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon")
+    ```
+
+    ## Registry Key Details
+    - **Full Path**: `HKLM\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon\AutoAdminLogon`
+    - **Purpose**: Enables automatic login without user interaction
+    - **Risk**: Stores credentials in registry, allows unauthorized access
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Persistence, Privilege Escalation
+    - **Technique**: T1547.001 - Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Identify who made the registry change
+    2. Check if AutoAdminLogon was enabled (value set to 1)
+    3. Review associated DefaultUserName and DefaultPassword values
+    4. Verify if this change was authorized by IT
+    5. Check for other persistence mechanisms
+    6. Review login history for the auto-login account
+    7. Disable AutoAdminLogon if unauthorized
+query_type: kql
+version: "1"

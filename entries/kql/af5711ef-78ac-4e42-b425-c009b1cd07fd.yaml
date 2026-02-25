@@ -1,0 +1,69 @@
+id: af5711ef-78ac-4e42-b425-c009b1cd07fd
+name: SIM Swap Suspected via MFA Phone Method Change and Subsequent Login
+description: Detects when a user's phone authentication method is changed or added, followed shortly by a successful MFA-based sign-in for that same user. This pattern can indicate a SIM swap attack where an adversary socially engineers a helpdesk or convinces a mobile carrier to port a user's number to an adversary-controlled SIM card. This allows the adversary to intercept MFA codes sent via SMS or phone call and gain unauthorized access.
+query: |
+    // Name: SIM Swap Suspected via MFA Phone Method Change and Subsequent Login
+    // Author: detections.ai
+    // Date: 2025-08-01
+    // Tactic: Credential Access
+    // Technique: T1451, SIM Card Swap
+    // Description: Detects when a user's phone authentication method is changed or added, followed shortly by a successful MFA-based sign-in for that same user. This pattern can indicate a SIM swap attack where an adversary socially engineers a helpdesk or convinces a mobile carrier to port a user's number to an adversary-controlled SIM card. This allows the adversary to intercept MFA codes sent via SMS or phone call and gain unauthorized access. This TTP is associated with the Scattered Spider threat actor.
+    // False Positives: This activity can be legitimate. A user may get a new phone/number and legitimately update their settings and log in. An administrator may also perform this action as part of a standard helpdesk procedure. To reduce false positives, consider filtering out known administrator or helpdesk accounts from the 'Actor' field or investigating if the login occurs from an anomalous location for that user.
+    // References: https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf
+
+    let lookback = 1h; // Time window to correlate the MFA change and the subsequent login.
+
+    // Step 1: Identify users whose phone authentication method was recently changed or added.
+    let mfa_phone_changes = AuditLogs
+    | where TimeGenerated > ago(lookback)
+    // Filter for operations related to updating a user's authentication methods.
+    | where OperationName in~ ("User registered security info", "User updated their security info", "Admin updated security info on behalf of user", "Update user")
+    | where Result == "success"
+    // Check the details to confirm a phone method was the target of the change. This is broad to cover different log variations.
+    | where todynamic(tostring(AdditionalDetails)) has "Phone" or todynamic(tostring(ModifiedProperties)) has_any("Phone", "strongAuthentication")
+    | mv-expand TargetResources
+    | where isnotempty(TargetResources.userPrincipalName)
+    | extend TargetUser = tostring(TargetResources.userPrincipalName)
+    | extend Actor = tostring(InitiatedBy.user.userPrincipalName)
+    // Potential FP Tuning: Focus on changes made by another user (e.g., helpdesk) by uncommenting the line below.
+    // | where Actor != TargetUser
+    | project ChangeTime = TimeGenerated, TargetUser, Actor, OperationName, CorrelationId;
+
+    // Step 2: Find successful sign-ins for those users that occurred *after* the MFA method change.
+    SigninLogs
+    | where TimeGenerated > ago(lookback)
+    | where ResultType == 0 // Successful sign-in
+    | where isnotempty(UserPrincipalName)
+    // Ensure MFA was satisfied in the sign-in flow.
+    | where AuthenticationRequirement == "multiFactorAuthentication"
+    | join kind=inner (mfa_phone_changes) on $left.UserPrincipalName == $right.TargetUser
+    // Critical logic: The sign-in must happen *after* the MFA method was changed.
+    | where TimeGenerated > ChangeTime
+    | extend TimeDeltaBetweenChangeAndLogin = TimeGenerated - ChangeTime
+    // Potential FP Tuning: A very short time between change and login can be more suspicious.
+    // | where TimeDeltaBetweenChangeAndLogin < 5m
+    | extend
+        LocationDetails = todynamic(LocationDetails),
+        DeviceDetails = todynamic(DeviceDetail)
+    | project
+        TimeGenerated,
+        UserPrincipalName,
+        ActorWhoMadeChange = Actor,
+        MfaChangeOperation = OperationName,
+        TimeBetweenChangeAndLogin = TimeDeltaBetweenChangeAndLogin,
+        AppDisplayName,
+        IPAddress,
+        Location = strcat(tostring(LocationDetails.city), ", ", tostring(LocationDetails.state), ", ", tostring(LocationDetails.countryOrRegion)),
+        DeviceOS = tostring(DeviceDetails.operatingSystem),
+        Browser = tostring(DeviceDetails.browser),
+        CorrelationId
+query_type: kql
+tactics:
+    - TA0006
+techniques:
+    - T1111
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf

@@ -1,0 +1,53 @@
+id: d6b12ffb-0cf0-49f9-a94b-d3dd2b1d91a5
+name: Potential ScreenConnect Credential Phishing Domain Connection
+description: This detection identifies network connections to domains that may be impersonating ConnectWise or ScreenConnect for credential harvesting purposes. The logic is based on tactics observed in the MCTO3030 campaign which used domains with specific country-code TLDs or generic "connectwise" and "screenconnect" themes.
+query: |
+    // Name: Potential ScreenConnect Credential Phishing Domain Connection
+    // Author: detections.ai
+    // Date: 2025-08-26
+    // Description: This detection identifies network connections to domains that may be impersonating ConnectWise or ScreenConnect for credential harvesting purposes. The logic is based on tactics observed in the MCTO3030 campaign which used domains with specific country-code TLDs or generic "connectwise" and "screenconnect" themes.
+    // Reference: https://cybersecuritynews.com/new-attack-targeting-screenconnect-cloud-administrators/
+    // Tactic: Initial Access
+    // Technique: T1566, Phishing
+
+    let lookback = 1d;
+    // Known suspicious patterns from the MCTO3030 campaign
+    let suspiciousDomainPatterns = dynamic([
+        "connectwise.com.ar",
+        "connectwise.com.be",
+        "connectwise.com.cm"
+    ]);
+    // Legitimate domains to exclude from the broader search logic
+    let legitimateDomains = dynamic([
+        "screenconnect.com",
+        "connectwise.com"
+        // Potential for False Positives: Legitimate but less common regional or partner domains for ConnectWise might be flagged.
+        // To reduce noise, add any other legitimate partner or regional domains used in your environment to this list.
+    ]);
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(lookback)
+    | where isnotempty(RemoteUrl)
+    | extend Domain = tolower(tostring(parse_url(RemoteUrl).Host))
+    // Main detection logic looking for suspicious domain patterns
+    | where Domain in~ (suspiciousDomainPatterns) or // Look for known malicious patterns
+        (
+            (Domain has "connectwise" or Domain has "screenconnect") and // Look for general impersonation themes
+            not(Domain has_any (legitimateDomains)) and // Exclude known legitimate domains to reduce FPs
+            not(ipv4_is_private(RemoteIP)) // Exclude internal traffic
+        )
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), TotalConnections = count(), RemoteIPs = make_set(RemoteIP), URLs = make_set(RemoteUrl) by DeviceId, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, Domain
+    | extend timestamp = StartTime, HostName = tostring(split(DeviceName, ".")[0]), DnsDomain = tostring(strcat_array(array_slice(split(DeviceName, "."), 1, -1), "."))
+query_type: kql
+tactics:
+    - TA0001
+    - TA0006
+    - TA0043
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+tags:
+    - kql
+version: "1"
+references:
+    - https://cybersecuritynews.com/new-attack-targeting-screenconnect-cloud-administrators/

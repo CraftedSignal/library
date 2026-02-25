@@ -1,0 +1,60 @@
+id: d682180d-dd03-4b8e-870f-660aa49bc9b4
+name: Lampion ClickFix PowerShell Execution Detection
+description: Detects initial PowerShell execution indicative of the Lampion ClickFix threat leveraging download and execution patterns.
+query: |-
+    title: Lampion ClickFix Initial PowerShell Execution
+    id: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx # Replace with a unique UUID
+    version: 1
+    date: 2025-05-12
+    author: Aaron Mog - Detections.ai
+    modified:
+    references:
+        - https://unit42.paloaltonetworks.com/lampion-malware-clickfix-lures/
+    tags:
+        - attack.execution
+        - attack.t1059.001
+        - attack.defense_evasion
+        - attack.t1204.002
+        - attack.command_and_control
+        - attack.t1105
+        - lampion
+        - clickfix
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_powershell:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+        selection_command_parts:
+            CommandLine|contains:
+                - 'Invoke-WebRequest'
+                - 'iwr'
+                - 'Start-Process'
+                - 'sp'
+                - '-OutFile'
+                - '-O'
+                - '-Uri'
+                - ';' # Command separator indicating chained commands
+        condition: all of selection_*
+    fields:
+        - CommandLine
+        - ParentCommandLine
+        - Image
+    falsepositives:
+        - Legitimate scripts chaining download and execution (rare in this specific pattern)
+    level: high
+query_type: sigma
+severity: medium
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense_evasion
+    - attack.t1204.002
+    - attack.command_and_control
+    - attack.t1105
+    - lampion
+    - clickfix
+author: Aaron Mog - Detections.ai
+version: "1"

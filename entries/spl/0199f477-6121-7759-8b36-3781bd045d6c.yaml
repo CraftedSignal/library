@@ -1,0 +1,21 @@
+id: 0199f477-6121-7759-8b36-3781bd045d6c
+name: Brickstorm C2 Websocket HTTPS
+description: Detects potential BRICKSTORM C2 activity. This rule identifies processes initiating a WebSocket connection over HTTPS, which is a technique used by BRICKSTORM for its command and control channel. The rule filters for processes that lack file metadata, a common characteristic of Go-based malware like BRICKSTORM.
+query: "| tstats `summariesonly` count from datamodel=Network_Traffic.All_Traffic \n  where All_Traffic.transport=\"tcp\" \n    AND All_Traffic.app=\"https\" \n    AND All_Traffic.http_method=\"CONNECT\" \n    AND All_Traffic.http_user_agent!=\"\" \n    AND All_Traffic.process_path!=\"\" \n  | eval is_websocket=if(like(All_Traffic.http_request_headers, \"%Upgrade: websocket%\"), 1, 0) \n  | where is_websocket=1 \n  | eval missing_company=if(isnull(All_Traffic.process_company) OR All_Traffic.process_company=\"\", 1, 0) \n  | eval missing_product=if(isnull(All_Traffic.process_product) OR All_Traffic.process_product=\"\", 1, 0) \n  | where (missing_company=1 OR missing_product=1) \n  | where NOT match(All_Traffic.process_path, \"(?i)(chrome|firefox|msedge|brave|opera)\\\\.exe$\") \n  | where NOT match(All_Traffic.process_path, \"(?i)\\\\\\Program Files\") \n  | stats \n      dc(All_Traffic.dest_ip) as destination_ip_count \n      values(All_Traffic.dest_ip) as destination_ip \n      values(All_Traffic.dest_port) as destination_port \n      values(All_Traffic.dest_hostname) as destination_hostname \n      values(All_Traffic.http_user_agent) as user_agent \n      values(All_Traffic.process_path) as principal_process_path \n      values(All_Traffic.process_cmdline) as principal_process_command_line \n      values(All_Traffic.process_sha256) as principal_process_sha256 \n      values(All_Traffic.user) as principal_user \n      by All_Traffic.src_host _time \n  | eval risk_score=45 \n  | rename All_Traffic.src_host as principal_hostname \n  | bin _time span=30m \n  | stats \n      values(principal_hostname) as principal_hostname \n      values(principal_process_path) as principal_process_path \n      values(principal_process_command_line) as principal_process_command_line \n      values(principal_process_sha256) as principal_process_sha256 \n      values(principal_user) as principal_user \n      values(destination_ip) as destination_ip \n      values(destination_hostname) as destination_hostname \n      values(destination_port) as destination_port \n      values(user_agent) as user_agent \n      sum(destination_ip_count) as event_count \n      max(risk_score) as risk_score \n      by _time"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1572
+tags:
+    - BRICKSTORM
+    - UNC5221
+    - C2
+    - WEBSOCKET
+    - TLS
+author: detections.ai
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/brickstorm-espionage-campaign/

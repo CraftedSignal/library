@@ -1,0 +1,19 @@
+id: 019c91c9-1e4b-7069-9efd-5e84eb4864cc
+name: HoneyMyte CoolClient Persistence Activity
+description: Detects persistence mechanisms used by the HoneyMyte APT group's CoolClient backdoor. The rule looks for the creation of a specific scheduled task ('ComboxResetTask') or the modification of a registry run key to include the 'work' parameter, which are characteristic of the backdoor's 'passuac' and 'install' routines.
+query: "// Name: HoneyMyte CoolClient Persistence Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects persistence mechanisms used by the HoneyMyte APT group's CoolClient backdoor. The rule looks for the creation of a specific scheduled task ('ComboxResetTask') or the modification of a registry run key to include the 'work' parameter, which are characteristic of the backdoor's 'passuac' and 'install' routines.\r\n// False Positive Sensitivity: Medium\r\n// References: https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/\r\n// Tactics: Persistence, Privilege Escalation\r\n// RelevantTechniques: T1053.005, T1547.001\r\n(union isfuzzy=true\r\n    (\r\n        // Detects the creation of the specific scheduled task used by CoolClient for persistence.\r\n        DeviceProcessEvents\r\n        | where FileName =~ \"schtasks.exe\"\r\n        | where ProcessCommandLine has_all (\"/create\", \"ComboxResetTask\")\r\n        | project\r\n            TimeGenerated,\r\n            DeviceName,\r\n            AccountName,\r\n            FileName,\r\n            ProcessCommandLine,\r\n            InitiatingProcessFileName,\r\n            InitiatingProcessCommandLine,\r\n            PersistenceType = \"Scheduled Task\",\r\n            Evidence = ProcessCommandLine,\r\n            ReportId\r\n    ),\r\n    (\r\n        // Detects the modification of a registry run key to execute CoolClient with the 'work' parameter.\r\n        DeviceRegistryEvents\r\n        | where ActionType == \"RegistryValueSet\"\r\n        | where RegistryKey has_any (\r\n            \"SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Run\",\r\n            \"SOFTWARE\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\RunOnce\"\r\n            )\r\n        | where RegistryValueData has \"work\"\r\n        | project\r\n            TimeGenerated,\r\n            DeviceName,\r\n            AccountName,\r\n            FileName = InitiatingProcessFileName,\r\n            ProcessCommandLine = InitiatingProcessCommandLine,\r\n            InitiatingProcessFileName,\r\n            InitiatingProcessCommandLine,\r\n            PersistenceType = \"Registry Run Key\",\r\n            Evidence = strcat(\"Key: \", RegistryKey, \" | Value: \", RegistryValueData),\r\n            ReportId\r\n    )\r\n)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+    - T1547.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/

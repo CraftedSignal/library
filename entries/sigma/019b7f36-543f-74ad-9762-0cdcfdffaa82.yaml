@@ -1,0 +1,68 @@
+id: 019b7f36-543f-74ad-9762-0cdcfdffaa82
+name: ScreenConnect Client Spawned By Browser Or Email Client
+description: Detects instances where a ScreenConnect client or installer process is spawned by a web browser or email client. This behavior is indicative of a social engineering attack where a user is tricked into downloading and executing a rogue Remote Monitoring and Management (RMM) tool.
+query: |
+    title: ScreenConnect Client Spawned By Browser Or Email Client
+    id: 55f3f918-1c68-4798-a983-8d16aa7181da
+    status: experimental
+    description: Detects instances where a ScreenConnect client or installer process
+      is spawned by a web browser or email client. This behavior is indicative of a
+      social engineering attack where a user is tricked into downloading and
+      executing a rogue Remote Monitoring and Management (RMM) tool.
+    references:
+      - https://www.huntress.com/blog/rogue-screenconnect-social-engineering-tactics-2025
+    author: tim@detections.ai
+    date: 2026-01-02
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.command_and_control
+      - attack.t1566.001
+      - attack.t1219
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      # Detects common web browsers and email clients as parent processes
+      parent_process:
+        ParentImage|endswith:
+          - '\chrome.exe'
+          - '\brave.exe'
+          - '\msedge.exe'
+          - '\firefox.exe'
+          - '\outlook.exe'
+        # Detects known ScreenConnect client/installer names and common lure patterns
+      child_process:
+        Image|endswith:
+          - '\ScreenConnect.Client.exe'
+          - '\ScreenConnect.ClientSetup.exe'
+          - '\ScreenConnect.WindowsClient.exe'
+          - 'ClientSetup.exe' # Catches renamed installers like 'YourInvite.Clientsetup.exe' from the report
+      condition: parent_process and child_process
+    falsepositives:
+      - Legitimate but atypical software installation methods.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.001
+    - T1219
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.command_and_control
+    - attack.t1566.001
+    - attack.t1219
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.huntress.com/blog/rogue-screenconnect-social-engineering-tactics-2025
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

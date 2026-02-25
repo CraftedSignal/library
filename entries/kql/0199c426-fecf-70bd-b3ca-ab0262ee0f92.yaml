@@ -1,0 +1,19 @@
+id: 0199c426-fecf-70bd-b3ca-ab0262ee0f92
+name: Shuyal Stealer Detection
+description: 'KQL Query from file: Shuyal Stealer Detection'
+query: "let lookback = 1d;\r\nlet Persistance =\r\nDeviceFileEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"FileCreated\"\r\n| where FolderPath has \"\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\"\r\n| where InitiatingProcessVersionInfoOriginalFileName has \"host.exe\"\r\n| project DeviceName;\r\nlet CompressData =\r\nDeviceFileEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"FileCreated\"\r\n| where FolderPath has \"\\\\AppData\\\\Local\\\\Temp\"\r\n| where FileName has \"runtime.zip\"\r\n| project DeviceName;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(lookback)\r\n| where RemoteUrl has \"api.telegram.org\"\r\n| where DeviceName has_any(Persistance) and DeviceName has_any(CompressData)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0009
+    - TA0010
+techniques:
+    - T1547.001
+    - T1074.001
+    - T1567.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://hackread.com/shuyal-stealer-web-browsers-login-data-discord-tokens/

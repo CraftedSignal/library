@@ -1,0 +1,60 @@
+id: 019a83b4-43cd-715e-af89-0424d36d1981
+name: F5 BIG-IP Configuration or Archive File Download
+description: Detects large HTTP responses for URLs containing keywords associated with F5 BIG-IP configuration or archive files. This could indicate an attacker exfiltrating sensitive system configurations.
+query: |-
+    // title: F5 BIG-IP Configuration or Archive File Download
+    // id: 4013782a-eef4-4d0e-afde-f205b8c7bac4
+    // status: experimental
+    // description: Detects large HTTP responses for URLs containing keywords
+    //   associated with F5 BIG-IP configuration or archive files. This could indicate
+    //   an attacker exfiltrating sensitive system configurations.
+    // references:
+    //   - https://medium.com/@abdul.myid/hunting-playbook-f5-incident-detection-using-sigma-rules-and-multi-signal-correlation-techniques-774630c1fc29
+    // author: detections.ai
+    // date: 2025-11-06
+    // tags:
+    //   - attack.exfiltration
+    //   - attack.t1041
+    //   - attack.t1071.001
+    // level: medium
+    // fields:
+    //   - source.ip
+    //   - destination.ip
+    //   - user_agent.original
+    //   - url.original
+    //   - http.response.bytes
+    // falsepositives:
+    //   - Legitimate downloads of configuration backups by administrators or automated
+    //     backup systems.
+    //   - To reduce noise, correlate these events with scheduled backup jobs, known
+    //     administrative source IP addresses, and expected user agents.
+    // logsource: category: webproxy
+    // This query assumes a generic web proxy log table named 'CommonSecurityLog' or similar.
+    // Adjust the table name and field mappings based on your specific data source.
+    CommonSecurityLog
+    | where DeviceVendor == "F5" or DeviceProduct == "BIG-IP" // Adjust based on your F5 logs
+    | where RequestURL has_any ("ucs", "backup", "config", ".tar", ".zip", ".tgz", ".conf")
+    | where ReceivedBytes > 50000 // Assuming ReceivedBytes maps to http.response.bytes or similar
+    | project
+        SourceIP,
+        DestinationIP,
+        UserAgent,
+        RequestURL,
+        ReceivedBytes,
+        TimeGenerated
+    | extend
+        EventID = "F5BIGIPConfigDownload",
+        EventDescription = "F5 BIG-IP configuration or archive file download detected"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1071.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://medium.com/@abdul.myid/hunting-playbook-f5-incident-detection-using-sigma-rules-and-multi-signal-correlation-techniques-774630c1fc29

@@ -1,0 +1,14 @@
+id: 07b7761f-6d6d-4845-9f6b-51fe2f440c6f
+name: 'Plague: PAM-Based Backdoor Scan'
+description: https://www.nextron-systems.com/2025/08/01/plague-a-newly-discovered-pam-based-backdoor-for-linux/
+query: "let QueryPeriod = 30d;\r\nlet Plague=externaldata(NextronSHA:string, Nextronfilename:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/PlagueIOCs.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project NextronSHA;\r\nlet DeviceEventScan =\r\nDeviceEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where SHA256 has_any(Plague);\r\nlet DeviceFileEventScan =\r\nDeviceFileEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where SHA256 has_any(Plague);\r\nlet DeviceImageLoadEventScan =\r\nDeviceImageLoadEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where SHA256 has_any(Plague);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(QueryPeriod)\r\n| where SHA256 has_any(Plague)\r\n| union DeviceImageLoadEventScan, DeviceFileEventScan, DeviceEventScan "
+query_type: kql
+severity: medium
+techniques:
+    - T1556.003
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://www.nextron-systems.com/2025/08/01/plague-a-newly-discovered-pam-based-backdoor-for-linux/

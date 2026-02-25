@@ -1,0 +1,50 @@
+id: cd0897d5-e958-45a2-9cef-494436505577
+name: Havoc Remote Injector Process Injection (CreateRemoteThread)
+description: Detects the process injection activity of the malicious Havoc conhost.exe variant, specifically the creation of a remote thread within a cmd.exe process. This is a key step where the Havoc payload is injected and executed, as described by Fortinet.
+query: |-
+    title: Havoc Remote Injector Process Injection (CreateRemoteThread)
+    id: 8e7f6d5c-4b3a-2109-fedc-ba9876543210
+    description: Detects the process injection activity of the malicious Havoc conhost.exe variant, specifically the creation of a remote thread within a cmd.exe process. This is a key step where the Havoc payload is injected and executed, as described by Fortinet.
+    author: Detections.ai
+    date: 2025-06-24
+    references:
+        - https://www.fortinet.com/blog/threat-research/dissecting-a-malicious-havoc-sample
+    logsource:
+        product: windows
+        service: sysmon
+        eventid: 8 # Sysmon Event ID for CreateRemoteThread
+    detection:
+        selection:
+            SourceImage|contains: '\drivers\conhost.exe' # The malicious conhost.exe acting as the injector
+            TargetImage|endswith: '\cmd.exe' # The target process for injection
+        condition: selection
+    falsepositives:
+        - Legitimate conhost.exe is typically located in C:\Windows\System32 and does not perform remote thread injection into cmd.exe from the 'drivers' directory.
+        - Other legitimate software might rarely inject into cmd.exe, but the specific source path (C:\Windows\System32\drivers\) should significantly minimize false positives for this particular Havoc variant.
+    level: high
+    tags:
+        - attack.execution
+        - attack.t1055 # Process Injection
+        - attack.t1036.003 # Masquerading: Rename System Utility (as the injector is masqueraded)
+        - malware.havoc
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1055
+    - T1036.003
+tags:
+    - attack.execution
+    - attack.t1055
+    - attack.t1036.003
+    - malware.havoc
+author: Detections.ai
+version: "1"
+references:
+    - https://www.fortinet.com/blog/threat-research/dissecting-a-malicious-havoc-sample
+data_sources:
+    - windows
+    - sysmon

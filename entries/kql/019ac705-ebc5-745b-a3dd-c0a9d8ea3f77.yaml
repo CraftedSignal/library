@@ -1,0 +1,49 @@
+id: 019ac705-ebc5-745b-a3dd-c0a9d8ea3f77
+name: Old NetSupport Manager Payload (Bloody Wolf)
+description: Detects the presence of old versions of NetSupport Manager (client32.exe), a tool repurposed as a RAT by the Bloody Wolf threat actor. The actor is known to use versions from October 2013 or older. This rule specifically looks for 'client32.exe' with the file description 'NetSupport Client' and a FileVersion older than '12.0.0.0'.
+query: |
+    // Name: Old NetSupport Manager Payload (Bloody Wolf)
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the presence of old versions of NetSupport Manager (client32.exe), a tool repurposed as a RAT by the Bloody Wolf threat actor. The actor is known to use versions from October 2013 or older.
+    // References: https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html
+    // MITRE ATT&CK: T1219 (Remote Access Software), T1072 (Software Deployment Tools)
+    // False Positive Sensitivity: Medium. This may detect legitimate but outdated installations of NetSupport Manager. Correlate findings with other Bloody Wolf activity. Tuning may be required to exclude known administrative use.
+
+    DeviceFileCertificateInfo
+    // This table provides an inventory of files on endpoints, including version information.
+    | where FileName =~ "client32.exe"
+    // The legitimate file description is "NetSupport Client".
+    | where FileDescription has "NetSupport Client"
+    // The intel states a version from October 2013 is used. NetSupport Manager v12 was released in 2014.
+    // This logic looks for any version older than v12, which covers the reported timeframe and older versions.
+    | where isnotempty(FileVersion) and version_less_than(FileVersion, '12.0.0.0')
+    // FP Tuning: To increase fidelity, you could focus on files found outside of the default installation path.
+    // | where not(FolderPath has_any (@"C:\Program Files\NetSupport\", @"C:\Program Files (x86)\NetSupport\"))
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        FileVersion,
+        SHA256,
+        FileDescription
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = DeviceName,
+        File = FileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0008
+techniques:
+    - T1219
+    - T1072
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html

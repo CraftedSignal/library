@@ -1,0 +1,64 @@
+id: 019a30c4-ea2c-7382-8155-c9e3031bab96
+name: SCATTERED SPIDER Activity - Domain Controller Disk Attached to VM
+description: Detects the attachment of a virtual disk (.vmdk) likely belonging to a Domain Controller to another virtual machine. This technique is used by threat actors like SCATTERED SPIDER to access the Active Directory database (ntds.dit) for offline credential dumping. This is often done on a newly created, attacker-controlled VM.
+query: |
+    title: SCATTERED SPIDER Activity - Domain Controller Disk Attached to VM
+    id: da29a007-2149-4770-ab78-8392cba8a10e
+    status: experimental
+    description: Detects the attachment of a virtual disk (.vmdk) likely belonging to a Domain Controller to another virtual machine. This technique is used by threat actors like SCATTERED SPIDER to access the Active Directory database (ntds.dit) for offline credential dumping. This is often done on a newly created, attacker-controlled VM.
+    references:
+      - https://www.crowdstrike.com/en-us/blog/crowdstrike-services-observes-scattered-spider-escalate-attacks/
+    author: detections.ai
+    date: 2025-10-29
+    tags:
+      - attack.t1003.003
+      - attack.credential_access
+      - attack.t1068
+      - attack.privilege_escalation
+    logsource:
+      product: vmware
+      service: vcenter
+    detection:
+      reconfig_event:
+            # Catches events related to a VM being reconfigured
+        event.action:
+          - 'ReconfigVM_Task'
+          - 'vim.VirtualMachine.reconfigure'
+      disk_add_keywords:
+            # Looks for keywords in the log message indicating a virtual disk was added.
+            # This may need to be adapted to specific structured fields if available.
+        message|contains|all:
+          - 'operation = add'
+          - '.vmdk'
+      dc_disk_keywords:
+            # Keywords that may indicate the disk belongs to a Domain Controller.
+            # These are based on common VM naming conventions for DCs.
+        message|contains:
+          - '/DC'
+          - '/DomainController'
+          - '/Domain-Controller'
+      condition: reconfig_event and disk_add_keywords and 1 of dc_disk_keywords
+    falsepositives:
+      - Legitimate administrative or disaster recovery activities may involve attaching a Domain Controller's disk to another VM for troubleshooting or data recovery.
+      - The keywords used to identify a Domain Controller (`dc_disk_keywords`) are based on common naming conventions and may need to be tuned to match the specific environment's naming scheme to avoid false positives or improve accuracy. For example, if your domain controllers are named `CORP-AD-01`, you could add `'/CORP-AD-'` to the keywords.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0004
+techniques:
+    - T1003.003
+    - T1068
+tags:
+    - attack.t1003.003
+    - attack.credential_access
+    - attack.t1068
+    - attack.privilege_escalation
+author: detections.ai
+version: "2"
+references:
+    - https://www.crowdstrike.com/en-us/blog/crowdstrike-services-observes-scattered-spider-escalate-attacks/
+data_sources:
+    - vmware
+    - vcenter

@@ -1,0 +1,59 @@
+id: 1436c43e-b287-43c0-a4ef-7532bbc28fa1
+name: Potential Golden dMSA Attack Via KDS Root Key Retrieval
+description: |
+    Detects attempts to read the Key Distribution Service (KDS) Root Key from Active Directory. This is often a preliminary step in the Golden dMSA attack, where an attacker with high privileges attempts to retrieve the key material needed to forge tickets for Delegated Managed Service Accounts (dMSA) to establish domain persistence. The rule looks for access to the 'msKds-ProvRootKey' object, identified either by its name or its schema ID GUID 'aa02fd41-17e0-4f18-8687-b2239649736b'.
+query: |
+    title: Potential Golden dMSA Attack Via KDS Root Key Retrieval
+    id: f9ec9ce3-09b1-4048-a3c8-8ef1281c5f3a
+    status: experimental
+    description: >
+      Detects attempts to read the Key Distribution Service (KDS) Root Key from
+      Active Directory. This is often a preliminary step in the Golden dMSA attack,
+      where an attacker with high privileges attempts to retrieve the key material
+      needed to forge tickets for Delegated Managed Service Accounts (dMSA) to
+      establish domain persistence. The rule looks for access to the
+      'msKds-ProvRootKey' object, identified either by its name or its schema ID
+      GUID 'aa02fd41-17e0-4f18-8687-b2239649736b'.
+    references:
+      - https://ipurple.team/2025/09/02/golden-dmsa/
+    author: detections.ai
+    date: 2025-09-02
+    tags:
+      - attack.credential_access
+      - attack.persistence
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection:
+        EventID: 4662 # An operation was performed on an object.
+        # The ObjectType can be logged as the friendly name or the schema ID GUID.
+        # The GUID is sometimes wrapped in '%{}' depending on the SIEM/parser, so 'contains' is used.
+        ObjectType|contains:
+          - 'msKds-ProvRootKey'
+          - 'aa02fd41-17e0-4f18-8687-b2239649736b'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative activities involving Group Managed Service
+        Accounts (gMSA) or Delegated Managed Service Accounts (dMSA).
+      - Active Directory backup solutions might also trigger this event.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0005
+    - TA0008
+techniques:
+    - T1550
+tags:
+    - attack.credential_access
+    - attack.persistence
+author: detections.ai
+version: "1"
+references:
+    - https://ipurple.team/2025/09/02/golden-dmsa/
+data_sources:
+    - windows
+    - security

@@ -1,0 +1,16 @@
+id: 6323a5eb-5c9d-4582-a8f0-4d1f84c167f1
+name: Net Group Domain Account Addition
+description: Detects the addition of new domain accounts using the 'net group /add /domain' command. This activity can be indicative of an adversary establishing persistence or escalating privileges within a domain environment.
+query: "let BaseCommand = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has \"group\"\r\n    | distinct ProcessCommandLine ;\r\nlet CreationWithConfPrompt = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine endswith \"/add /domain\"\r\n    | distinct ProcessCommandLine ;\r\nlet CreationWithConfSuppression = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine endswith \"/add /domain /Y\"\r\n    | distinct ProcessCommandLine ;\r\nlet NonEncodedPowershell=\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has \"net group\" and ProcessCommandLine has \"/add /domain\"\r\n    | distinct ProcessCommandLine ;\r\nDeviceProcessEvents\r\n| extend PCL = ProcessCommandLine\r\n| where PCL in (BaseCommand) and (PCL in (CreationWithConfSuppression) or PCL in (CreationWithConfPrompt)) or PCL in (NonEncodedPowershell)\r\n| project  ProcessCreationTime, InitiatingProcessAccountName,LogonId, DeviceId, DeviceName, InitiatingProcessFolderPath, PCL, InitiatingProcessId, ProcessCommandLine, ProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136.002
+    - T1098
+    - T1098.007
+tags:
+    - kql
+version: "1"

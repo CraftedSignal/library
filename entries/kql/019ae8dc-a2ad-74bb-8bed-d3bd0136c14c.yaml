@@ -1,0 +1,49 @@
+id: 019ae8dc-a2ad-74bb-8bed-d3bd0136c14c
+name: 'Device Code Phishing: Unusual Device Code Flow Detected'
+description: |-
+    This alert finds sessions where a device-code flow produced multiple sign-in events (interactive + non-interactive), with mismatched user-agents or differing country/geolocation, for the same Session ID - a strong indicator of device-code phishing abuse.
+    Looks for:
+    Brute-forcing device code tokens
+    Token replay attempts
+    Malicious use of device code authentication across different devices or locations
+    Anomalous sign-in behaviour suggesting account compromise
+query: |-
+    union AADNonInteractiveUserSignInLogs, SigninLogs
+      | where OriginalTransferMethod == "deviceCodeFlow" and ClientAppUsed == "Mobile Apps and Desktop clients"
+      | where Status_string has "0" or Status_string has "50199"
+      | where isnotempty(UserId)
+      | where isnotempty(IPAddress)
+      | where isnotempty(Location)
+      | where isnotempty(UserAgent)
+      | where isnotempty(SessionId)
+      | extend StatusJson = parse_json(Status_string)
+      | extend errorCode = tostring(StatusJson.errorCode)
+      | extend LocationJson = parse_json(LocationDetails_string)
+      | extend countryOrRegion = tostring(LocationJson.countryOrRegion)
+      | summarize
+        set_errorCodes = make_set(errorCode),
+        set_userAgent = make_set(UserAgent),
+        set_location_countryOrRegion = make_set(countryOrRegion),
+        max_createdDateTime = max(CreatedDateTime)
+      by SessionId, UserId, UserPrincipalName, IPAddress
+      | where array_length(set_errorCodes) == 2
+          and (array_length(set_userAgent) == 2 or array_length(set_location_countryOrRegion) == 2)
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0043
+    - TA0007
+techniques:
+    - T1078
+    - T1110.003
+    - T1556
+    - T1550
+    - T1078.004
+tags:
+    - kql
+author: Will Shaw
+version: "2"
+references:
+    - https://www.wiz.io/blog/recent-oauth-attacks-detection-strategies

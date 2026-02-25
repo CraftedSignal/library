@@ -1,0 +1,118 @@
+id: 682c62b4-5ede-45cd-adef-136a5fd40da3
+name: Malicious JavaScript Obfuscation - JSFireTruck and Referrer Check
+description: Detects potential malicious JavaScript obfuscated using the JSFireTruck technique, specifically looking for the combination of core JSFireTruck characters and checks for document.referrer, often used to target traffic from search engines.
+query: |-
+    title: Malicious JavaScript Obfuscation - JSFireTruck and Referrer Check
+    id: d4e5f6g7-8901-2345-6789-0abcdef12345
+    related:
+      - https://unit42.paloaltonetworks.com/malicious-javascript-using-jsfiretruck-as-obfuscation/
+    status: experimental
+    description: Detects potential malicious JavaScript obfuscated using the JSFireTruck technique, specifically looking for the combination of core JSFireTruck characters and checks for document.referrer, often used to target traffic from search engines.
+    references:
+      - https://unit42.paloaltonetworks.com/malicious-javascript-using-jsfiretruck-as-obfuscation/
+    author: Detections.ai
+    date: 2025-06-19
+    logsource:
+      category: web # Adjust based on your log source (e.g., proxy, waf, nids)
+      product: whatever_your_product_is # Placeholder for your specific product/platform
+    detection:
+      selection_referrer:
+        # Look for the presence of document.referrer, indicating a check for the source of traffic.
+        http.response.body|contains: 'document.referrer'
+      selection_jsfiretruck_chars:
+        # Look for the presence of multiple distinct JSFireTruck characters within the response body field.
+        # The core JSFireTruck characters are [], (), !, +.
+        # A moderate count threshold is used here in combination with the referrer check.
+        http.response.body|contains:
+          - '['
+          - ']'
+          - '('
+          - ')'
+          - '!'
+          - '+'
+      selection_search_engines:
+        # Optionally, look for common search engine names often checked against the referrer.
+        # This can increase fidelity but might miss samples checking other referrers.
+        http.response.body|contains:
+          - 'google'
+          - 'bing'
+          - 'duckduckgo'
+          - 'yahoo'
+          - 'aol'
+      condition: selection_referrer and selection_jsfiretruck_chars | count(1) >= 4 and selection_search_engines
+    fields:
+      - http.request.method
+      - http.request.url
+      - http.response.status_code
+      - source.ip
+      - destination.ip
+      - user.agent
+    tags:
+      - attack.defense_evasion
+      - attack.obfuscation
+      - attack.t1027 # Obfuscated Files or Information
+      - attack.t1027.002 # Obfuscated Files or Information: Software Packing
+      - attack.t1027.006 # Obfuscated Files or Information: HTML Smuggling
+      - attack.impact
+      - attack.t1189 # Drive-by Compromise
+      - attack.t1566 # Phishing
+      - attack.t1598 # Phishing
+      - attack.t1105 # Ingress Tool Transfer
+      - attack.t1204 # User Execution
+      - attack.t1071.001 # Application Layer Protocol: Web Protocols
+      - malware
+      - malvertising
+      - phishing
+      - javascript
+      - obfuscation
+      - JSFireTruck
+    falsepositives:
+      - Legitimate JavaScript that uses document.referrer checks and coincidentally contains many of the JSFireTruck characters.
+      - Heavily obfuscated legitimate JavaScript using different techniques that happen to include these elements and referrer checks.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0040
+    - TA0011
+    - TA0005
+    - TA0001
+    - TA0043
+    - TA0002
+techniques:
+    - T1001
+    - T1027
+    - T1027.002
+    - T1027.006
+    - T1189
+    - T1566
+    - T1598
+    - T1105
+    - T1204
+    - T1071.001
+tags:
+    - attack.defense_evasion
+    - attack.obfuscation
+    - attack.t1027
+    - attack.t1027.002
+    - attack.t1027.006
+    - attack.impact
+    - attack.t1189
+    - attack.t1566
+    - attack.t1598
+    - attack.t1105
+    - attack.t1204
+    - attack.t1071.001
+    - malware
+    - malvertising
+    - phishing
+    - javascript
+    - obfuscation
+    - JSFireTruck
+author: Detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/malicious-javascript-using-jsfiretruck-as-obfuscation/
+data_sources:
+    - web
+    - whatever_your_product_is

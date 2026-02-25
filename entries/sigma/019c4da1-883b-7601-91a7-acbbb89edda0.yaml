@@ -1,0 +1,43 @@
+id: 019c4da1-883b-7601-91a7-acbbb89edda0
+name: ClickFix Finger Fetching PowerShell Payload
+description: This rule detects the execution of 'finger.exe' with a command line containing an '@' symbol, which is indicative of ClickFix campaigns fetching obfuscated PowerShell payloads. Legitimate use of 'finger.exe' is rare on Windows, making this a high-fidelity detection for ClickFix delivery.
+query: |
+    title: ClickFix finger Fetching PowerShell Payload
+    id: b7c8d9e0-f1a2-4b1c-5364-clickfix01
+    status: experimental
+    description: |
+        ClickFix campaigns use finger.exe to fetch obfuscated PowerShell from remote. Rare legitimate use of finger on Windows; high-fidelity for ClickFix delivery.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059.001
+        - attack.execution
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_finger:
+            Image|endswith: '\finger.exe'
+            CommandLine|re: '.*@.*'
+        condition: selection_finger
+    falsepositives:
+        - Legitimate use of finger.exe on Unix; rare on Windows
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.t1059.001
+    - attack.execution
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,60 @@
+id: 019c1f4b-afba-764b-baa6-26710fe9944f
+name: Rogue Notepad++ Update Binary Execution
+description: Detects the execution of suspicious binaries (update.exe, AutoUpdater.exe) from a temporary directory, where the parent process is the Notepad++ updater (gup.exe). Notepad++ does not use these filenames for legitimate updates, and this behavior is indicative of a hijacked update process.
+query: |
+    title: Rogue Notepad++ Update Binary Execution
+    id: 2276f13d-3396-425f-aeac-54bba6b4876c
+    status: experimental
+    description: Detects the execution of suspicious binaries (update.exe,
+      AutoUpdater.exe) from a temporary directory, where the parent process is the
+      Notepad++ updater (gup.exe). Notepad++ does not use these filenames for
+      legitimate updates, and this behavior is indicative of a hijacked update
+      process.
+    references:
+      - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.t1204.002
+      - attack.t1036.005
+      - attack.execution
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent:
+        ParentImage|endswith: '\gup.exe' # Parent process is the Notepad++ updater
+      selection_child:
+        Image|endswith:
+          # Suspicious executable names not used by Notepad++
+          - '\update.exe'
+          - '\AutoUpdater.exe'
+        Image|contains:
+          # Executed from a temporary directory
+          - '\AppData\Local\Temp\'
+          - '\Windows\Temp\'
+      condition: all of selection_*
+    falsepositives:
+      - While other software might use these generic filenames, the combination with
+        the `gup.exe` parent process makes an alert highly suspicious and worth
+        investigating.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1036.005
+tags:
+    - attack.t1204.002
+    - attack.t1036.005
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,71 @@
+id: 019c4d5a-d28b-77cd-8d4c-b39f4160719c
+name: Muddled Libra - PST Exfiltration via S3 Browser
+description: Detects the execution of S3 Browser or Office installation executables, followed by network traffic from the same host to known cloud storage or file-sharing sites within a short time window. This behavior aligns with Muddled Libra's method of staging and exfiltrating sensitive data, such as PST files, to attacker-controlled cloud buckets.
+query: |
+    // Name: Muddled Libra - PST Exfiltration via S3 Browser
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-11
+    // Tactic: Exfiltration, Collection
+    // Technique: T1567.002, T1537
+    // Threat Actor: Muddled Libra (Scattered Spider)
+    // Description: Detects the execution of S3 Browser or Office installation executables, followed by network traffic from the same host to known cloud storage or file-sharing sites within a short time window. This behavior aligns with Muddled Libra's method of staging and exfiltrating sensitive data, such as PST files, to attacker-controlled cloud buckets.
+    // False Positive Sensitivity: Medium. Legitimate use of S3 Browser or Office installers by administrators or developers may trigger this alert. Consider excluding known administrative hosts or accounts if this activity is common and expected in your environment.
+    // References: https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    let lookback = 1d;
+    let timeframe = 30m; // The time window to correlate tool execution with network activity.
+    // Define the tools Muddled Libra was observed using to stage and exfiltrate data.
+    let ExfilTools = dynamic(["s3browser", "OfficeSetup.exe"]);
+    // Define cloud storage and file-sharing domains observed in the attack.
+    let CloudStorageDomains = dynamic([
+        "s3.amazonaws.com",
+        "upload.ee",
+        "uploadnow.io",
+        "filetransfer.io",
+        "filebin.io",
+        "limewire.com",
+        "we.tl",
+        "trycloudflare.com",
+        "s3browser.com"
+    ]);
+    // Step 1: Identify executions of the specified tools.
+    let ToolExecutions = DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    | where FileName has_any (ExfilTools) or ProcessCommandLine has_any (ExfilTools)
+    | project ToolTime = TimeGenerated, DeviceName, AccountName = InitiatingProcessAccountName, ToolFileName = FileName, ToolCommandLine = ProcessCommandLine;
+    // Step 2: Identify network connections to the specified cloud storage domains.
+    let NetworkToCloud = DeviceNetworkEvents
+    | where TimeGenerated > ago(lookback)
+    | where RemoteUrl has_any (CloudStorageDomains)
+    | project NetworkTime = TimeGenerated, DeviceName, DestinationUrl = RemoteUrl, DestinationIp = RemoteIP, NetworkProcess = InitiatingProcessFileName;
+    // Step 3: Join tool executions with subsequent network traffic from the same device.
+    ToolExecutions
+    | join kind=inner (
+        NetworkToCloud
+    ) on DeviceName
+    // Correlate events where the network connection occurs shortly after the tool was executed.
+    | where NetworkTime between (ToolTime .. (ToolTime + timeframe))
+    | project
+        Timestamp = NetworkTime,
+        Activity = "Suspected Data Exfiltration using S3 Browser or Office Installer",
+        ThreatActor = "Muddled Libra",
+        DeviceName,
+        AccountName,
+        ToolFileName,
+        ToolCommandLine,
+        ToolExecutionTime = ToolTime,
+        DestinationUrl,
+        DestinationIp,
+        NetworkProcess
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.002
+    - T1537
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/

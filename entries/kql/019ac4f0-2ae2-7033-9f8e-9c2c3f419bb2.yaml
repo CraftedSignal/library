@@ -1,0 +1,62 @@
+id: 019ac4f0-2ae2-7033-9f8e-9c2c3f419bb2
+name: FormBook RAT Persistence via Disguised Run Key
+description: Detects the FormBook RAT persistence mechanism where it copies itself to a disguised location (%APPDATA%\Roaming\word\word.exe) and creates a registry run key named 'svchost.exe' to ensure execution at user login. The rule correlates the file creation and registry modification events on the same device within a short time window.
+query: |
+    // Name: FormBook RAT Persistence via Disguised Run Key
+    // Author: MS
+    // Date: 2025-11-27
+    // Description: Detects the FormBook RAT persistence mechanism where it copies itself to a disguised location (%APPDATA%\Roaming\word\word.exe) and creates a registry run key named 'svchost.exe' to ensure execution at user login.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+    // MITRE TTPs: T1547.001
+    // Data Source: DeviceFileEvents, DeviceRegistryEvents
+    let Timeframe = 7d;
+    let TimeWindow = 5m;
+    // Look for the creation of the disguised 'word.exe' in the specific AppData path.
+    let FileCreation = DeviceFileEvents
+    | where Timestamp > ago(Timeframe)
+    | where ActionType == "FileCreated"
+    | where FileName =~ "word.exe"
+    | where FolderPath endswith "\\AppData\\Roaming\\word\\"
+    | project FileEventTimestamp = Timestamp, DeviceName, InitiatingProcessFileName_File = InitiatingProcessFileName, FolderPath, FileName;
+    // Look for the creation of the suspicious 'svchost.exe' registry run key.
+    let RegistryPersistence = DeviceRegistryEvents
+    | where Timestamp > ago(Timeframe)
+    | where ActionType == "RegistryValueSet"
+    // Using endswith to match both HKCU and HKEY_USERS\<SID> paths.
+    | where RegistryKey endswith "\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\svchost.exe"
+    // The value data should point to the disguised executable.
+    | where RegistryValueData has "\\AppData\\Roaming\\word\\word.exe"
+    | project RegistryEventTimestamp = Timestamp, DeviceName, InitiatingProcessFileName_Registry = InitiatingProcessFileName, RegistryKey, RegistryValueData;
+    // Correlate the file creation and registry set events on the same device within a short time window.
+    FileCreation
+    | join kind=inner (
+        RegistryPersistence
+    ) on DeviceName
+    | where RegistryEventTimestamp between (FileEventTimestamp .. (FileEventTimestamp + TimeWindow))
+    // Potential for False Positives: Low. This specific combination of file path, file name, registry key name, and registry value is highly indicative of this malware. A false positive would require a legitimate application to mimic this exact behavior.
+    | project
+        Timestamp = FileEventTimestamp,
+        DeviceName,
+        FileCreationTime = FileEventTimestamp,
+        RegistrySetTime = RegistryEventTimestamp,
+        FileName,
+        FolderPath,
+        RegistryKey,
+        RegistryValueData,
+        FileCreatingProcess = InitiatingProcessFileName_File,
+        RegistrySettingProcess = InitiatingProcessFileName_Registry
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1547.001
+    - T1036.005
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/

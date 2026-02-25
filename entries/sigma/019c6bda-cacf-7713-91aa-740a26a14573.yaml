@@ -1,0 +1,78 @@
+id: 019c6bda-cacf-7713-91aa-740a26a14573
+name: Encoded ClickFix Shell Command
+description: |
+    Detects the execution of a command pattern commonly associated with "ClickFix" social engineering attacks. This technique tricks users into pasting a command into their terminal, which typically uses 'echo' to pass a base64 encoded string to the 'base64' utility for decoding, and then pipes the output to a shell for execution. This method is used to bypass traditional OS-level protections like Gatekeeper and Notarization.
+query: |
+    title: Encoded ClickFix Shell Command
+    id: d1e16a3c-1b03-4f0b-aa63-b294bb2af184
+    status: experimental
+    description: >
+      Detects the execution of a command pattern commonly associated with "ClickFix"
+      social engineering attacks.
+      This technique tricks users into pasting a command into their terminal, which
+      typically uses 'echo' to pass a base64 encoded string to the 'base64' utility
+      for decoding, and then pipes the output to a shell for execution.
+      This method is used to bypass traditional OS-level protections like Gatekeeper
+      and Notarization.
+    author: tim@detections.ai
+    references:
+      - https://objective-see.org/blog/blog_0x85.html
+    date: 2026-02-17T00:00:00.000Z
+    tags:
+      - attack.t1059.004
+      - attack.t1140
+      - attack.t1204.002
+      - attack.execution
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection_base:
+        Image|endswith:
+          - '/zsh'
+          - '/bash'
+          - '/sh'
+        CommandLine|contains|all:
+          - 'echo '
+          - 'base64'
+      selection_decode:
+        CommandLine|contains:
+          - ' -D'
+          - ' --decode'
+      selection_pipe:
+        CommandLine|contains:
+          - '| zsh'
+          - '| bash'
+          - '| sh'
+          - '|zsh'
+          - '|bash'
+          - '|sh'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative or development scripts may use this pattern to
+        decode and execute commands. Tuning may be required for environments where
+        this is common practice.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.004
+    - T1140
+    - T1204.004
+tags:
+    - attack.t1059.004
+    - attack.t1140
+    - attack.t1204.002
+    - attack.execution
+    - attack.defense_evasion
+author: tim@detections.ai
+version: "4"
+references:
+    - https://objective-see.org/blog/blog_0x85.html
+data_sources:
+    - process_creation
+    - macos

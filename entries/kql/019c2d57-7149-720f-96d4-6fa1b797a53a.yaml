@@ -1,0 +1,16 @@
+id: 019c2d57-7149-720f-96d4-6fa1b797a53a
+name: Malicious C2/URL Host Network Activity
+description: This rule detects network connections and DNS resolutions to a predefined list of known malicious IP addresses and domains. It also identifies HTTP requests containing specific URL paths ('update/update.exe', '/users/admin', '/api/') when made to these malicious IPs. This behavior is indicative of potential command and control (C2) communication or malware attempting to download updates or exfiltrate data.
+query: "// Known Notepad++ malicious C2 / URL hosts\r\nlet MaliciousHosts = dynamic([\r\n  \"45.76.155.202\", \"45.32.144.255\",\r\n  \"95.179.213.0\", \"temp.sh\",\r\n  \"cdncheck.it.com\", \"safe-dns.it.com\",\r\n  \"self-dns.it.com\", \"45.77.31.210\"\r\n]);\r\n// Search DNS resolutions to these hosts\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (MaliciousHosts)\r\n| project Timestamp, DeviceName, InitiatingProcessFileName, RemoteUrl, RemoteIP, RemotePort, ActionType\r\n\r\n| union\r\n// Look for HTTP requests to known malicious domains or URL paths\r\nDeviceNetworkEvents\r\n| where (RemoteUrl contains \"update/update.exe\"\r\n       or RemoteUrl contains \"/users/admin\"\r\n       or RemoteUrl contains \"/api/\")\r\n| where RemoteIP in (MaliciousHosts)\r\n| project Timestamp, DeviceName, InitiatingProcessFileName, RemoteUrl, RemoteIP, RemotePort;\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1071.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

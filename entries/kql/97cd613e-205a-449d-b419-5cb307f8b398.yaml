@@ -1,0 +1,31 @@
+id: 97cd613e-205a-449d-b419-5cb307f8b398
+name: KQL for detecting potential hashtag#RegreSSHion abuse
+description: KQL Query
+query: "// KQL for detecting potential hashtag#RegreSSHion abuse\n// https://www.linkedin.com/posts/activity-7214588446722465792-FwFr/\n\n// ** Assumption **\n// Firewall logs stream to CommonSecurityLog \n// 6 OpenSSH connections per min for minimum 6 hours\n// 6x60x6 = 2160 connections for past 6 hours\n// Attack source is non-distributed, triangulate by country level\n// Feel free to adjust the assumption parameters to your environment needs\n\nCommonSecurityLog\n| where TimeGenerated >= ago (6h)\n| where DestinationPort == \"22\"\n| extend ip_location=geo_info_from_ip_address(SourceIP)\n| extend Country=tostring(ip_location.country)\n| where Country != \"\"\n| summarize SSH_Connection=count() by Country \n| sort by SSH_Connection desc\n| where SSH_Connection > 2160\n\n// If analytics rule get triggered, this probably warrant a deeper investigation\n\n// MITRE ATT&CK Mapping\n\n// This query can be associated with the following MITRE ATT&CK techniques:\n\n// T1078 - Valid Accounts:\n// Detecting SSH connections can help identify the use of valid accounts for unauthorized access.\n// T1021 - Remote Services:\n// SSH is a remote service, and monitoring connections can help detect unauthorized remote access.\n// T1036 - Masquerading:\n// High volumes of SSH connections from unexpected countries might indicate attempts to masquerade as legitimate users.\n// T1040 - Network Sniffing:\n// Although not directly related, monitoring SSH connections can help identify potential network sniffing activities if attackers are trying to capture credentials.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+    - TA0006
+    - TA0007
+    - TA0040
+techniques:
+    - T1078
+    - T1021
+    - T1036
+    - T1040
+    - T1184
+    - T1021.004
+    - T1563.001
+    - T1110
+    - T1110.004
+    - T1110.001
+    - T1498
+    - T1499
+    - T1498.001
+tags:
+    - kql
+version: "1"

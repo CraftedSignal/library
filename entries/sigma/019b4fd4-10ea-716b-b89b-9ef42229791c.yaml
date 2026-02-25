@@ -1,0 +1,15 @@
+id: 019b4fd4-10ea-716b-b89b-9ef42229791c
+name: Execution from External Media (Windows)
+description: Detects the execution of a process from a newly connected external media device on Windows. This rule correlates the detection of a new Plug and Play (PnP) device with a drive letter (excluding C:\) and subsequent process creation from that drive letter. It requires Plug and Play auditing to be enabled.
+query: "title: Execution from External Media (Windows)\r\nid: 28d8f894-c2da-44e5-aeb0-57a9ca0cb179\r\ndescription: Requires Plug and Play auditing on Windows, set by auditpol or Group Policy \"auditpol /set /subcategory:'Plug and Play Events' /success:enable /failure:enable\"\r\nauthor: Oliver W-J (github.com/DeadRed6)\r\ndate: 2025-12-10\r\nmodified: 2025-12-13\r\ntags:\r\n    - attack.execution\r\n    - attack.t1204.002\r\ncorrelation:\r\n  type: temporal_ordered\r\n  rules:\r\n    - new_pnp_device\r\n    - process_creation\r\n  group-by:\r\n    - ComputerName\r\n  timespan: 10s\r\n---\r\ntitle: External device plugin on Windows with drive letter present\r\nid: 1b36469d-a6da-41c9-abba-a72b0b1d1181\r\ndescription: Detects the presence of a new PnP device with a filesystem. Although Windows drive letters are not limited to A-Z, the regular expression covers the vast majority of cases.\r\nname: new_pnp_device\r\nlogsource:\r\n  product: windows\r\n  service: security\r\ndetection:\r\n  selection:\r\n    EventID: 6416\r\n    ClassName: 'WPD'\r\n    DeviceDescription|re: '[A-Za-z]:\\\\.+'\r\n  condition: selection \r\n---\r\ntitle: Process creation on Windows from external device\r\nid: 632d063e-34a1-4818-a79b-6dd57f4df70b\r\ndescription: Detects execution where the path name begins with the drive letter of the new device. Excludes C:\\ as the most common drive letter. You must exclude other drive letters appearing in your environment such as network drives by adding to the list.\r\nname: process_creation\r\nlogsource:\r\n  product: windows\r\n  service: security\r\ndetection:\r\n  selection:\r\n    EventID: 4688\r\n  exclusion:\r\n    Image|startswith:\r\n      - 'C:\\'\r\n  condition: selection and not exclusion "
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0008
+    - TA0001
+techniques:
+    - T1091
+    - T1204.002
+author: Oliver W-J (github.com/DeadRed6)
+version: "1"

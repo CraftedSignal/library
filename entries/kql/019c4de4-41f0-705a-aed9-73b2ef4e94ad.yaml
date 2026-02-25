@@ -1,0 +1,26 @@
+id: 019c4de4-41f0-705a-aed9-73b2ef4e94ad
+name: Microsoft ClickFix - Network IOCs
+description: This rule detects network connections to known malicious domains and IP addresses associated with the Microsoft ClickFix social engineering technique. It specifically looks for RemoteUrl matching a list of identified domains or RemoteIP matching a list of identified IP addresses within the last 30 days from device network events.
+query: |
+    // Microsoft ClickFix - Network IOCs (domains and IPs from blog)
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+
+    let ioc_domains = dynamic([
+        "mein-lonos-cloude.de", "derko-meru.online", "objectstorage.ap-singapore-2.oraclecloud.com",
+        "tesra.shop", "zzzp.live", "cqsf.live", "access-ssa-gov.es", "binancepizza.info", "panel-spectrum.net",
+        "applemacios.com", "cf-verifi.pages.dev", "jumsotor.cloud", "anunciaconalianzalima.com"
+    ]);
+    let ioc_ips = dynamic([
+        "185.234.72.186", "45.94.31.176", "3.138.123.13", "16.171.23.221",
+        "3.23.103.13", "83.242.96.159", "5.8.9.77"
+    ]);
+
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(30d)
+    | where RemoteUrl has_any (ioc_domains) or RemoteIP has_any (ioc_ips)
+    | project TimeGenerated, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine
+query_type: kql
+tags:
+    - kql
+version: "2"

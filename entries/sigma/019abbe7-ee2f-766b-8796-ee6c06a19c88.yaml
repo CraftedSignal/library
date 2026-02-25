@@ -1,0 +1,57 @@
+id: 019abbe7-ee2f-766b-8796-ee6c06a19c88
+name: Potential PPL Abuse via ClipUp.exe to Disable Defender
+description: Detects the execution of "ClipUp.exe" with specific command-line parameters used to abuse Protected Process Light (PPL) to tamper with the Microsoft Defender process ("MsMpEng.exe"). This technique was observed in the RONINGLOADER campaign.
+query: |
+    title: Potential PPL Abuse via ClipUp.exe to Disable Defender
+    id: b504bd65-ff24-410d-bf3c-e8e286fcde2d
+    status: experimental
+    description: Detects the execution of "ClipUp.exe" with specific command-line
+      parameters used to abuse Protected Process Light (PPL) to tamper with the
+      Microsoft Defender process ("MsMpEng.exe"). This technique was observed in the
+      RONINGLOADER campaign.
+    references:
+      - https://www.elastic.co/security-labs/roningloader
+      - https://www.zerosalarium.com/2025/08/countering-edrs-with-backing-of-ppl-protection.html
+    author: detections.ai
+    date: 2025-11-25
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - attack.t1055
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects the execution of ClipUp.exe, a legitimate Windows binary.
+        Image|endswith: '\ClipUp.exe'
+        # Detects the command-line parameters used for PPL abuse targeting Microsoft Defender.
+        CommandLine|contains|all:
+          - '-ppl'
+          - 'MsMpEng.exe'
+      condition: selection
+    falsepositives:
+      - This technique is highly specific and unlikely to be used for legitimate
+        administrative purposes. However, it may be used by security researchers or
+        penetration testers.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.001
+    - T1055
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.t1055
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/roningloader
+    - https://www.zerosalarium.com/2025/08/countering-edrs-with-backing-of-ppl-protection.html
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,53 @@
+id: 523c0265-3aca-4318-8fa7-9b66dbf17346
+name: Anomalous osk.exe Activity - Potential Accessibility Feature Abuse
+description: Detects potential abuse of the Windows on-screen keyboard (osk.exe) by replacing it with cmd.exe or spawning unusual processes as SYSTEM. This technique can be used for persistence via accessibility features.
+query: |
+    author: Digit Oktavianto (FPT Metrodata Indonesia)
+    title: Anomalous osk.exe Activity - Potential Accessibility Feature Abuse
+    description: Detects potential abuse of the Windows on-screen keyboard (osk.exe)
+      by replacing it with cmd.exe or spawning unusual processes as SYSTEM. This
+      technique can be used for persistence via accessibility features.
+    logsource:
+      product: windows
+      service: sysmon
+    detection:
+      selection_osk:
+        Image|endswith: '\osk.exe' # Detects any process creation involving osk.exe
+      selection_system_user:
+        User: 'NT AUTHORITY\\SYSTEM' # Ensures the process runs as SYSTEM
+      selection_suspicious_child:
+        ParentImage|endswith: '\osk.exe' # Detects processes spawned by osk.exe
+        Image|endswith:
+          - '\cmd.exe' # Commonly abused binary
+          - '\whoami.exe' # Example of a command-line tool
+          - '\net.exe' # Another common tool used by threat actor
+      condition: (selection_osk and selection_system_user) or selection_suspicious_child
+    falsepositives:
+      - Legitimate use of osk.exe during troubleshooting or testing or user using
+        this feature
+    level: high
+    fields:
+      - Image
+      - CommandLine
+      - ParentImage
+      - ParentCommandLine
+      - User
+      - Computer
+    references:
+      - https://attack.mitre.org/techniques/T1546/008/ # MITRE ATT&CK Technique: Accessibility Features
+      - https://gennaromigliaccio.com/hacking-bypassing-windows-7-8-and-10-user-logon-screen-password # Article on bypassing Windows logon screen password
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1546
+author: Digit Oktavianto (FPT Metrodata Indonesia)
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1546/008/
+    - https://gennaromigliaccio.com/hacking-bypassing-windows-7-8-and-10-user-logon-screen-password
+data_sources:
+    - windows
+    - sysmon

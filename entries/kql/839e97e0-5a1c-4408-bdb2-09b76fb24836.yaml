@@ -1,0 +1,16 @@
+id: 839e97e0-5a1c-4408-bdb2-09b76fb24836
+name: DPRK (Famous Chollima) use of Astrill VPN
+description: 'KQL Query from file: DPRK (Famous Chollima) use of Astrill VPN'
+query: "// Name: FC-06: Confirmed Astrill VPN Usage\n// Description: Hunts for network connections to known Astrill VPN IP addresses or domains. This version uses precise matching to reduce false positives.\n// MITRE ATT&CK: T1572\n// Required Tables: DeviceNetworkEvents\n// Fidelity: Medium to High (context-dependent)\n/*\n| summarize\n    StartTime = min(Timestamp),\n    EndTime = max(Timestamp),\n    // Replace \"CORRECT_COLUMN_NAME_SENT\" and \"CORRECT_COLUMN_NAME_RECEIVED\" with the names you found in step 2.\n    TotalBytes = sum(CORRECT_COLUMN_NAME_SENT + CORRECT_COLUMN_NAME_RECEIVED)\n    by DeviceName, RemoteIP, RemoteUrl, InitiatingProcessFileName\n| where TotalBytes > 1024\n*/\n\n// IOC lists updated based on new information.\nlet vpn_ips = dynamic(['38.140.49.92', '45.58.143.196', '45.89.55.4', '70.39.103.3', '70.39.70.196', '70.39.70.197', '74.222.20.18', '74.63.233.50', '91.239.130.102', '103.130.145.210', '104.129.22.2', '104.206.40.138', '104.223.97.2', '104.243.33.74', '104.250.148.58', '113.20.30.139', '134.195.197.175', '146.185.26.150', '167.88.61.250', '169.38.132.135', '169.57.129.31', '172.93.100.166', '172.96.141.172', '174.128.251.99', '185.108.128.54', '192.74.247.161', '192.119.10.67', '192.119.11.250', '194.34.133.79', '198.2.228.20', '198.135.49.154', '199.115.99.34', '199.115.99.62', '204.44.111.103', '204.188.232.195', '204.188.233.68']);\nlet vpn_domains = dynamic(['astrill.com', 'astrill.org']);\nDeviceNetworkEvents\n| extend Host = tostring(parse_url(RemoteUrl).Host)\n| where RemoteIP in (vpn_ips) or \n    (\n        Host in (vpn_domains) or \n        Host endswith \".astrill.com\" or \n        Host endswith \".astrill.org\"\n    )"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1572
+tags:
+    - kql
+author: security4all
+version: "1"
+references:
+    - https://www.silentpush.com/blog/astrill-vpn/

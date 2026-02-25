@@ -1,0 +1,15 @@
+id: 3ee8a19d-4aca-4c84-b153-3df06edeeb0d
+name: MAC Flapping Detected
+description: This detection identifies a single MAC address rapidly appearing on multiple switch ports within a short time frame. This behavior, known as MAC flapping, is a strong indicator of a network loop, which can cause broadcast storms and degrade or disable network services.
+query: "// Detects MAC addresses rapidly moving between switch ports (MAC flapping)\nSyslog\n| where Facility == \"local7\" or Facility == \"daemon\"  // adjust for your switch syslog facility\n| where SyslogMessage has_any (\"MAC\", \"flap\", \"moved\", \"learned on\")  // keywords vary by vendor\n| extend \n    MACAddress = extract(@\"([0-9A-Fa-f]{2}([-:]|$)){6}\", 0, SyslogMessage),\n    Interface = extract(@\"port\\s+(\\S+)\", 1, SyslogMessage) // adjust regex for your switch logs\n| where isnotempty(MACAddress) and isnotempty(Interface)\n| summarize \n    Ports = make_set(Interface), \n    PortCount = dcount(Interface),\n    Events = count(), \n    FirstSeen = min(TimeGenerated), \n    LastSeen = max(TimeGenerated)\n    by MACAddress, bin(TimeGenerated, 5m)\n| where PortCount > 2  // Threshold: same MAC seen on >2 interfaces in 5 min\n| project \n    TimeWindowStart = FirstSeen,\n    TimeWindowEnd = LastSeen,\n    MACAddress,\n    PortCount,\n    Ports,\n    Events\n| order by Events desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1498
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cisco.com/c/en/us/support/docs/smb/switches/sf250-24-smart-switch/214623-troubleshoot-a-mac-address-flapping-issu.html

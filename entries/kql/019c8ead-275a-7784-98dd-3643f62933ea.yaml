@@ -1,0 +1,18 @@
+id: 019c8ead-275a-7784-98dd-3643f62933ea
+name: Impossible Travel - Sign-ins from Geographically Impossible Locations
+description: This rule detects 'impossible travel' scenarios where a user successfully signs in from two geographically distant locations within an implausibly short time frame (less than 120 minutes). It specifically looks for sign-ins where the country of origin changes between consecutive successful login events for the same user.
+query: "// Detection: Impossible Travel - Sign-ins from geographically impossible locations\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1078 - Valid Accounts\r\n\r\nSigninLogs\r\n| where TimeGenerated > ago(1d)\r\n| where ResultType == \"0\"\r\n| where isnotempty(IPAddress)\r\n| extend\r\n    City    = tostring(LocationDetails.city),\r\n    Country = tostring(LocationDetails.countryOrRegion)\r\n| project TimeGenerated, UserPrincipalName, IPAddress, City, Country\r\n| sort by UserPrincipalName asc, TimeGenerated asc\r\n| serialize\r\n| extend\r\n    PrevTime    = prev(TimeGenerated, 1),\r\n    PrevCountry = prev(Country, 1),\r\n    PrevUser    = prev(UserPrincipalName, 1)\r\n| where UserPrincipalName == PrevUser\r\n| extend TimeDiffMin = datetime_diff('minute', TimeGenerated, PrevTime)\r\n| where TimeDiffMin < 120\r\n    and Country != PrevCountry\r\n    and isnotempty(PrevCountry)\r\n| extend AlertDescription = strcat(\r\n    \"User signed in from \", PrevCountry,\r\n    \" then \", Country,\r\n    \" within \", TimeDiffMin, \" minutes — Impossible Travel\")\r\n| project TimeGenerated, UserPrincipalName, IPAddress,\r\n          Country, PrevCountry, TimeDiffMin, AlertDescription\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

@@ -1,0 +1,23 @@
+id: cea7a80b-1be8-4141-9b16-8dcbb5b92112
+name: Suspicious MFA Registration
+description: |-
+    This KQL query analyzes Microsoft Entra ID (formerly Azure AD) sign-in and audit logs to identify potentially risky multi-factor authentication (MFA) registration events. It works by checking for MFA registrations initiated from a new, previously unseen IP address.
+
+    The query joins historical sign-in data with recent MFA-related events. It calculates how many unique days an IP address has been used by a specific user over the last 30 days. It then flags any MFA registration event from the last 24 hours where the IP address is a new IP (seen zero days before). The final results are filtered to exclude events from new user accounts (created in the last 60 days) to focus on more established accounts.
+query: "// Analyze historical login data, calculating the number of unique days an IP address has been seen per user. \r\nlet OwnIPRangeStart = \"xx.xx\";\r\nlet IpHistory = AADSignInEventsBeta \r\n| where ErrorCode == 0 \r\n| where Timestamp between (ago(30d) .. ago(1d))\r\n| summarize DaysSeen = dcount(startofday(Timestamp)) by AccountUpn, IPAddress;\r\n// Get recent MFA-related events from the last 24 hours. \r\nlet RecentMfaEvents = AuditLogs \r\n| where TimeGenerated between (ago(1d) .. now()) \r\n| where OperationName in ( \"User registered security info\", \"Register security info\", \"Add phone authentication method\", \"StrongAuthenticationMethodChanged\" ) \r\n| extend InitiatedByJson = parse_json(InitiatedBy) | extend ActorIp = tostring(InitiatedByJson.user.ipAddress), Actor = tostring(InitiatedByJson.user.userPrincipalName) \r\n| where ActorIp !startswith (OwnIPRangeStart) and isnotempty(ActorIp) \r\n| where AADOperationType != \"ServiceApi\"\r\n//use the following line only if Email is not allowed as a 2nd factor\r\n| where ResultDescription != \"User registered Email\" ;\r\n// Join the MFA events with historical login data to assess IP risk.\r\nRecentMfaEvents\r\n| join kind=leftouter (\r\nAADSignInEventsBeta\r\n| where ErrorCode == 0\r\n| summarize arg_max(Timestamp, *) by AccountUpn, IPAddress\r\n| project Timestamp, AccountUpn, IPAddress, Country, ReportId\r\n) on $left.Actor == $right.AccountUpn\r\n| join kind=leftouter IpHistory\r\non $left.Actor == $right.AccountUpn\r\nand $left.IPAddress == $right.IPAddress\r\n| extend DaysSeenBefore = coalesce(DaysSeen, 0)\r\n| extend IPRiskLevel = case(\r\nDaysSeenBefore == 0, \"High Risk - New IP\",\r\nDaysSeenBefore <= 1, \"Seen only once before\",\r\nDaysSeenBefore <= 3, \"Seen a few times\",\r\nDaysSeenBefore > 3, \"Frequently seen\",\r\n\"Unknown\"\r\n)\r\n//Filter for new IPs only\r\n| where DaysSeenBefore == 0\r\n| extend Timestamp = TimeGenerated\r\n| summarize arg_max(TimeGenerated, *) by OperationName, Actor, ActorIp, IPAddress, DaysSeenBefore, IPRiskLevel, Country, ReportId, ResultDescription\r\n// join User CreatedDateTime\r\n| join kind=inner (IdentityInfo \r\n                    | summarize arg_max(CreatedDateTime, *) by AccountUpn\r\n                    | project AccountUpn, CreatedDateTime ) \r\n                    on $left.Actor == $right.AccountUpn\r\n// exclude new Users\r\n| where CreatedDateTime < ago(60d)\r\n| summarize arg_min(TimeGenerated, *) by Actor"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1621
+    - T1098.004
+    - T1566.002
+    - DS0002
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "3"

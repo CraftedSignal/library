@@ -1,0 +1,47 @@
+id: 019c0aca-1e4b-7789-b4f5-41f6e8377c7f
+name: DeadLock Ransomware C2 via Polygon RPC
+description: Detects network connections to Polygon (MATIC) blockchain RPC endpoints. The DeadLock ransomware strain has been observed using smart contracts on the Polygon network to retrieve C2 proxy server addresses, making this a key indicator of compromise.
+query: |
+    // Name: DeadLock Ransomware C2 via Polygon RPC
+    // Author: detections.ai
+    // Date: 2026-01-29
+    // Description: Detects network connections to Polygon (MATIC) blockchain RPC endpoints. The DeadLock ransomware strain has been observed using smart contracts on the Polygon network to retrieve C2 proxy server addresses, making this a key indicator of compromise.
+    // False Positive Sensitivity: Medium
+    // Reference: https://thehackernews.com/2026/01/threatsday-bulletin-new-rces-darknet.html
+
+    // Define an allowlist of hosts that are expected to connect to blockchain RPC endpoints.
+    // This is a key tuning step to reduce false positives from legitimate developer or research activity.
+    let KnownBlockchainHosts = dynamic([
+        "dev-host-01.contoso.com",
+        "research-vm-polygon.contoso.com"
+        // Add other known developer or blockchain node hostnames here.
+    ]);
+
+    DeviceNetworkEvents
+    // Look for network connections to known Polygon RPC endpoints.
+    | where RemoteUrl has_any (
+            "polygon-rpc.com",
+            "rpc.ankr.com/polygon",
+            "polygon-mainnet.g.allthatnode.com"
+        )
+    // Exclude connections from hosts that are known to perform legitimate blockchain-related activities.
+    | where not(DeviceName in~ (KnownBlockchainHosts))
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "4"
+references:
+    - https://thehackernews.com/2026/01/threatsday-bulletin-new-rces-darknet.html

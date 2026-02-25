@@ -1,0 +1,79 @@
+id: 019b5879-3e04-761e-bc85-1b6411c55fbd
+name: Interpreter Contacting Multiple Unique Domains
+description: |
+    Detects a host initiating network connections to multiple unique domains within a short time frame using common tools and interpreters.
+    This can be indicative of C2 channel rotation, or network enumeration.
+    This rule is excluding certain cloud metadata services.
+
+    This rule requires a correlation engine to aggregate events over time.
+query: |
+    title: Interpreter Contacting Multiple Unique Domains
+    id: 991eb7cd-d4ed-48a7-bb2f-a92c321158ff
+    status: experimental
+    description: |
+      Detects a host initiating network connections to multiple unique domains within a short time frame using common tools and interpreters.
+      This can be indicative of C2 channel rotation, or network enumeration.
+      This rule is excluding certain cloud metadata services.
+
+      This rule requires a correlation engine to aggregate events over time.
+
+    references:
+      - https://attack.mitre.org/tactics/TA0007/
+      - https://attack.mitre.org/techniques/T1059/
+      - https://attack.mitre.org/techniques/T1071/
+    author: author, detections.ai (modified)
+    date: 2025/12/16
+    tags:
+      - attack.command_and_control
+      - attack.TA0007
+      - attack.t1071
+    logsource:
+      category: network_connection
+      product: linux
+    detection:
+      selection:
+        Image|endswith:
+          - '/curl'
+          - '/wget'
+          - '/python'
+          - '/perl'
+          - '/ruby'
+        # Exclude common cloud metadata services to reduce noise
+      filter_metadata_services:
+        DestinationHostname|contains:
+          - '168.63.129.16'
+          - '169.254.169.254'
+          - 'metadata.google.internal'
+      timeframe: 10m # Condition aggregates the count of unique destination hostnames per user and computer
+      condition: selection and not filter_metadata_services |
+        count(DestinationHostname) by User, Computer > 5
+    falsepositives:
+      - Legitimate scripts used for system administration, software updates (package
+        managers), or monitoring that contact multiple different endpoints.
+      - Developers running tests or scripts that interact with various APIs.
+    level: medium
+    fields:
+      - User
+      - Computer
+      - Image
+      - DestinationHostname
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0011
+techniques:
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.TA0007
+    - attack.t1071
+author: author, detections.ai (modified)
+version: "1"
+references:
+    - https://attack.mitre.org/tactics/TA0007/
+    - https://attack.mitre.org/techniques/T1059/
+    - https://attack.mitre.org/techniques/T1071/
+data_sources:
+    - network_connection
+    - linux

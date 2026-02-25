@@ -1,0 +1,73 @@
+id: f9584117-0540-4403-96f1-4414514b7085
+name: Unusual Device Registration in Entra ID
+description: Detects a sequence of events indicative of a new device being registered using a refresh token, a TTP associated with the ROADtools framework following an OAuth phishing attack. This sequence involves the Device Registration Service adding a device with a specific hardcoded OS version, followed by user and owner assignments, all within a short timeframe and sharing the same correlation ID.
+query: |
+    title: Unusual Device Registration in Entra ID
+    id: 808bb48c-28a2-439c-932b-1c5059476995
+    status: experimental
+    description: >-
+      Detects a sequence of events indicative of a new device being registered using
+      a refresh token, a TTP associated with the ROADtools framework following an
+      OAuth phishing attack. This sequence involves the Device Registration Service
+      adding a device with a specific hardcoded OS version, followed by user and
+      owner assignments, all within a short timeframe and sharing the same
+      correlation ID.
+    references:
+      - >-
+        https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection?linkId=834541216
+      - >-
+        https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    author: Aaron Mog - detections.ai
+    date: 2025-07-09
+    tags:
+      - attack.persistence
+      - attack.t1136.003
+    logsource:
+      product: azure
+      category: audit
+      service: activitylogs
+    detection:
+      add_device:
+        identity: Device Registration Service
+        operation_name: Add device
+        properties.additional_details.value|contains: Microsoft.OData.Client/
+        properties.target_resources.modified_properties.new_value|contains: 10.0.19041.928
+      add_user:
+        operation_name: Add registered users to device
+        properties.target_resources.modified_properties.new_value|contains: urn:ms-drs:enterpriseregistration.windows.net
+      add_owner:
+        operation_name: Add registered owner to device
+      timeframe: 1m
+      condition: add_device then add_user then add_owner by correlation_id
+    falsepositives:
+      - >-
+        Legitimate, automated device registration scripts could potentially trigger
+        this rule, although the hardcoded OS version string is highly specific to
+        the ROADtx tool. Investigate the context of the registration, such as the
+        initiating user and source IP address.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0001
+    - TA0010
+    - TA0004
+    - TA0005
+techniques:
+    - T1136.003
+    - T1566
+    - T1537
+    - T1098.005
+    - T1134
+tags:
+    - attack.persistence
+    - attack.t1136.003
+author: detections.ai
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection?linkId=834541216
+    - https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+data_sources:
+    - audit
+    - azure

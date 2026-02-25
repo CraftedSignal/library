@@ -1,0 +1,69 @@
+id: 0199f348-0d58-7415-9469-27c318ade93a
+name: UNC5142 CLEARSHORT JavaScript Injection in WordPress File
+description: Detects the modification of common WordPress PHP files to include content characteristic of the UNC5142 CLEARSHORT infection chain. This activity is indicative of a compromised web server. This rule requires a File Integrity Monitoring (FIM) solution or EDR that can inspect the contents of modified files.
+query: |
+    title: UNC5142 CLEARSHORT JavaScript Injection in WordPress File
+    id: 7375c305-3ef8-4a1d-a29f-38049b7f05a3
+    status: experimental
+    description: Detects the modification of common WordPress PHP files to include
+      content characteristic of the UNC5142 CLEARSHORT infection chain. This
+      activity is indicative of a compromised web server. This rule requires a File
+      Integrity Monitoring (FIM) solution or EDR that can inspect the contents of
+      modified files.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/
+    author: detections.ai
+    date: 2025-10-17
+    tags:
+      - attack.t1505.003
+      - attack.t1199
+      - attack.t1592.002
+      - threat_actor.unc5142
+    logsource:
+      category: file_event # product: linux/windows/fim_product can be added for more specificity
+    detection:
+      # This selection targets common WordPress files that are modified by the threat actor.
+      selection_file:
+        file.path|contains:
+          - '/wp-content/plugins/'
+          - '/wp-content/themes/'
+          - '\wp-content\plugins\'
+          - '\wp-content\themes\'
+        file.name|endswith:
+          - 'header.php'
+          - 'footer.php'
+          - 'index.php'
+        # This selection looks for content from the malicious CLEARSHORT stage 1 javascript.
+        # Note: This detection requires a log source that can inspect file content. The field name may vary (e.g., file.content, event.data, etc.).
+      selection_content:
+        file_content_placeholder|contains|all:
+          - 'new Web3('
+          - 'bsc-dataseed.binance.org'
+          - 'pako.ungzip'
+        # This selection looks for the hardcoded smart contract address used by UNC5142.
+      selection_content_ioc:
+        file_content_placeholder|contains:
+          - '0x9179dda8B285040Bf381AABb8a1f4a1b8c37Ed53'
+      condition: selection_file and (selection_content or selection_content_ioc)
+    falsepositives:
+      - Legitimate WordPress plugins that interact with the Binance Smart Chain.
+        However, the combination of these strings in core/theme/plugin PHP files is
+        highly indicative of malicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - attack.t1505.003
+    - attack.t1199
+    - attack.t1592.002
+    - threat_actor.unc5142
+author: detections.ai
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc5142-etherhiding-distribute-malware/
+data_sources:
+    - file_event

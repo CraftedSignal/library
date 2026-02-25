@@ -1,0 +1,23 @@
+id: 4a6f2589-1f8f-4740-ad15-9980942dbdf0
+name: Regsvr32 Execution with Suspicious Parameters
+description: Detects the execution of regsvr32.exe with suspicious command-line parameters, often used by adversaries to execute malicious code (e.g., scripts, DLLs) from remote locations or local script files. This technique is a common LOLBAS method for proxy execution.
+query: "title: Regsvr32 Execution with Suspicious Parameters\r\nid: 0b88fc35-4f4e-4581-80d7-8b7fa26e49c4\r\nstatus: experimental\r\ndescription: Detects the execution of regsvr32.exe with suspicious command-line parameters, often used by adversaries to execute malicious code (e.g., scripts, DLLs) from remote locations or local script files. This technique is a common LOLBAS method for proxy execution.\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1218/010/\r\nauthor: detections.ai\r\ndate: 2025-08-08\r\ntags:\r\n  - attack.execution\r\n  - attack.defense_evasion\r\n  - attack.t1218.010\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection_process:\r\n        # Detects the regsvr32.exe process\r\n    Image|endswith: '\\regsvr32.exe'\r\n  selection_silent:\r\n        # Looks for the silent flag, common in malicious executions to avoid user interaction\r\n    CommandLine|contains: '/s'\r\n  selection_suspicious_target:\r\n        # Detects remote targets or scriptlet files which are classic indicators of misuse\r\n    CommandLine|contains:\r\n      - 'http:'\r\n      - 'https:'\r\n      - 'ftp:'\r\n      - 'scrobj.dll'       # Scripting object DLL used to process scriptlets\r\n      - '.sct'             # Windows Scriptlet file\r\n      - '\\\\'               # UNC path for remote file execution\r\n  condition: all of selection_*\r\nfalsepositives:\r\n  - Legitimate software installers or updaters might use regsvr32.exe to register components from network shares. It may be necessary to tune this rule by excluding known legitimate parent processes or command-line patterns.\r\nlevel: high\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1218.010
+    - T1218
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1218.010
+author: detections.ai
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1218/010/
+data_sources:
+    - process_creation
+    - windows

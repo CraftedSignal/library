@@ -1,0 +1,15 @@
+id: 019a1730-4632-73d3-b614-369a952f6ccc
+name: Suspicious SPN Logon from Workstation
+description: This rule detects suspicious service account (SPN enabled) logon attempts originating from workstation subnets. This activity can be an indicator of credential dumping techniques. The rule looks for Event ID 4768 (A Kerberos authentication ticket (TGT) was requested) where the target user name is a known SPN-enabled account and the source IP address falls within defined workstation subnets.
+query: "// Description  : Detect Suspicious SPN logon from Workstations. \n//                This activity is an artifact of the new Credential Dumping techique that bypasses Credential Guard.\n// Author       : Cyb3rMonk\n// Website      : https://academy.bluraven.io\n// Reference    : https://specterops.io/blog/2025/10/23/catching-credential-guard-off-guard/\n// Notes        : Block standard domain users from joining machines to domain.\nlet workstation_subnets = dynamic([\"add_your_workstation_subnets\"]);\nlet spn_accounts = dynamic([\"add_your_spn_enabled_accounts\"]);\nSecurityEvent\n| where TimeGenerated > ago(1h)\n| where EventID == 4768\n| where TargetUserName in (spn_accounts)\n| extend IpAddress = replace_string(IpAddress, \"::ffff:\", \"\")\n| where ipv4_is_in_any_range(IpAddress, workstation_subnets)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+tags:
+    - kql
+author: Blu Raven Academy
+version: "2"
+references:
+    - https://specterops.io/blog/2025/10/23/catching-credential-guard-off-guard/
+    - https://academy.bluraven.io

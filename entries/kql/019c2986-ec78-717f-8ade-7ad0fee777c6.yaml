@@ -1,0 +1,13 @@
+id: 019c2986-ec78-717f-8ade-7ad0fee777c6
+name: List out Internet facing Devices  with Vulnerable Notepad ++ Supply Chain Attack
+description: This rule identifies internet-facing devices that have Notepad++ installed with versions outside of a specified approved list. It correlates software inventory with device exposure data to highlight externally exposed systems, summarizes the affected Notepad++ versions per device, and prioritizes results based on exposure level for risk-based remediation.
+query: "// ð\x9F\x94\x8D KQL Description\n// This KQL query identifies internet-facing devices that have Notepad++ installed with versions outside the approved/safe list. It correlates software inventory with device exposure data to highlight externally exposed systems, summarizes the affected Notepad++ versions per device, and prioritizes results based on exposure level for risk-based remediation.\n// ð\x9F§© MITRE ATT&CK Mapping\n// Tactic:TA0001 Initial Access\nDeviceTvmSoftwareInventory\n| where SoftwareName contains \"Notepad++\"\n| extend Version = parse_version(SoftwareVersion)\n| where Version < parse_version(\"8.8.9\")\n| join kind=inner (\n    DeviceInfo\n    | where IsInternetFacing == true\n) on DeviceId\n| summarize\n    DeviceName        = any(DeviceName),\n    OSPlatform        = any(OSPlatform),\n    PublicIP          = any(PublicIP),\n    ExposureLevel     = any(ExposureLevel),\n    IsInternetFacing  = any(IsInternetFacing),\n    SoftwareName      = any(SoftwareName),\n    InstalledVersions = make_set(SoftwareVersion),\n    VersionCount      = dcount(SoftwareVersion)\n  by DeviceId\n| order by ExposureLevel desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+tags:
+    - kql
+version: "4"
+references:
+    - https://notepad-plus-plus.org/news/hijacked-incident-info-update/

@@ -1,0 +1,22 @@
+id: c9d359cb-580c-4372-9e63-8f4ad73d2d51
+name: defendnot detection
+description: 'KQL Query from file: defendnot detection'
+query: "// https://emsroute.com/2025/05/23/why-defendnot-is-a-wakeup-call-a-ground-level-analysis/\n// https://github.com/es3n1n/defendnot\n// https://www.huntress.com/blog/defendnot-detecting-malicious-security-product-bypass-techniques\n\n// Remember to set the query period - v2 detection \n\nlet AvModeDescription = dynamic({\"0\":\"Normal\", \"1\":\"Passive\", \"4\":\"EDR Block\"});\nlet DeviceEDRPassive =\nDeviceTvmInfoGathering\n| extend AdditionalFields = parse_json(AdditionalFields)\n| extend AvEngineVersion = tostring(AdditionalFields.[\"AvEngineVersion\"])\n| extend AvPlatformVersion = tostring(AdditionalFields.[\"AvPlatformVersion\"])\n| extend AvMode =  tostring(AvModeDescription[tostring(AdditionalFields.[\"AvMode\"])])\n| where isnotempty( AvMode ) and AvMode == \"Passive\"\n| distinct DeviceName;\nDeviceFileEvents\n| where ActionType == \"FileCreated\"\n| where FileName has \"ctx.bin\"\n| where DeviceName has_any(DeviceEDRPassive)\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0007
+    - TA0006
+    - TA0043
+techniques:
+    - T1211
+    - T1622
+    - T1144
+    - T1553.001
+    - T1167
+    - T1596.001
+    - T1562.009
+    - T1593.003
+tags:
+    - kql
+version: "1"

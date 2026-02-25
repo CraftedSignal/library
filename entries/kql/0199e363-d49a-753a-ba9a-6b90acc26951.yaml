@@ -1,0 +1,16 @@
+id: 0199e363-d49a-753a-ba9a-6b90acc26951
+name: Unauthorised Email Preview or Download by Microsoft 365 Admin/User
+description: |-
+    In Microsoft 365 environments, administrators and certain privileged users can access mailbox content through actions such as email preview or message download. While these capabilities are often used for legitimate purposes — such as security investigations, eDiscovery, or incident response — they also represent a potential insider threat or privacy violation risk if misused.
+
+    Unauthorized access to mailbox data can expose confidential communications, sensitive attachments, or personally identifiable information (PII). Therefore, it’s crucial to continuously monitor when administrators perform actions like:
+    GetMailPreviewUrl – viewing an email’s content through a preview link
+    DownloadEMail – exporting or downloading a full email message
+
+    If these actions are not tied to a legitimate investigation or security workflow, they could indicate abuse of administrative privileges or data exfiltration attempts.
+query: "let AdminMailAccess = CloudAppEvents \n| where ActionType == \"AdminMailAccess\"  \n| extend Admin_Action = parse_json(RawEventData.ExtendedProperties.[0].Name)  \n| extend UserMailBox = parse_json(RawEventData.ExtendedProperties.[1].Value)  \n| extend MessageID = parse_json(RawEventData.ExtendedProperties.[2].Value)  \n| where Admin_Action in (\"GetMailPreviewUrl\",\"DownloadEMail\")\n| extend NetworkMessageID = tostring(MessageID);\n// Get reported phishing/malware alerts and extract network message IDs\nlet ReportedPhishing = SecurityAlert \n| where AlertName contains \"Email reported\"\n| extend ExtendedProps = parse_json(ExtendedProperties)\n| extend Entities = parse_json(ExtendedProps.Entities)\n| mv-expand Entities\n| extend EntityType = tostring(Entities.Type)\n| where EntityType == \"mail-message\" // Adjust this based on your entity structure\n| extend NetworkMessageID = tostring(Entities.NetworkMessageId) // Adjust path as needed\n| where isnotempty(NetworkMessageID)\n| distinct NetworkMessageID;\n// Join to exclude legitimate downloads of reported phishing emails\nAdminMailAccess\n| join kind=leftanti ReportedPhishing on NetworkMessageID\n| project \n    TimeGenerated,\n    AccountDisplayName,\n    Admin_Action,\n    UserMailBox,\n    NetworkMessageID,\n    IPAddress,\n    UserAgent\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "2"

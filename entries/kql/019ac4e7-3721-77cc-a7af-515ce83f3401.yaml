@@ -1,0 +1,68 @@
+id: 019ac4e7-3721-77cc-a7af-515ce83f3401
+name: LANDFALL Spyware SELinux Policy Manipulator Detection
+description: Detects the creation or loading of the LANDFALL spyware's SELinux policy manipulator component (`l.so`). This component is used to gain elevated permissions and persistence on compromised Samsung Android devices. The rule identifies the component by its known hash or by its specific file name and path (`/data/data/com.samsung.ipservice/files/l.so`).
+query: |
+    // Name: LANDFALL Spyware SELinux Policy Manipulation
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the creation or loading of the LANDFALL spyware's SELinux policy manipulator component (`l.so`). This component is used to gain elevated permissions and persistence on compromised Samsung Android devices. The rule identifies the component by its known hash or by its specific file name and path (`/data/data/com.samsung.ipservice/files/l.so`).
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    // MITRE TTPs: T1548.002
+    // Data Source: DeviceFileEvents, DeviceImageLoadEvents (Microsoft Defender for Endpoint for Android)
+    let Timeframe = 7d;
+    // Hashes for the SELinux manipulator component (l.so) and its compressed precursor (l)
+    let LandfallManipulatorHashes = dynamic([
+        "69cf56ac6f3888efa7a1306977f431fd1edb369a5fd4591ce37b72b7e01955ee", // l.so / localfile~
+        "211311468f3673f005031d5f77d4d716e80cbf3c1f0bb1f148f2200920513261"  // l (XZ compressed file)
+    ]);
+    // Specific path where the components are dropped
+    let LandfallStagingPath = "/data/data/com.samsung.ipservice/files/";
+    // Known filenames for the components
+    let LandfallFileNames = dynamic(["l.so", "l", "localfile~"]);
+    (
+        union
+        // Detect the creation of the malicious files
+        (DeviceFileEvents
+        | where Timestamp > ago(Timeframe)
+        | where OSPlatform == "Android"
+        | where ActionType == "FileCreated"
+        // Match on high-fidelity hash or specific path/filename combination
+        | where SHA256 in (LandfallManipulatorHashes)
+            or (FolderPath == LandfallStagingPath and FileName in (LandfallFileNames))
+        | extend Activity = "LANDFALL SELinux Manipulator File Created"
+        ),
+        // Detect the loading of the malicious shared object
+        (DeviceImageLoadEvents
+        | where Timestamp > ago(Timeframe)
+        | where OSPlatform == "Android"
+        // Match on high-fidelity hash or specific path/filename combination
+        | where SHA256 in (LandfallManipulatorHashes)
+            or (FolderPath == LandfallStagingPath and FileName == "l.so")
+        | extend Activity = "LANDFALL SELinux Manipulator Component Loaded"
+        )
+    )
+    // Potential for False Positives: Extremely low. The combination of file path and name is highly specific to this threat.
+    // An alert from this rule indicates a high-confidence compromise of a Samsung Android device.
+    | project
+        Timestamp,
+        DeviceName,
+        Activity,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1548
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/

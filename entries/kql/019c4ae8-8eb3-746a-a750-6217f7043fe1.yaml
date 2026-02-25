@@ -1,0 +1,15 @@
+id: 019c4ae8-8eb3-746a-a750-6217f7043fe1
+name: 'Detection upStage Proxyware IOCs '
+description: Hunts for Indicators of Compromise (IOCs) associated with the upStage proxyware campaign, which distributes malware via fake software installers (e.g., 7-Zip). This query searches for known file hashes, file paths, and network connections.
+query: "let MaliciousHashes = dynamic([\r\n    \"e7291095de78484039fdc82106d191bf41b7469811c4e31b4228227911d25027\",\r\n    \"b7a7013b951c3cea178ece3363e3dd06626b9b98ee27ebfd7c161d0bbcfbd894\",\r\n    \"3544ffefb2a38bf4faf6181aa4374f4c186d3c2a7b9b059244b65dce8d5688d9\"\r\n]);\r\nlet C2Domains = dynamic([\r\n    \"soc.hero-sms.co\", \"neo.herosms.co\", \"flux.smshero.co\", \"nova.smshero.ai\",\r\n    \"apex.herosms.ai\", \"spark.herosms.io\", \"zest.hero-sms.ai\", \"prime.herosms.vip\",\r\n    \"vivid.smshero.vip\", \"mint.smshero.com\", \"pulse.herosms.cc\", \"glide.smshero.cc\",\r\n    \"svc.ha-teams.office.com\", \"iplogger.org\"\r\n]);\r\nlet MaliciousIPs = dynamic([\r\n    \"104.21.57.71\",\r\n    \"172.67.160.241\"\r\n]);\r\nlet MaliciousPath = @\"C:\\Windows\\SysWOW64\\hero\\\";\r\n\r\nunion\r\n(\r\n    DeviceNetworkEvents\r\n    | where RemoteUrl has_any (C2Domains) or RemoteDomain has_any (C2Domains)\r\n    | extend EventType = \"Network\", Indicator = coalesce(RemoteUrl, RemoteDomain), IndicatorType = \"Domain\"\r\n    | project Timestamp, DeviceName, EventType, Indicator, IndicatorType, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName = InitiatingProcessAccountName\r\n),\r\n(\r\n    DeviceFileEvents\r\n    | where FolderPath has MaliciousPath or SHA256 in (MaliciousHashes)\r\n    | extend EventType = \"File\", Indicator = coalesce(SHA256, FullName), IndicatorType = iif(SHA256 in (MaliciousHashes), \"FileHash\", \"FilePath\")\r\n    | project Timestamp, DeviceName, EventType, Indicator, IndicatorType, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName\r\n),\r\n(\r\n    DeviceProcessEvents\r\n    | where FolderPath has MaliciousPath or SHA256 in (MaliciousHashes)\r\n    | extend EventType = \"Process\", Indicator = coalesce(SHA256, FileName), IndicatorType = iif(SHA256 in (MaliciousHashes), \"FileHash\", \"FilePath\")\r\n    | project Timestamp, DeviceName, EventType, Indicator, IndicatorType, FileName, ProcessCommandLine, AccountName, InitiatingProcessFileName = ParentProcessFileName, InitiatingProcessCommandLine = ParentProcessCommandLine\r\n)\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1071.001
+    - T1090.002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/threat-intel/2026/02/fake-7-zip-downloads-are-turning-home-pcs-into-proxy-nodes

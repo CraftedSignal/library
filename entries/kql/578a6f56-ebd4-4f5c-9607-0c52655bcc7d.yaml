@@ -1,0 +1,9 @@
+id: 578a6f56-ebd4-4f5c-9607-0c52655bcc7d
+name: Detect EDRKiller Tool Execution
+description: The rule detects potential execution or presence of EDRKiller or similar tools by matching known malicious hashes from an external source against telemetry from Defender for Endpoint to help security analysts identify compromised endpoints, investigate delivery methods, and take remediation actions.
+query: "// ð\x9F\x94\x8D KQL Description\n// The goal is to detect potential execution or presence of EDRKiller or similar tools in the environment by matching known malicious hashes against telemetry from Defender for Endpoint.\n// This helps security analysts:\n// 1.Identify compromised endpoints.\n// 2.Investigate how the tool was delivered or executed.\n// 3.Take remediation actions.\n// ð\x9F§© MITRE ATT&CK Mapping\n// Tactic: Defense Evasion\n// Technique: Technique: Impair Defenses (T1562)\n// Sub-techniques:\n// 1.Disable or Modify Tools (T1562.001) â\x80\x93 EDRKiller disables EDR/AV tools.\n// 2.Indicator Removal on Host (T1070) â\x80\x93 May remove logs or indicators.\nlet IOC_EDRkiller = externaldata(Indicator_Type:string, Data:string, Note:string)\n[h'https://raw.githubusercontent.com/SubashGhimire/Hunting-Queries-and-Detection-Rule-Microsoft-Sentinel-Defender/refs/heads/main/IOC/06082025-edrkiller-iocs.csv'];\nlet EDRKillerTool = \nIOC_EDRkiller\n| where Indicator_Type == \"sha256\"\n| project Data;\nlet DeviceProcess = \nDeviceProcessEvents\n| where Timestamp >= ago(90d)\n| where SHA256 has_any (EDRKillerTool);\nlet DeviceFile = DeviceFileEvents\n| where TimeGenerated >= ago(90d)\n| where SHA256 has_any (EDRKillerTool);\nlet DeviceEvent = DeviceEvents\n| where TimeGenerated >= ago(90d)\n| where SHA256 has_any (EDRKillerTool);\nunion DeviceProcess,DeviceFile, DeviceEvent"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+version: "2"

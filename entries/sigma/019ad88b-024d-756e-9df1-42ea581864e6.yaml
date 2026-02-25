@@ -1,0 +1,27 @@
+id: 019ad88b-024d-756e-9df1-42ea581864e6
+name: Suspicious Msiexec /i Installation from Remote HTTP(S) Domain (Non-Private IP)
+description: Detects msiexec.exe executing with /i to install an MSI package from a remote HTTP/HTTPS domain, excluding internal RFC1918 networks, loopback, and APIPA addresses. This pattern is commonly used for remote payload installation and malware staging over the web.
+query: "title: Suspicious Msiexec /i Installation from Remote HTTP(S) Domain (Non-Private IP)\nid: 0f2c8b11-5e43-45f0-9adf-6c18f8e1d2a7\nstatus: experimental\ndescription: >-\n  Detects msiexec.exe executing with /i to install an MSI package from a remote\n  HTTP/HTTPS domain, excluding internal RFC1918 networks, loopback, and APIPA\n  addresses. This pattern is commonly used for remote payload installation and\n  malware staging over the web.\nreferences:\n  - https://attack.mitre.org/techniques/T1218/007/\n  - https://attack.mitre.org/techniques/T1105/\ntags:\n  - attack.defense_evasion\n  - attack.execution\n  - attack.command_and_control\n  - attack.t1218.007\n  - attack.t1105\nauthor: Firestrike::Labs\ndate: 2025-12-01\nlogsource:\n  category: process_creation\n  product: windows\n  service: security\ndetection:\n  selection_regex:\n    CommandLine|re: >\n      (?ix) \n      msiexec (\\.exe)?                # msiexec executable \n      .* /i                           # /i install parameter \n      .* https?://                    #  http/https URL \n      \\w+ .* \\.\\w{2,} /               # domain.tld/ (not an IP literal)\n  selection_private_ip:\n    CommandLine|re: |\n      (?ix) msiexec (\\.exe)? \n      .* https?:// (\n        10 \\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}                       # RFC1918 10.0.0.0/8\n        | 172\\.(1[6-9]|2[0-9]|3[0-1])\\.\\d{1,3}\\.\\d{1,3}      # RFC1918 172.16-31\n        | 192\\.168\\.\\d{1,3}\\.\\d{1,3}                         # RFC1918 192.168/16\n        | 127\\.\\d{1,3}\\.\\d{1,3}\\.\\d{1,3}                     # Loopback 127/8\n        | 169\\.254\\.\\d{1,3}\\.\\d{1,3}                         # APIPA 169.254/16\n      )\n  condition: selection_regex and not selection_private_ip\nfields:\n  - CommandLine\n  - ParentImage\n  - Image\n  - User\nfalsepositives:\n  - Legitimate enterprise or vendor deployment mechanisms downloading MSI\n    packages from sanctioned remote domains.\nlevel: high"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1218.007
+    - T1105
+tags:
+    - attack.defense_evasion
+    - attack.execution
+    - attack.command_and_control
+    - attack.t1218.007
+    - attack.t1105
+author: Firestrike::Labs
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1218/007/
+    - https://attack.mitre.org/techniques/T1105/
+data_sources:
+    - process_creation
+    - windows
+    - security

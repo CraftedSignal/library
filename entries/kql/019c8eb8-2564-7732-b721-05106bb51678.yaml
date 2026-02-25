@@ -1,0 +1,16 @@
+id: 019c8eb8-2564-7732-b721-05106bb51678
+name: Suspicious Process Spawned from Office Applications
+description: This rule detects the creation of suspicious child processes by Microsoft Office applications. This behavior is commonly associated with malicious macros embedded in Office documents or phishing attacks that leverage Office documents to execute arbitrary commands. The rule specifically looks for Office applications (Word, Excel, PowerPoint, Outlook, OneNote, Publisher, Visio, Access) spawning known suspicious executables like command prompts, PowerShell, script interpreters (wscript, cscript), and various utility tools (mshta, regsvr32, rundll32, certutil, bitsadmin, wmic, schtasks, whoami, net, netsh, nslookup, curl).
+query: "// Detection: Suspicious Process Spawned from Office Apps (Macro / Phishing)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1566.001 - Spearphishing Attachment\r\n\r\nlet officeApps = dynamic([\r\n    \"winword.exe\",\"excel.exe\",\"powerpnt.exe\",\r\n    \"outlook.exe\",\"onenote.exe\",\"mspub.exe\",\r\n    \"visio.exe\",\"msaccess.exe\"\r\n]);\r\nlet suspiciousChildren = dynamic([\r\n    \"cmd.exe\",\"powershell.exe\",\"pwsh.exe\",\"wscript.exe\",\r\n    \"cscript.exe\",\"mshta.exe\",\"regsvr32.exe\",\"rundll32.exe\",\r\n    \"certutil.exe\",\"bitsadmin.exe\",\"wmic.exe\",\"schtasks.exe\",\r\n    \"whoami.exe\",\"net.exe\",\"netsh.exe\",\"nslookup.exe\",\"curl.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n| where InitiatingProcessFileName has_any (officeApps)\r\n| where FileName has_any (suspiciousChildren)\r\n| project TimeGenerated, DeviceName, FileName,\r\n          ProcessCommandLine, InitiatingProcessFileName,\r\n          InitiatingProcessCommandLine, AccountName, AccountDomain, SHA256\r\n| extend AlertDescription = strcat(\r\n    \"'\", FileName, \"' spawned by '\", InitiatingProcessFileName,\r\n    \"' — potential malicious macro or phishing document execution\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1059.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

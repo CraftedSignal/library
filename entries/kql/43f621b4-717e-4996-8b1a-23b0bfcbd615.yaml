@@ -1,0 +1,75 @@
+id: 43f621b4-717e-4996-8b1a-23b0bfcbd615
+name: Akira Ransomware Malicious Driver Activity
+description: Detects the creation of files and services associated with malicious drivers (hlpdrv.sys, rwdrv.sys) used by Akira ransomware affiliates for defense evasion, as reported by GuidePoint Security. This rule specifically looks for the creation of these driver files and the associated service registrations in the Windows Registry.
+query: |
+    // Name: Akira Ransomware Associated Malicious Driver Activity
+    // Author: detections.ai
+    // Date: 2025-08-07
+    // Description: Detects the creation of files and services associated with malicious drivers (hlpdrv.sys, rwdrv.sys) used by Akira ransomware affiliates for defense evasion, as reported by GuidePoint Security.
+    // Tactic: Defense Evasion, Persistence
+    // Technique: T1562.001 (Disable or Modify Tools), T1543.003 (Create or Modify System Process: Windows Service)
+    // False Positive Sensitivity: Medium
+    // References: https://www.guidepointsecurity.com/blog/gritrep-akira-sonicwall/
+    let fileHashes = dynamic([
+        "bd1f381e5a3db22e88776b7873d4d2835e9a1ec620571d2b1da0c58f81c84a56", // hlpdrv.sys
+        "16f83f056177c4ec24c7e99d01ca9d9d6713bd0497eeedb777a3ffefa99c97f0"  // rwdrv.sys
+    ]);
+    let fileNames = dynamic([
+        "hlpdrv.sys",
+        "rwdrv.sys"
+    ]);
+    let serviceNames = dynamic([
+        "KMHLPSVC",
+        "mgdsrv",
+        "HlpDrv"
+    ]);
+    // Look for the creation of the malicious/suspicious driver files
+    let fileEvents = DeviceFileEvents
+    | where ActionType == "FileCreated"
+        // Match on high-fidelity hash or a combination of filename and suspicious temp path
+        and (SHA256 in (fileHashes) or (FileName in (fileNames) and FolderPath has_all (@"Users\", @"AppData\Local\Temp")));
+    // Look for the creation of services associated with the drivers
+    let serviceCreationEvents = DeviceRegistryEvents
+    | where ActionType == "RegistryValueSet"
+        // Filter for service creation registry keys
+        and RegistryKey has_all (@"SYSTEM\CurrentControlSet\Services", "ImagePath")
+        // Match on known malicious service names and ensure the image path points to one of the suspicious drivers
+        and extract(@'Services\\(.*?)\\', 1, RegistryKey) in (serviceNames)
+        and RegistryValueData has_any (fileNames);
+    // Combine results from both file and service creation events
+    union fileEvents, serviceCreationEvents
+    | extend
+        // Add context for easier analysis
+        Activity = iif(isempty(RegistryKey), "File Creation", "Service Creation"),
+        SuspiciousFileName = iif(isempty(FileName), extract(@'([^\\]+)$', 1, RegistryValueData), FileName),
+        SuspiciousFilePath = iif(isempty(FolderPath), RegistryValueData, strcat(FolderPath)), //SuspiciousFileName
+        SuspiciousService = iif(notempty(RegistryKey), extract(@'Services\\(.*?)\\', 1, RegistryKey), "N/A")
+    | project
+        Timestamp,
+        DeviceName,
+        Activity,
+        SuspiciousFileName,
+        SuspiciousFilePath,
+        SuspiciousService,
+        SHA256,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        RegistryKey,
+        RegistryValueData
+    // FP Tuning: The driver 'rwdrv.sys' is legitimate for the 'ThrottleStop' utility.
+    // If this utility is used in your environment, consider excluding known machines or users to reduce potential false positives.
+    // For example: `| where DeviceName !in ("known_throttlestop_users_device")`
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1562.001
+    - T1543.003
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.guidepointsecurity.com/blog/gritrep-akira-sonicwall/

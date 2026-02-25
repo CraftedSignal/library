@@ -1,0 +1,61 @@
+id: 019a265a-c643-761f-b45e-e9fa741311b9
+name: 'Telemetry Validation: M365 & Azure Data Source'
+description: |-
+    This hunting query verifies the availability and health of critical Microsoft 365, Azure, and Defender data sources that are essential for visibility in the case of incident response.
+
+    Ensuring these log sources are active is fundamental for maintaining readiness to conduct full-scope investigations when an incident occurs without data loss or visibility gaps.
+
+    The query enumerates all key log tables within the Log Analytics workspace and checks whether they:
+
+    Are present and actively ingesting data (logs seen within the last 7 days)
+    Are stale (no new events within the last 7 days)
+    Are missing entirely, indicating the data connector is disabled or misconfigured
+
+    The output provides a quick health status (✅ Active, ⚠️ Stale, or ❌ Missing) for each core log source
+query: |-
+    // ----------------------------------------------------------
+    // MS Sentinel HUNT: Telemetry Validation: M365 & Azure Data Source
+    // ----------------------------------------------------------
+    let lookback = 7d; // Change to your preferred timeframe
+    let now = now();
+    // Create a baseline table of data sources we expect
+    let expectedSources = datatable(SourceName:string, TableName:string)
+    [
+        "Microsoft 365 Unified Audit Log", "OfficeActivity",
+        "Mailbox Audit Log", "ExchangeMailboxAudit",
+        "Azure AD Sign-in Logs", "SigninLogs",
+        "Azure AD Audit Logs", "AuditLogs",
+        "Azure Activity Logs", "AzureActivity",
+        "Microsoft Defender for Cloud Apps", "CloudAppEvents",
+        "Microsoft Defender Alerts", "SecurityAlert",
+        "Defender for Endpoint Events", "DeviceEvents",
+        "Threat Intelligence Indicators", "ThreatIntelligenceIndicator"
+    ];
+    // Check each table for recent data
+    expectedSources
+    | join kind=leftouter (
+        union isfuzzy=true
+            (OfficeActivity | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="OfficeActivity"),
+            (ExchangeMailboxAudit | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="ExchangeMailboxAudit"),
+            (SigninLogs | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="SigninLogs"),
+            (AuditLogs | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="AuditLogs"),
+            (AzureActivity | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="AzureActivity"),
+            (CloudAppEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="CloudAppEvents"),
+            (SecurityAlert | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="SecurityAlert"),
+            (DeviceEvents | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="DeviceEvents"),
+            (ThreatIntelligenceIndicator | summarize Count=count(), LastLogTime=max(TimeGenerated) by TableName="ThreatIntelligenceIndicator")
+    ) on TableName
+    | extend
+        DataStatus = case(
+            isnull(LastLogTime), "❌ No Data Found (Not Enabled or Not Connected)",
+            LastLogTime < now - lookback, "⚠️ Stale Data (Older than 7 days)",
+            "✅ Active and Ingesting"
+        )
+    | project SourceName, TableName, DataStatus, LastLogTime, EventCount=Count
+    | order by DataStatus desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: IronBr@nded
+version: "2"

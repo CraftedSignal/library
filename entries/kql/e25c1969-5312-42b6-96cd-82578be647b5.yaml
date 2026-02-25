@@ -1,0 +1,19 @@
+id: e25c1969-5312-42b6-96cd-82578be647b5
+name: MDO Email Threat Classification By ISP
+description: 'KQL Query from file: MDO Email Threat Classification By ISP'
+query: "// MDO Email Threat Classification By ISP\n\n// Microsoft announce the new integration of threat classification through advanced large language models (LLMs) and machine learning (ML) models in the EmailEvents schema. By leveraging this crucial data along with CloudAppEvents Exchange workload, you can now pinpoint the origin of various email threats by ISP!\U0001F92F This enhancement provides a clearer understanding of email threats categorized by ISP.\U0001FAE1\n\nCloudAppEvents\n| where Application == \"Microsoft Exchange Online\"\n| where ActionType == \"TIMailData-Inline\"\n| where ActivityType == \"Securityevent\"\n| extend CAInternetMessageId = tostring(parse_json(RawEventData)[\"InternetMessageId\"])\n| join EmailEvents on $left.CAInternetMessageId == $right.InternetMessageId\n| where isnotempty(ThreatClassification)\n| summarize Count=count() by ThreatClassification, ISP\n| sort by Count desc\n"
+query_type: kql
+tactics:
+    - TA0009
+    - TA0001
+    - TA0043
+techniques:
+    - T1114
+    - T1114.002
+    - T1114.001
+    - T1566
+    - T1598
+    - T1566.002
+tags:
+    - kql
+version: "1"

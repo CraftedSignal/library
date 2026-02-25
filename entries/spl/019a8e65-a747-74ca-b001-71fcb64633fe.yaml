@@ -1,0 +1,64 @@
+id: 019a8e65-a747-74ca-b001-71fcb64633fe
+name: SpearSpecter WebDAV Search-MS Abuse via rundll32.exe
+description: Detects the execution of rundll32.exe with davclnt.dll to establish a WebDAV connection, a technique used by APT42 in the SpearSpecter campaign for initial access via malicious search-ms links. Specifically, it looks for rundll32.exe executing the DavSetCookie function from davclnt.dll and captures the WebDAV server from the command line argument.
+query: |
+    rule spearspecter_webdav_search_ms_abuse {
+      meta:
+        description = "Detects the execution of rundll32.exe with davclnt.dll to establish a WebDAV connection, a technique used by APT42 in the SpearSpecter campaign for initial access via malicious search-ms links."
+        author = "detections.ai"
+        date = "2025-11-16"
+        reference = "https://govextra.gov.il/national-digital-agency/cyber/research/spearspecter/"
+        tags = "SpearSpecter, APT42, IRGC, TAMECAT, WebDAV, search-ms"
+        tactic = "TA0001"
+        technique = "T1204.001, T1566.001"
+        false_positives = "Legitimate software that uses WebDAV may trigger this rule, although this specific execution method is uncommon for benign applications. Tuning may be required to exclude known good WebDAV servers or parent processes (e.g., web browsers)."
+
+      events:
+        // Event filter for process launch
+        $process.metadata.event_type = "PROCESS_LAUNCH"
+
+        // Detects rundll32.exe executing the DavSetCookie function from davclnt.dll
+        re.regex($process.target.process.file.full_path, `\\rundll32\.exe$`) nocase
+        re.regex($process.target.process.command_line, `davclnt\.dll,\s*DavSetCookie`) nocase
+
+        // Capture the WebDAV server from the command line argument
+        // Example: rundll32.exe C:\WINDOWS\system32\davclnt.dll, DavSetCookie datadrift.somee.com@SSL https://...
+        $webdav_server = re.capture($process.target.process.command_line, `DavSetCookie\s+([^\s@]+)`)
+
+      outcome:
+        // Risk score is medium-high due to the specificity of the TTP
+        $risk_score = 65
+        $principal_hostname = $process.principal.hostname
+        $principal_user_userid = $process.principal.user.userid
+        $parent_process_command_line = $process.principal.process.command_line
+        $target_process_command_line = $process.target.process.command_line
+        $target_process_path = $process.target.process.file.full_path
+        $target_process_pid = $process.target.process.pid
+        $webdav_server_domain = $webdav_server
+
+      condition:
+        $process
+    }
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+    - TA0005
+    - TA0006
+techniques:
+    - T1204.001
+    - T1566.001
+    - T1218.011
+    - T1187
+tags:
+    - SpearSpecter
+    - APT42
+    - IRGC
+    - TAMECAT
+    - WebDAV
+    - search-ms
+author: detections.ai
+version: "3"
+references:
+    - https://govextra.gov.il/national-digital-agency/cyber/research/spearspecter/

@@ -1,0 +1,62 @@
+id: 019a01c1-cd2b-732b-b4eb-8bcbf7848fdb
+name: ClickFix Variant - FortiClient Compliance Abuse via conhost + headless PowerShell
+description: Detects conhost.exe launching a headless PowerShell one-liner that creates a FortiClient compliance directory, copies Chrome Cache data, reconstructs a ComplianceChecker.zip using unique markers, expands it and executes FortiClientComplianceChecker.exe — behavior observed in ClickFix-style social engineering campaigns.
+query: |
+    title: ClickFix Variant - FortiClient Compliance Abuse via conhost + headless
+      PowerShell
+    description: Detects conhost.exe launching a headless PowerShell one-liner that
+      creates a FortiClient compliance directory, copies Chrome Cache data,
+      reconstructs a ComplianceChecker.zip using unique markers, expands it and
+      executes FortiClientComplianceChecker.exe — behavior observed in
+      ClickFix-style social engineering campaigns.
+    author: Rémi DUBOIS
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - technique:clickfix
+    logsource:
+      product: windows
+      service: sysmon
+      definition: 'Process Create (EventID 1)'
+    detection:
+      selection:
+        Image|endswith: '\conhost.exe'
+        CommandLine|contains_any:
+          - '-headless'
+          - 'powershell'
+          - '%LOCALAPPDATA%\\FortiClient\\compliance'
+          - 'FortiClientComplianceChecker.exe'
+          - 'ComplianceChecker.zip'
+          - 'Cache_Data'
+          - 'Expand-Archive'
+          - 'bTgQcBpv'
+          - 'mX6o0lBw'
+      condition: selection
+    falsepositives:
+      - Administrative or legitimate FortiClient support tooling invoked in unusual
+        ways. Validate the parent process, user account, and recent user activity.
+    level: high
+    falsepositives_note: >
+      Some enterprise support or application deployment tools may legitimately
+      interact with FortiClient components. Investigate if the parent process is an
+      interactive user (explorer.exe/Run dialog) and whether the command content was
+      user-initiated.
+    references:
+      - https://expel.com/blog/cache-smuggling-when-a-picture-isnt-a-thousand-words/
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - technique:clickfix
+author: Rémi DUBOIS
+version: "1"
+references:
+    - https://expel.com/blog/cache-smuggling-when-a-picture-isnt-a-thousand-words/
+data_sources:
+    - windows
+    - sysmon

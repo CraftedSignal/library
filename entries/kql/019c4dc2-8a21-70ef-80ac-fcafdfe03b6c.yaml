@@ -1,0 +1,28 @@
+id: 019c4dc2-8a21-70ef-80ac-fcafdfe03b6c
+name: MacOS Infostealer C2 and Staging Domain Activity
+description: This rule detects network communication with known command and control (C2) domains, ClickFix domains, and staging domains associated with macOS infostealers. It also identifies heartbeat communication patterns to these C2 domains, indicating potential active infections.
+query: |
+    // MacOS_infostealers
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+    // Use with DeviceNetworkEvents / DNS or proxy logs for Mac and Windows endpoints
+
+    let C2Domains = dynamic(["imper-strlk5.com", "securityfenceandwelding.com", "stobminipinporl.com", "mini-zmoto.com", "mubasokurso.com"]);
+    let ClickFixDomains = dynamic(["drmcdermottmd.com", "hci-outdoors.com", "warboardgame.com", "tiptopmarine.com", "skpwresorts.com"]);
+    let StagingDomains = dynamic(["git-tool-install.github.io", "io-app-git.github.io", "quadency-pro.github.io", "3commas-app.github.io"]);
+
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(7d)
+    | where RemoteUrl has_any (C2Domains) or RemoteUrl has_any (ClickFixDomains) or RemoteUrl has_any (StagingDomains)
+    | project TimeGenerated, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    // SHub heartbeat endpoint
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(7d)
+    | where RemoteUrl contains "api/bot/heartbeat" or RemoteUrl contains "/gate"
+    | where RemoteUrl has_any (C2Domains)
+    | project TimeGenerated, DeviceName, RemoteUrl, InitiatingProcessFileName
+query_type: kql
+tags:
+    - kql
+version: "2"

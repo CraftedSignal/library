@@ -1,0 +1,20 @@
+id: 019c7b89-3034-75fd-a0f2-0f4e8cf46321
+name: CVE-2026-1731 Malware Hashes Detection
+description: Detects the creation of files matching SHA256 hashes of known malware (SparkRAT, VShell, webshells) observed in the CVE-2026-1731 exploitation campaign. This rule specifically looks for file creation events where the SHA256 hash of the created file matches one of the predefined malware hashes.
+query: "// Name: CVE-2026-1731 Malware Hashes\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects the creation of files matching SHA256 hashes of known malware (SparkRAT, VShell, webshells) observed in the CVE-2026-1731 exploitation campaign.\r\n// MITRE ATT&CK: T1588.002, T1105\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// False Positive Sensitivity: Medium\r\n// Tags: CVE-2026-1731, SparkRAT, VShell, Malware, IOC\r\nlet malware_hashes = dynamic([\r\n    // SparkRAT\r\n    \"9f431d5549a03aee92cfd2bdbbe90f1c91e965c99e90a0c9ad5a001f4e80c350\",\r\n    // VShell\r\n    \"98a7b0900a9072bb40af579ec372da7b27af12b15868394df51fefe290ab176b\",\r\n    // maintenance.php\r\n    \"66cceb2c2f1d9988b501832fd3b559775982e2fce4ab38fc4ffe71b74eafc726\",\r\n    // d6\r\n    \"679ee05d92a858b6fe70aeb6072eb804548f1732e18b6c181af122b833386afb\",\r\n    // Installer for SimpleHelp\r\n    \"4762e944a0ce1f9aef243e11538f84f16b6f36560ed6e32dfd9a5f99e17e8e50\",\r\n    // aws.php\r\n    \"98442387d466f27357d727b3706037a4df12a78602b93df973b063462a677761\",\r\n    // Bash Script\r\n    \"cc2bc3750cc5125a50466f66ae4f2bedf1cac0e43477a78ed2fd88f3e987a292\",\r\n    // file_save.php\r\n    \"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\",\r\n    // Unknown\r\n    \"0ecc867ce916d01640d76ec03de24d1d23585eb582e9c48a0364c62a590548ac\"\r\n]);\r\nDeviceFileEvents\r\n// Look for file creation events from the last day\r\n| where TimeGenerated > ago(1d)\r\n| where ActionType == \"FileCreated\"\r\n// Filter for files matching the known malware hashes\r\n| where SHA256 in (malware_hashes)\r\n// FP Tuning: Hash-based detections are high-fidelity. FPs could occur if files are downloaded for analysis by security tools or researchers.\r\n// Consider excluding folders used for threat intelligence or forensic analysis.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0042
+    - TA0003
+techniques:
+    - T1105
+    - T1588.002
+    - T1505.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

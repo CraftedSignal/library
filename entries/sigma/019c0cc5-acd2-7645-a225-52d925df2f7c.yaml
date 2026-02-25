@@ -1,0 +1,45 @@
+id: 019c0cc5-acd2-7645-a225-52d925df2f7c
+name: HoneyMyte CoolClient Browser Stealer File Behavior
+description: This rule detects file behaviors associated with the HoneyMyte CoolClient browser stealer. It identifies the creation of a file named 'License.txt' within the 'C:\Users\Public\Libraries' directory, which is used by the stealer to store credentials. Additionally, it looks for access to browser login data files such as 'Login Data' and 'Local State', or the presence of 'chromeTmp' within temporary directories ('Temp', 'AppData', 'ProgramData'). The rule also specifically flags the creation of 'Local State-journal', which is indicative of the stealer's activity in decrypting browser keys.
+query: |
+    title: HoneyMyte CoolClient Browser Stealer File Behavior
+    id: d2e3f4a5-b6c7-8901-def0-23456789abcd
+    status: experimental
+    description: |
+        Detection of HoneyMyte browser login data stealer file behavior.
+        Stealer copies Chrome/Edge Login Data and Local State, uses chromeTmp in temp,
+        writes credentials to C:\Users\Public\Libraries\License.txt. Variant C accepts
+        runtime args (paths to Login Data and Local State) via Jarte.exe. Script t.ps1
+        creates Local State-journal with decrypted key. Detection: process from writable
+        path or signed-abused binary (Jarte) accessing Login Data + Local State; or file
+        create License.txt under Public\Libraries; or chromeTmp in temp + access to Login Data.
+    references:
+        - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/
+    author: Daniel Jeremiah
+    date: 2026/01/25
+    tags:
+        - attack.collection
+        - attack.t1005
+        - attack.t1056
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_stealer_output:
+            TargetFilename|contains: 'License.txt'
+            TargetFilename|contains: 'Public'
+            TargetFilename|contains: 'Libraries'
+        selection_stealer_working:
+            TargetFilename|contains|any:
+                - 'Login Data'
+                - 'Local State'
+                - 'chromeTmp'
+            TargetFilename|re: '.*\\(Temp|AppData|ProgramData)\\.*'
+        selection_local_state_journal:
+            TargetFilename|contains: 'Local State-journal'
+        condition: selection_stealer_output or selection_stealer_working or selection_local_state_journal
+    falsepositives:
+        - Legitimate security testing (e.g. POC, authorized testing) using the C2 as testing
+    level: high
+query_type: sigma
+version: "2"

@@ -1,0 +1,34 @@
+id: b751eedd-3521-42bc-8d9f-ffb9a47aa87b
+name: ' VIDAR InfoStealer Nested Base64 PowerShell WinRAR Payload Activity'
+description: "Vidar is a sophisticated infostealer operating as Malware-as-a-Service (MaaS). Written in C++, it’s designed to harvest a wide range of sensitive data from infected systems and exfiltrate it to attacker controlled infrastructure.\n\n\U0001F9EC Script Inception: PowerShell scripts nested within PowerShell scripts, layered with 2–3 rounds of Base64 encoding.\n\n\U0001F4E6 RAR Payloads: Password protected RAR files downloaded via direct-to-IP HTTP requests over TCP port 80. Passwords are embedded in encoded scripts and passed via command line to a downloaded copy of \"unrar.exe\"."
+query: |-
+    DeviceProcessEvents
+    | where FileName has_any ("powershell.exe", "powershell_ise.exe", "pwsh.exe", "wt.exe", "WindowsTerminal.exe")
+    | where InitiatingProcessIntegrityLevel has "Medium"
+    | where ProcessCommandLine has_any (@" -e", @" -enc ", @" -ec ", @" -en ", @" /e ", @" –^e^C^ ")
+    | extend Base64DecodedCommand = replace(@'\x00','', base64_decode_tostring(extract("[A-Za-z0-9+/]{50,}[=]{0,2}", 0, ProcessCommandLine)))
+    | extend EmbeddedBase64DecodedCommand = replace(@'\x00','', base64_decode_tostring(extract("[A-Za-z0-9+/]{50,}[=]{0,2}", 0, Base64DecodedCommand)))
+    | extend TripleEmbeddedBase64DecodedCommand = replace(@'\x00','', base64_decode_tostring(extract("[A-Za-z0-9+/]{50,}[=]{0,2}", 0, EmbeddedBase64DecodedCommand)))
+    | extend GzipDecompressedCommand = replace(@'\x00','', gzip_decompress_from_base64_string(extract("[A-Za-z0-9+/]{50,}[=]{0,2}", 0, ProcessCommandLine)))
+    | extend ZlibDecompressedCommand = replace(@'\x00','', zlib_decompress_from_base64_string(extract("[A-Za-z0-9+/]{50,}[=]{0,2}", 0, ProcessCommandLine)))
+    | extend AllDecoded = strcat(Base64DecodedCommand, " ", EmbeddedBase64DecodedCommand, " ", TripleEmbeddedBase64DecodedCommand, " ", GzipDecompressedCommand, " ", ZlibDecompressedCommand)
+    | extend Urls = extract_all(@"((?:http|https|ftp)://[^\s""']+)", AllDecoded)
+    | extend UnrarPassword = extract(@"-p([^\s""']+)", 1, AllDecoded)
+    | extend RarFileName = extract(@"-OutFile\s+.*?\\([^""']+\.rar)", 1, AllDecoded)
+    | extend TxtFileName = extract(@"Get-Content\s+.*?\\([^""']+\.txt)", 1, AllDecoded)
+    | extend RarArray = iff(isnotempty(RarFileName), pack_array(RarFileName), dynamic([]))
+    | extend TxtArray = iff(isnotempty(TxtFileName), pack_array(TxtFileName), dynamic([]))
+    | extend FileNames = array_concat(RarArray, TxtArray)
+    | project Timestamp, DeviceId, ReportId, ActionType, DeviceName, InitiatingProcessFileName, FileName, ProcessCommandLine, Base64DecodedCommand, EmbeddedBase64DecodedCommand, TripleEmbeddedBase64DecodedCommand, Urls, UnrarPassword, FileNames
+    //| project ProcessCommandLine, Base64DecodedCommand, EmbeddedBase64DecodedCommand, TripleEmbeddedBase64DecodedCommand, Urls, UnrarPassword, FileNames
+query_type: kql
+severity: medium
+tags:
+    - '#vidar'
+    - kql
+author: '@AdairJCollins @ajc'
+version: "1"
+references:
+    - https://www.linkedin.com/pulse/windows-defender-vidar-infostealer-detection-adair-collins-2o3ie/
+    - https://tria.ge/250801-wxxvraep6z/behavioral1
+    - https://tria.ge/250801-xvdvjatrw7/behavioral1

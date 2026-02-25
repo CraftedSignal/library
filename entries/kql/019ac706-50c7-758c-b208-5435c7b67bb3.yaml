@@ -1,0 +1,55 @@
+id: 019ac706-50c7-758c-b208-5435c7b67bb3
+name: Geofenced JAR File Download (Bloody Wolf)
+description: Detects the download of a Java Archive (JAR) file initiated by a PDF reader or web browser, specifically from devices located in Uzbekistan. This behavior is characteristic of the Bloody Wolf threat actor's geofenced attacks.
+query: |
+    // Name: Geofenced JAR File Download (Bloody Wolf)
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the download of a Java Archive (JAR) file initiated by a PDF reader, specifically from devices located in Uzbekistan. This behavior is characteristic of the Bloody Wolf threat actor's geofenced attacks.
+    // References: https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html
+    // MITRE ATT&CK: T1566.001 (Spearphishing Attachment), T1071.001 (Application Layer Protocol: Web Protocols)
+    // False Positive Sensitivity: Medium. While this combination of behaviors is suspicious, legitimate software could be distributed this way. Correlate with other Bloody Wolf indicators. Tuning may be required by excluding known software distribution URLs.
+
+    DeviceNetworkEvents
+    // The intel specifies the payload is a Java Archive (JAR) file.
+    | where RemoteUrl has ".jar" or FileName endswith ".jar"
+    // The attack chain involves a user clicking a link within a PDF document.
+    | where InitiatingProcessFileName in~ (
+        "AcroRd32.exe", // Adobe Reader
+        "Acrobat.exe",
+        "msedge.exe", // Browser may open PDF
+        "chrome.exe",
+        "firefox.exe"
+        )
+    // The campaign specifically uses geofencing to target users in Uzbekistan.
+    // This relies on the 'Country' field being correctly populated by the security agent.
+    | where Country == "Uzbekistan"
+    | project
+        TimeGenerated,
+        DeviceName,
+        Country,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        FileName,
+        SHA256
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = DeviceName,
+        Url = RemoteUrl,
+        IPAddress = RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.001
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html

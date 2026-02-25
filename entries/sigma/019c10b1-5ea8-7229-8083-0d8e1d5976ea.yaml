@@ -1,0 +1,70 @@
+id: 019c10b1-5ea8-7229-8083-0d8e1d5976ea
+name: Hotta Killer Process Termination Command
+description: Detects the execution of 'polers.dll' via rundll32.exe, a command-line pattern used by the Interlock ransomware group's 'Hotta Killer' tool to terminate security software by exploiting CVE-2025-61155.
+query: |
+    title: Hotta Killer Process Termination Command
+    id: bea6a766-24ea-4a0f-8ca4-c27994676d18
+    status: experimental
+    description: Detects the execution of 'polers.dll' via rundll32.exe, a
+      command-line pattern used by the Interlock ransomware group's 'Hotta Killer'
+      tool to terminate security software by exploiting CVE-2025-61155.
+    references:
+      - Internal Intel ID
+        84413e18dcc8ea039bcf512168e32d8d75169e2b971e642a21f38cfb31b32cd5
+      - https://www.cisa.gov/sites/default/files/2025-07/aa25-203a-stopransomware-interlock-072225.pdf
+      - https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-203a
+      - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+    author: detections.ai
+    date: 2026-01-30
+    tags:
+      - attack.t1218.011
+      - attack.t1562.001
+      - attack.defense_evasion
+      - cve.2025.61155
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_base:
+        # Detects rundll32.exe executing the specific 'polers.dll' with the 'start' command
+        Image|endswith: '\rundll32.exe'
+        CommandLine|contains|all:
+          - 'polers.dll'
+          - 'start '
+      selection_target:
+        # Detects the targeting of common security product process names as seen in the intel
+        CommandLine|contains:
+          - ' Forti'
+          - ' Crowd'
+          - ' Sentin'
+          - ' Carbon'
+          - ' Defender'
+          - ' Sophos'
+      condition: selection_base and selection_target
+    falsepositives:
+      - Legitimate administrative tools with overlapping naming conventions.
+    level: critical
+    associated_cves:
+      - CVE-2025-61155
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+techniques:
+    - T1218.011
+    - T1562.001
+tags:
+    - attack.t1218.011
+    - attack.t1562.001
+    - attack.defense_evasion
+    - cve.2025.61155
+author: detections.ai
+version: "2"
+references:
+    - Internal Intel ID 84413e18dcc8ea039bcf512168e32d8d75169e2b971e642a21f38cfb31b32cd5
+    - https://www.cisa.gov/sites/default/files/2025-07/aa25-203a-stopransomware-interlock-072225.pdf
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa25-203a
+    - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+data_sources:
+    - process_creation
+    - windows

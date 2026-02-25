@@ -1,0 +1,20 @@
+id: 019c576a-910a-7558-b030-074735c78bc5
+name: Suspicious Notepad Child Process Execution
+description: Detects instances where the Windows 11 Notepad process (Notepad.exe) spawns unexpected child processes. This behavior is a primary indicator of the CVE-2026-20841 exploitation via malicious Markdown links, which allows for remote code execution.
+query: "// Name: Suspicious Notepad Child Process Execution\r\n// Author: Ethan Anderws + detections.ai\r\n// Date: 2026-02-13\r\n// Description: Detects instances where the Windows 11 Notepad process (Notepad.exe) spawns unexpected child processes. This behavior is a primary indicator of the CVE-2026-20841 exploitation via malicious Markdown links, which allows for remote code execution.\r\n// References: https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/\r\n// MITRE ATT&CK: T1204.001, T1059.001, T1059.003\r\n// False Positive Sensitivity: Medium\r\nlet suspicious_children = dynamic([\r\n    \"cmd.exe\",\r\n    \"powershell.exe\",\r\n    \"pwsh.exe\",\r\n    \"conhost.exe\",\r\n    \"cscript.exe\",\r\n    \"wscript.exe\",\r\n    \"mshta.exe\",\r\n    \"msiexec.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events initiated by Notepad.exe\r\n| where InitiatingProcessFileName =~ \"Notepad.exe\"\r\n// Filter for child processes that are commonly used for code execution, such as shells or script interpreters.\r\n| where FileName in~ (suspicious_children)\r\n// FP Tuning: While rare, some administrative or developer workflows might involve launching shells from Notepad.\r\n// Consider excluding specific users or command lines if legitimate activity is identified.\r\n// For example: | where not (AccountName == \"legit_admin\" and ProcessCommandLine contains \"known_script.ps1\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.001
+    - T1059.001
+    - T1059.003
+    - T1059
+    - T1204
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/

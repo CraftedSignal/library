@@ -1,0 +1,42 @@
+id: 019c9194-5409-7539-8b4c-335d72a9d535
+name: DYNOWIPER Activity Detection
+description: 'This rule detects activity associated with the DYNOWIPER malware, identified by specific SHA256 hashes on endpoint telemetry or by network connections to known command and control (C2) IP addresses. The rule is split into two parts: one for endpoint detection based on file hashes and another for network/authentication logs based on IP addresses.'
+query: |+
+    ## DYNOWIPER hunts (published hashes + IOC context)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://www.elastic.co/security-labs/dynowiper
+
+    ### 1) Endpoint telemetry: published SHA256 matches
+    (index=edr OR index=os OR index=sysmon) (
+      sha256="835b0d87ed2d49899ab6f9479cddb8b4e03f5aeb2365c50a51f9088dcede68d5" OR
+      sha256="65099f306d27c8bcdd7ba3062c012d2471812ec5e06678096394b238210f0f7c" OR
+      sha256="60c70cdcb1e998bffed2e6e7298e1ab6bb3d90df04e437486c04e77c411cae4b" OR
+      sha256="d1389a1ff652f8ca5576f10e9fa2bf8e8398699ddfc87ddd3e26adb201242160" OR
+      sha256="8759e79cf3341406564635f3f08b2f333b0547c444735dba54ea6fce8539cf15" OR
+      sha256="f4e9a3ddb83c53f5b7717af737ab0885abd2f1b89b2c676d3441a793f65ffaee"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(process_name) as process values(Image) as images values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Network / auth logs: IPs noted in report (VPN logins, exfil reverse proxy)
+    (index=vpn OR index=auth OR index=proxy OR index=netflow OR index=firewall) (
+      src_ip IN ("185.200.177.10","31.172.71.5","193.200.17.163","185.82.127.20","72.62.35.76") OR
+      dest_ip IN ("185.200.177.10","31.172.71.5","193.200.17.163","185.82.127.20","72.62.35.76")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(action) as actions values(user) as users values(app) as apps by src_ip, dest_ip, dest_port
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1485
+    - T1486
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/dynowiper

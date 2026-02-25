@@ -1,0 +1,26 @@
+id: 019bf0fd-89bb-722a-ad10-d5ae762c64c5
+name: VoidLink C2 Loader Chain Behavioral Detection
+description: This rule detects the multi-stage VoidLink C2 loader chain by identifying a combination of behaviors. It looks for fileless execution, specifically processes running from memory file descriptors or /proc/[pid]/fd paths. It also identifies kernel thread masquerading, where processes attempt to mimic legitimate kernel threads by using command lines like '[kworker/...]' or '[migration/...]' in conjunction with non-kernel executable paths. The rule further identifies staging activities, such as processes executing from common temporary directories like /tmp, /dev/shm, or /var/tmp. Additionally, it looks for specific VoidLink artifacts in command lines, including '.vl_', 'stage[0-9].bin', 'implant.bin', or C2 communication patterns like '/api/v2/(handshake|sync)'. Finally, it detects anonymous network activity, where a deleted executable (indicating fileless execution) is associated with network connection utilities like curl, wget, or socket/connect calls. The rule triggers when specific combinations of these behaviors are observed, such as fileless execution combined with kernel masquerading, or fileless execution combined with staging, or kernel masquerading combined with staging, or VoidLink artifacts combined with fileless execution or kernel masquerading, or anonymous network activity combined with kernel masquerading or staging. This correlation aims to reduce false positives by requiring multiple indicators of compromise.
+query: "title: VoidLink C2 Loader Chain Behavioral Detection\nid: 8b3c4d5e-6f7a-4b8c-9d0e-1f2a3b4c5d6e\nstatus: experimental\ndescription: |\n    Detection of VoidLink's multi-stage loader chain combining \n    fileless execution (memfd_create + execveat), kernel thread masquerading via prctl, \n    and network staging. Requires correlation of multiple behaviors for high fidelity.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits\ntags:\n    - attack.defense_evasion\n    - attack.execution\n    - attack.t1620\n    - attack.t1036.004\n    - attack.t1059.004\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    fileless_exec:\n        Image|re: '(?i)(/proc/[0-9]+/fd/[0-9]+|/memfd:)'\n    kernel_masquerade:\n        CommandLine|re: '(?i)\\[(kworker/[0-9u:]+|migration/[0-9]+|watchdog/[0-9]+|rcu_sched|ksoftirqd)\\]'\n    staging_location:\n        CurrentDirectory|re: '(?i)^/(tmp|dev/shm|var/tmp)'\n        Image|endswith|any:\n            - '/sh'\n            - '/bash'\n            - '/dash'\n    voidlink_artifacts:\n        CommandLine|re: '(?i)(\\.vl_|stage[0-9]\\.bin|implant\\.bin|/api/v2/(handshake|sync))'\n    anonymous_network:\n        Image|contains: '(deleted)'\n        ParentCommandLine|re: '(?i)(curl|wget|socket|connect)'\n    condition: >\n        (fileless_exec and kernel_masquerade) or\n        (fileless_exec and staging_location) or\n        (kernel_masquerade and staging_location) or\n        (voidlink_artifacts and (fileless_exec or kernel_masquerade)) or\n        (anonymous_network and (kernel_masquerade or staging_location))\nfalsepositives:\n    - Legitimate kernel threads do not have user-space executable paths\nlevel: critical\n"
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1620
+    - T1036.004
+    - T1059.004
+tags:
+    - attack.defense_evasion
+    - attack.execution
+    - attack.t1620
+    - attack.t1036.004
+    - attack.t1059.004
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits
+data_sources:
+    - process_creation
+    - linux

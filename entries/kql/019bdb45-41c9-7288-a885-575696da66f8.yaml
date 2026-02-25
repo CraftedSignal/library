@@ -1,0 +1,43 @@
+id: 019bdb45-41c9-7288-a885-575696da66f8
+name: PDFSIDER Hidden Command Shell Execution
+description: This rule detects the creation of a hidden command shell by the 'pdf24.exe' process, a behavior associated with the PDFSIDER malware. Specifically, it looks for 'cmd.exe' being spawned with the '/c' argument by 'pdf24.exe'.
+query: |
+    // Name: PDFSIDER Hidden Command Shell Execution
+    // Author: detections.ai
+    // Date: 2026-01-20
+    // Description: This rule detects the creation of a hidden command shell by the 'pdf24.exe' process, a behavior associated with the PDFSIDER malware.
+    // Tactic: Execution
+    // Technique: T1059.003 - Windows Command Shell
+    // References: https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion
+
+    DeviceProcessEvents
+    // Look for the creation of the command prompt process.
+    | where FileName =~ "cmd.exe"
+    // Filter for command lines that indicate a command is being passed for execution, as seen with PDFSIDER.
+    | where ProcessCommandLine has "/c"
+    // The malicious command is spawned by the vulnerable, legitimate pdf24.exe application.
+    | where InitiatingProcessFileName =~ "pdf24.exe"
+    // FP Tuning: Legitimate use of pdf24.exe might also spawn cmd.exe.
+    // To reduce noise, consider filtering for pdf24.exe running from unusual locations like %TEMP%, %APPDATA%, or user download folders.
+    // Example: | where InitiatingProcessFolderPath !startswith "C:\\Program Files"
+    | project
+        Timestamp,
+        DeviceName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFolderPath,
+        ProcessId,
+        InitiatingProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.003
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion

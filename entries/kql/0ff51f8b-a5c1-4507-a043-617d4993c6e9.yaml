@@ -1,0 +1,67 @@
+id: 0ff51f8b-a5c1-4507-a043-617d4993c6e9
+name: Cobalt Strike PowerShell Loader Detection
+description: KQL Query
+query: |-
+    // Title: Cobalt Strike PowerShell Reflective Loader
+    // Description: Detects PowerShell scripts leveraging reflective loading techniques and known Cobalt Strike C2 infrastructure, as observed in recent campaigns.
+    // Author: Detections.ai
+    // Date: 2025-06-28
+    // References: https://hunt.io/blog/cobaltstrike-powershell-loader-chinese-russian-infrastructure
+    // Tactics: Execution, Defense Evasion, Command and Control
+    // Techniques: T1059.001 (PowerShell), T1027 (Obfuscated Files or Information), T1055 (Process Injection), T1071.001 (Standard Application Layer Protocol: HTTP/S)
+
+    let known_c2_domains = dynamic(["y2n273y10j.cfc-execute.bj.baidubce.com"]);
+    let known_c2_ips = dynamic(["46.173.27.142"]);
+    let known_ps_hashes = dynamic(["cdd757e92092b9a72dec0a7529219dd790226b82c69925c90e5d832955351b52", "23a04d2ae94998b26c42c327f9344b784eb00d0a42c0ade353275bdedff9824f", "27f88c7005f33bfc67731cb732c7c72e0cea7f97db1f15bcf5880d3e7f7f85eb", "6954005ab1b1d2deec940181674000e394f860fe4f626d6b0abf63453d5fff48", "ed2b7d55781414cdb3e0f64de6d9fea9bf282ee49e12b112f9e0748d5266fd60", "1f0f4415b738198cc82359212f3ead281b7eb38070163a7782584f77346e619f", "eed87a02d126c3ac0ab90a66f4e4a58f24d6a0f4028a2643e83a3a8b075cb5ac", "69b1261eac205aefb6a5237ff3d87ef515e838184c1616ec935a4f7f4aa04ac1", "60652f62ec7772b611f3a62fd93d690e677b616e972a0444650f0a2ea597f77f", "1d4f814d06a3893545f51f1158d6677b1b083a90ab57ba03c58f8d26c29e5a10"]);
+    let suspicious_user_agents = dynamic(["Mozilla/5.0 (compatible; MSIE 9.0; Windows NT 6.1; WOW64; Trident/5.0; yie9)"]);
+
+    // Part 1: Detect PowerShell process execution with suspicious command line arguments or known hashes
+    DeviceProcessEvents
+    | where Timestamp > ago(7d)
+    | where InitiatingProcessFileName =~ "powershell.exe" or FileName =~ "powershell.exe"
+    | where ProcessCommandLine has_any ("-EncodedCommand", "-e", "-enc", "-NoP", "-NoProfile", "-W Hidden", "-WindowStyle Hidden")
+        or SHA256 in (known_ps_hashes)
+    | extend DetectionType = "PowerShell Process Execution with Suspicious Arguments/Hash"
+    | project Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine, SHA256, ProcessId, AccountName, DetectionType, ReportId, RemoteUrl="", RemoteIP="", RemotePort=int(null)
+    // Union with PowerShell Script Block Logging events (Event ID 4104)
+    | union (
+        Event
+        | where Timestamp > ago(7d)
+        | where EventID == 4104 // PowerShell Script Block Logging
+        | where Source =~ "Microsoft-Windows-PowerShell"
+        | where RenderedDescription has_all ("func_get_proc_address", "func_get_delegate_type")
+            or RenderedDescription has_all ("VirtualAlloc", "GetDelegateForFunctionPointer")
+        | extend DetectionType = "PowerShell Script Block Reflective Loading"
+        | project Timestamp, DeviceName = Computer, ProcessCommandLine = RenderedDescription, ProcessId, AccountName = SubjectUserName, DetectionType, ReportId="", InitiatingProcessFileName="", SHA256="", RemoteUrl="", RemoteIP="", RemotePort=int(null)
+    )
+    // Union with PowerShell Network Events
+    | union (
+        DeviceNetworkEvents
+        | where Timestamp > ago(7d)
+        | where InitiatingProcessFileName =~ "powershell.exe" or InitiatingProcessParentFileName =~ "powershell.exe"
+        | where RemoteUrl in (known_c2_domains) or RemoteIP in (known_c2_ips)
+        | where isnotempty(RemoteUrl) or isnotempty(RemoteIP)
+        | where RemotePort == 443 or RemotePort == 50050 // As per article, 443 for initial C2, 50050 for Cobalt Strike Beacon
+        | where AdditionalFields has_any (suspicious_user_agents) // Check for User-Agent if available in network logs
+        | extend DetectionType = "PowerShell Network Connection to Known C2"
+        | project Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine = InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort, ProcessId = InitiatingProcessId, AccountName, DetectionType, ReportId, SHA256=""
+    )
+    | where isnotempty(DetectionType) // Ensure we only get results from our defined parts
+    | summarize arg_max(Timestamp, *) by ReportId, DeviceName, ProcessId, DetectionType // Deduplicate more robustly across different event types
+    | project-reorder Timestamp, DeviceName, DetectionType, InitiatingProcessFileName, ProcessCommandLine, AccountName, SHA256, RemoteUrl, RemoteIP, RemotePort
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+    - TA0011
+techniques:
+    - T1059.001
+    - T1027
+    - T1055
+    - T1071.001
+tags:
+    - kql
+author: Parth Jamodkar
+version: "1"

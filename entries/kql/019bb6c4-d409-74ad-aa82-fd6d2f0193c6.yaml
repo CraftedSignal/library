@@ -1,0 +1,17 @@
+id: 019bb6c4-d409-74ad-aa82-fd6d2f0193c6
+name: Malicious Chrome Extension Installation Detection
+description: Detects the installation of malicious Chrome extensions known to steal ChatGPT/DeepSeek conversations by looking for the creation of files in directories named with specific malicious extension IDs. This rule identifies file creation events within folders corresponding to known malicious Chrome extension IDs, indicating their installation on a device.
+query: "// Name: Malicious Chrome Extension Installation\r\n// Author: CyberHawk Threat Intel\r\n// Date: 2026-01-13\r\n// Description: Detects the installation of malicious Chrome extensions known to steal ChatGPT/DeepSeek conversations by looking for the creation of files in directories named with the malicious extension IDs.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/\r\n// Tactics: Execution\r\n// Techniques: T1204\r\nlet MaliciousExtensionIDs = dynamic([\r\n    \"fnmihdojmnkclgjpcoonokmkhjpjechg\",\r\n    \"inhcgfpbfdjbjogdfjbclgolkmhnooop\"\r\n]);\r\n// Define the lookback period for the search.\r\nlet Lookback = 1d;\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(Lookback)\r\n// Focus on file creation events, which indicate installation.\r\n| where ActionType == \"FileCreated\"\r\n// The extension ID is part of the folder path where the extension's files are stored.\r\n| where FolderPath has_any (MaliciousExtensionIDs)\r\n// This detection is based on specific IOCs (extension IDs), so the risk of false positives is low.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    MaliciousExtensionID = take_any(extract(\"([a-z]{32})\", 1, FolderPath)),\r\n    FileSamples = make_set(FileName, 5),\r\n    InitiatingProcess = take_any(InitiatingProcessFileName)\r\n    by DeviceName\r\n| project-reorder\r\n    StartTime,\r\n    EndTime,\r\n    DeviceName,\r\n    InitiatingProcess,\r\n    MaliciousExtensionID,\r\n    FileSamples\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176
+    - T1176.001
+tags:
+    - kql
+author: CyberHawk Threat Intel
+version: "5"
+references:
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/

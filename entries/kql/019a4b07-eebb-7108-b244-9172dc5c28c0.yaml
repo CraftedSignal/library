@@ -1,0 +1,47 @@
+id: 019a4b07-eebb-7108-b244-9172dc5c28c0
+name: EvilAi Node.js Malware Detection via MachineGuid Registry Access
+description: Detects suspicious behavior where a Node.js-based application launches cmd.exe to query MachineGuid from the registry, indicating potential fingerprinting or persistence activity by EvilAi malware. The rule specifically looks for processes initiated from a suspicious folder path, where node.exe is the parent process, and cmd.exe is used to query 'HKLM\Software\Microsoft\Cryptography' for 'MachineGuid'.
+query: |-
+    //Title: EvilAi Node.js Malware Detection via MachineGuid Registry Access  
+    //Description: Detects suspicious behavior where a Node.js-based application launches cmd.exe to query MachineGuid from the registry, indicating potential fingerprinting or persistence activity by EvilAi malware.  
+    //Author(s): Adair John Collins
+    //Date: 11/03/2025
+    //Version: 1
+    DeviceProcessEvents
+    | where InitiatingProcessIntegrityLevel == "Medium" //Filter for medium integrity level processes (typically user-level, not elevated)  
+    | where InitiatingProcessFolderPath has @"\AppData\Local\Programs\ManualReaderPro\" //Focus on processes launched from the suspicious folder associated with EvilAi
+    | where FileName == "cmd.exe" //Target instances where cmd.exe is executed  
+    | where InitiatingProcessVersionInfoOriginalFileName == "node.exe" //Ensure the parent process is node.exe, indicating a Node.js-based launcher  
+    | where ProcessCommandLine has_all(@'cmd.exe /d /s /c "', @':\WINDOWS\system32\reg.exe QUERY "HKLM\Software\Microsoft\Cryptography" /v MachineGuid"') //Look for command lines that query MachineGuid from the registry using reg.exe  
+    | where InitiatingProcessCommandLine has @"\AppData\Local\Programs\ManualReaderPro\" //Reinforce that the initiating process command line includes the suspicious folder path
+    | where InitiatingProcessCommandLine matches regex @"[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}" //Match GUID pattern in the initiating process command line, confirming MachineGuid usage  
+    | sort by Timestamp, DeviceId asc //Sort results chronologically and by device for investigation
+    //Reference(s):  
+    //https://www.virustotal.com/gui/file/efa658cb9eb24136c8c69540fcde833683ed5002def1b6c84b0d04f64ee25076/detection  
+    //https://www.virustotal.com/gui/search/engines:trojan%20AND%20engines:evilai%20AND%20engines:infosteal?type=files  
+    //https://www.virustotal.com/gui/domain/api.cjby76nlcynrc4jvrb.com
+    //Incident Response Steps:
+    //EvilAi JavaScript Threat Response via Microsoft Defender for Endpoint (MDE)
+    //1.Inspect the MDE timeline for .js files located under \AppData\Local\Programs\ManualReaderPro\
+    //2.Use MDE Live Response to acquire the suspicious .js files
+    //3.De-obfuscate the JavaScript files using "https://deobfuscate.io/" and extract any embedded command-and-control (C2) IP addresses or domains
+    //4.Block the extracted indicators using Microsoft Defender Threat Intelligence (TI) blocking capabilities
+    //5.Remediate the malicious .js files using the Live Response command: remediate
+    //6.Run a full antivirus scan after remediation to ensure the system is clean
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0007
+techniques:
+    - T1059
+    - T1012
+    - T1082
+tags:
+    - kql
+author: Adair John Collins
+version: "2"
+references:
+    - https://www.virustotal.com/gui/file/efa658cb9eb24136c8c69540fcde833683ed5002def1b6c84b0d04f64ee25076/detection
+    - https://www.virustotal.com/gui/search/engines:trojan%20AND%20engines:evilai%20AND%20engines:infosteal?type=files
+    - https://www.virustotal.com/gui/domain/api.cjby76nlcynrc4jvrb.com

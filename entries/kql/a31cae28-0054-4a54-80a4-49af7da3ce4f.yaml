@@ -1,0 +1,54 @@
+id: a31cae28-0054-4a54-80a4-49af7da3ce4f
+name: Suspicious File Download from Webserver or SQL Related Process
+description: This rule detects a suspicious file download from a known web server or SQL related process which has been identified in the GhostRedirector campaign.
+query: |
+    let lookback = 1d;
+    // Define suspicious parent processes. sqlserver.exe is the primary one mentioned in the GhostRedirector report.
+    let suspiciousParents = dynamic(["sqlserver.exe", "w3wp.exe", "mysqld.exe"]);
+    // Define child processes commonly used for downloading payloads.
+    let downloaderProcesses = dynamic(["powershell.exe", "certutil.exe", "bitsadmin.exe", "cmd.exe"]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Filter for specific downloader processes being created.
+    | where FileName in~ (downloaderProcesses)
+    // Filter for suspicious parent processes, which is unusual behavior.
+    | where InitiatingProcessFileName in~ (suspiciousParents)
+    // Filter for command-line arguments indicating download activity.
+    | where (
+        // PowerShell download commands, often paired with an output file.
+        (ProcessCommandLine has_any ("curl", "Invoke-WebRequest", "iwr", "irm", "Invoke-RestMethod", "System.Net.WebClient", "Start-BitsTransfer") and ProcessCommandLine has "-OutFile") or
+        // CertUtil download commands.
+        (FileName =~ "certutil.exe" and ProcessCommandLine has "-urlcache" and ProcessCommandLine has "-f") or
+        // BITSAdmin download commands.
+        (FileName =~ "bitsadmin.exe" and ProcessCommandLine has "/transfer" and ProcessCommandLine has "/download")
+      )
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        SHA1,
+        InitiatingProcessSHA1
+    | extend
+        timestamp = TimeGenerated,
+        AccountCustomEntity = AccountName,
+        HostCustomEntity = DeviceName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1071
+    - T1059.001
+tags:
+    - kql
+    - ghostredirector
+author: detections.ai
+version: "1"
+references:
+    - https://www.welivesecurity.com/en/eset-research/ghostredirector-poisons-windows-servers-backdoors-side-potatoes/

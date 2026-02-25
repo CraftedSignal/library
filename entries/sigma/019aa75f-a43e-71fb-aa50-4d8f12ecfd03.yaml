@@ -1,0 +1,23 @@
+id: 019aa75f-a43e-71fb-aa50-4d8f12ecfd03
+name: AWS Network Firewall Country-Code TLD Blocking
+description: This rule provides a preventive configuration for AWS Network Firewall that blocks outbound HTTP and TLS connections to domains using high-risk country-code top-level domains (ccTLDs) like .ru and .cn.
+query: "title: AWS Network Firewall - Country-Code TLD Blocking (HTTP/TLS)\nid: 202501036-202501039-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that blocks HTTP and TLS connections to domains using\n  high-risk country-code top-level domains (ccTLDs) such as .ru (Russia) and .cn (China). Blocking high-risk ccTLDs is\n  a common security control that customers configure to reduce exposure to threat actors operating in specific countries.\n  These ccTLDs have been associated with various malicious activities including phishing, malware distribution, and\n  command-and-control infrastructure. AWS Network Firewall uses Suricata as its underlying engine. The rules inspect\n  both the TLS SNI field and HTTP Host header to identify and reject connections. This is not a specific threat detection\n  but rather a preventive control based on geographic and domain risk assessment.\n  \n  Suricata Rules (Examples):\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".ru\"; nocase; endswith; msg:\"Egress traffic to RU ccTLD\"; flow:to_server; sid:202501036;)\n  reject http $HOME_NET any -> any any (http.host; content:\".ru\"; endswith; msg:\"Egress traffic to RU ccTLD\"; flow:to_server; sid:202501037;)\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".cn\"; nocase; endswith; msg:\"Egress traffic to CN ccTLD\"; flow:to_server; sid:202501038;)\n  reject http $HOME_NET any -> any any (http.host; content:\".cn\"; endswith; msg:\"Egress traffic to CN ccTLD\"; flow:to_server; sid:202501039;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1071/001/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071.001\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_tls:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n    tls_sni|endswith:\n      - '.ru'\n      - '.cn'\n  selection_http:\n    protocol: http\n    direction: outbound\n    source_network: internal\n    http_host|endswith:\n      - '.ru'\n      - '.cn'\n  condition: selection_tls or selection_http\nfalsepositives:\n  - Legitimate business with partners or customers in blocked countries\n  - News or media websites from blocked countries\n  - International organizations with ccTLD domains\nlevel: low\n"
+query_type: sigma
+severity: low
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1071/001/
+data_sources:
+    - firewall
+    - aws_network_firewall

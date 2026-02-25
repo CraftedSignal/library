@@ -1,0 +1,13 @@
+id: 20140fb6-3e98-41e5-923c-30df0a857cfa
+name: '[UC] - Sign-in Attempts Using Deprecated TLS Versions'
+description: This query identifies Azure AD sign-ins that are using legacy TLS versions (below TLS 1.2). It highlights the accounts, devices, and applications involved, providing visibility into insecure protocol usage. Tracking these events helps detect weak encryption risks and enables proactive remediation to enforce modern, secure standards.
+query: "AADSignInEventsBeta\n| where ErrorCode == 0\n| mv-apply d = parse_json(AuthenticationProcessingDetails) on (\n    extend key = tostring(d.key), value = tostring(d.value)\n    | summarize details = make_bag(pack(key, value))\n)\n| extend LegacyTLS = tostring(details['Legacy TLS (TLS 1.0, 1.1, 3DES)'])\n| where tolower(LegacyTLS) == \"true\"\n| summarize Sessions = count()  \n    by AccountUpn, ApplicationId, UserAgent, Timestamp,ReportId\n| order by Sessions desc "
+query_type: kql
+severity: medium
+tags:
+    - KQL
+    - Sergio Albea
+    - kql
+version: "1"
+references:
+    - https://medium.com/detect-fyi/threat-hunting-sessions-via-authenticationprocessingdetails-on-aadsignineventsbeta-a1252d03bba3

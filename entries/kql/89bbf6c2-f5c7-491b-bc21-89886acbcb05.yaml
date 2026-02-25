@@ -1,0 +1,16 @@
+id: 89bbf6c2-f5c7-491b-bc21-89886acbcb05
+name: Critical identities with zero-day Chrome vulnerability
+description: KQL Query
+query: "// Critical identities with zero-day Chrome vulnerability\n// CVE-2025-4664 Chrome flaw with public exploit\n// https://www.bleepingcomputer.com/news/security/cisa-tags-recently-patched-chrome-bug-as-actively-exploited-zero-day/\n// https://www.bleepingcomputer.com/news/security/google-fixes-high-severity-chrome-flaw-with-public-exploit/\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet AdminDevices =\nExposureGraphEdges \n| where EdgeLabel == \"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nDeviceProcessEvents\n| where Timestamp > ago(30d)\n| where ProcessVersionInfoProductName == \"Google Chrome\"\n| where ProcessVersionInfoProductVersion != \"136.0.7103.114\" and\nProcessVersionInfoProductVersion != \"136.0.7103.113\"\n| summarize arg_max(Timestamp, *) by DeviceId\n| where DeviceName has_any(AdminDevices)\n\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0001
+    - TA0004
+techniques:
+    - T1203
+    - T1190
+    - T1068
+tags:
+    - kql
+version: "1"

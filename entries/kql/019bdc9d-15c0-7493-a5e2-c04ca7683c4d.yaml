@@ -1,0 +1,13 @@
+id: 019bdc9d-15c0-7493-a5e2-c04ca7683c4d
+name: Network Connection to Free Converter Software
+description: A widespread campaign employs malvertising to distribute converter tools that secretly install persistent Remote Access Trojans. These droppers establish scheduled tasks and leverage code signing to load and execute further malicious .NET assemblies from command-and-control servers, enabling continuous system access and data exfiltration.
+query: "let lookback = 30d;\r\nlet suspiciousDomains = dynamic([\r\n  \"commansecurityez2convertapp.com\",\r\n  \"convertyfileapp.com\",\r\n  \"powerdocapp.com\",\r\n  \"infinitedocsapp.com\",\r\n  \"convertmasterapp.com\",\r\n  \"conmateapp.com\",\r\n  \"pdfskillsapp.com\",\r\n  \"pdfclickapp.com\",\r\n  \"zappdfapp.com\",\r\n  \"onezipapp.com\",\r\n  \"crystalpdf.com\",\r\n  \"pdfsparkware.com\",\r\n  \"zipmatepro.com\",\r\n  \"notawordapp.com\"\r\n]);\r\nDeviceNetworkEvents\r\n| where Timestamp >= ago(lookback)\r\n| where isnotempty(RemoteUrl)\r\n| where RemoteUrl has_any (suspiciousDomains)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemotePort,\r\n    Protocol,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessAccountName,\r\n    ReportId\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "1"

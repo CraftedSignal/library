@@ -1,0 +1,62 @@
+id: 019c00e3-5e2d-76aa-9ec5-92c324c3f262
+name: App-V Publishing Script LOLBIN Execution
+description: Detects the execution of the signed Microsoft App-V script 'SyncAppvPublishingServer.vbs' by a script host like wscript.exe or cscript.exe. This technique is used as a LOLBIN to proxy execution of other code, such as PowerShell, bypassing detections that focus on direct PowerShell execution or common parent-child process relationships. This was observed in a campaign delivering Amatera Stealer.
+query: |
+    title: App-V Publishing Script LOLBIN Execution
+    id: 18855a76-8619-4ba3-a77c-bc061ec2e155
+    status: experimental
+    description: >-
+      Detects the execution of the signed Microsoft App-V script
+      'SyncAppvPublishingServer.vbs' by a script host like wscript.exe or
+      cscript.exe. This technique is used as a LOLBIN to proxy execution of other
+      code, such as PowerShell, bypassing detections that focus on direct PowerShell
+      execution or common parent-child process relationships. This was observed in a
+      campaign delivering Amatera Stealer.
+    references:
+      - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+    author: detections.ai
+    date: 2026-01-27
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1218.011
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects script hosts wscript.exe or cscript.exe
+        Image|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+        # Detects the specific App-V script in the command line
+        CommandLine|contains: 'SyncAppvPublishingServer.vbs'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or automated tasks involving the management of
+        Microsoft Application Virtualization (App-V) applications.
+      - This activity might be more common in enterprise environments where App-V is
+        used. Consider filtering based on parent processes or user context if noise
+        occurs.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1216.002
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1218.011
+    - attack.t1059.001
+author: detections.ai
+version: "2"
+references:
+    - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+data_sources:
+    - process_creation
+    - windows

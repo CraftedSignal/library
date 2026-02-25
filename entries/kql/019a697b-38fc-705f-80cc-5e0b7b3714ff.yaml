@@ -1,0 +1,18 @@
+id: 019a697b-38fc-705f-80cc-5e0b7b3714ff
+name: '[EX] - Threat Hunting external connections attempts by internal Devices'
+description: When, for example, a printer, camera, IoT appliance, or other device suddenly makes outbound connections to countries such as China, Russia, or Iran, this may not be noise. The following detection helps identify connections from these specific device groups that we were not previously aware of and that could be exfiltrating information.
+query: "//Author Sergio Albea 30-10-2025\nDeviceInfo\n| where DeviceSubtype in (\"Camera\",\"RaspberryPi\", \"SmartPhone\", \"SmartTV\",\"Tablet\")\n| join kind=inner (DeviceNetworkInfo | where isnotempty(IPAddresses)) on $left.DeviceId == $right.DeviceId\n| extend d = todynamic(IPAddresses)                          // works for string or dynamic\n| extend IP = tostring(iif(array_length(d) > 0, d[0].IPAddress, \"\"))\n| join kind=inner (DeviceNetworkEvents | where isnotempty(LocalIP) and isnotempty(RemoteUrl)) on $left.IP == $right.LocalIP\n// If there are devices identified as valid to connect/manage your routers, you can exclude them using the next condition\n// where DeviceName2 !in (\"Device1\",\"Device2\")\n| extend Access_Type = case(RemoteUrl startswith \"http\", \"\U0001F30E Web\",\"⚙️ Application\")\n| extend Connection_Result = case(ActionType has \"ConnectionSuccess\", \"✅ ConnectionSuccess\",\"❌ ConnectionFailed\")\n| extend geo_ip = tostring(geo_info_from_ip_address(RemoteIP).country)\n| where geo_ip in (\"China\",\"Russia\",\"Iran\",\"Singapore\",\"Qatar\",\"Israel\",\"South Korea\")\n| summarize make_set(OSPlatform),make_set(InitiatingProcessFileName), Total_connections=count() by  DeviceType,DeviceSubType=strcat(\"\U0001F4F1 \",DeviceSubtype),Vendor,Connection_From=DeviceName2,Access_Type,LocalIP,Connection_To=RemoteUrl,geo_ip, RemoteIP, Connection_Result"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1048
+    - T1567
+tags:
+    - kql
+author: Sergio Albea
+version: "2"
+references:
+    - https://medium.com/detect-fyi/threat-hunting-over-internal-devices-via-kql-queries-12b607b89c93

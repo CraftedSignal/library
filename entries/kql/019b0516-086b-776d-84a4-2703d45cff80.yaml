@@ -1,0 +1,21 @@
+id: 019b0516-086b-776d-84a4-2703d45cff80
+name: SharePoint Phishing Attacks Using Lick Deceptive Techniques
+description: |-
+    This detection identifies emails linked to a recent widespread phishing campaign that abuses trusted Microsoft SharePoint links to bypass traditional security controls. Attackers use convincing business emails containing SharePoint URLs that lead to multi-step validation pages, mimicking legitimate Microsoft authentication flows. These techniques make the attacks highly deceptive and harder to detect, as the initial links appear legitimate.
+
+    This campaign has been active and prevalent over the past two weeks, targeting multiple organizations and leveraging user trust in Microsoft services to harvest credentials.
+
+    Use this query to find potential malicious SharePoint links in email messages and investigate them further by detonating the URLs in a sandbox environment to analyze their behavior.
+query: "//Reference: https://cybersecuritynews.com/new-sharepoint-phishing-attacks/\r\nEmailUrlInfo\r\n| where Url contains \"my.sharepoint.com\"\r\n| where Url endswith \"=9\"\r\n| where Url !contains \"personal\"\r\n| where Url !contains \"fromshare\"\r\n| join kind=leftouter (\r\n    EmailEvents\r\n    | where UrlCount == 10\r\n    | project NetworkMessageId, Subject, SenderFromAddress, RecipientEmailAddress\r\n) on NetworkMessageId\r\n| project Timestamp, Url, Subject, SenderFromAddress, RecipientEmailAddress, NetworkMessageId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+author: Matthew Metcalf
+version: "1"
+references:
+    - https://cybersecuritynews.com/new-sharepoint-phishing-attacks/

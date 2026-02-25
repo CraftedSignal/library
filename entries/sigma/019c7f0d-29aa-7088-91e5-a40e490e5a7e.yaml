@@ -1,0 +1,53 @@
+id: 019c7f0d-29aa-7088-91e5-a40e490e5a7e
+name: Python Loader Installing Dependencies via pip
+description: Detects Python executing pip installs for common Arkanix loader dependencies (requests, pycryptodome, psutil) as described in the report.
+query: |
+    title: >-
+      Python Loader Installing Dependencies via pip
+    id: 6a3f0d39-1b1a-41d1-8f8c-8b3b2d8aa9de
+    status: experimental
+    description: >-
+      Detects Python executing pip installs for common Arkanix loader dependencies
+      (requests, pycryptodome, psutil) as described in the report.
+    author: Daniel Jeremiah
+    date: 2026-02-21T00:00:00.000Z
+    references:
+      - https://securelist.com/arkanix-stealer/119006/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_python:
+        Image|endswith:
+          - \python.exe
+          - \pythonw.exe
+      selection_pip:
+        CommandLine|contains:
+          - pip
+          - install
+      selection_modules:
+        CommandLine|contains|all:
+          - pycryptodome
+          - psutil
+      condition: selection_python and selection_pip and selection_modules
+    falsepositives:
+      - Developers installing python packages manually (tune by parent process,
+        user, host role, and follow-on C2 indicators)
+    level: medium
+    tags:
+      - attack.execution
+      - attack.t1059.006
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0009
+    - TA0003
+    - TA0004
+techniques:
+    - T1059.006
+    - T1547.001
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://securelist.com/arkanix-stealer/119006/

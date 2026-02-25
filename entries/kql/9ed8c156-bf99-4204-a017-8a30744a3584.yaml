@@ -1,0 +1,12 @@
+id: 9ed8c156-bf99-4204-a017-8a30744a3584
+name: AAD Unauthorized Deletion Detection
+description: This rule identifies and monitors deletion operations in Azure Active Directory (AAD) that could indicate unauthorized activity. It excludes routine deletions, such as security information or device removals, and captures details about the initiating user, target user/group, and their IP address. The rule helps detect potentially anomalous or suspicious deletion actions, enhancing AAD security monitoring.
+query: "AuditLogs \r\n| where AADOperationType == \"Delete\"\r\n| extend gr_details = parse_json(TargetResources)\r\n| extend user_details = parse_json(InitiatedBy)\r\n| extend GroupName = gr_details[0]['displayName']\r\n| extend TargetedUser = gr_details[0]['userPrincipalName']\r\n| extend Init_by = user_details['user']['userPrincipalName']\r\n| extend UserIP = user_details['user']['ipAddress']\r\n| where not(isempty(Init_by))\r\n| where OperationName !in(\"User deleted security info\", \"Delete device\")\r\n| where Identity !in(\"Microsoft Teams Services\")\r\n| project\r\n    TimeGenerated,\r\n    OperationName,\r\n    Category,\r\n    ResultDescription,\r\n    Identity,\r\n    GroupName,\r\n    TargetedUser,\r\n    Init_by,\r\n    UserIP,\r\n    LoggedByService,\r\n    ActivityDisplayName\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1562
+    - T1098
+tags:
+    - kql
+version: "1"

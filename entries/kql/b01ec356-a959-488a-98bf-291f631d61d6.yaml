@@ -1,0 +1,17 @@
+id: b01ec356-a959-488a-98bf-291f631d61d6
+name: SharePoint Vulnerability Exploitation Attempt (CVE-2025-49704, CVE-2025-49706, CVE-2025-53770)
+description: This rule detects the creation of a suspicious file named 'spinstall0.aspx' or similar in a specific SharePoint template directory, which is indicative of a potential compromise related to CVE-2025-49704, CVE-2025-49706, or CVE-2025-53770. Additionally, it identifies network connections to known malicious IP addresses associated with these vulnerabilities.
+query: "//resource: https://unit42.paloaltonetworks.com/microsoft-sharepoint-cve-2025-49704-cve-2025-49706-cve-2025-53770/\r\n\r\n\r\nlet IP_iocs = dynamic([\r\n    \"107.191.58.76\",\r\n    \"104.238.159.149\",\r\n    \"96.9.125.147\",\r\n    \"139.144.199.41\",\r\n    \"89.46.223.88\",\r\n    \"45.77.155.170\",\r\n    \"95.179.158.42\",\r\n    \"149.40.50.15\",\r\n    \"154.223.19.106\",\r\n    \"185.197.248.131\"\r\n]);\r\nlet Create_file = DeviceFileEvents\r\n| where FolderPath has @\"MICROS~1\\WEBSER~1\\16\\TEMPLATE\\LAYOUTS\"\r\n| where FileName =~ \"spinstall0.aspx\" or FileName has \"spinstall0\"\r\n| project \r\n    Timestamp, \r\n    DeviceName, \r\n    InitiatingProcessFileName, \r\n    InitiatingProcessCommandLine, \r\n    FileName, \r\n    FolderPath, \r\n    ReportId, \r\n    ActionType, \r\n    SHA256, \r\n    RemoteIP = \"\";\r\nlet Network_Connections = DeviceNetworkEvents\r\n| where RemoteIP in (IP_iocs)\r\n| project \r\n    Timestamp, \r\n    DeviceName, \r\n    InitiatingProcessFileName, \r\n    InitiatingProcessCommandLine, \r\n    FileName = \"\", \r\n    FolderPath = \"\", \r\n    ReportId, \r\n    ActionType, \r\n    SHA256 = \"\", \r\n    RemoteIP;\r\nCreate_file\r\n| union Network_Connections"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0011
+techniques:
+    - T1213.002
+    - T1071.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/microsoft-sharepoint-cve-2025-49704-cve-2025-49706-cve-2025-53770/

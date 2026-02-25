@@ -1,0 +1,17 @@
+id: 019c4810-3ebd-7380-b6a7-9e1ccae28ed9
+name: Ivanti EPMM Sleeper Shell Access via 403.jsp
+description: This detection monitors for web requests to the specific URI path "/mifs/403.jsp". This path is known to be used by attackers to deploy a dormant Java-based webshell ("sleeper shell") on vulnerable Ivanti Endpoint Manager Mobile (EPMM) instances as part of an initial access campaign.
+query: "// Name: Ivanti EPMM Sleeper Shell Access via 403.jsp\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-10\r\n// Description: This detection monitors for web requests to the specific URI path \"/mifs/403.jsp\". This path is known to be used by attackers to deploy a dormant Java-based webshell (\"sleeper shell\") on vulnerable Ivanti Endpoint Manager Mobile (EPMM) instances as part of an initial access campaign.\r\n// MITRE ATT&CK: T1505.003 (Server Software Component: Web Shell)\r\n// References: https://defusedcyber.com/ivanti-epmm-sleeper-shells-403jsp\r\n// False Positive Sensitivity: Medium. The path is highly specific to this threat. False positives are unlikely but could occur if this path is used legitimately for other purposes, which is improbable.\r\n// To reduce potential noise, consider filtering for traffic destined for your known Ivanti EPMM servers.\r\n// Data sources: CommonSecurityLog, W3CIISLog, DeviceNetworkEvents\r\nlet suspiciousPath = \"/mifs/403.jsp\";\r\n(union isfuzzy=true\r\n    (\r\n        // Check web proxy, firewall, and other network security appliance logs\r\n        CommonSecurityLog\r\n        // The RequestURL field contains the full URL of the request\r\n        | where RequestURL has suspiciousPath\r\n        | extend Url = RequestURL, DestinationIp = DestinationIP, SourceIp = SourceIP, HttpRequestMethod = RequestMethod\r\n        | project-reorder TimeGenerated, Url, HttpRequestMethod, SourceIp, DestinationIp, DeviceVendor, DeviceProduct\r\n    ),\r\n    (\r\n        // Check IIS logs directly from the server\r\n        W3CIISLog\r\n        // The csUriStem field contains the path part of the URL\r\n        | where csUriStem has suspiciousPath\r\n        | extend Url = strcat(sSiteName, csUriStem), DestinationIp = sIp, SourceIp = cIp, HttpRequestMethod = csMethod\r\n        | project-reorder TimeGenerated, Url, HttpRequestMethod, SourceIp, DestinationIp, Computer\r\n    ),\r\n    (\r\n        // Check endpoint network events which may capture web requests\r\n        DeviceNetworkEvents\r\n        // The RemoteUrl field contains the full URL of the request\r\n        | where RemoteUrl has suspiciousPath\r\n        | extend Url = RemoteUrl, DestinationIp = RemoteIP, SourceIp = LocalIP, HttpRequestMethod = \"N/A\" // Method not always available here\r\n        | project-reorder TimeGenerated, Url, HttpRequestMethod, SourceIp, DestinationIp, DeviceName\r\n    )\r\n)\r\n// Summarize the findings for easier analysis\r\n| summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), TotalRequests = count(), DestinationIps = make_set(DestinationIp) by SourceIp, Url\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://defusedcyber.com/ivanti-epmm-sleeper-shells-403jsp

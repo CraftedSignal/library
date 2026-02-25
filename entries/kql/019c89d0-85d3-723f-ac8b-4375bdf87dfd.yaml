@@ -1,0 +1,39 @@
+id: 019c89d0-85d3-723f-ac8b-4375bdf87dfd
+name: BeyondTrust CVE-2026-1731 Exploitation Attempt
+description: Detects attempts to exploit CVE-2026-1731, a command injection vulnerability in BeyondTrust Remote Support software. The rule looks for the specific injection pattern 'a[$(...)]0' in the 'remoteVersion' parameter of web requests.
+query: |
+    kql
+    // Name: BeyondTrust CVE-2026-1731 Exploitation Attempt
+    // Author: Adarsh Pandey
+    // Date: 2026-02-23
+    // Description: Detects attempts to exploit CVE-2026-1731, a command injection vulnerability in BeyondTrust Remote Support software. The rule looks for the specific injection pattern 'a[$(...)]0' in the 'remoteVersion' parameter of web requests.
+    // False Positive Sensitivity: Medium
+    // - This detection is specific to the known exploitation pattern for CVE-2026-1731. However, similar patterns could potentially appear in benign, malformed, or test traffic.
+    // - Consider filtering by target hostnames/IPs known to be running vulnerable BeyondTrust software to increase fidelity.
+    // MITRE ATT&CK: T1190 (Exploit Public-Facing Application), T1059.004 (Unix Shell)
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    (union isfuzzy=true
+        DeviceNetworkEvents,
+        VMConnection,
+        CommonSecurityLog,
+        W3CIISLog,
+        AzureDiagnostics
+    )
+    // Look for the 'remoteVersion' parameter which is targeted by this exploit.
+    | where RawData contains "remoteVersion=" or RequestURL has "remoteVersion=" or AdditionalExtensions has "remoteVersion="
+    // Match the specific command injection pattern 'a[$(...)]0' observed in active exploitation.
+    | where RawData matches regex @'a\[\$\(.*?\)]0' or RequestURL matches regex @'a\[\$\(.*?\)]0' or AdditionalExtensions matches regex @'a\[\$\(.*?\)]0'
+    | extend timestamp = TimeGenerated, IPCustomEntity = RemoteIP, AccountCustomEntity = SourceUserName
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

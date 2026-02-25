@@ -1,0 +1,72 @@
+id: 019c4309-c3b5-7657-b577-d0aeddce2443
+name: Microsoft Graph API for Command and Control
+description: Detects network connections to the Microsoft Graph API (graph.microsoft.com) from processes that are not common Microsoft Office applications. Threat actors, such as those behind the FINALDRAFT malware, have been observed using the Graph API for covert command and control (C2) communications, often by manipulating email drafts to send and receive commands. This allows them to blend their traffic with legitimate enterprise activity.
+query: |
+    title: Microsoft Graph API for Command and Control
+    id: 3e21700e-75e8-4292-b9ce-c0fa8bc260d5
+    status: experimental
+    description: Detects network connections to the Microsoft Graph API
+      (graph.microsoft.com) from processes that are not common Microsoft Office
+      applications. Threat actors, such as those behind the FINALDRAFT malware, have
+      been observed using the Graph API for covert command and control (C2)
+      communications, often by manipulating email drafts to send and receive
+      commands. This allows them to blend their traffic with legitimate enterprise
+      activity.
+    references:
+      - https://www.elastic.co/security-labs/finaldraft
+      - https://thehackernews.com/2025/02/finaldraft-malware-exploits-microsoft.html
+      - https://www.techzine.eu/news/security/128746/finaldraft-malware-that-hides-in-drafts-to-attack-unsuspecting-users/
+    author: detections.ai
+    date: 2026-02-09
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+      - attack.t1105
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # Detects connections to the Microsoft Graph API endpoint
+        DestinationHostname|endswith: 'graph.microsoft.com'
+      filter_legit_apps:
+        # Filter out common Microsoft applications known to use the Graph API
+        Image|endswith:
+          - '\OUTLOOK.EXE'
+          - '\TEAMS.EXE'
+          - '\WINWORD.EXE'
+          - '\EXCEL.EXE'
+          - '\POWERPNT.EXE'
+          - '\ONENOTE.EXE'
+          - '\MSACCESS.EXE'
+          - '\Microsoft.AAD.BrokerPlugin.exe'
+          - '\OneDrive.exe'
+      condition: selection and not filter_legit_apps
+    falsepositives:
+      - Legitimate third-party applications or custom-developed tools that integrate
+        with Microsoft 365 services via the Graph API.
+      - Administrative scripts (e.g., PowerShell) used for managing Azure AD or
+        other Microsoft services.
+      - These legitimate uses may need to be baselined and added to the filter to
+        reduce noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1105
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/finaldraft
+    - https://thehackernews.com/2025/02/finaldraft-malware-exploits-microsoft.html
+    - https://www.techzine.eu/news/security/128746/finaldraft-malware-that-hides-in-drafts-to-attack-unsuspecting-users/
+data_sources:
+    - network_connection
+    - windows

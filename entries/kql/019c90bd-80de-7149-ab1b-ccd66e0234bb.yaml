@@ -1,0 +1,102 @@
+id: 019c90bd-80de-7149-ab1b-ccd66e0234bb
+name: XWorm LATAM Campaign Activity
+description: This rule detects activities associated with the XWorm LATAM campaign. It identifies network indicators such as specific C2 domains (jholycf100.ddns.com.br, voulerlivros.com.br, res.cloudinary.com), a specific IP address (152.249.17.145), and a destination port (7000). It also looks for the abuse of CasPol.exe making outbound connections to the identified C2 infrastructure. Furthermore, the rule detects PowerShell processes spawned by WMI (WmiPrvSE.exe) that attempt to fetch content from Cloudinary and load assemblies in memory, indicating potential in-memory execution. Finally, it includes a specific SHA256 file hash (7befeacf0b3480fb675d0cab7767b5b9697edc9d0e05982025a06ead0054afd5) associated with the campaign.
+query: |-
+    // XWorm LATAM campaign hunts (Microsoft KQL, Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://any.run/cybersecurity-blog/xworm-latam-campaign/
+
+    let XWormDomains = dynamic(["jholycf100.ddns.com.br","voulerlivros.com.br","res.cloudinary.com"]);
+    let XWormUrlsContains = dynamic(["voulerlivros.com.br/arquivo_20260116064120.txt","optimized_MSI_lpsd9p.jpg"]);
+    let XWormIP = "152.249.17.145";
+    let XWormPort = 7000;
+    let XWormSha256 = "7befeacf0b3480fb675d0cab7767b5b9697edc9d0e05982025a06ead0054afd5";
+
+    union isfuzzy=true
+    (
+        // 1) Network IOCs (C2 plus payload delivery)
+        DeviceNetworkEvents
+        | extend Url = tostring(RemoteUrl)
+        | extend Host = tostring(parse_url(Url).Host)
+        | where (Host in~ (XWormDomains))
+            or (Url has_any (XWormUrlsContains))
+            or (RemoteIP == XWormIP)
+            or (RemotePort == XWormPort)
+        | extend MatchType = case(
+            RemotePort == XWormPort, "network_port_7000",
+            RemoteIP == XWormIP, "network_ip_match",
+            Host in~ (XWormDomains), "network_domain_match",
+            Url has_any (XWormUrlsContains), "network_url_match",
+            "network_other"
+          )
+        | project TimeGenerated, DeviceName, MatchType,
+                  RemoteIP, RemotePort, RemoteUrl, Host,
+                  InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                  InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+        // 2) Endpoint CasPol.exe LOLBIN abuse plus outbound connections
+        DeviceNetworkEvents
+        | where InitiatingProcessFileName =~ "CasPol.exe"
+        | extend Url = tostring(RemoteUrl)
+        | extend Host = tostring(parse_url(Url).Host)
+        | where (Host in~ (dynamic(["jholycf100.ddns.com.br","voulerlivros.com.br"])))
+            or (RemoteIP == XWormIP)
+            or (RemotePort == XWormPort)
+        | extend MatchType = "caspol_outbound_to_ioc"
+        | project TimeGenerated, DeviceName, MatchType,
+                  RemoteIP, RemotePort, RemoteUrl, Host,
+                  InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                  InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+        // 3) WMI spawned PowerShell plus Cloudinary fetch plus in memory load patterns
+        DeviceProcessEvents
+        | where InitiatingProcessFileName in~ ("WmiPrvSE.exe","wmiprvse.exe")
+        | where FileName in~ ("powershell.exe","pwsh.exe")
+        | where ProcessCommandLine has_any ("System.Net.WebClient","cloudinary","Assembly.Load")
+        | extend MatchType = "wmi_spawned_powershell_cloudinary_inmemory"
+        | project TimeGenerated, DeviceName, MatchType,
+                  AccountName, InitiatingProcessAccountName,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                  FileName, FolderPath, ProcessCommandLine, SHA256, ReportId
+    ),
+    (
+        // 4) Sample hash (file telemetry)
+        DeviceFileEvents
+        | where SHA256 == XWormSha256
+        | extend MatchType = "sha256_match"
+        | project TimeGenerated, DeviceName, MatchType,
+                  ActionType, FileName, FolderPath, SHA256,
+                  InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                  InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+        // 4) Sample hash (process telemetry)
+        DeviceProcessEvents
+        | where SHA256 == XWormSha256
+        | extend MatchType = "sha256_match"
+        | project TimeGenerated, DeviceName, MatchType,
+                  AccountName, InitiatingProcessAccountName,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                  FileName, FolderPath, ProcessCommandLine, SHA256, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0005
+techniques:
+    - T1071.001
+    - T1047
+    - T1059.001
+    - T1105
+    - T1620
+tags:
+    - kql
+version: "3"
+references:
+    - https://any.run/cybersecurity-blog/xworm-latam-campaign/

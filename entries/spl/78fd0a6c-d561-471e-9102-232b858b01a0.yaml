@@ -1,0 +1,38 @@
+id: 78fd0a6c-d561-471e-9102-232b858b01a0
+name: ToolShell Malicious SharePoint IPs
+description: This detection identifies network traffic to or from IP addresses known to be associated with command and control (C2) infrastructure or active exploitation in recent SharePoint vulnerability campaigns. Communication with these IPs is a strong indicator of either an attempted attack or an existing compromise.
+query: |
+    `comment("
+    date: 2025-07-23
+    description: This detection identifies network traffic to or from IP addresses known to be associated with command and control (C2) infrastructure or active exploitation in recent SharePoint vulnerability campaigns. Communication with these IPs is a strong indicator of either an attempted attack or an existing compromise.
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+    ")`
+
+    `comment("Use tstats for a performant search against the Network_Traffic data model for known malicious IPs.")`
+    | tstats summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Traffic where (Network_Traffic.dest_ip IN ("131.226.2.6", "134.199.202.205", "104.238.159.149", "188.130.206.168", "65.38.121.198") OR Network_Traffic.src_ip IN ("131.226.2.6", "134.199.202.205", "104.238.159.149", "188.130.206.168", "65.38.121.198")) by Network_Traffic.src_ip, Network_Traffic.dest_ip, Network_Traffic.user, Network_Traffic.dest_port
+
+    `comment("Rename fields for better readability.")`
+    | rename "Network_Traffic.*" as *
+
+    `comment("Determine if the traffic is inbound (from malicious IP) or outbound (to malicious IP).")`
+    | eval direction = if(src_ip IN ("131.226.2.6", "134.199.202.205", "104.238.159.149", "188.130.206.168", "65.38.121.198"), "inbound", "outbound")
+
+    `comment("Convert epoch timestamps to human-readable format.")`
+    | convert ctime(firstTime) ctime(lastTime)
+
+    `comment("FP Note: IP addresses can be reassigned over time. While these IPs are currently associated with malicious activity, their status may change. Investigate the context of the traffic, such as the port, protocol, and associated processes on the internal host, to validate the alert.")`
+    | fields firstTime, lastTime, src_ip, dest_ip, dest_port, user, direction, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - DS0029
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

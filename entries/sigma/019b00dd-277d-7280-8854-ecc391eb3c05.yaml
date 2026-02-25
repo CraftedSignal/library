@@ -1,0 +1,64 @@
+id: 019b00dd-277d-7280-8854-ecc391eb3c05
+name: Shai-Hulud Privilege Escalation Attempt
+description: Detects privilege escalation attempts used by the Shai-Hulud malware. This includes checking for passwordless sudo ('sudo -n true') and exploiting Docker to modify the 'sudoers.d' file to grant root privileges.
+query: |
+    title: Shai-Hulud Privilege Escalation Attempt
+    id: dd3d7b09-dc35-407f-86bb-c75be22fee0a
+    status: experimental
+    description: Detects privilege escalation attempts used by the Shai-Hulud
+      malware. This includes checking for passwordless sudo ('sudo -n true') and
+      exploiting Docker to modify the 'sudoers.d' file to grant root privileges.
+    references:
+      - https://the-sequence.com/investigating-shai-hulud
+    author: detections.ai
+    date: 2025-12-08
+    tags:
+      - attack.privilege_escalation
+      - attack.t1068
+      - attack.t1611
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      # Detects checking for passwordless sudo access as seen in Shai-Hulud malware
+      selection_sudo:
+        Image|endswith: '/sudo'
+        CommandLine|contains|all:
+          - '-n'
+          - 'true'
+      # Detects exploiting Docker to modify the sudoers file by mounting the host filesystem
+      selection_docker:
+        Image|endswith: '/docker'
+        CommandLine|contains|all:
+          - 'run'
+          - '--privileged'
+          - '-v'
+          - '/:/host'
+          - 'cp '
+          - '/host/etc/sudoers.d/'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate administrative scripts may check for passwordless sudo access
+        using 'sudo -n true'.
+      - The Docker command is highly suspicious but could be used in rare system
+        administration or recovery scenarios. Consider scoping this to developer
+        environments or systems where this activity is not expected.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+techniques:
+    - T1068
+    - T1611
+tags:
+    - attack.privilege_escalation
+    - attack.t1068
+    - attack.t1611
+author: detections.ai
+version: "4"
+references:
+    - https://the-sequence.com/investigating-shai-hulud
+data_sources:
+    - process_creation
+    - linux

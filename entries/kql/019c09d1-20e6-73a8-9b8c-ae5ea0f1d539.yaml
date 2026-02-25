@@ -1,0 +1,16 @@
+id: 019c09d1-20e6-73a8-9b8c-ae5ea0f1d539
+name: PXA Stealer - Suspicious Conhost.exe Execution with Headless Argument
+description: This rule detects suspicious `conhost.exe` processes executing with the `--headless` argument and other indicators commonly associated with malware or malicious activity. The presence of `--headless` suggests an attempt to hide the console window, while additional command-line arguments like `svchost.exe`, `certutil -decode`, paths within `Users\Public` or `AppData`, and specific file extensions (`.ico`, `.png`) or keywords (`MRB_`, `DA_NEW_VER_`, `BOT`) further indicate potential compromise. The rule also looks for initiating processes like `cmd.exe`, `powershell.exe`, `curl`, or `start` which are often used to launch malicious payloads.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(3d)\r\n| where FileName =~ \"conhost.exe\"\r\n| where ProcessCommandLine has \"--headless\"\r\n| where ProcessCommandLine has_any (\r\n    \"svchost.exe\",\r\n    \"synaptics.exe\",\r\n    \"certutil -decode\",\r\n    \"Users\\\\Public\",\r\n    \"AppData\\\\Local\",\r\n    \"AppData\\\\Roaming\",\r\n    // Optional - Remove in case of noise\r\n    \"Temp\", \r\n    \"tmp\"\r\n)\r\n| where \r\n    (\r\n        ProcessCommandLine has_any (\".ico \", \".png \", \"MRB_\", \"DA_NEW_VER_\", \"BOT\") \r\n        or InitiatingProcessCommandLine has_any (\"cmd.exe\", \"powershell.exe\", \"curl \", \"start \", \"certutil -decode\")\r\n    )\r\n| project \r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FolderPath\r\n\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1564.003
+    - T1059.001
+    - T1036.005
+tags:
+    - kql
+version: "4"

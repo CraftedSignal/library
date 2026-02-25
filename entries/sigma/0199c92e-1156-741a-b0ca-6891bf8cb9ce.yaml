@@ -1,0 +1,53 @@
+id: 0199c92e-1156-741a-b0ca-6891bf8cb9ce
+name: Oracle EBS Initial Access Request (CVE-2025-61882)
+description: Detects the initial access attempt for the Oracle E-Business Suite vulnerability CVE-2025-61882. This involves a crafted POST request to the UiServlet component containing a malicious XML payload.
+query: |
+    title: Oracle EBS Initial Access Request (CVE-2025-61882)
+    id: 1876f763-1b9b-49d8-b886-9894032357f6
+    status: experimental
+    description: Detects the initial access attempt for the Oracle E-Business Suite
+      vulnerability CVE-2025-61882. This involves a crafted POST request to the
+      UiServlet component containing a malicious XML payload.
+    references:
+      - https://labs.watchtowr.com/well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882/
+    author: detections.ai
+    date: 2025-10-09
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2025.61882
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        cs-method: 'POST' # The exploit uses a POST request
+        c-uri|endswith: '/OA_HTML/configurator/UiServlet'
+          # The vulnerable servlet endpoint
+          # The field 'c-body' should be mapped to the field in your logs that contains the HTTP POST request body.
+        c-body|contains|all:
+          # Key parameters found in the exploit's POST body
+          - 'redirectFromJsp=1'
+          - 'getUiType='
+          - 'return_url'
+      condition: selection
+    falsepositives:
+      - Legitimate application functionality that uses the `UiServlet` with
+        `getUiType` and `return_url` parameters. However, the combination with
+        `redirectFromJsp=1` is highly indicative of malicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2025.61882
+author: detections.ai
+version: "2"
+references:
+    - https://labs.watchtowr.com/well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882/
+data_sources:
+    - webserver

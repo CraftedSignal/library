@@ -1,0 +1,61 @@
+id: 019c0acc-0649-72ea-bf90-80056af8f919
+name: IClickFix PowerShell Download and Execution
+description: Detects the execution of a hidden PowerShell window that uses Invoke-WebRequest to download and then execute a second-stage PowerShell script. This behavior is characteristic of the IClickFix framework's "ClickFix" social engineering tactic used to deliver malware like NetSupport RAT.
+query: |
+    title: IClickFix PowerShell Download and Execution
+    id: dbd1a09a-a451-4c6b-90fb-2d0c855f7bcc
+    status: experimental
+    description: Detects the execution of a hidden PowerShell window that uses
+      Invoke-WebRequest to download and then execute a second-stage PowerShell
+      script. This behavior is characteristic of the IClickFix framework's
+      "ClickFix" social engineering tactic used to deliver malware like NetSupport
+      RAT.
+    references:
+      - https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/
+    author: detections.ai
+    date: 2026-01-29
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.t1204.002
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_img:
+        - Image|endswith: '\powershell.exe'
+        - OriginalFileName: 'PowerShell.EXE'
+      selection_hidden:
+        CommandLine|contains:
+          # Detects parameters used to hide the PowerShell window
+          - ' -w hidden'
+          - ' -windowstyle hidden'
+      selection_cmd:
+        CommandLine|contains|all:
+          # Detects the download and subsequent execution of another script
+          - 'iwr '
+          - 'start powershell'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative or automation scripts might use similar
+        combinations of hidden windows and web requests to execute other scripts.
+        Review the downloaded script and source for legitimacy.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204.002
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.t1204.002
+author: detections.ai
+version: "2"
+references:
+    - https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/
+data_sources:
+    - process_creation
+    - windows

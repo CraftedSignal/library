@@ -1,0 +1,21 @@
+id: 7539aa67-4c06-493f-b626-0dc05d94864d
+name: DEVMAN Ransomware detection
+description: DEVMAN Ransomware Detection
+query: "let timeframe = 30d;\r\n\r\nlet devman_file_events = DeviceFileEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ActionType == \"FileCreated\" or ActionType == \"FileRenamed\"\r\n| where FileName endswith \".devman\"\r\n  or InitiatingProcessFileName endswith \".devman\"\r\n  or (FileName == \"e47qfsnz2trbkhnt.devman\" and InitiatingProcessCommandLine has \"readme.txt\")\r\n| extend DetectionPoint = \"FileEncryption\";\r\n\r\nlet devman_registry_events = DeviceRegistryEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ActionType in (\"RegistryValueSet\", \"RegistryKeyCreate\", \"RegistryKeyDelete\")\r\n| where RegistryKey startswith @\"HKEY_CURRENT_USER\\Software\\Microsoft\\RestartManager\\Session0000\"\r\n| where RegistryValueName in (\"Owner\", \"SessionHash\", \"RegFiles0000\", \"RegFilesHash\", \"(Default)\")\r\n| extend DetectionPoint = \"RestartManagerManipulation\";\r\n\r\nlet devman_process_events = DeviceProcessEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ProcessCommandLine has_all (\"vssadmin\", \"delete\", \"shadows\")\r\n| extend DetectionPoint = \"ShadowCopyDeletion\";\r\n\r\nlet devman_mutex_events = DeviceProcessEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ProcessCommandLine has \"hsfjuukjzloqu28oajh727190\"\r\n  or ProcessCommandLine has_any (\"RstrMgr\", \"Local\\\\RstrMgr\")\r\n| extend DetectionPoint = \"MutexCreation\";\r\n\r\nlet devman_network_events = DeviceNetworkEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where RemotePort == 445\r\n| where RemoteIP startswith \"192.\" or RemoteIP startswith \"172.\" or RemoteIP startswith \"10.\"\r\n| where InitiatingProcessCommandLine has_any (\"ADMIN$\", \"netapi32\", \"srvcli\")\r\n| extend DetectionPoint = \"SMBDiscovery\";\r\n\r\nlet devman_registry_deletion = DeviceRegistryEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ActionType in (\"RegistryKeyCreate\", \"RegistryKeyDelete\")\r\n| where RegistryKey startswith @\"HKEY_CURRENT_USER\\Software\\Microsoft\\RestartManager\\Session0000\"\r\n| summarize CreateCount=countif(ActionType==\"RegistryKeyCreate\"), \r\n           DeleteCount=countif(ActionType==\"RegistryKeyDelete\"), \r\n           TimeSpan=max(TimeGenerated) - min(TimeGenerated)\r\n           by DeviceName, RegistryKey\r\n| where CreateCount > 0 and DeleteCount > 0 and TimeSpan < 5m\r\n| extend DetectionPoint = \"SuspiciousRegistryPattern\";\r\n\r\nlet devman_scrambled_files = DeviceFileEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where ActionType == \"FileRenamed\"\r\n| where FileName matches regex @\"^[a-z0-9]{16}\\.devman$\"\r\n| extend DetectionPoint = \"FileScrambling\";\r\n\r\nlet devman_hash_events = DeviceProcessEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where SHA256 == \"df5ab9015833023a03f92a797e20196672c1d6525501a9f9a94a45b0904c7403\"\r\n  or MD5 == \"e84270afa3030b48dc9e0c53a35c65aa\"\r\n| extend DetectionPoint = \"KnownMaliciousHash\";\r\n\r\nunion devman_file_events, devman_registry_events, devman_process_events, devman_mutex_events, devman_network_events, devman_registry_deletion, devman_scrambled_files, devman_hash_events\r\n| summarize DetectionPoints = make_set(DetectionPoint), \r\n           DetectionCount = dcount(DetectionPoint),\r\n           FirstSeen = min(TimeGenerated),\r\n           LastSeen = max(TimeGenerated)\r\n           by DeviceName\r\n| where DetectionCount >= 2\r\n| order by DetectionCount desc, LastSeen desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0005
+    - TA0009
+techniques:
+    - T1486
+    - T1070
+    - T1005
+    - T1490
+tags:
+    - kql
+author: ME
+version: "1"
+references:
+    - https://any.run/cybersecurity-blog/devman-ransomware-analysis/

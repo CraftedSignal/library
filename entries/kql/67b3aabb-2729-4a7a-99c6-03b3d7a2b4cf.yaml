@@ -1,0 +1,20 @@
+id: 67b3aabb-2729-4a7a-99c6-03b3d7a2b4cf
+name: Detecting privilege escalation (using legitimate methods) to admin or management roles outside of business hours
+description: This rule detects when a user is added to an administrative or management role in Azure Active Directory outside of defined business hours. It specifically looks for 'Add member to role completed' or 'Add app role assignment grant to user' operations where the target role contains 'admin' or 'Manage', and the event occurs outside of the configured business hours (7 AM to 6 PM local time, Monday to Friday).
+query: "let businessHoursStart = 7*60;  // edit the leading number as your business start time. This is limited to hour, in 24 hour format i.e. the HH in HH:MM:SS\r\nlet businessHoursEnd = 18*60;   // edit the leading number as your business end time. This is limited to hour, in 24 hour format i.e. the HH in HH:MM:SS\r\nAuditLogs\r\n| where OperationName has_any (\"Add member to role completed\", \"Add app role assignment grant to user\") //remove \"remove\" when implemented, this is just to actually get results to demonstrate\r\n| extend TargetRole = tostring(TargetResources[0].displayName)\r\n| where isnotempty(TargetRole)\r\n| where TargetRole contains \"admin\" or TargetRole contains \"Manage\"\r\n| extend LocalTime = datetime_add('hour', 12, TimeGenerated)    // Convert to your timezone, replace the 12 with whatever your UTC+ timezone is\r\n| extend DayOfWeek = toint(dayofweek(LocalTime) / 1d)           //get day of week as a dayofweek number\r\n| extend HourOfDay = hourofday(LocalTime)                       //get hour of day as a number\r\n| extend MinuteOfHour = datetime_part(\"minute\", LocalTime)      // get minute of the hour\r\n| extend TimeInMinutes = (HourOfDay * 60) + MinuteOfHour        //get total time in minutes (hours + minutes)\r\n| where DayOfWeek < 1 or DayOfWeek > 5 or TimeInMinutes < businessHoursStart or TimeInMinutes >= businessHoursEnd //Logic for out of business hours\r\n| extend InitiatedBy = tostring(InitiatedBy.user.userPrincipalName)\r\n| mv-expand TargetResources\r\n| where TargetResources.type == \"User\"\r\n| extend TargetUserPrincipalName = tostring(TargetResources.userPrincipalName)\r\n| extend TargetUserDisplayName = tostring(TargetResources.displayName)\r\n| extend LocalTime = format_datetime(LocalTime, \"yyyy-MM-dd HH:mm:ss\")\r\n| project TimeGenerated, LocalTime, OperationName, Result, InitiatedBy, TargetUserPrincipalName, TargetUserDisplayName, TargetRole, CorrelationId\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1098
+    - T1098.003
+    - T1586
+tags:
+    - Analytic Rule
+    - privilege escalation
+    - role assignment
+    - kql
+author: Dylan Evans
+version: "1"

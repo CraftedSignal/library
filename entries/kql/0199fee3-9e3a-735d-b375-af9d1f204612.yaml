@@ -1,0 +1,15 @@
+id: 0199fee3-9e3a-735d-b375-af9d1f204612
+name: Detect Arbitrary Command Execution Using WSL
+description: This rule detects the execution of arbitrary commands via the Windows Subsystem for Linux (WSL) by monitoring process creation events where 'wsl.exe' is the executable. It specifically looks for command lines that include flags like '--exec' or '-e', or common shell commands and downloaders such as 'curl', 'wget', 'bash -c', 'sh -c', 'nc ', or 'ncat '. This activity can indicate an adversary leveraging WSL to execute malicious code or bypass security controls.
+query: "// Rule Name: Detect WSL Arbitrary Command Execution\r\n// Author: Arnold Chan\r\n// Date: 2025-10-20\r\n// Description: This rule detects the execution of arbitrary commands via the Windows Subsystem for Linux (WSL) by monitoring process creation events where 'wsl.exe' is the executable. It specifically looks for command lines that include flags like '--exec' or '-e', or common shell commands and downloaders such as 'curl', 'wget', 'bash -c', 'sh -c', 'nc ', or 'ncat '. This activity can indicate an adversary leveraging WSL to execute malicious code or bypass security controls.\r\n// References:\r\n// - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/\r\n// - https://twitter.com/nas_bench/status/1535431474429808642\r\nDeviceProcessEvents\r\n// Look for process creation events where wsl.exe is the executable.\r\n| where FileName =~ \"wsl.exe\"\r\n// Filter for command lines that indicate a command is being passed for execution.\r\n// This includes the '--exec' or '-e' flags, as well as common shells or downloaders.\r\n| where InitiatingProcessCommandLine has_any (\"-e\", \"--exec\", \"curl\", \"wget\", \"bash -c\", \"sh -c\", \"nc \", \"ncat \")\r\n// --- False Positive Tuning ---\r\n// Legitimate use of WSL by developers or administrators might trigger this rule.\r\n// Consider filtering out known safe parent processes, user accounts, or command line patterns.\r\n// For example:\r\n// | where InitiatingProcessFileName !in (\"KnownAdminTool.exe\")\r\n// | where AccountName !in (\"admin_user1\", \"dev_user2\")\r\n// ---\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1202
+    - T1059
+tags:
+    - kql
+version: "6"

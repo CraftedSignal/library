@@ -1,0 +1,12 @@
+id: 019c1b3b-bcc1-718c-9da1-b0faafc1dd31
+name: Automate Email Investigation by Display Name
+description: This query is better used in a workbook for automation.
+query: "//\r\n/////  PLATFORM: Microsoft Exchange Online (Email Security Gateway)\r\n/////  AUTHOR: IGOR OLIVEIRA (#IO)\r\n/////  LOCATION: Microsoft Sentinel | Logs\r\n/////  TITLE: KQL to automate investigation by display name\r\n//\r\nlet SampleTenantId = \"d2778caw-cbd5-4345-9764-4848ce07d238\";\r\nlet senderDisplayName = \"Smith\";\r\nlet DisplayName_Lookup =\r\nEmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderDisplayName contains senderDisplayName\r\n    | summarize \r\n        emailCount = count(),\r\n        FirstEmailDate = min(TimeGenerated),\r\n        LastEmailDate = max(TimeGenerated)\r\n    by RecipientEmailAddress, SenderDisplayName;\r\nlet EmailSample =\r\n    EmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderDisplayName contains senderDisplayName\r\n    | summarize arg_max(TimeGenerated, NetworkMessageId) by RecipientEmailAddress, SenderDisplayName;\r\nDisplayName_Lookup\r\n| join kind=inner (EmailSample) on RecipientEmailAddress, SenderDisplayName\r\n| extend\r\n    EmailDetails = strcat(\r\n    \"https://security.microsoft.com/emailentity?f=summary&startTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&endTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&id=\",\r\n    NetworkMessageId,\r\n    \"&recipient=\",\r\n    RecipientEmailAddress,\r\n    \"&tid=\",\r\n    SampleTenantId\r\n)\r\n| project FirstEmailDate, LastEmailDate, SenderDisplayName, RecipientEmailAddress, emailCount, EmailDetails\r\n| order by emailCount desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Igor Oliveira
+version: "3"

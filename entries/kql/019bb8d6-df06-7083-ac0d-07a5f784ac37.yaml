@@ -1,0 +1,13 @@
+id: 019bb8d6-df06-7083-ac0d-07a5f784ac37
+name: Tor Network Activity Detected
+description: This rule detects network connections initiated by 'tor.exe' or 'meek-client.exe', indicating potential use of the Tor anonymity network. It enriches the events with process and certificate information to provide context about the initiating process and its trust status.
+query: "\r\nlet torEvents = DeviceNetworkEvents\r\n| where Timestamp >= ago(30d)\r\n| where InitiatingProcessFileName in~ (\"tor.exe\",\"meek-client.exe\")\r\n| project Timestamp, DeviceId, DeviceName, RemoteIP, RemoteUrl, RemotePort,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine,\r\n          InitiatingProcessSHA256, InitiatingProcessParentFileName,\r\n          InitiatingProcessAccountDomain, InitiatingProcessAccountName;\r\nlet signer = DeviceFileCertificateInfo\r\n| project DeviceId,SHA1, Signer, Issuer, IsSigned,IsTrusted;\r\ntorEvents\r\n| join kind=leftouter signer on DeviceId, $left.InitiatingProcessSHA256 == $right.SHA1\r\n| extend TrustStatus = iff(IsTrusted and IsSigned, \"Trusted\", \"Untrusted/Revoked\")\r\n| extend Account = strcat(InitiatingProcessAccountDomain,\"\\\\\",InitiatingProcessAccountName)\r\n| project Timestamp, DeviceName, Account, InitiatingProcessFileName,\r\n         InitiatingProcessCommandLine, InitiatingProcessParentFileName,\r\n         TrustStatus, Signer, Issuer, RemoteIP, RemoteUrl, RemotePort\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1090.003
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,66 @@
+id: 019be23e-77ca-7106-88cd-d334e342aba9
+name: AKS Node Outbound Connection on Non-Standard Port
+description: Detects when an Azure Kubernetes Service (AKS) worker node initiates an outbound connection to a public IP address over a non-standard or unexpected port. This could indicate data exfiltration using custom tools or protocols.
+query: |-
+    // Name: AKS Node Outbound Connection on Non-Standard Port
+    // Description: Detects when an Azure Kubernetes Service (AKS) worker node initiates an outbound connection to a public IP address over a non-standard or unexpected port. This could indicate data exfiltration using custom tools or protocols, aligning with MITRE ATT&CK T1048 (Exfiltration Over Alternative Protocol).
+    // Tactic: Exfiltration
+    // Technique: T1048 - Exfiltration Over Alternative Protocol
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // References:
+    // - https://attack.mitre.org/techniques/T1048/
+
+    let timeframe = 1h;
+    // Define the list of expected/allowed outbound destination ports.
+    // FP Tuning: This list is a critical point for tuning. Add any legitimate ports used by your applications to avoid false positives (e.g., database ports, API endpoints).
+    let allowed_ports = dynamic([
+        22,   // SSH
+        53,   // DNS
+        80,   // HTTP
+        123,  // NTP
+        443,  // HTTPS
+        873,  // rsync (Add if used legitimately, remove if its presence is suspicious)
+        3389  // RDP
+    ]);
+    // Define the watchlist containing the IP address ranges of your AKS node pools.
+    // The watchlist should have a column that contains the CIDR ranges of the node pools.
+    let aks_node_ip_ranges = _GetWatchlist('AKS_Node_IP_Ranges')
+    | extend IPRange = column_ifexists('IPRange', '') // Replace 'IPRange' with the actual column name in your watchlist.
+    | where isnotempty(IPRange)
+    | distinct IPRange;
+    CommonSecurityLog
+    | where TimeGenerated > ago(timeframe)
+    | where DeviceVendor == "Palo Alto Networks"
+    // Filter for successful outbound traffic to public IP addresses.
+    | where DeviceAction in ("allow", "session-end") and isnotempty(DestinationIP) and not(ipv4_is_private(DestinationIP))
+    // Check if the source IP belongs to an AKS node. This requires the watchlist to be populated correctly.
+    | where ipv4_is_in_any_range(SourceIP, aks_node_ip_ranges)
+    // Filter for traffic on ports NOT in the allowed list.
+    | where isnotempty(DestinationPort) and toint(DestinationPort) !in (allowed_ports)
+    // Summarize the findings to reduce noise from intermittent connections.
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        TotalBytes = sum(tolong(Bytes)),
+        DestinationPorts = make_set(DestinationPort),
+        Actions = make_set(DeviceAction),
+        EventCount = count()
+        by SourceIP, DestinationIP, Protocol, DestinationZone, SourceZone
+    // FP Tuning: Adjust this threshold based on baseline activity. A single connection might be suspicious, but multiple connections are more indicative of sustained activity.
+    | where EventCount > 2
+    // Map entities for investigation.
+    | extend
+        HostCustomEntity = SourceIP,
+        IPCustomEntity = DestinationIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1048
+tags:
+    - kql
+version: "4"
+references:
+    - https://attack.mitre.org/techniques/T1048/

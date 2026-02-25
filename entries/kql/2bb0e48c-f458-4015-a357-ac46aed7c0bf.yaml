@@ -1,0 +1,18 @@
+id: 2bb0e48c-f458-4015-a357-ac46aed7c0bf
+name: Microsoft Sentinel KQL Detection for SVG Smuggling Activities
+description: This query identifies when a suspicious SVG file, linked to known threat intelligence, is downloaded via a browser. This technique is often used for SVG smuggling, where attackers embed malicious JavaScript or links within the SVG's structure to bypass traditional content filters or sandboxing. Once rendered in the browser, the embedded content may redirect the victim to a malicious site or initiate further malicious activity.
+query: "//https://www.securityweek.com/threat-actors-use-svg-smuggling-for-browser-native-redirection/\r\nThreatIntelIndicators\r\n| where IsActive == true\r\n| where ObservableKey == \"file:hashes:'SHA256'\"\r\n| extend TI_SHA256 = tostring(ObservableValue)\r\n| extend Description = tostring(Data[\"description\"])\r\n| extend IndicatorTypes = tostring(Data[\"indicator_types\"])\r\n| project TI_SHA256, Description, IndicatorTypes, Confidence, ValidUntil\r\n| join kind=inner (\r\n    DeviceFileEvents\r\n    | where TimeGenerated > ago(1d)\r\n    | where FileName endswith \".svg\"\r\n    | where InitiatingProcessFileName has_any (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\")\r\n    | project TimeGenerated, DeviceName, FileName, FolderPath, SHA256\r\n) on $left.TI_SHA256 == $right.SHA256\r\n| project TimeGenerated, DeviceName, FileName, FolderPath, SHA256, Description, IndicatorTypes, Confidence, ValidUntil"
+query_type: kql
+severity: medium
+techniques:
+    - T1204.002
+    - T1189
+    - T1566.003
+    - T1027
+    - T1071.001
+tags:
+    - kql
+author: Daniel Miller
+version: "1"
+references:
+    - https://www.securityweek.com/threat-actors-use-svg-smuggling-for-browser-native-redirection/

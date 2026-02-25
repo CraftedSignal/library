@@ -1,0 +1,71 @@
+id: 019a9228-9117-7204-bdbf-dd0e56d6a499
+name: DigitStealer Anti-Analysis and Evasion Checks
+description: Detects the execution of specific system commands used by the DigitStealer malware for anti-analysis and evasion. This includes checks for virtualization, hardware features (specifically on Apple Silicon), and system locale.
+query: |
+    title: DigitStealer Anti-Analysis and Evasion Checks
+    id: dbe1bed1-25c3-4e77-a9a0-62fff1bd5982
+    status: experimental
+    description: Detects the execution of specific system commands used by the
+      DigitStealer malware for anti-analysis and evasion. This includes checks for
+      virtualization, hardware features (specifically on Apple Silicon), and system
+      locale.
+    references:
+      - https://www.jamf.com/blog/jtl-digitstealer-macos-infostealer-analysis/
+    author: detections.ai
+    date: 2025-11-17
+    tags:
+      - attack.t1497.001
+      - attack.t1497.003
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      parent:
+        # Detects shell processes as the parent, as the malware executes these checks from a script
+        ParentImage|endswith:
+          - '/bash'
+          - '/sh'
+          - '/zsh'
+      selection_sysctl:
+        Image|endswith: '/sysctl'
+        CommandLine|contains:
+          - ' -n hw.model'
+          - ' -n machdep.cpu.brand_string'
+          - ' -n kern.version'
+          - ' -n kern.hostname'
+          - ' -n hw.targettype'
+          - ' -n kern.sched'
+          - ' hw.optional.arm.FEAT_SSBS'
+          - ' hw.optional.arm.FEAT_BTI'
+          - ' hw.optional.arm.FEAT_ECV'
+          - ' hw.optional.arm.FEAT_RPRES'
+      selection_profiler:
+        Image|endswith: '/system_profiler'
+        CommandLine|contains:
+          - 'SPHardwareDataType'
+          - 'SPMemoryDataType'
+      selection_defaults:
+        Image|endswith: '/defaults'
+        CommandLine|contains: 'read NSGlobalDomain AppleLocale'
+      condition: parent and (1 of selection_*)
+    falsepositives:
+      - Legitimate system administration scripts.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1497.001
+    - T1497
+tags:
+    - attack.t1497.001
+    - attack.t1497.003
+author: detections.ai
+version: "2"
+references:
+    - https://www.jamf.com/blog/jtl-digitstealer-macos-infostealer-analysis/
+data_sources:
+    - process_creation
+    - macos

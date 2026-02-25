@@ -1,0 +1,42 @@
+id: 019c95aa-29f6-701d-9605-ea1bb191c5de
+name: PowerShell Reflective PE Loading for Agent Tesla
+description: This rule detects PowerShell execution containing keywords related to AES decryption combined with a Base64 encoded MZ header ('TVqQAAM'). This pattern is indicative of reflective loading of malicious assemblies in memory, a technique used by malware like Agent Tesla to bypass disk-based defenses.
+query: |
+    // Name: PowerShell Reflective PE Loading for Agent Tesla
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: This rule detects PowerShell execution containing keywords related to AES decryption combined with a Base64 encoded MZ header ('TVqQAAM'). This pattern is indicative of reflective loading of malicious assemblies in memory, a technique used by malware like Agent Tesla to bypass disk-based defenses.
+    // MITRE ATT&CK: T1059.001, T1620
+    // False Positive Sensitivity: Medium
+    // References: https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    DeviceProcessEvents
+    // Look for PowerShell process execution events.
+    | where FileName =~ "powershell.exe" or InitiatingProcessFileName =~ "powershell.exe"
+    // Search for command lines containing both the MZ header string and decryption-related keywords.
+    | where ProcessCommandLine has "TVqQAAM" and (ProcessCommandLine has "Invoke-AESDecryption" or ProcessCommandLine has "Cryptography.Aes")
+    // FP Tuning: Legitimate administrative or security scripts may use similar techniques for deploying tools.
+    // Consider excluding known safe scripts by their hash or command line patterns if false positives occur.
+    // Example: | where InitiatingProcessParentFileName !in ("legit_admin_tool.exe")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1620
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign

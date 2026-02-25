@@ -1,0 +1,69 @@
+id: 019c6723-52b6-72d6-9d68-41d5c76b1b89
+name: APT28 - Scheduled Task Creation via XML Redirection
+description: Detects the dynamic creation of a scheduled task where cmd.exe first writes an XML task definition file to disk, which is then immediately used by schtasks.exe to create the task. This is a characteristic behavior of the APT28 "Operation MacroMaze" campaign.
+query: |
+    // Name: APT28 - Scheduled Task Creation via XML Redirection
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-16
+    // Description: Detects the dynamic creation of a scheduled task where cmd.exe first writes an XML task definition file to disk, which is then immediately used by schtasks.exe to create the task. This is a characteristic behavior of the APT28 "Operation MacroMaze" campaign.
+    // Tactic: Persistence, Execution
+    // Technique: T1053.005, T1059.003
+    // References: https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+    // False Positive Sensitivity: Medium. Legitimate software installers or system administration scripts may use this method to create scheduled tasks. Further tuning by filtering on the initiating process of cmd.exe may be required.
+    let timeWindow = 2m;
+    // Find command prompt processes writing an XML file to a user's directory
+    let xmlCreation = DeviceProcessEvents
+    | where Timestamp > ago(timeWindow)
+    | where FileName =~ "cmd.exe"
+    | where ProcessCommandLine has ">" and ProcessCommandLine contains ".xml"
+    // Extract the full path of the XML file being created via output redirection
+    | extend XmlFilePath = extract(@'(?i)>\s*"*?([a-z]:\\(?:users|documents and settings)\\[^>"\\]+\.xml)', 1, ProcessCommandLine)
+    | where isnotempty(XmlFilePath)
+    | project
+        CmdTimestamp = Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        CmdProcessCommandLine = ProcessCommandLine,
+        XmlFilePath = tolower(XmlFilePath);
+    // Find scheduled task creation events that import an XML file
+    let taskCreation = DeviceProcessEvents
+    | where Timestamp > ago(timeWindow)
+    | where FileName =~ "schtasks.exe"
+    | where ProcessCommandLine has "/create" and ProcessCommandLine has "/xml"
+    // Extract the full path of the XML file being imported
+    | extend XmlFilePath = extract(@'(?i)/xml\s+"*?([a-z]:\\[^/][^"]+\.xml)', 1, ProcessCommandLine)
+    | where isnotempty(XmlFilePath)
+    | project
+        SchtasksTimestamp = Timestamp,
+        DeviceName,
+        SchtasksProcessCommandLine = ProcessCommandLine,
+        XmlFilePath = tolower(XmlFilePath);
+    // Join the two events when they happen on the same device, reference the same XML file, and occur in sequence within the time window
+    xmlCreation
+    | join kind=inner taskCreation on DeviceName, XmlFilePath
+    | where SchtasksTimestamp > CmdTimestamp and (SchtasksTimestamp - CmdTimestamp) < timeWindow
+    | project
+        StartTime = CmdTimestamp,
+        EndTime = SchtasksTimestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        XmlFilePath,
+        CmdProcessCommandLine,
+        SchtasksProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/

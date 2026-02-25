@@ -1,0 +1,14 @@
+id: 02c66190-4b75-40dc-930c-2aa3096bf918
+name: Email URL Click Followed by Quarantine
+description: This rule detects instances where a user clicks on a URL within an email, and subsequently, the email is moved to quarantine. This sequence of events suggests that the email was initially delivered, a user interacted with a potentially malicious link, and then a post-delivery security action (quarantine) was taken, indicating a delayed detection of a threat, likely phishing or malware.
+query: "EmailEvents\r\n| join UrlClickEvents on NetworkMessageId\r\n| where ActionType == \"ClickAllowed\"\r\n| join EmailPostDeliveryEvents on NetworkMessageId\r\n| where Action == \"Moved to quarantine\"\r\n| extend EmailReceivedTime = Timestamp, URLClickedTime = Timestamp1, EmailQuarantinedTime = Timestamp2, UserIPAddress = IPAddress, ClickedURL = Url, FinalDeliveryLocation = DeliveryLocation1\r\n| project EmailReceivedTime,SenderFromAddress,SenderIPv4, RecipientEmailAddress, Subject, DeliveryAction, DeliveryLocation,UrlCount, URLClickedTime,ClickedURL,ActionType,UserIPAddress,UrlChain, EmailQuarantinedTime, Action,ActionTrigger, ActionResult, FinalDeliveryLocation,DetectionMethods2"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

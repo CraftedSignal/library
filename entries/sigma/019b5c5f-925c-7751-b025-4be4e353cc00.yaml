@@ -1,0 +1,56 @@
+id: 019b5c5f-925c-7751-b025-4be4e353cc00
+name: APT37 DLL Side-Loading via Sysinternals Utilities
+description: Detects a specific DLL side-loading pattern used by APT37 in the "Operation Artemis" campaign. A legitimate Sysinternals utility (e.g., 'mhelp.exe', 'vhelp.exe', 'Volumeid1.exe') is dropped into the %TEMP% directory along with a malicious 'version.dll'. The legitimate process is then executed, causing it to load the malicious DLL.
+query: |
+    title: APT37 DLL Side-Loading via Sysinternals Utilities
+    id: d2c4bc98-6faf-4497-af18-c8618b80fc1e
+    status: experimental
+    description: Detects a specific DLL side-loading pattern used by APT37 in the
+      "Operation Artemis" campaign. A legitimate Sysinternals utility (e.g.,
+      'mhelp.exe', 'vhelp.exe', 'Volumeid1.exe') is dropped into the %TEMP%
+      directory along with a malicious 'version.dll'. The legitimate process is then
+      executed, causing it to load the malicious DLL.
+    references:
+      - https://www.genians.co.kr/en/blog/threat_intelligence/dll
+    author: detections.ai
+    date: 2025-12-26
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith:
+          - '\mhelp.exe'
+          - '\vhelp.exe'
+          - '\Volumeid1.exe'
+      selection_dll:
+        # Malicious DLL loaded by the legitimate process
+        ImageLoaded|endswith: '\version.dll' # The report indicates the files are dropped in the %TEMP% directory
+        ImageLoaded|contains: '\AppData\Local\Temp'
+      condition: selection_process and selection_dll
+    falsepositives:
+      - Legitimate software might use a file named 'version.dll'. However, the
+        combination with the specific process names and loading from a temporary
+        directory makes false positives unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+author: detections.ai
+version: "2"
+references:
+    - https://www.genians.co.kr/en/blog/threat_intelligence/dll
+data_sources:
+    - image_load
+    - windows

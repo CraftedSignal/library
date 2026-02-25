@@ -1,0 +1,73 @@
+id: 65cee130-60f0-41e8-9255-25855dc30fba
+name: Ratty RAT Distribution via Multi-Layered Email Attack
+description: Detects network connections or file events related to Ratty RAT malware distribution using PDF, HTML, Dropbox, Ngrok, and MediaFire.
+query: |-
+    title: Ratty RAT Malware Distribution via Multi-Layered Email Attack
+    id: 8422003e-1b2c-4e5f-9a0b-7c6d5e4f3a2b
+    status: experimental
+    description: Detects network connections or file events related to the Ratty RAT malware distribution campaign leveraging PDF, HTML, Dropbox, Ngrok, and MediaFire as described by FortiGuard Labs.
+    author: Aaron Mog - Detections.ai
+    date: 2025-05-09
+    references:
+        - https://www.fortinet.com/blog/threat-research/multilayered-email-attack-how-a-pdf-invoice-and-geofencing-led-to-rat-malware
+    logsource:
+        # This rule combines network and file event detection.
+        # Ensure your log collection covers these categories (e.g., Sysmon, proxy logs, firewall logs).
+        category: null # Use null category as we combine different types
+    detection:
+        # Network IOCs (Domains and IPs)
+        network_activity:
+            logsource:
+                category: network # e.g., proxy, firewall, Sysmon conn events
+            selection:
+                # Domains associated with Ngrok tunneling or MediaFire download
+                - url|endswith:
+                      - '.localto.net/' # Covers jw8ndw9ev.localto.net, l5ugb6qxh.localto.net
+                - dest_hostname|endswith:
+                      - '.localto.net'
+                # IPs associated with the campaign
+                - dest_ip:
+                      - '143.47.53.106'
+                      - '130.51.20.126'
+                      - '199.232.214.172'
+                      - '199.232.210.172'
+        # File Hash IOCs
+        file_creation:
+            logsource:
+                category: file_event # e.g., Sysmon Event ID 1, 11
+            selection:
+                # SHA256 hashes of the malicious JAR file variants
+                Hash|sha256:
+                    - 'a1c2861a68b2a4d62b6fbfc7534f498cefe5f92f720466d24ae1b66ebc9f5731'
+                    - 'd20d14792c91107f53318ff7df83b9cd98acd3c394959a74e72278682822b600'
+                    - '9184ff2cdd05fcaf111db23123479c845b2ece2fedccc2524b2de592f9980876'
+                    - '5f897fec78e2fd812eb3bc451222e64480a9d5bc97b746cc0468698a63470880'
+                    - '6153c80b17cb990caad1d80cac72c867d4ecfa1a84b7ab286b7373cd4168794e'
+                    - '469b8911fd1ae2ded8532a50e9e66b8d54820c18ccdba49d7a38850d6af54475'
+                    - 'af8b6ac45918bc87d2a164fae888dab6e623327cba7c2409e4d0ef1dde8d1793'
+        condition: network_activity or file_creation
+    falsepositives:
+        - Legitimate connections to listed IPs/domains if they are repurposed (unlikely for these IOCs)
+    level: high
+    tags:
+        - attack.delivery
+        - attack.t1566.001
+        - attack.execution
+        - attack.t1059.004 # Java execution (implied by JAR file)
+        - attack.command_and_control
+        - attack.t1071.001
+        - attack.t1572
+        - malware.ratty
+query_type: sigma
+severity: medium
+tags:
+    - attack.delivery
+    - attack.t1566.001
+    - attack.execution
+    - attack.t1059.004
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1572
+    - malware.ratty
+author: Detections.ai
+version: "1"

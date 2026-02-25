@@ -1,0 +1,56 @@
+id: 019c82dd-d2a4-71dc-8de7-d1599887428e
+name: DNS C2 Beaconing - Many Queries
+description: |
+    Detects a high count of DNS queries from a single source IP to a specific query name, indicating potential C2 beaconing.
+query: |
+    title: DNS C2 Beaconing - Many Queries
+    id: f0cd6b84-2897-43cb-a46a-1236f24f3436
+    status: experimental
+    description: >
+      Detects a high count of DNS queries from a single source IP to a specific
+      query name, indicating potential C2 beaconing.
+    author: zendannyy
+    references:
+      - https://cybersecuritynews.com/dns-queries-exploited-for-c2/
+      - https://unit42.paloaltonetworks.com/three-dns-tunneling-campaigns/
+    tags:
+      - attack.command_and_control
+      - attack.t1071.004
+      - attack.t1571
+    logsource:
+      category: dns
+    detection:
+      selection_regular_intervals:
+        timeframe: 1h
+      selection_counter_pattern:
+        query|re: ^[0-9]{1,6}[a-f0-9]{8,32}\.
+      selection_beacon_keywords:
+        query|contains:
+          - beacon
+          - ping
+          - alive
+          - check
+      condition: >-
+        (selection_regular_intervals or selection_counter_pattern or
+        selection_beacon_keywords) | count(query) by src_ip,query_name >= 10
+    falsepositives:
+      - Legitimate application heartbeats
+      - Scheduled tasks making DNS queries
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - attack.command_and_control
+    - attack.t1071.004
+    - attack.t1571
+author: zendannyy
+version: "1"
+references:
+    - https://cybersecuritynews.com/dns-queries-exploited-for-c2/
+    - https://unit42.paloaltonetworks.com/three-dns-tunneling-campaigns/
+data_sources:
+    - dns

@@ -1,0 +1,23 @@
+id: a8ec13f6-cfdf-4ab9-a617-29b1f8682fd7
+name: MFA Fatigue / Push Bombing Detection
+description: "Detects multiple denied or failed multi-factor authentication (MFA) prompts for a single user within a short time window. This pattern is commonly associated with MFA fatigue or push bombing attacks, where an attacker attempts to trick the user into approving an MFA request by spamming prompts repeatedly.\n\nThis detection uses Azure AD sign-in logs and does not require asset inventory or conditional access policies to be effective. "
+query: "// Detection: MFA Fatigue / Push Bombing\r\n// Summary:\r\n//   Flags users with multiple denied MFA prompts within a short window — a     common sign of MFA fatigue attacks.\r\n//   Useful for identifying brute-force push spam where the attacker hopes the user eventually approves.\r\n//\r\n// Tuning Tips:\r\n//   - Adjust `minDenies` to control sensitivity (e.g., increase in noisy environments).\r\n//   - Consider excluding known service/helpdesk accounts to reduce false positives.\r\nlet window = 30m;\r\nlet minDenies = 6;\r\nSigninLogs\r\n| where TimeGenerated > ago(window)\r\n| where ResultType in (\"500121\",\"5001210\",\"5001211\",\"5001216\") // MFA denied/expired/failed\r\n    or ResultDescription has \"MFA\" or ConditionalAccessStatus == \"failure\"\r\n| summarize Denies=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), IPs=make_set(IPAddress,10)\r\n          by UserPrincipalName\r\n| where Denies >= minDenies\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1621
+tags:
+    - mfa
+    - fatigue
+    - push-bombing
+    - identity
+    - entra
+    - detection
+    - kql
+    - sentinel
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1621/
+    - https://techcommunity.microsoft.com/blog/microsoft-entra-blog/defend-your-users-from-mfa-fatigue-attacks/2365677
+    - https://learn.microsoft.com/en-us/entra/identity/monitoring-health/concept-sign-ins

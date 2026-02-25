@@ -1,0 +1,18 @@
+id: 136ba838-c672-4739-a381-4be486cbe19e
+name: SmartLoader Unified Detection
+description: This rule detects activities associated with the SmartLoader malware, including the creation or renaming of specific files (ODE3.exe, Module.class, Lua51.dll) in suspicious user application data directories, the creation or update of scheduled tasks with a specific name ("SecurityHealthService_ODE3"), and the DLL sideloading of "lua51.dll". These activities indicate potential execution, persistence, and defense evasion by the SmartLoader malware.
+query: "// SmartLoader Unified Detection Query\r\n// ---------------------------------------------\r\n// MITRE ATT&CK Mapping\r\n// Tactic: Execution (TA0002)\r\n// Technique: User Execution – Malicious File – T1204.002\r\n// Tactic: Persistence (TA0003)\r\n// Technique: Scheduled Task/Job – T1053.005 (Scheduled Task)\r\n// Tactic: Defense Evasion (TA0005)\r\n// Technique: DLL Side-Loading – T1574.002\r\n// ---------------------------------------------\r\n\r\n// Union of File, Scheduled Task, and DLL events\r\nunion \r\n(\r\n    // File creation/rename in SmartLoader directories\r\n    DeviceFileEvents\r\n    | where ActionType in (\"FileCreated\", \"FileRenamed\")\r\n    | where FolderPath has_all (@\"\\Users\\\", @\"\\AppData\\ODE3\")\r\n    | where FileName has_any (\"ODE3.exe\", \"Module.class\", \"Lua51.dll\")\r\n    | extend DetectionType = \"SmartLoader File Artifact\"\r\n    | project Timestamp, DeviceId, DeviceName, FileName, FolderPath,\r\n              InitiatingProcessFileName, InitiatingProcessParentFileName,\r\n              InitiatingProcessCommandLine, InitiatingProcessSHA256, DetectionType\r\n),\r\n(\r\n    // Malicious scheduled tasks linked to SmartLoader\r\n    DeviceEvents\r\n    | where ActionType in (\"ScheduledTaskCreated\", \"ScheduledTaskUpdated\")\r\n    | where AdditionalFields has \"SecurityHealthService_ODE3\"\r\n    | extend DetectionType = \"SmartLoader Scheduled Task\"\r\n    | project Timestamp, DeviceId, DeviceName, AdditionalFields, DetectionType\r\n),\r\n(\r\n    // DLL sideloading of Lua51.dll\r\n    DeviceImageLoadEvents\r\n    | where FileName =~ \"lua51.dll\"\r\n    | extend DetectionType = \"SmartLoader DLL Sideloading\"\r\n    | project Timestamp, DeviceId, DeviceName, InitiatingProcessParentFileName,\r\n              InitiatingProcessFileName, FileName, InitiatingProcessCommandLine,\r\n              SHA256, InitiatingProcessSHA256, DetectionType\r\n)\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1204.002
+    - T1053.005
+    - T1574.001
+tags:
+    - kql
+version: "1"

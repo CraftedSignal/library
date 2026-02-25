@@ -1,0 +1,48 @@
+id: aaac77df-0944-4bc8-97f1-fa679869ce3b
+name: Process Injection into ImagingDevices.exe
+description: Detects process injection into ImagingDevices.exe, a technique observed in the 'Illusory Wishes' campaign to evade detection. The threat actor used trojanized versions of Element and VLC to inject shellcode into this legitimate Windows process.
+query: |
+    title: Process Injection into ImagingDevices.exe
+    id: 7fd02277-3bf1-45f8-b20e-f5ddf0f188f6
+    status: experimental
+    description: Detects process injection into ImagingDevices.exe, a technique observed in the 'Illusory Wishes' campaign to evade detection. The threat actor used trojanized versions of Element and VLC to inject shellcode into this legitimate Windows process.
+    references:
+      - https://www.zscaler.com/blogs/security-research/illusory-wishes-china-nexus-apt-targets-tibetan-community
+    author: detections.ai
+    date: 2025-07-25
+    tags:
+      - attack.t1055.002
+      - attack.defense_evasion
+    logsource:
+      category: create_remote_thread
+      product: windows
+    detection:
+      selection_target:
+        # The target process for injection, a legitimate Windows binary
+        TargetImage|endswith: '\ImagingDevices.exe'
+      selection_source:
+        # The source processes observed initiating the injection in the campaign
+        SourceImage|endswith:
+          - '\Element.exe'
+          - '\vlc.exe'
+      condition: all of selection_*
+    falsepositives:
+      - While Element.exe or vlc.exe injecting into ImagingDevices.exe is highly suspicious, other non-standard applications could potentially exhibit similar behavior. Validate any findings.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.002
+tags:
+    - attack.t1055.002
+    - attack.defense_evasion
+author: detections.ai
+version: "1"
+references:
+    - https://www.zscaler.com/blogs/security-research/illusory-wishes-china-nexus-apt-targets-tibetan-community
+data_sources:
+    - create_remote_thread
+    - windows

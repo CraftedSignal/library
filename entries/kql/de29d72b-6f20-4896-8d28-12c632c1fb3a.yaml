@@ -1,0 +1,60 @@
+id: de29d72b-6f20-4896-8d28-12c632c1fb3a
+name: Malicious FIDO2 Registration Threat Detection
+description: 'KQL Query from file: Malicious FIDO2 Registration Threat Detection'
+query: |
+    // Malicious FIDO2 Registration Threat Detection
+    // https://www.linkedin.com/posts/activity-7219732839422992385-FHSM/
+
+    // In the event of a user account being compromised, a threat actor may attempt to register a passkey for persistence. This ensures that even if the account password is reset automatically, the passkey remains intact for ongoing malicious activities. By using audit logs, one can determine the IP address used for the threat actor’s passkey registration and correlate this information with threat intelligence data from BehaviourAnalytics to identify potential malicious FIDO2 passkey registration and abuse.
+
+    let PasskeyAuthenticatorIP =
+    AuditLogs
+    | where ResultDescription contains "User registered Fido2 Authentication Method"
+    | extend AuthenticatorIP = tostring(InitiatedBy.user.ipAddress)
+    | distinct AuthenticatorIP;
+    BehaviorAnalytics
+    | where TimeGenerated > ago(90d)
+    | extend ThreatIntelIndicatorDescription = DevicesInsights.ThreatIntelIndicatorDescription
+    | where isnotempty( ThreatIntelIndicatorDescription )
+    | where SourceIPAddress has_any(PasskeyAuthenticatorIP)
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the KQL code, the following MITRE ATT&CK techniques are relevant:
+
+    // T1078 - Valid Accounts:
+    // Description: The query identifies IP addresses associated with the registration of Fido2 authentication methods, which can be linked to the use of valid accounts for authentication.
+    // Detection: Monitoring for unusual or unauthorized registration of authentication methods.
+    // T1071 - Application Layer Protocol:
+    // Description: The query involves network traffic analysis by examining IP addresses and their associated threat intelligence indicators.
+    // Detection: Identifying suspicious network traffic patterns and correlating them with known threat indicators.
+    // T1087 - Account Discovery:
+    // Description: The query extends behavior analytics with threat intelligence descriptions, which can help in discovering accounts that may have been compromised.
+    // Detection: Analyzing behavior analytics data to detect unusual account activities.
+    // T1057 - Process Discovery:
+    // Description: The query’s focus on behavior analytics and threat intelligence can also help in identifying processes or activities that are indicative of malicious behavior.
+    // Detection: Correlating process activities with threat intelligence to detect malicious processes.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0007
+    - TA0042
+    - TA0008
+techniques:
+    - T1078
+    - T1071
+    - T1087
+    - T1057
+    - T1067
+    - T1070.009
+    - T1128
+    - T1586
+    - T1098
+    - T1550.002
+tags:
+    - kql
+version: "1"

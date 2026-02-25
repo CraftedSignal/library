@@ -1,0 +1,16 @@
+id: 0199c638-71f9-7691-b6b9-21e246e264e0
+name: Device Code Phishing Detection
+description: This rule detects potential device code phishing attempts by correlating URL click events with sign-in logs using the 'deviceCode' authentication protocol. It specifically looks for successful or failed sign-ins (result types 0, 50074, 50076, 500121) that occur after a user clicks on a URL.
+query: "UrlClickEvents\r\n| where IsClickedThrough == true\r\n| join kind=inner (\r\n    SigninLogs\r\n    | where AuthenticationProtocol == \"deviceCode\"\r\n    | where ResultType in (\"0\", \"50074\", \"50076\", \"500121\")\r\n) on $left.AccountUpn == $right.UserPrincipalName\r\n| project TimeGenerated, AccountUpn, IPAddress, AppDisplayName, ResourceDisplayName, Url, ResultType"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0001
+techniques:
+    - T1621
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,68 @@
+id: 370dc50a-9580-4e66-9fd7-1af7bb37e05d
+name: IOC Based Hunting - An Emerging Ducktail Infostealer – Active IOCs
+description: Detects indicators of compromise (IOCs) associated with the Ducktail Infostealer malware. This malware often targets Facebook Business accounts and exfiltrates data such as browser cookies, cryptocurrency wallet information, and account details.
+query: |
+    // title: Ducktail Infostealer IOCs
+    // id: 55a47368-6456-407e-a56a-f3541979a7f5
+    // status: experimental
+    // description: Detects indicators of compromise (IOCs) associated with the Ducktail Infostealer malware. This malware often targets Facebook Business accounts and exfiltrates data such as browser cookies, cryptocurrency wallet information, and account details.
+    // references:
+    //   - https://rewterz.com/threat-advisory/an-emerging-ducktail-infostealer-active-iocs-45
+    // author: Chaitanya B (Mr.Alien)
+    // date: 2025-07-10
+    // tags: attack.credential_access, attack.t1555.003, attack.execution, attack.persistence, attack.t1053.005, malware.ducktail
+    // falsepositives:
+    //   - File hashes are high-fidelity indicators.
+    //   - The filename 'libbridged.exe' is a specific artifact mentioned in threat intelligence, but could potentially be used by legitimate software.
+    //   - The domain is a known C2, but could be sinkholed or become benign over time.
+    // level: high
+
+    let fileHashes = dynamic([
+        "35ee3361abcd260074fa031dbbfc674ff8c5f45b62697fd1f6192c1650d2e8a2", // SHA256
+        "a217b0d78e72deac87cdf11e23df2e77625f84c4", // SHA1
+        "37d095268436344b4a2b8e951c828d68"  // MD5
+    ]);
+    let suspiciousDomain = "leo-pirna.de";
+    let suspiciousFileName = "libbridged.exe";
+
+    (union isfuzzy=true
+        // Detects specific file hashes associated with Ducktail Infostealer (process and file events)
+        (DeviceProcessEvents
+        | where SHA256 in (fileHashes) or SHA1 in (fileHashes) or MD5 in (fileHashes)
+        ),
+        (DeviceFileEvents
+        | where SHA256 in (fileHashes) or SHA1 in (fileHashes) or MD5 in (fileHashes)
+        ),
+        // Detects network connections to known Ducktail C2 domains
+        (DeviceNetworkEvents
+        | where RemoteUrl contains suspiciousDomain or RemoteDnsName contains suspiciousDomain
+        ),
+        // Detects DNS queries for the C2 domain
+        (DnsEvents
+        | where Name contains suspiciousDomain
+        ),
+        // Detects a specific executable used by Ducktail for persistence
+        // Note: This filename could potentially be used by legitimate software, leading to false positives.
+        // Consider adding process parent/child relationships or command-line arguments for further tuning.
+        (DeviceProcessEvents
+        | where FileName endswith suspiciousFileName or ProcessCommandLine contains suspiciousFileName
+        ),
+        (DeviceFileEvents
+        | where FileName endswith suspiciousFileName
+        )
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0006
+    - TA0004
+techniques:
+    - T1555.003
+    - T1053.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://rewterz.com/threat-advisory/an-emerging-ducktail-infostealer-active-iocs-45

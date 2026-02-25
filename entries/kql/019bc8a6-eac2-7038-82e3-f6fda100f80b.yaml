@@ -1,0 +1,20 @@
+id: 019bc8a6-eac2-7038-82e3-f6fda100f80b
+name: PPL Integrity Load Failure - EDR DoS
+description: Detects a sequence of events where a Protected Process Light (PPL) security process attempts to load a DLL from a non-standard path and then terminates shortly after. This pattern is a strong indicator of the EDRStartupHinder technique, where a critical system DLL is redirected to an invalid copy, causing the PPL process to fail its integrity check and self-terminate.
+query: "// Name: PPL Integrity Load Failure - EDR DoS\r\n// Author: Ethan Andrews detections.ai\r\n// Date: 2026-01-16\r\n// Description: Detects a sequence of events where a Protected Process Light (PPL) security process attempts to load a DLL from a non-standard path and then terminates shortly after. This pattern is a strong indicator of the EDRStartupHinder technique, where a critical system DLL is redirected to an invalid copy, causing the PPL process to fail its integrity check and self-terminate.\r\n// MITRE TTPs: T1562.001\r\n// References: https://www.zerosalarium.com/2026/01/edrstartuphinder-edr-startup-process-blocker.html\r\n// False Positive Sensitivity: Medium. Legitimate security product updaters might load components from temporary directories and restart services, which could trigger this rule. The short time window helps to reduce this, but tuning of the process list and excluded paths may be necessary.\r\nlet lookback = 1h;\r\n// Define a list of security-related processes that run as Protected Process Light (PPL).\r\n// This list should be customized to include the specific EDR/AV products in your environment.\r\nlet targetSecurityProcesses = pack_array(\r\n    \"MsMpEng.exe\", // Windows Defender Antivirus\r\n    \"MsSense.exe\", // Microsoft Defender for Endpoint sensor\r\n    \"SenseIR.exe\", // Microsoft Defender for Endpoint sensor\r\n    \"CybvSvc.exe\"  // Example third-party EDR process name\r\n);\r\n// Step 1: Find a target security process loading a DLL from an unusual path, which indicates a potential redirection.\r\nlet ImageLoadEvents = DeviceImageLoadEvents\r\n    | where Timestamp > ago(lookback)\r\n    | where InitiatingProcessFileName in~ (targetSecurityProcesses)\r\n    // The EDRStartupHinder tool copies a system DLL to a temporary or attacker-controlled path.\r\n    // We filter for DLLs loaded from outside standard Windows and Program Files directories.\r\n    | where not(FolderPath matches regex @\"(?i)^C:\\\\(Windows|Program Files|Program Files \\(x86\\))\\\\.*\")\r\n    | project ImageLoadTime = Timestamp, DeviceId, DeviceName, InitiatingProcessFileName, LoadedDllName = FileName, FolderPath;\r\n// Step 2: Find the termination of that same process.\r\nlet ProcessTermEvents = DeviceProcessEvents\r\n    | where Timestamp > ago(lookback)\r\n    | where ActionType == \"ProcessTerminated\"\r\n    | where FileName in~ (targetSecurityProcesses)\r\n    | project TerminateTime = Timestamp, DeviceId, TerminatingProcessName = FileName;\r\n// Correlate the image load and termination events on the same device and for the same process.\r\nImageLoadEvents\r\n| join kind=inner ProcessTermEvents on DeviceId\r\n| where InitiatingProcessFileName == TerminatingProcessName\r\n// The PPL integrity failure causes a rapid termination. We look for this to occur within 30 seconds of the suspicious load.\r\n| where TerminateTime > ImageLoadTime and (TerminateTime - ImageLoadTime) < 30s\r\n| project\r\n    Timestamp = TerminateTime,\r\n    DeviceId,\r\n    DeviceName,\r\n    ProcessName = InitiatingProcessFileName,\r\n    SuspiciousDllLoadTime = ImageLoadTime,\r\n    SuspiciousDll = LoadedDllName,\r\n    SuspiciousDllPath = FolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1562
+    - T1562.001
+    - T1574.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.zerosalarium.com/2026/01/edrstartuphinder-edr-startup-process-blocker.html

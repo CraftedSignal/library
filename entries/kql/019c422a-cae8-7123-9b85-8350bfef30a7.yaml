@@ -1,0 +1,14 @@
+id: 019c422a-cae8-7123-9b85-8350bfef30a7
+name: LNK-Triggered PowerShell Tunnel Deployment
+description: Detects suspicious PowerShell execution initiated by explorer.exe, specifically when the command line includes a .lnk file, execution policy bypass, and contains keywords or paths commonly associated with malicious activity (e.g., tor, ssh, github.io, dropbox.com, or suspicious temporary/public directories). This pattern is often observed in initial access or execution phases of attacks.
+query: "let malicious_keywords = dynamic([\"tor\", \"ssh\", \"github.io\", \"dropbox.com\", \"openssh\"]);\r\nlet suspicious_paths = dynamic([@\"\\Downloads\\\", @\"\\AppData\\Local\\Temp\\\", @\"\\Users\\Public\\\", @\"\\PerfLogs\\\", @\"\\Desktop\\\"]);\r\nDeviceProcessEvents\r\n| where FileName =~ \"powershell.exe\"\r\n| where InitiatingProcessFileName =~ \"explorer.exe\"\r\n| where ProcessCommandLine has \".lnk\" and ProcessCommandLine has_any (\"-ExecutionPolicy Bypass\", \"-ep bypass\")\r\n| where ProcessCommandLine has_any (malicious_keywords)\r\n| where ProcessCommandLine has_any (suspicious_paths)\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059
+tags:
+    - kql
+version: "1"

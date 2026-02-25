@@ -1,0 +1,18 @@
+id: 019c4462-ed7d-71cb-b197-eb8b75638e90
+name: Unauthorized RMM Tool Network Connection via PowerShell or CMD
+description: This rule detects network connections to known Remote Monitoring and Management (RMM) tool domains initiated by `cmd.exe` or `powershell.exe`. This behavior can indicate the unauthorized use of RMM tools by an adversary to gain remote access and control over a compromised system. The rule specifically looks for successful network connections where the remote URL matches a URI from a curated list of RMM domains, and the initiating process is either `cmd.exe` or `powershell.exe`, excluding a specific bypass command line.
+query: "//Repo - T1219 - Use of unauthorized RMM access via PowerShell or CMD\r\nlet RMMList = externaldata(URI: string, RMMTool: string)\r\n  [h'https://raw.githubusercontent.com/magicsword-io/LOLRMM/main/website/public/api/rmm_domains.csv']\r\n   with(format='csv', ignoreFirstRecord=true);\r\nlet RMMUrl = RMMList | project URI;\r\nDeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has_any(RMMUrl)\r\n| project TimeGenerated, DeviceName, RemoteIP, RemotePort, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountUpn\r\n| join kind=inner (\r\n    DeviceProcessEvents\r\n    | where InitiatingProcessFileName in~ (\"cmd.exe\", \"powershell.exe\")\r\n    | where InitiatingProcessCommandLine != '\"add ps1 that you want to bypass\"'\r\n    | project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, ProcessId, InitiatingProcessId, InitiatingProcessAccountUpn\r\n) on DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1219
+    - T1059.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"
+references:
+    - https://raw.githubusercontent.com/magicsword-io/LOLRMM/main/website/public/api/rmm_domains.csv

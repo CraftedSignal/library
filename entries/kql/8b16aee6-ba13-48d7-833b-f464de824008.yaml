@@ -1,0 +1,34 @@
+id: 8b16aee6-ba13-48d7-833b-f464de824008
+name: Hunting Rogue Endpoints via SMB Detection
+description: 'KQL Query from file: Hunting Rogue Endpoints via SMB Detection'
+query: |
+    // Hunting Rogue Endpoints via SMB Detection
+
+    // In recent ransomware attacks, many adversaries leverage the SMB service to initiate attacks and conduct lateral movement. Therefore, a simple and effective control measure is to block SMB traffic between clients using Windows Firewall. If you have a firewall policy in place and are using Microsoft Defender for Endpoint (MDE), running the following Kusto Query Language (KQL) script will help you identify potential rogue endpoints plugged into your network that are attempting to attack other endpoints or an endpoint EDR that has been disabled by ransomware and is launching attacks within your network environment.
+
+    //Additionally, I’ve included the latest blog post from Seqrite, "Exposed SMB: The Hidden Risk Behind ‘WannaCry’ Ransomware Attacks," in the comments section. This post will help you understand the ransomware attack methodology and demonstrate how my KQL script can serve as an early warning detection mechanism.
+
+    // https://www.seqrite.com/blog/wanttocry-ransomware-smb-vulnerability/
+
+    DeviceEvents
+    | where ActionType == @"FirewallInboundConnectionBlocked"
+    | where LocalPort == "445"
+    | summarize TargetDevice=dcount(DeviceName) by RemoteIP
+    | where TargetDevice > 3
+query_type: kql
+tactics:
+    - TA0008
+    - TA0006
+    - TA0009
+    - TA0040
+techniques:
+    - T1021.002
+    - T1557.001
+    - T1496.003
+    - T1489
+    - T1490
+    - T1570
+    - T1210
+tags:
+    - kql
+version: "1"

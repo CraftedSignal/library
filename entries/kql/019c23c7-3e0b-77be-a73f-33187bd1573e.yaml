@@ -1,0 +1,54 @@
+id: 019c23c7-3e0b-77be-a73f-33187bd1573e
+name: Notepad++ Supply Chain - Recon Exfiltration via User-Agent
+description: Detects a specific data exfiltration pattern observed in the Notepad++ supply chain attack. An attacker uses curl.exe to upload a file containing reconnaissance data to the temp.sh file sharing service. Subsequently, a beacon is sent to the C2 where the User-Agent string of the HTTP request contains the temp.sh URL for the exfiltrated data.
+query: |
+    // Name: Notepad++ Supply Chain - Recon Exfiltration via User-Agent
+    // Author: tim@detections.ai
+    // Date: 2026-02-03
+    // Description: Detects a specific data exfiltration pattern observed in the Notepad++ supply chain attack. An attacker uses curl.exe to upload a file containing reconnaissance data to the temp.sh file sharing service. Subsequently, a beacon is sent to the C2 where the User-Agent string of the HTTP request contains the temp.sh URL for the exfiltrated data.
+    // Tactic: Exfiltration, Collection
+    // Technique: T1041, T1082, T1071.001
+    // False Positive Sensitivity: Medium. Legitimate use of temp.sh by developers is possible, but the combination of a curl upload followed by the URL appearing in the User-Agent of a subsequent request from the same process is highly suspicious.
+    // References: https://securelist.com/notepad-supply-chain-attack/118708/
+
+    let timeframe = 1h;
+    // Find curl.exe processes uploading files to temp.sh
+    let curl_uploads =
+        DeviceProcessEvents
+        | where TimeGenerated > ago(timeframe)
+        | where FileName =~ "curl.exe"
+        | where ProcessCommandLine has_all ("-F", "https://temp.sh/upload");
+    // Find network events where the User-Agent contains a temp.sh URL, indicating a beacon to the C2
+    let ua_exfil =
+        DeviceNetworkEvents
+        | where TimeGenerated > ago(timeframe)
+        | where isnotempty(HttpUserAgent) and HttpUserAgent has "temp.sh";
+    // Join the two events on the same device and process to find the malicious pattern
+    curl_uploads
+    | join kind=inner (
+        ua_exfil
+    ) on DeviceId, $left.ProcessId == $right.InitiatingProcessId
+    | project
+        Timestamp = TimeGenerated,
+        DeviceId,
+        DeviceName,
+        CurlProcessCommandLine = ProcessCommandLine,
+        ExfilUserAgent = HttpUserAgent,
+        DestinationIp = RemoteIP,
+        DestinationUrl = RemoteUrl
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0007
+    - TA0011
+techniques:
+    - T1041
+    - T1082
+    - T1071.001
+tags:
+    - kql
+author: tim@detections.ai
+version: "3"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

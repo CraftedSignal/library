@@ -1,0 +1,25 @@
+id: 0b550c5e-45ee-49f6-a571-c98e2cf1a983
+name: Suspicious Google Ad Service Redirects
+description: |-
+    This rule detects suspicious ad click traffic that routes through Google Ad Services It specifically looks for URLs containing Google Click Identifier (gclid), an ad URL, and a placement ID, while excluding legitimate ad routing services. This could indicate ad fraud or malvertising.
+    Most but not all clicks on Google ads are routed this way.
+query: "index=\"proxy\" sourcetype=web url_domain IN (\"www.googleadservices.com\", \"googleadservices.com\") url=\"*gclid=*\" AND url=\"*adurl=http*\" AND url=\"*&placement_id=*\" ```There are various googleadservices URL patterns. These filters return only those with a source and destination URL. Other URL patterns may have other useful indicators.```\r\n| fillnull value-\"null\"\r\n```regex out fields for where the ad was placed and where the add is taking hte user. Also the campaign ID and ad ID which can be used to link events```\r\n| rex field=url \"adurl=(?<final_destination_URL>[^?]+)\"\r\n| rex field=url \"campaign_id=(?<campaign_ID>[^&]+)\"\r\n| rex field=url \"placement_id=(?<URL_where_ad_was_clicked>[^&]+)\"\r\n| rex field=url \"&ai=(?<Ad_ID>[^&]+)\"\r\n| eval Timestamp=strftime(_time,\"%Y-%m-%d %H:%M:%S:%Q\")\r\n| stats earliest(Timestamp) as earliest latest(Timestamp) as latest values(action) as action values(final_destination_URL) as final_destination_URL values(URL_where_ad_was_clicked) as URL_where_ad_was_clicked values(campaign_ID) as campaign_ID values(Ad_ID) as Ad_ID values(reason) as reason values(category) as category values(url) as url values(refererURL) as referer count by user\r\n| search NOT final_destination_URL IN (\"https://ad.doubleclick.net/searchads*\", \"https://track.trafficguard.ai/*\", \"https://ad.doubleclick.net*\", \"https://clickserve.dartsearch.net/*\") ```these appear to be routing through further advertisements```"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0042
+techniques:
+    - T1583.008
+    - T1204.001
+    - T1189
+tags:
+    - googleads
+    - malvertising
+    - spl
+author: Salten Fisk
+version: "1"
+references:
+    - https://improvado.io/blog/cm360-vs-dv360
+    - https://support.google.com/google-ads/answer/6076199#tracking

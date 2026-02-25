@@ -1,0 +1,30 @@
+id: 019c48f6-60b3-743a-8a24-ec90d999290d
+name: Remote Scheduled Task Creation with High Privileges
+description: This rule detects the creation of scheduled tasks on remote systems using the 'schtasks.exe' utility. Specifically, it looks for instances where a scheduled task is created with high-privilege accounts such as 'Administrator', 'SYSTEM', or 'NT AUTHORITY'. The detection logic requires the presence of '/create', '/s' (specifying a remote system), '/tr' (task run), '/tn' (task name), and '/ru' (run as user) flags in the command line. It explicitly filters out tasks created on the local machine (localhost, 127.0.0.1, ::1). This activity is indicative of potential lateral movement or privilege escalation, as adversaries often use remote scheduled tasks to establish persistence or execute commands on other systems within a network with elevated privileges.
+query: "title: Remote Scheduled Task with Administrator Privileges\r\nid: bc5c0be5-b1fa-4784-acb9-46e0882f8c71\r\nstatus: experimental\r\ndescription: Detects remote scheduled task creation with high-privilege accounts (Administrator, SYSTEM) indicating potential lateral movement and privilege escalation.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1053/005/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.lateral-movement\r\n    - attack.persistence\r\n    - attack.privilege-escalation\r\n    - attack.t1053.005\r\n    - attack.t1078\r\nlogsource:\r\n    category: process_creation\r\n    product: windows\r\ndetection:\r\n    selection_image:\r\n        Image|endswith: '\\schtasks.exe'\r\n    selection_flags:\r\n        CommandLine|contains|all:\r\n            - '/create'\r\n            - '/s'\r\n            - '/tr'\r\n            - '/tn'\r\n    selection_ru:\r\n        CommandLine|contains: '/ru'\r\n    selection_privs:\r\n        CommandLine|contains:\r\n            - 'Administrator'\r\n            - 'SYSTEM'\r\n            - 'NT AUTHORITY'\r\n    filter_local:\r\n        CommandLine|contains:\r\n            - '/s localhost'\r\n            - '/s 127.0.0.1'\r\n            - '/s ::1'\r\n    condition: selection_image and selection_flags and selection_ru and selection_privs and not 1 of filter_*\r\nfields:\r\n    - CommandLine\r\n    - User\r\n    - ParentImage\r\n    - ParentCommandLine\r\n    - Image\r\nfalsepositives:\r\n    - Monitoring software deploying tasks with administrative privileges\r\n    - Configuration management tools (SCCM, Ansible, Puppet)\r\n    - Backup software creating scheduled tasks on remote systems\r\nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+    - TA0003
+    - TA0004
+    - TA0002
+    - TA0005
+    - TA0001
+techniques:
+    - T1053.005
+    - T1078
+    - T1053
+tags:
+    - attack.lateral-movement
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.t1053.005
+    - attack.t1078
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1053/005/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,90 @@
+id: 019c69dc-9959-7435-b09e-2230c659e852
+name: Linux Auditd Service Disabled or Stopped
+description: |
+    Detects an adversary stopping or disabling the Linux audit daemon (auditd),
+    the primary kernel-level activity logging subsystem on Linux.
+    Disabling auditd eliminates syscall-level telemetry including file access,
+    process execution, and privilege escalation events.
+    Effectively attempting to blind the host's logging pipeline before further action.
+
+    Observed in: TeamTNT, Rocke cryptominer campaigns, post-exploitation
+    frameworks (Metasploit, Sliver) during cleanup phases.
+query: |
+    title: Linux Auditd Service Disabled or Stopped
+    id: 2b5f9d07-8e4a-3c1b-f034-7d8a012ebc45
+    status: experimental
+    description: >
+      Detects an adversary stopping or disabling the Linux audit daemon (auditd),
+
+      the primary kernel-level activity logging subsystem on Linux.
+
+      Disabling auditd eliminates syscall-level telemetry including file access,
+
+      process execution, and privilege escalation events.
+
+      Effectively attempting to blind the host's logging pipeline before further
+      action.
+
+
+      Observed in: TeamTNT, Rocke cryptominer campaigns, post-exploitation
+
+      frameworks (Metasploit, Sliver) during cleanup phases.
+    references:
+      - https://attack.mitre.org/techniques/T1562/001/
+    author: zendannyy
+    date: 2026-02-16T00:00:00.000Z
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      product: linux
+      category: process_creation
+      service: audit
+    detection:
+      selection_systemctl:
+        Image|endswith: /systemctl
+        CommandLine|contains:
+          - stop auditd
+          - disable auditd
+          - mask auditd
+      selection_service:
+        Image|endswith: /service
+        CommandLine|contains|all:
+          - auditd
+          - stop
+      selection_auditctl_disable:
+        Image|endswith: /auditctl
+        CommandLine|contains:
+          - '-e 0'
+          - '-e0'
+      selection_kill:
+        Image|endswith:
+          - /kill
+          - /killall
+          - /pkill
+        CommandLine|contains: auditd
+      condition: >-
+        selection_systemctl or selection_service or selection_auditctl_disable or
+        selection_kill
+    falsepositives:
+      - System updates that restart auditd (typically immediately followed by a
+        start event, correlate to confirm)
+      - Legitimate administrative maintenance with change management ticket
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.012
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/001/
+data_sources:
+    - process_creation
+    - linux
+    - audit

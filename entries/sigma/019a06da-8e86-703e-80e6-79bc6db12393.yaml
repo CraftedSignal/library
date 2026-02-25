@@ -1,0 +1,62 @@
+id: 019a06da-8e86-703e-80e6-79bc6db12393
+name: Obfuscated JavaScript in SVG File
+description: Detects the presence of SVG files containing obfuscated JavaScript and redirection logic. This technique is used by phishing campaigns, such as Tykit, to redirect victims to malicious sites.
+query: |
+    title: Obfuscated JavaScript in SVG File
+    id: 4533b47d-21a3-497a-b8bc-46865ff0f785
+    status: experimental
+    description: Detects the presence of SVG files containing obfuscated JavaScript
+      and redirection logic. This technique is used by phishing campaigns, such as
+      Tykit, to redirect victims to malicious sites.
+    references:
+      - https://any.run/cybersecurity-blog/tykit-technical-analysis/
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.t1027.001
+      - attack.t1204.001
+    logsource:
+      category: file_event
+      product: zeek
+    detection:
+      # This rule requires a log source that can inspect file contents, such as Zeek's files.log or an EDR with file content logging.
+      # The field names used here are based on Zeek's file analysis framework. Adjust them for your specific log source.
+      selection_svg:
+        file.name|endswith: '.svg' # Identifies SVG files
+        file.mime_type: 'image/svg+xml'
+      selection_obfuscation:
+        file.script_content|contains:
+          # This field should contain the script content extracted from the file.
+          - 'atob('
+          - 'parseInt('
+          - 'charCodeAt('
+          - 'fromCodePoint('
+          - 'eval('
+      selection_redirect:
+        file.script_content|contains:
+          - 'window.location'
+          - '.href'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate interactive SVG files that use complex JavaScript for dynamic
+        content or navigation might trigger this rule. Tuning may be required to
+        exclude trusted sources or specific legitimate scripts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1204.001
+tags:
+    - attack.t1027.001
+    - attack.t1204.001
+author: detections.ai
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/tykit-technical-analysis/
+data_sources:
+    - file_event
+    - zeek

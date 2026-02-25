@@ -1,0 +1,15 @@
+id: 019c2a4c-11cd-7038-9ae8-623caf17663c
+name: Exfiltration to Suspicious Cloud Storage or File Sharing Services
+description: This rule detects outbound network connections to a predefined list of suspicious cloud storage and file-sharing services. These services are often used by adversaries for exfiltration of collected data, providing a covert channel due to their common use and potential for SSL/TLS encryption. The rule specifically looks for `RemoteUrl` containing any of the domains listed in `suspiciousexfildomains`.
+query: "//Repo - T1567.002 Exfiltration Over Web Service: Exfiltration to suspicious Cloud Storage\r\n// TTP [T1567.002] \r\n// DS [DeviceNetworkEvents]\r\n//insert suspicious domains\r\nlet suspiciousexfildomains = dynamic([\r\n\"pcloud.com\"\r\n,\"api.telegram.org\"\r\n,\"gofile.io\"\r\n,\"siasky.net\"\r\n,\"paste.ee\"\r\n,\"ngrok.io\" \r\n,\"ufile.io\"\r\n,\"filebin.net\"\r\n,\"transfer.sh\"\r\n,\"rentry.co\"\r\n,\"zerobin.net\"\r\n,\"textbin.net\"\r\n,\"www.uplooder.net\"\r\n,\"pastie.org\"\r\n,\"anonfiles.com\"\r\n,\"mediafire.com\"\r\n]) ;\r\nDeviceNetworkEvents \r\n| where RemoteUrl has_any(suspiciousexfildomains)\r\n| project\r\n    TimeGenerated,\r\n    InitiatingProcessFileName,\r\n    AccountCustomEntity = iff(isnotempty(InitiatingProcessAccountUpn), InitiatingProcessAccountUpn, InitiatingProcessAccountName),\r\n    URLCustomEntity = RemoteUrl,\r\n    IPCustomEntity = RemoteIP,\r\n    HostNameCustomentity = DeviceName,\r\n    ProcessCustomEntity = InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567
+    - T1567.002
+    - T1567.003
+tags:
+    - kql
+version: "4"

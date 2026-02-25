@@ -1,0 +1,49 @@
+id: 019bd0df-916c-772c-a374-d43b7f8d1302
+name: Turla Kazuar v3 Network Communication
+description: Detects network connections to Kazuar v3 command and control servers. The malware communicates with C2 infrastructure using HTTP/HTTPS protocols (ports 80/443) to any internet-routable IPv4 address. The loader uses WinHttp.WinHttpRequest.5.1 COM object for HTTP requests and ignores SSL certificate validation errors (SXH_SERVER_CERT_IGNORE_ALL_SERVER_ERRORS = 13056). File downloads are performed using ADODB.Stream, and User-Agent strings typically contain "WinHttp" or "ADODB" indicators. This rule matches any valid IPv4 address to account for the fact that Turla may use different C2 IPs across campaigns. The rule focuses on HTTP/HTTPS traffic which is the primary communication method used by the loader to download components and exfiltrate data.
+query: |
+    title: Turla Kazuar v3 Network Communication
+    id: e63d5e64-0b0c-41d5-be56-54bdbdb9d6a2
+    status: experimental
+    description: |
+        Detects network connections to Kazuar v3 command and control servers. The malware communicates with C2 infrastructure using HTTP/HTTPS protocols (ports 80/443) to any internet-routable IPv4 address. The loader uses WinHttp.WinHttpRequest.5.1 COM object for HTTP requests and ignores SSL certificate validation errors (SXH_SERVER_CERT_IGNORE_ALL_SERVER_ERRORS = 13056). File downloads are performed using ADODB.Stream, and User-Agent strings typically contain "WinHttp" or "ADODB" indicators. This rule matches any valid IPv4 address to account for the fact that Turla may use different C2 IPs across campaigns. The rule focuses on HTTP/HTTPS traffic which is the primary communication method used by the loader to download components and exfiltrate data.
+    references:
+        - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+        - attack.command_and_control
+        - attack.t1071.001
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection:
+            DestinationIp|re: '^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$'
+            DestinationPort|any:
+                - 80
+                - 443
+            EventType|contains: 'HTTP'
+            UserAgent|contains|any:
+                - 'WinHttp'
+                - 'ADODB'
+        condition: selection
+    falsepositives:
+        - Legitimate applications using WinHttp or ADODB for HTTP requests
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+data_sources:
+    - network_connection
+    - windows

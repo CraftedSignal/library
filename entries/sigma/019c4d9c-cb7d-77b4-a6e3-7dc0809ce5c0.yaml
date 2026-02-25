@@ -1,0 +1,56 @@
+id: 019c4d9c-cb7d-77b4-a6e3-7dc0809ce5c0
+name: Ivanti EPMM Tomcat/Java Spawning Shell or Sliver
+description: This rule detects suspicious process creation patterns where a Java or Tomcat process (common in Ivanti EPMM) spawns a command shell (cmd.exe, bash, sh) or a process containing 'sliver' or 'implant' in its command line. This behavior is indicative of potential Remote Code Execution (RCE) abuse, particularly in the context of Ivanti EPMM vulnerabilities.
+query: |
+    title: Ivanti EPMM Tomcat/Java Spawning Shell or Sliver
+    id: f5a6b7c8-d9e0-4f9a-3142-ivanti002
+    status: experimental
+    description: |
+        Post-exploitation: java or tomcat process spawning cmd.exe, bash, or Sliver implant. EPMM runs on Tomcat; such child processes indicate RCE abuse.
+    references:
+        - https://www.wiz.io/blog/ivanti-epmm-rce-vulnerability-chain-cve-2025-4427-cve-2025-4428
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.execution
+        - attack.t1059
+        - attack.t1059.003
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_child:
+            Image|endswith|any:
+                - '\cmd.exe'
+                - '\bash'
+                - '\sh'
+            CommandLine|contains|any:
+                - 'sliver'
+                - 'implant'
+        selection_parent:
+            ParentImage|endswith|any:
+                - '\java.exe'
+                - '\javaw.exe'
+                - '\catalina'
+        condition: selection_child and selection_parent
+    falsepositives:
+        - Legitimate EPMM scripts invoking system commands
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.003
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.t1059.003
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.wiz.io/blog/ivanti-epmm-rce-vulnerability-chain-cve-2025-4427-cve-2025-4428
+data_sources:
+    - process_creation
+    - windows

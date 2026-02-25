@@ -1,0 +1,61 @@
+id: 019bd0df-7ea7-77b0-bcbe-ba0ba1a5eea9
+name: Turla Kazuar v3 File Downloads
+description: |
+    Detects file creation events for specific files downloaded by the Turla Kazuar v3 loader. The malware downloads a set of files into the %LOCALAPPDATA%\Programs\HP\Printer\Driver directory including hpbprndi.exe (a legitimate signed Hewlett-Packard printer driver installer used as a loader with SHA256: 34b7df7919dbbe031b5d802accb566ce6e91df4155b1858c3c81e4c003f1168c), hpbprndiLOC.dll (the actual Kazuar v3 loader DLL that implements COM-based.
+query: |
+    title: Turla Kazuar v3 File Downloads
+    id: 8288c18e-6cbe-4dea-b8a5-d836ef037836
+    status: experimental
+    description: >
+      Detects file creation events for specific files downloaded by the Turla Kazuar
+      v3 loader. The malware downloads a set of files into the
+      %LOCALAPPDATA%\Programs\HP\Printer\Driver directory including hpbprndi.exe (a
+      legitimate signed Hewlett-Packard printer driver installer used as a loader
+      with SHA256:
+      34b7df7919dbbe031b5d802accb566ce6e91df4155b1858c3c81e4c003f1168c), hpbprndiLOC.dll (the actual Kazuar v3 loader DLL that implements COM-based.
+    references:
+      - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+      - attack.t1105
+    logsource:
+      category: file_event
+      product: windows
+      service: sysmon
+    detection:
+      selection_path:
+        TargetFilename|contains|all:
+          - Programs\HP\Printer\Driver
+          - hpbprndi
+      selection_files:
+        TargetFilename|endswith:
+          - \hpbprndi.exe
+          - \hpbprndiLOC.dll
+          - \jayb.dadk
+          - \kgjlj.sil
+          - \pkrfsu.ldy
+      condition: selection_path and selection_files
+    falsepositives:
+      - Legitimate HP printer driver installations
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1105
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1105
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+data_sources:
+    - file_event
+    - windows

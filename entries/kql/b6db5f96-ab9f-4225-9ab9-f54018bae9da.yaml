@@ -1,0 +1,48 @@
+id: b6db5f96-ab9f-4225-9ab9-f54018bae9da
+name: Suspicious ADRS Token Request by Microsoft Auth Broker
+description: Identifies Entra ID sign-in events where a user authenticates using a refresh token issued to the Microsoft Authentication Broker (MAB) client, targeting the Device Registration Service (DRS) with the "adrs_access" OAuth scope. This pattern is a strong indicator of an adversary using a stolen refresh token to initiate a malicious device registration flow, often with tools like ROADtx, as a step towards establishing persistence.
+query: |
+    // Name: Suspicious ADRS Token Request by Microsoft Auth Broker
+    // Author: AEspejo
+    // Date: 2025-09-02
+    // References: https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    // Description: Identifies Entra ID sign-in events where a user authenticates using a refresh token issued to the Microsoft Authentication Broker (MAB) client, targeting the Device Registration Service (DRS) with the "adrs_access" OAuth scope. This pattern is a strong indicator of an adversary using a stolen refresh token to initiate a malicious device registration flow, often with tools like ROADtx, as a step towards establishing persistence.
+    // False Positive Sensitivity: Medium
+    // Tuning: Legitimate device enrollment processes, such as Autopilot, may generate similar events. If false positives occur, consider correlating this activity with other suspicious signals like anomalous IP addresses or preceding phishing alerts for the user.
+    SigninLogs
+    | where TimeGenerated > ago(1d)
+    // Filter for successful sign-ins from member accounts (users).
+    | where ResultType == 0
+    | where UserType == "Member"
+    // The client application is the Microsoft Authentication Broker (MAB).
+    | where AppId == "29d9ed98-a469-4536-ade2-f981bc1d605e"
+    // The target resource is the Device Registration Service (DRS).
+    | where ResourceIdentity == "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9"
+    // The authentication was performed using a refresh token.
+    | where IncomingTokenType == "refreshToken"
+    // The token was specifically scoped for Azure DRS access.
+    | where AuthenticationProcessingDetails has "adrs_access"
+    | project-reorder
+        TimeGenerated,
+        UserPrincipalName,
+        AppDisplayName,
+        IPAddress,
+        Location,
+        ResourceDisplayName,
+        AuthenticationProcessingDetails,
+        DeviceDetail,
+        UserAgent,
+        CorrelationId
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.005
+tags:
+    - kql
+author: AEspejo
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection

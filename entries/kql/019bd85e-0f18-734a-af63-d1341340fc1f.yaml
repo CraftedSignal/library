@@ -1,0 +1,16 @@
+id: 019bd85e-0f18-734a-af63-d1341340fc1f
+name: Evelyn Stealer - Suspicious Headless Browser Launch
+description: Detects browser processes launched with a specific combination of command-line flags used by Evelyn Stealer to hide its activity and bypass security. This combination includes headless mode, a disabled sandbox, and an off-screen window position.
+query: "// Name: Evelyn Stealer - Suspicious Headless Browser Launch\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-19\r\n// Severity: High\r\n// Description: Detects browser processes launched with a specific combination of command-line flags used by Evelyn Stealer to hide its activity and bypass security.\r\n// This combination includes headless mode, a disabled sandbox, and an off-screen window position.\r\n// False Positives: This specific combination is highly suspicious. However, some automated testing or web scraping tools might use similar flags. Review the parent process and user activity to confirm maliciousness.\r\n// References: https://www.trendmicro.com/en_us/research/26/a/analysis-of-the-evelyn-stealer-campaign.html\r\n// Tactic: Execution, Defense Evasion\r\n// Technique: T1204.002, T1055.012\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n// Filter for browser processes of interest\r\n| where FileName in~ (\"chrome.exe\", \"msedge.exe\", \"brave.exe\")\r\n// Key logic: Identify the combination of suspicious command-line arguments used by Evelyn Stealer.\r\n| where ProcessCommandLine has \"--headless=new\"\r\n    and ProcessCommandLine has \"--no-sandbox\"\r\n    and ProcessCommandLine has \"--window-position=-10000,-10000\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analysis-of-the-evelyn-stealer-campaign.html

@@ -1,0 +1,48 @@
+id: 019bb4da-5a77-73f6-b16a-e3eecf102acc
+name: APT41 DLL Sideloading via VipreAV Executable
+description: Detects a DLL sideloading technique used by APT41 where the legitimate VipreAV executable 'vetysafe.exe' is used to load a malicious 'sbamres.dll'. This is a known method for deploying the Deed RAT.
+query: |
+    -- title: APT41 DLL Sideloading via VipreAV Executable
+    -- description: Detects a DLL sideloading technique used by APT41 where the legitimate VipreAV executable 'vetysafe.exe' is used to load a malicious 'sbamres.dll'. This is a known method for deploying the Deed RAT.
+    -- author: detections.ai
+    -- date: 2026-01-12
+    -- references:
+    --   - https://hivepro.com/threat-advisory/apt41-cyber-espionage-campaign-targets-u-s-policy-institutions/
+    -- tags:
+    --   - attack.t1574.002
+    --   - attack.g0096
+
+    `comment("This query uses the Endpoint data model to find specific DLL sideloading activity.")`
+    from datamodel=Endpoint.ImageLoads
+    where
+        `comment("Identify the specific process 'vetysafe.exe' known to be abused.")`
+        (ImageLoads.process_name = "vetysafe.exe" OR ImageLoads.process = "*\\vetysafe.exe")
+        `comment("Look for the loading of the specific malicious DLL 'sbamres.dll'.")`
+        AND (ImageLoads.file_name = "sbamres.dll" OR ImageLoads.file_path = "*\\sbamres.dll")
+    `comment("Aggregate results to provide a summary of the sideloading event.")`
+    | stats
+        count
+        min(_time) as firstTime
+        max(_time) as lastTime
+        values(ImageLoads.process) as process_path
+        values(ImageLoads.file_path) as dll_path
+        by
+        ImageLoads.dest
+        ImageLoads.user
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    `comment("--- Tuning Information ---")`
+    `comment("This behavior is expected from legitimate Vipre Antivirus installations. To reduce false positives, filter out known legitimate installation paths for vetysafe.exe, such as 'C:\\Program Files*'. Conversely, you can focus the search on executions from non-standard paths like 'C:\\Users\\Public\\*' or 'C:\\Windows\\Temp\\*'.")`
+    `comment("Example -> | where NOT (ImageLoads.process LIKE \"C:\\\\Program Files%\\\")")`
+query_type: spl
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - spl
+version: "2"
+references:
+    - https://hivepro.com/threat-advisory/apt41-cyber-espionage-campaign-targets-u-s-policy-institutions/

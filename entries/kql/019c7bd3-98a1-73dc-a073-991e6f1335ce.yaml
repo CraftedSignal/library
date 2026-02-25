@@ -1,0 +1,17 @@
+id: 019c7bd3-98a1-73dc-a073-991e6f1335ce
+name: PowerShell ETW and AMSI Bypass via Reflection
+description: Detects PowerShell scripts using .NET Reflection to modify internal fields to disable Event Tracing for Windows (ETW) or the Anti-Malware Scan Interface (AMSI). This technique is used by malware like the MIMICRAT loader to evade defenses before executing its main payload.
+query: "// Name: PowerShell ETW and AMSI Bypass via Reflection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects PowerShell scripts using .NET Reflection to modify internal fields to disable Event Tracing for Windows (ETW) or the Anti-Malware Scan Interface (AMSI). This technique is used by malware like the MIMICRAT loader to evade defenses before executing its main payload.\r\n// False Positives: Medium. Legitimate security testing tools or very complex administrative scripts might use these techniques. If false positives occur, consider excluding specific script hashes, users, or parent processes associated with legitimate activity.\r\n// References: https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks\r\n// Tactics: Defense Evasion\r\n// Techniques: T1562.001, T1562.006\r\nDeviceEvents\r\n// This detection requires PowerShell Script Block Logging (Event ID 4104) to be ingested.\r\n// The ActionType may vary depending on your MDE/Sentinel configuration.\r\n| where ActionType == \"PowerShellCommand\"\r\n// Extract the script block text for analysis. The field name might differ based on data schema.\r\n| extend ParsedFields = parse_json(AdditionalFields)\r\n| extend ScriptBlockText = tostring(ParsedFields.ScriptBlockText)\r\n// The core detection logic looks for the specific reflection calls to disable ETW or AMSI.\r\n| where \r\n    // Detects the ETW bypass via reflection\r\n    (ScriptBlockText has \"System.Diagnostics.Eventing.EventProvider\" and ScriptBlockText has \"m_enabled\" and ScriptBlockText has \"SetValue\")\r\n    or\r\n    // Detects the AMSI bypass via reflection\r\n    (ScriptBlockText has \"System.Management.Automation.AmsiUtils\" and ScriptBlockText has \"amsiInitFailed\" and ScriptBlockText has \"SetValue\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ScriptBlockText\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+    - T1562.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks

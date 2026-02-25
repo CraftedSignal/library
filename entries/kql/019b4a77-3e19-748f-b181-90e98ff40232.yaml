@@ -1,0 +1,21 @@
+id: 019b4a77-3e19-748f-b181-90e98ff40232
+name: OAuth Consent to application detection
+description: |-
+    Multiple threat actors are compromising Microsoft 365 accounts in phishing attacks that leverage the OAuth device code authorization mechanism.
+
+    Attackers trick victims into entering a device code on Microsoft’s legitimate device login page, unknowingly authorizing an attacker-controlled application and granting them access to the target account without stealing credentials or bypassing multi-factor authentication (MFA).
+query: "AuditLogs\n| where TimeGenerated > ago(30d)\n| where OperationName == \"Consent to application\"\n| where Result == \"success\"\n| extend User = tostring(InitiatedBy.user.userPrincipalName)\n| extend IPAddress = tostring(InitiatedBy.user.ipAddress)\n| extend AppDisplayName = coalesce(\n    tostring(TargetResources[0].displayName),\n    tostring(TargetResources[0].appDisplayName),\n    \"Unknown App\"\n)\n| extend AppId = tostring(TargetResources[0].id)\n| project TimeGenerated, User, AppDisplayName, AppId, IPAddress\n| summarize \n    ConsentCount = count(),\n    FirstConsent = min(TimeGenerated),\n    LatestConsent = max(TimeGenerated),\n    SourceIPs = make_set(IPAddress)\n    by User, AppDisplayName, AppId\n| where ConsentCount > 1\n| order by ConsentCount desc, LatestConsent desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.002
+    - T1621
+    - T1555.003
+    - T1078.004
+    - T1550.001
+    - T1048.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/microsoft-365-accounts-targeted-in-wave-of-oauth-phishing-attacks/

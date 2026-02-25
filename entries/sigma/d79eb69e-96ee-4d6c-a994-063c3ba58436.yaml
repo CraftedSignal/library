@@ -1,0 +1,24 @@
+id: d79eb69e-96ee-4d6c-a994-063c3ba58436
+name: Certutil root certificate installation
+description: Detects scenarios where an attacker attempts to alter certificate chain validation by installing a root CA.
+query: "title: Certutil root certificate installation\ndescription: Detects scenarios where an attacker attempts to alter certificate chain validation by installing a root CA.\nreferences:\n- https://twitter.com/Alh4zr3d/status/1592925753984880641\n- https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf\n- https://posts.specterops.io/code-signing-certificate-cloning-attacks-and-defenses-6f98657fc6ec\n- https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/import-third-party-ca-to-enterprise-ntauth-store#method-2---import-a-certificate-by-using-certutilexe\n- https://strontic.github.io/xcyclopedia/library/certutil.exe-138DC8312317ED386C1CB62E19EA9269.html\ntags:\n- attack.defense_evasion\n- attack.t1553.004 # Subvert Trust Controls: Install Root Certificate \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection: # certutil.exe -dspublish -f C:\\rogue.crt NTAuthCA\n  selection:\n    NewProcessName|endswith: '\\certutil.exe'\n    Commandline|contains|all:\n      - '-dspublish'\n      - '.crt'\n      - NTAuthCA\n  condition: selection\nfalsepositives:\n- Administrator manually adding a root CA\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1553.004
+tags:
+    - attack.defense_evasion
+    - attack.t1553.004
+author: mdecrevoisier
+version: "1"
+references:
+    - https://twitter.com/Alh4zr3d/status/1592925753984880641
+    - https://specterops.io/wp-content/uploads/sites/3/2022/06/Certified_Pre-Owned.pdf
+    - https://posts.specterops.io/code-signing-certificate-cloning-attacks-and-defenses-6f98657fc6ec
+    - https://learn.microsoft.com/en-us/troubleshoot/windows-server/windows-security/import-third-party-ca-to-enterprise-ntauth-store#method-2---import-a-certificate-by-using-certutilexe
+    - https://strontic.github.io/xcyclopedia/library/certutil.exe-138DC8312317ED386C1CB62E19EA9269.html
+data_sources:
+    - process_creation
+    - windows

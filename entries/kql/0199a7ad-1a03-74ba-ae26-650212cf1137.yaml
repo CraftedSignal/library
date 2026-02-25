@@ -1,0 +1,17 @@
+id: 0199a7ad-1a03-74ba-ae26-650212cf1137
+name: Potential DC Sync attack detected
+description: Detects potential DC Sync attacks, where an adversary mimics a domain controller to request credential data using replication permissions. This rule identifies Event ID 4662 with AccessMask 0x100 and specific replication-related properties, excluding known benign accounts.
+query: "//Instructions\r\n//Deploy as NRT rule in Azure Sentinel\r\n//References\r\n//https://twitter.com/gentilkiwi/status/1003236624925413376\r\n//https://gist.github.com/gentilkiwi/dcc132457408cf11ad2061340dcb53c2\r\n//https://blog.blacklanternsecurity.com/p/detecting-dcsync?s=r\r\n//https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4662\r\n//OtherInfo:\r\n//This detection is a Sigma to KQL translation of the original Sigma rule created by Benjamin Delpy, Florian Roth (Nextron Systems), Scott Dermott, Sorina Ionescu\r\n//TranslationBy: ThreatScout\r\nSecurityEvent\r\n| where EventID == 4662\r\n| where AccessMask == \"0x100\"\r\n| where Properties has_any (\r\n    \"Replicating Directory Changes All\",\r\n    \"1131f6ad-9c07-11d1-f79f-00c04fc2dcd2\",\r\n    \"1131f6aa-9c07-11d1-f79f-00c04fc2dcd2\",\r\n    \"9923a32a-3607-11d2-b9be-0000f87a36b2\",\r\n    \"89e95b76-444d-4c62-991a-0facbeda640c\"\r\n)\r\n| where SubjectDomainName != \"Window Manager\"\r\n| where not(SubjectUserName startswith \"NT AUT\" or SubjectUserName startswith \"MSOL_\")\r\n| where not(SubjectUserName endswith \"$\")\r\n| summarize EventCount = count() by SubjectUserName, Computer, SubjectDomainName,Properties,bin(TimeGenerated, 1h)\r\n| sort by EventCount desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1003.006
+tags:
+    - kql
+author: ThreatScout
+version: "5"
+references:
+    - https://twitter.com/gentilkiwi/status/1003236624925413376
+    - https://gist.github.com/gentilkiwi/dcc132457408cf11ad2061340dcb53c2
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4662
+    - https://blog.blacklanternsecurity.com/p/detecting-dcsync?s=r

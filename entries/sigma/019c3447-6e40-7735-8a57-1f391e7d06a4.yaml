@@ -1,0 +1,58 @@
+id: 019c3447-6e40-7735-8a57-1f391e7d06a4
+name: VS Code Terminal Prompt Injection
+description: |
+    Detects the modification of a `.vscode/settings.json` file to include a `PROMPT_COMMAND`. This technique allows an attacker to execute arbitrary commands every time a new terminal is opened in a Linux-based VS Code environment, such as GitHub Codespaces. It can be used for persistence or to exfiltrate credentials and secrets.
+query: |
+    title: VS Code Terminal Prompt Injection
+    id: 36a482e3-0666-4787-acc8-264b2cc3b9af
+    status: experimental
+    description: |
+      Detects the modification of a `.vscode/settings.json` file to include a `PROMPT_COMMAND`. This technique allows an attacker to execute arbitrary commands every time a new terminal is opened in a Linux-based VS Code environment, such as GitHub Codespaces. It can be used for persistence or to exfiltrate credentials and secrets.
+    references:
+      - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.t1574.007
+      - attack.t1059.004
+      - attack.persistence
+      - attack.execution
+    logsource:
+      category: file_event
+      product: osquery # This is an example, any file monitoring tool that can inspect content is suitable.
+    detection:
+      selection:
+        # Detects a VS Code settings.json file being created or modified.
+        file.path|endswith: '/.vscode/settings.json'
+        # The file content must contain the Linux environment setting and the PROMPT_COMMAND injection.
+        file.content|contains|all:
+          - '"terminal.integrated.env.linux"'
+          - '"PROMPT_COMMAND"'
+      condition: selection
+    falsepositives:
+      - Legitimate, albeit rare, use cases might exist for developers to set
+        `PROMPT_COMMAND` for customizing their terminal prompt or running setup
+        scripts. However, this is not a common practice within a repository-specific
+        `settings.json` and should be investigated.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1546.004
+    - T1059.004
+tags:
+    - attack.t1574.007
+    - attack.t1059.004
+    - attack.persistence
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+data_sources:
+    - file_event
+    - osquery

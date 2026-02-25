@@ -1,0 +1,51 @@
+id: eb27d2c7-68e4-4240-88f7-9e41286612d1
+name: Lumma Stealer Browser File Access Detection
+description: Identifies suspicious access to sensitive browser files by processes commonly used by Lumma Stealer, expanding coverage to include more browsers based on observed configurations.
+query: |-
+    // Lumma Stealer - Sensitive Browser File Access
+    // Identifies suspicious access to sensitive browser files (like credential stores, cookies, history)
+    // by processes commonly used by Lumma Stealer (AutoIT, .NET Framework processes, PowerShell).
+    // This version expands coverage to include more browsers based on observed Lumma configurations.
+    //
+    // References:
+    // - https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/
+    //
+    let browserDirs = pack_array(
+        @"\Google\Chrome\User Data\",
+        @"\Microsoft\Edge\User Data\",
+        @"\Mozilla\Firefox\Profiles\",
+        @"\Chromium\User Data\",
+        @"\Opera Software\Opera Stable\",
+        @"\Opera Software\Opera GX Stable\",
+        @"\BraveSoftware\Brave-Browser\User Data\",
+        @"\AVG Secure Browser\User Data\"
+    );
+    let browserSensitiveFiles = pack_array("Web Data", "Login Data", "key4.db", "formhistory.sqlite", "cookies.sqlite", "logins.json", "places.sqlite", "cert9.db");
+    DeviceEvents
+    | where ActionType == "FileOpenSource" // Filter for "File Open" events.
+    | where InitiatingProcessVersionInfoInternalFileName == "AutoIt3.exe"
+          or InitiatingProcessImageFilePath has "\\windows\\microsoft.net\\framework\\"
+          or InitiatingProcessFileName =~ "powershell.exe"
+    | where (AdditionalFields has_any(browserDirs) or  AdditionalFields has_any(browserSensitiveFiles))
+    | extend json = parse_json(AdditionalFields)
+    | extend File_Name = tostring(json.FileName.PropertyValue)
+    | where (File_Name has_any (browserDirs) and File_Name has_any (browserSensitiveFiles))
+    | project Timestamp, ReportId, DeviceId, InitiatingProcessParentFileName, InitiatingProcessFileName, InitiatingProcessVersionInfoInternalFileName, InitiatingProcessCommandLine, File_Name
+    // Metadata
+    // Author: Detections.ai
+    // Date: 2025-05-23
+    // Severity: High
+    // Tags: Lumma Stealer, Infostealer, CredentialAccess, BrowserData, FileAccess
+    // MITRE ATT&CK: T1555.003 (Credentials from Web Browsers)
+    // References:
+    // - https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0002
+techniques:
+    - T1555.003
+    - T1059.010
+    - T1059.001
+version: "1"

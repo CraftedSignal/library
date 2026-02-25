@@ -1,0 +1,25 @@
+id: 019c48f5-817a-7169-8d1d-590d179e5cb1
+name: Explorer.exe Spawns PowerShell with Network Download Command
+description: This rule detects when 'explorer.exe' spawns PowerShell, and the PowerShell command line contains indicators of network communication for downloading content. Specifically, it looks for HTTP/HTTPS URLs or common PowerShell cmdlets and aliases used for web requests and file downloads (e.g., 'iwr', 'Invoke-WebRequest', 'wget', 'curl', 'DownloadString', 'DownloadFile', 'WebClient', 'Net.WebClient', 'BitsTransfer', 'Start-BitsTransfer', 'Invoke-RestMethod'). This behavior can indicate the execution of a download cradle, often used in initial access or command and control phases to retrieve additional malicious payloads.
+query: "title: Explorer.exe Spawning PowerShell with Network URI\r\nid: 5b220ca6-adda-47c6-b56c-f20ddb760352\r\nstatus: experimental\r\ndescription: Detects PowerShell spawned by explorer.exe with network URIs or download methods in the command line, indicating potential download cradle execution.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1059.001/\r\n    - https://attack.mitre.org/techniques/T1105/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.execution\r\n    - attack.command-and-control\r\n    - attack.t1059.001\r\n    - attack.t1105\r\nlogsource:\r\n    product: windows\r\n    category: process_creation\r\ndetection:\r\n    selection_parent:\r\n        ParentImage|endswith: '\\explorer.exe'\r\n    selection_process:\r\n        Image|endswith:\r\n            - '\\powershell.exe'\r\n            - '\\pwsh.exe'\r\n    selection_network:\r\n        CommandLine|contains:\r\n            - 'http://'\r\n            - 'https://'\r\n            - 'iwr'\r\n            - 'Invoke-WebRequest'\r\n            - 'wget'\r\n            - 'curl'\r\n            - 'DownloadString'\r\n            - 'DownloadFile'\r\n            - 'WebClient'\r\n            - 'Net.WebClient'\r\n            - 'BitsTransfer'\r\n            - 'Start-BitsTransfer'\r\n            - 'Invoke-RestMethod'\r\n    condition: selection_parent and selection_process and selection_network\r\nfields:\r\n    - CommandLine\r\n    - ParentImage\r\n    - Image\r\n    - User\r\nfalsepositives:\r\n    - Unknown\r\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.execution
+    - attack.command-and-control
+    - attack.t1059.001
+    - attack.t1105
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059.001/
+    - https://attack.mitre.org/techniques/T1105/
+data_sources:
+    - process_creation
+    - windows

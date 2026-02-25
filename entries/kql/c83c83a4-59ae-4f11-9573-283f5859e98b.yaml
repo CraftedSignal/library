@@ -1,0 +1,57 @@
+id: c83c83a4-59ae-4f11-9573-283f5859e98b
+name: NEW Real-time Anomalous Token Detection
+description: 'KQL Query from file: NEW Real-time Anomalous Token Detection'
+query: |
+    // NEW Real-time Anomalous Token Detection
+    // https://www.linkedin.com/posts/activity-7194744137185701889-XCcu/
+
+    // With the new developments from Microsoft Entra Blog, it is now possible to perform Real-time Anomalous Token Detection automatically disrupts token replay attacks in real-time when paired with a risk-based Conditional Access for sign-ins (E.g. RiskLevel = High)
+
+    let AnomalousTokenRequestId=
+    SecurityAlert
+    | where AlertName == "Anomalous Token"
+    | mv-expand todynamic(Entities)
+    | project Entities
+    | extend RequestId = tostring(Entities.RequestId)
+    | distinct RequestId;
+    AADUserRiskEvents
+    | where RequestId has_any(AnomalousTokenRequestId)
+    | where DetectionTimingType == "realtime"
+    | where RiskLevel == "high" and RiskState == "atRisk"
+
+    // MITRE ATT&CK Mapping
+
+    // The KQL code is designed to detect anomalous token requests and high-risk user events in Azure Active Directory (AAD). Here are the relevant MITRE ATT&CK techniques:
+
+    // T1078 - Valid Accounts:
+    // Description: Adversaries may use valid accounts to maintain access to victim systems.
+    // Relevance: The detection of anomalous tokens can indicate the use of compromised or unauthorized accounts.
+    // T1071 - Application Layer Protocol:
+    // Description: Adversaries may communicate using application layer protocols to avoid detection.
+    // Relevance: Anomalous token requests might involve unusual or unauthorized use of application layer protocols.
+    // T1556 - Modify Authentication Process:
+    // Description: Adversaries may modify authentication mechanisms to gain access.
+    // Relevance: High-risk events in AAD can indicate attempts to bypass or manipulate authentication processes.
+    // T1110 - Brute Force:
+    // Description: Adversaries may use brute force techniques to obtain valid credentials.
+    // Relevance: High-risk and real-time detection of user risk events can be indicative of brute force attempts.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0006
+    - TA0008
+techniques:
+    - T1078
+    - T1071
+    - T1556
+    - T1110
+    - T1134.001
+    - T1527
+    - T1134
+tags:
+    - kql
+version: "1"

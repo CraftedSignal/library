@@ -1,0 +1,57 @@
+id: 019c8a95-baf4-7408-b597-49b90aca858b
+name: Bomgar Session Child Process Anomaly (Post-CVE-2026-1731)
+description: Detects suspicious child processes spawned by the BeyondTrust/Bomgar remote support client (bomgar-scc), which may indicate post-exploitation activity following a compromise like CVE-2026-1731. Attackers leverage the legitimate remote session to execute reconnaissance commands and download additional tools.
+query: |
+    // Name: Bomgar Session Child Process Anomaly (Post-CVE-2026-1731)
+    // Author: adarsh pandey
+    // Date: 2026-02-23
+    // Description: Detects suspicious child processes spawned by the BeyondTrust/Bomgar remote support client (bomgar-scc), which may indicate post-exploitation activity following a compromise like CVE-2026-1731. Attackers leverage the legitimate remote session to execute reconnaissance commands and download additional tools.
+    // False Positive Sensitivity: Medium
+    // Tactic: Execution, Discovery, Command and Control
+    // Technique: T1059.001, T1059.004, T1105, T1033
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    let timeframe = 1d;
+    // Define the list of suspicious child processes.
+    let suspicious_processes = dynamic([
+        "cmd.exe",
+        "powershell.exe",
+        "bash",
+        "sh",
+        "curl",
+        "wget",
+        "nslookup",
+        "whoami.exe",
+        "id",
+        "hostname.exe"
+    ]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Filter for events where the initiating process is the BeyondTrust/Bomgar client for Windows or Linux.
+    | where InitiatingProcessFileName =~ "bomgar-scc.exe" or InitiatingProcessFolderPath contains "/bomgar-scc"
+    // Filter for child processes that are suspicious in this context.
+    | where FileName in~ (suspicious_processes)
+    // FP Tuning: Legitimate administrative activity via BeyondTrust may trigger this alert.
+    // Consider excluding known administrative accounts or specific, benign command lines if noise occurs.
+    // For example: | where not (AccountName == "admin_account" and ProcessCommandLine contains "safe_script.ps1")
+    | extend
+        timestamp = TimeGenerated,
+        HostCustomEntity = DeviceName,
+        AccountCustomEntity = InitiatingProcessAccountName,
+        ProcessCustomEntity = FileName,
+        ParentProcessCustomEntity = InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0007
+techniques:
+    - T1059.001
+    - T1059.004
+    - T1105
+    - T1033
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

@@ -1,0 +1,119 @@
+id: 0199f2e8-81e8-707b-a81e-fc18ea6acf1f
+name: SAP NetWeaver RMI-P4 Deserialization Command Execution
+description: |
+    Detects exploitation attempts of CVE-2025-42944, a critical insecure deserialization vulnerability in SAP NetWeaver AS Java RMI-P4 module. This rule identifies when SAP Java processes spawn system shells or execute suspicious commands, which is indicative of successful exploitation of the deserialization flaw. Attackers can exploit this vulnerability by sending malicious serialized Java objects to exposed RMI-P4 ports (typically 50004 or 50014), leading to arbitrary OS command execution with full system privileges. This pattern detects the post-exploitation behavior where the   compromised Java process spawns interactive shells, creates scheduled tasks, or executes system commands.
+query: |
+    name: SAP NetWeaver RMI-P4 Deserialization Command Execution Analytic
+    signatureid: 27268c88-2248-40b5-b30f-702af33f782b
+    category: Execution
+    threatname: 'Command & Scripting Interpreter: Unix Shell'
+    functionality: Endpoint Management Systems
+    lifecycle: experimental
+    version: 20251016
+    description: >
+      Detects exploitation attempts of CVE-2025-42944, a critical insecure
+      deserialization vulnerability in SAP NetWeaver AS Java RMI-P4 module. This
+      rule identifies when SAP Java processes spawn system shells or execute
+      suspicious commands, which is indicative of successful exploitation of the
+      deserialization flaw. Attackers can exploit this vulnerability by sending
+      malicious serialized Java objects to exposed RMI-P4 ports (typically 50004 or
+      50014), leading to arbitrary OS command execution with full system privileges. This pattern detects the post-exploitation behavior where the   compromised Java process spawns interactive shells, creates scheduled tasks, or executes system commands.
+    reference:
+      - >-
+        https://redrays.io/blog/cve-2025-42944-critical-severity-remote-code-execution-in-sap-netweaver-rmi-p4/
+      - https://arcticwolf.com/resources/blog/cve-2025-42944/
+      - https://thehackernews.com/2025/10/new-sap-netweaver-bug-lets-attackers.html
+      - >-
+        https://securityaffairs.com/183420/security/sap-fixed-maximum-severity-bug-in-netweaver.html
+      - >-
+        https://securityonline.info/sap-patches-critical-10-0-flaw-in-netweaver-unauthenticated-rce-risk/
+    labels:
+      - attack.execution
+      - attack.t1059
+      - attack.t1059.004
+      - attack.t1203
+      - CVE-2025-42944
+      - SAP
+      - NetWeaver
+      - RMI-P4
+      - Deserialization
+    logsource:
+      category: process_creation
+      product: linux
+      service: audit
+    detection:
+      selection_parent_java:
+        ParentImage|endswith:
+          - /java
+          - /sapstartsrv
+          - /jcontrol
+          - /jlaunch
+        ParentCommandLine|contains:
+          - com.sap
+          - NetWeaver
+          - j2ee
+      selection_child_shell:
+        Image|endswith:
+          - /bash
+          - /sh
+          - /dash
+          - /zsh
+      selection_suspicious_commands:
+        CommandLine|contains:
+          - bash -i
+          - sh -i
+          - /dev/tcp/
+          - nc -e
+          - ncat -e
+          - http
+          - wget
+          - curl
+          - python -c
+          - perl -e
+          - base64 -d
+          - /tmp/
+          - chmod +x
+          - crontab
+      selection_scheduled_tasks:
+        Image|endswith:
+          - /crontab
+          - /at
+        ParentImage|contains:
+          - java
+          - sap
+      condition: >-
+        (selection_parent_java and selection_child_shell) or (selection_parent_java
+        and selection_suspicious_commands) or selection_scheduled_tasks
+    criticality: Critical
+    title: SAP NetWeaver RMI-P4 Deserialization Command Execution
+    references:
+      - >-
+        https://redrays.io/blog/cve-2025-42944-critical-severity-remote-code-execution-in-sap-netweaver-rmi-p4/
+      - https://arcticwolf.com/resources/blog/cve-2025-42944/
+      - https://thehackernews.com/2025/10/new-sap-netweaver-bug-lets-attackers.html
+      - >-
+        https://securityaffairs.com/183420/security/sap-fixed-maximum-severity-bug-in-netweaver.html
+      - >-
+        https://securityonline.info/sap-patches-critical-10-0-flaw-in-netweaver-unauthenticated-rce-risk/
+    associated_cves:
+      - CVE-2025-42944
+    author: Aaron Beardslee
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.004
+    - T1203
+author: Aaron Beardslee
+version: "8"
+references:
+    - https://redrays.io/blog/cve-2025-42944-critical-severity-remote-code-execution-in-sap-netweaver-rmi-p4/
+    - https://arcticwolf.com/resources/blog/cve-2025-42944/
+    - https://thehackernews.com/2025/10/new-sap-netweaver-bug-lets-attackers.html
+    - https://securityaffairs.com/183420/security/sap-fixed-maximum-severity-bug-in-netweaver.html
+    - https://securityonline.info/sap-patches-critical-10-0-flaw-in-netweaver-unauthenticated-rce-risk/
+data_sources:
+    - process_creation
+    - linux

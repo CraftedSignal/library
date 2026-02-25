@@ -1,0 +1,36 @@
+id: 32232d6a-ae98-4e60-b80b-6b56461ada23
+name: Active Directory Domain Services Elevation of Privilege Vulnerability (CVE-2025-21293)
+description: KQL Query
+query: |
+    // Active Directory Domain Services Elevation of Privilege Vulnerability (CVE-2025-21293) CVSS 8.8
+
+    // https://birkep.github.io/posts/Windows-LPE/
+
+    let WindowsServer =
+    DeviceInfo
+    | where DeviceType == "Server" and OSPlatform has "windows"
+    | distinct DeviceName;
+    let DLLLoaded =
+    DeviceEvents
+    | where Timestamp > ago(3h)
+    | where DeviceName has_any (WindowsServer)
+    | where ActionType == @"DriverLoad"
+    | where FileName endswith ".dll"
+    | distinct FileName;
+    DeviceRegistryEvents
+    | where ActionType == @"RegistryKeyCreated" or ActionType == @"RegistryValueSet"
+    | where RegistryValueName has_any(DLLLoaded) or RegistryValueData has_any(DLLLoaded)
+query_type: kql
+tactics:
+    - TA0004
+    - TA0005
+    - TA0003
+techniques:
+    - T1068
+    - T1548
+    - T1073
+    - T1574.002
+    - T1574.001
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,15 @@
+id: b9f18ba1-925c-448f-a3d0-d4aeea19d11f
+name: Wiper Malware Activity Observed on an Endpoint
+description: This detection looks for any mass deletion events on an endpoint from a previously unseen and unsigned executable.
+query: "let Historiclookback = 47h;\r\nlet lookback = 10m;\r\nlet ValidSHA256 = dynamic([]); //Exception Group for any Valid SHA256 hashes for unsigned executable\r\n//List SHA256 values and theyre signature status\r\nlet signatureStatus = DeviceProcessEvents\r\n| where TimeGenerated >= ago(Historiclookback)\r\n| where isnotempty(InitiatingProcessSHA256)\r\n| project InitiatingProcessSHA256, InitiatingProcessSignatureStatus;\r\n//List previously seen files initiating deletion processes\r\nlet previousInitiators = DeviceFileEvents\r\n| where TimeGenerated between (ago(Historiclookback) .. ago(lookback))\r\n| where ActionType contains \"FileDeleted\"\r\n| distinct InitiatingProcessFileName;\r\n//Find any mass deletion event from a new initiator, using an unsigned executable to delete more than 50 files over 5 or more folders in 10 minutes\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(lookback)\r\n| where ActionType contains \"FileDeleted\"\r\n| where InitiatingProcessFileName !in (previousInitiators)\r\n| where InitiatingProcessSHA256 !in (ValidSHA256)\r\n| extend Folder = extract(@'^(.+?)\\\\[a-zA-Z\\.\\-_\\(\\) 0-9]+$', 1, FolderPath)\r\n| join kind=leftouter signatureStatus on InitiatingProcessSHA256\r\n| where InitiatingProcessSignatureStatus != \"Valid\"\r\n| summarize FileCount = dcount(FileName), FolderCount = dcount(Folder) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessSHA256\r\n| where FileCount >= 50 and FolderCount >= 5 //This should be tuned to your environment"
+query_type: kql
+severity: medium
+techniques:
+    - T1485
+tags:
+    - Wiper
+    - Malware
+    - Endpoint
+    - kql
+author: Antwobi
+version: "1"

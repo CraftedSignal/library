@@ -1,0 +1,25 @@
+id: 019aff13-4d8b-73bf-a671-8a0998d8e1af
+name: Shanya Packer DLL Side-loading
+description: "  Detects DLL side-loading attacks where consent.exe loads known malicious\nDLLs (version.dll, rtworkq.dll, wmsgapi.dll, and the older msimg32.dll) \n  from non-standard locations. This technique is used by Shanya-packed malware including EDR Killer and CastleRAT to \n  load malicious payloads while appearing as a legitimate Windows UAC process. This rule requires Sysmon Event ID 7 \n  (Image Load) to be enabled with proper DLL load monitoring. Recommended Sysmon configuration available in references.\n"
+query: "title: Shanya Packer DLL Side-loading\nid: a392343e-7374-4a45-b9af-103bb3928e3d\nstatus: experimental\ndescription: >2\n    Detects DLL side-loading attacks where consent.exe loads known malicious\n  DLLs (version.dll, rtworkq.dll, wmsgapi.dll, and the older msimg32.dll) \n    from non-standard locations. This technique is used by Shanya-packed malware including EDR Killer and CastleRAT to \n    load malicious payloads while appearing as a legitimate Windows UAC process. This rule requires Sysmon Event ID 7 \n    (Image Load) to be enabled with proper DLL load monitoring. Recommended Sysmon configuration available in references.\nreferences:\n  - \"https://news.sophos.com/en-us/2025/12/06/inside-shanya-a-packer-as-a-servi\\\n    ce-fueling-modern-attacks/  \"\n  - https://github.com/bobby-tablez/FT-Sysmon-Config\nauthor: detections.ai\ndate: 2025-12-08T00:00:00.000Z\ntags:\n  - attack.t1574.002\n  - attack.defense_evasion\n  - attack.execution\n  - attack.persistence\n  - malware.shanya_packed\n  - malware.edr_killer\n  - malware.castlerat\n  - logsource.sysmon\nlogsource:\n  category: image_load\n  product: windows\ndetection:\n  selection_process:\n    Image|endswith: '\\consent.exe'\n  selection_dll:\n    ImageLoaded|endswith:\n      - '\\version.dll'\n      - '\\tworkq.dll'\n      - '\\wmsgapi.dll'\n      - '\\msimg32.dll'\n  filter_legitimate:\n    ImageLoaded|startswith:\n      - 'C:\\Windows\\System32'\n      - 'C:\\Windows\\SysWOW64'\n  condition: selection_process and selection_dll and not filter_legitimate\nfalsepositives:\n  - Legitimate software behavior.\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.t1574.002
+    - attack.defense_evasion
+    - attack.execution
+    - attack.persistence
+author: detections.ai
+version: "4"
+references:
+    - 'https://news.sophos.com/en-us/2025/12/06/inside-shanya-a-packer-as-a-service-fueling-modern-attacks/  '
+    - https://github.com/bobby-tablez/FT-Sysmon-Config
+data_sources:
+    - image_load
+    - windows

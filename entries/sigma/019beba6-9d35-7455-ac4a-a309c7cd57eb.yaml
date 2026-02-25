@@ -1,0 +1,70 @@
+id: 019beba6-9d35-7455-ac4a-a309c7cd57eb
+name: Browser Dropped PDF Tool Executable
+description: Detects executable files with names containing PDF-related keywords (e.g., 'pdf', 'convert', 'editor') being dropped in the Downloads folder by a web browser process. This behavior is typical of users downloading potentially unwanted or malicious PDF converters, often delivered via SEO poisoning or malvertising campaigns.
+query: |
+    title: Browser Dropped PDF Tool Executable
+    id: c9f647b8-aa5a-44df-9356-38844850ed88
+    status: experimental
+    description: Detects executable files with names containing PDF-related keywords
+      (e.g., 'pdf', 'convert', 'editor') being dropped in the Downloads folder by a
+      web browser process. This behavior is typical of users downloading potentially
+      unwanted or malicious PDF converters, often delivered via SEO poisoning or
+      malvertising campaigns.
+    references:
+      - Internal ID: 78b624b602dd7221c89da3f71acf4500db4e0b2e6f3f00adb894128e22f37695
+    author: detections.ai
+    date: 2026-01-23
+    tags:
+      - attack.initial_access
+      - attack.t1204.002
+      - attack.t1189
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      target_file:
+        # Detects an executable file created in a user's Downloads folder
+        TargetFilename|contains: '\Downloads\'
+        TargetFilename|endswith: '.exe'
+      keywords:
+        # Looks for keywords related to PDF utilities
+        TargetFilename|contains:
+          - 'pdf'
+          - 'convert'
+          - 'editor'
+      browser:
+        # The parent process is a common web browser
+        Image|endswith:
+          - '\chrome.exe'
+          - '\msedge.exe'
+          - '\firefox.exe'
+          - '\iexplore.exe'
+          - '\brave.exe'
+          - '\opera.exe'
+      condition: target_file and keywords and browser
+    falsepositives:
+      - Legitimate PDF converters downloaded intentionally by the user.
+      - Enterprise software distributed via browser downloads.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+    - TA0042
+techniques:
+    - T1204.002
+    - T1189
+    - T1608.006
+    - T1583.008
+tags:
+    - attack.initial_access
+    - attack.t1204.002
+    - attack.t1189
+author: detections.ai
+version: "2"
+references:
+    - '[object Object]'
+data_sources:
+    - file_event
+    - windows

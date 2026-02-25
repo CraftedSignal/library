@@ -1,0 +1,23 @@
+id: 916c1e6a-2fea-45f5-9c65-eb357fa224e9
+name: Hunting CVE-2025-31324
+description: 'KQL Query from file: Hunting CVE-2025-31324'
+query: |
+    // https://www.bleepingcomputer.com/news/security/over-1-200-sap-netweaver-servers-vulnerable-to-actively-exploited-flaw/
+
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(90d)
+    | where InitiatingProcessVersionInfoProductName has "netweaver"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where DeviceId has_any(InternetFacing)
+query_type: kql
+tactics:
+    - TA0007
+techniques:
+    - T1016.001
+tags:
+    - kql
+version: "1"

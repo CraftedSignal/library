@@ -1,0 +1,14 @@
+id: 1bebb266-a1dd-4f78-a0c3-9f45e3ef1209
+name: IP KVM Devices
+description: "Detects unauthorized or suspicious USB device connections based on manufacturer, product, and device ID indicators.\n\nPrimary focus is on known identifiers associated with IP-KVM devices. The search utilizes the CrowdStrike event feed, specifically focuses on the following event types: \n- DcUsbDeviceConnected\n- DcUsbDeviceDisconnected\n- DcUsbDeviceBlocked\n\n\nThe device identifiers are sourced from publicly available sources (primarily GitHub)."
+query: "index=\"cs_fdr_usb\" event_simpleName=DcUsbDevice* DeviceManufacturer!=DisplayLink\n| rename DeviceManufacturer as DeviceManu\n| rename DeviceDescriptorSetHash as DeviceHash\n| rename DeviceInstanceId as DeviceId\n| rename DeviceSerialNumber as DeviceSerial\n| rename DevicePropertyClassName as DeviceClass\n| rex field=DeviceId \"USB\\\\\\\\VID_(?<DeviceVID>.*)&PID_(?<DevicePID>.*)\\\\\\\\(?<device_serial>.*)\"\n| rex field=event_simpleName \"DcUsb(?<event_type>[A-Z][a-z]+?)(?<event_action>[A-Z].*)\"\n| eval DeviceSerial = coalesce(device_serial, DeviceSerial)\n| dedup DeviceHash DeviceId aid\n| join aid [ | inputlookup cs_device_to_user | rename CSagentID as aid] \n| stats values(_time) as EventTimes values(event_action) as actions values(DeviceManu) as DeviceManu values(DeviceProduct) as DeviceProduct values(DeviceClass) as DeviceClass values(DeviceId) as DeviceId values(DeviceVID) as DeviceVID values(DevicePID) as DevicePID by DeviceHash aid hostname username DeviceSerial\n| where match(DeviceId, \"(?i)(6b65796d696d6570690|VID_1D6B&PID_0104|VID_1d6b&PID_0104|VID_1234&PID_0100|VID_5131&PID_2007|deadbeef01234567890|VID_0036&PID_[80]036|VID_03eb&PID_(204b){0,1}|VID_03fd&PID_0001|VID_1155&PID_1033)\") OR match(DeviceManu, \"(?i)(tinypilot|JetKVM|sispeed|^ESP|DevDotNet\\\\.ORG|example\\\\.com|butters|(pi|gl|nano|sipeed|smart-)kvm|STMicroelectronics|DeskHop|FEZ|Virtual Keyboard and Mouse|Miskatonic)\") OR match(DeviceProduct, \"(?i)(CAFE|Emulation Device|NanoKVM|Wakeup Keyboard Device|Virtual Keyboard and Mouse|KVM-Gadget|STM32|FEZ|USB OTG via WebAPI|Config Mode|MX HID Emulator)\")\n| `security_content_ctime(EventTimes)`"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1219.003
+tags:
+    - spl
+version: "1"

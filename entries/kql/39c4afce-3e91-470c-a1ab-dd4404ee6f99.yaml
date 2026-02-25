@@ -1,0 +1,17 @@
+id: 39c4afce-3e91-470c-a1ab-dd4404ee6f99
+name: Koi Security - 18 malicious extensions installed by 2.3 million users
+description: Scan for 18 malicious extensions
+query: "let KoiSecurity=externaldata(extension_id:string, extension_name:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/KoiSecurity-18MaliciousExtensions.csv']\r\nwith (format='csv', ignoreFirstRecord=false);\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"FileCreated\" or ActionType == \"FileModified\"\r\n| where FileName endswith \".crx\"\r\n| extend ExtensionIDVersion = tostring(split(FileName, '.')[0])\r\n| extend ExtensionID = tolower(split(ExtensionIDVersion, '_')[0])\r\n| summarize arg_max(TimeGenerated, *) by DeviceName, ExtensionID\r\n| join KoiSecurity on $left.ExtensionID == $right.extension_id\r\n| project Timestamp, DeviceName, extension_name"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176.001
+    - T1176.002
+    - T1176
+tags:
+    - kql
+version: "1"
+references:
+    - https://blog.koi.security/google-and-microsoft-trusted-them-2-3-million-users-installed-them-they-were-malware-fb4ed4f40ff5

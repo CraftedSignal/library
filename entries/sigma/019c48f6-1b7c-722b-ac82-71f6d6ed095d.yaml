@@ -1,0 +1,26 @@
+id: 019c48f6-1b7c-722b-ac82-71f6d6ed095d
+name: PowerShell In-Memory Assembly Load via Reflection from Suspicious Sources
+description: Detects PowerShell loading .NET assemblies into memory (not from disk) via reflection from suspicious sources including base64-encoded data, web downloads, or compressed streams. This pattern indicates fileless malware execution or post-exploitation tool delivery.
+query: "title: PowerShell In-Memory Assembly Load from via Reflection\r\nid: 0c7b5f02-6189-4e6b-806f-4856ac4a96b5\r\nstatus: experimental\r\ndescription: Detects PowerShell loading .NET assemblies into memory (not from disk) via reflection from suspicious sources including base64-encoded data, web downloads, or compressed streams. This pattern indicates fileless malware execution or post-exploitation tool delivery.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1059.001/\r\n    - https://attack.mitre.org/techniques/T1620/\r\n    - https://www.cyborgsecurity.com/cyborg-labs/hunting-for-in-memory-.net-attacks-with-sysmon/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.execution\r\n    - attack.defense-evasion\r\n    - attack.t1059.001\r\n    - attack.t1620\r\nlogsource:\r\n    product: windows\r\n    category: ps_script\r\ndetection:\r\n    selection_load:\r\n        ScriptBlockText|contains:\r\n            - '[Reflection.Assembly]::Load('\r\n            - '[Assembly]::Load('\r\n            - '[System.Reflection.Assembly]::Load('\r\n            - 'CurrentDomain.Load('\r\n    selection_suspicious:\r\n        ScriptBlockText|contains:\r\n            - 'FromBase64String'\r\n            - 'DownloadData'\r\n            - 'DownloadString'\r\n            - 'WebClient'\r\n            - 'Invoke-WebRequest'\r\n            - 'Invoke-RestMethod'\r\n            - 'IO.Compression'\r\n            - 'DeflateStream'\r\n            - 'GzipStream'\r\n            - 'MemoryStream'\r\n    condition: selection_load and selection_suspicious\r\nfields:\r\n    - ComputerName\r\n    - ScriptBlockText\r\n    - ScriptBlockId\r\n    - User\r\n    - Path\r\nfalsepositives:\r\n    - Legitimate software installers using embedded .NET assemblies\r\n    - PowerShell package managers (NuGet, PowerShellGet) loading modules\r\n    - Administrative scripts deploying internal tools\r\n    - Development environments testing .NET code\r\n    - Configuration management tools (DSC, Puppet) loading assemblies\r\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1620
+tags:
+    - attack.execution
+    - attack.defense-evasion
+    - attack.t1059.001
+    - attack.t1620
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059.001/
+    - https://attack.mitre.org/techniques/T1620/
+    - https://www.cyborgsecurity.com/cyborg-labs/hunting-for-in-memory-.net-attacks-with-sysmon/
+data_sources:
+    - ps_script
+    - windows

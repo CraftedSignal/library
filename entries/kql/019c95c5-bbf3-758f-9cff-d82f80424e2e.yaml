@@ -1,0 +1,18 @@
+id: 019c95c5-bbf3-758f-9cff-d82f80424e2e
+name: Node.js Process Accessing Sensitive Developer Files
+description: Detects a Node.js process accessing sensitive files such as environment configuration files (.env) or browser credential/session stores. This behavior was observed in a developer-targeting campaign where attackers exfiltrated secrets from compromised developer machines.
+query: "// Name: Node.js Accessing Sensitive Developer Files\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects a Node.js process accessing sensitive files such as environment configuration files (.env) or browser credential/session stores. This behavior was observed in a developer-targeting campaign where attackers exfiltrated secrets from compromised developer machines.\r\n// False Positives: Medium. Legitimate build scripts or development tools may read .env files. Access to browser credential stores is highly suspicious. Tuning may be required by excluding known safe script paths in the InitiatingProcessCommandLine.\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/\r\n// MITRE TTPs: T1555.003, T1552.001\r\nDeviceFileEvents\r\n// Look for file events initiated by a Node.js process\r\n| where InitiatingProcessFileName in~ (\"node\", \"node.exe\")\r\n// Filter for sensitive files targeted in the campaign for credential/secret theft\r\n| where FileName has_any (\".env\", \".env.local\", \"Login Data\", \"Cookies\", \"History\")\r\n// Project relevant fields for investigation\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555.003
+    - T1552.001
+    - T1539
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/

@@ -1,0 +1,12 @@
+id: b42e66da-791a-47c8-83dc-e66cbb609e14
+name: Chrome extension hard coded credential exposure
+description: 'KQL Query from file: Chrome extension hard coded credential exposure'
+query: "let CExtHardCode=externaldata(extension_id:string, extension_name:string, credential_exposed:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/ChromeExtensionHardCodedCred.csv']\r\nwith (format='csv', ignoreFirstRecord=true);\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(90d)\r\n| where ActionType == \"FileCreated\" or ActionType == \"FileModified\"\r\n| where FileName endswith \".crx\"\r\n| extend ExtensionIDVersion = tostring(split(FileName, '.')[0])\r\n| extend ExtensionID = tolower(split(ExtensionIDVersion, '_')[0])\r\n| summarize arg_max(TimeGenerated, *) by DeviceName, ExtensionID\r\n| join CExtHardCode on $left.ExtensionID == $right.extension_id"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://www.security.com/threat-intelligence/chrome-extension-credentials

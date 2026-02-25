@@ -1,0 +1,24 @@
+id: 8608f728-d84a-48fd-ac24-e7d492a6f47b
+name: 'Vulnerability Profile: CVE-2024-30040 (Zero-day)'
+description: 'KQL Query from file: Vulnerability Profile: CVE-2024-30040 (Zero-day)'
+query: "// Vulnerability Profile: CVE-2024-30040 (Zero-day)\n// https://www.linkedin.com/posts/activity-7196377520647090178-Ya18/\n\n// CVE-2024-30040 is a security feature bypass zero-day vulnerability affecting Microsoft 365 and Office apps which is actively exploited. Using DefenderXDR Exposure Management to determine the list of devices accessible by critical identities holding highly privilege roles and that the devices are also vulnerable to CVE-2024-30040. As critical identities are part of your organization attack surface areas holding keys to your tenant, plugging this hole significantly reduce your organization risk against the Zero-Day exploits.\n\n// Exposure Management KQL:\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet CriticalDevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nDeviceTvmSoftwareVulnerabilities \n| where CveId == \"CVE-2024-30040\"\n| where DeviceName has_any (CriticalDevices)\n\n// MITRE ATT&CK Mapping\n\n// The KQL code is designed to identify critical identities and devices, and then find vulnerabilities in those devices. The associated MITRE ATT&CK techniques include:\n\n// T1078: Valid Accounts\n// T1078.001: Valid Accounts: Local Accounts\n// T1078.003: Valid Accounts: Local Administrator Accounts\n// T1190: Exploit Public-Facing Application\n// T1210: Exploitation of Remote Services\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+techniques:
+    - T1078
+    - T1078.001
+    - T1078.003
+    - T1190
+    - T1210
+    - T1137
+    - T1562.008
+    - T1137.002
+    - T1137.001
+tags:
+    - kql
+version: "1"

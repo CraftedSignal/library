@@ -1,0 +1,19 @@
+id: 019c7bd0-afad-72da-b467-38f638f234b0
+name: MIMICRAT ClickFix Obfuscated PowerShell Command
+description: Detects the execution of a PowerShell one-liner with obfuscation techniques characteristic of the MIMICRAT ClickFix campaign. This campaign tricks users into pasting a command that uses string manipulation and arithmetic to reconstruct and execute a malicious payload.
+query: "// Name: MIMICRAT ClickFix Obfuscated PowerShell Command\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects the execution of a PowerShell one-liner with obfuscation techniques characteristic of the MIMICRAT ClickFix campaign. This campaign tricks users into pasting a command that uses string manipulation and arithmetic to reconstruct and execute a malicious payload.\r\n// False Positives: Medium. While this combination of techniques is highly suspicious, complex administrative or automation scripts might use similar patterns. Consider excluding known safe scripts, parent processes, or users if false positives occur.\r\n// References: https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks\r\n// Tactics: Execution, Defense Evasion\r\n// Techniques: T1059.001, T1027.013, T1204.002\r\nDeviceProcessEvents\r\n// Look for PowerShell process execution\r\n| where FileName =~ \"powershell.exe\"\r\n// The command line must contain a combination of specific obfuscation patterns seen in the ClickFix campaign\r\n| where ProcessCommandLine has \".Substring(\"\r\n  and ProcessCommandLine has_any (\"+\", \"-\", \"/\") // Checks for arithmetic operators used in obfuscation\r\n  and ProcessCommandLine has \"[char[]]\" // Looks for character array casting used to build strings\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027.013
+    - T1204.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks

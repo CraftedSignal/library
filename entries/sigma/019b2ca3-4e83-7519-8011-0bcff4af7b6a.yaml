@@ -1,0 +1,51 @@
+id: 019b2ca3-4e83-7519-8011-0bcff4af7b6a
+name: ForumTroll COM Hijacking Persistence
+description: |
+    Detects a specific COM hijacking technique used by the ForumTroll APT group for persistence. This rule identifies registry modifications to the CLSID {1f486a52-3cb1-48fd-8f50-b8dc300d9f9d}, which the group has reused across campaigns.
+query: |
+    title: ForumTroll COM Hijacking Persistence
+    id: 9d12afb5-abf5-4c3c-b8d0-2a796c282f82
+    status: experimental
+    description: >
+      Detects a specific COM hijacking technique used by the ForumTroll APT group
+      for persistence. This rule identifies registry modifications to the CLSID
+      {1f486a52-3cb1-48fd-8f50-b8dc300d9f9d}, which the group has reused across
+      campaigns.
+    references:
+      - https://securelist.com/operation-forumtroll-new-targeted-campaign/118492/
+    author: tim@detections.ai
+    date: 2025-12-17T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1546.015
+    logsource:
+      category: registry_event
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        TargetObject|endswith: \CLSID\{1f486a52-3cb1-48fd-8f50-b8dc300d9f9d}\InProcServer32
+        Details|contains: .dll
+      condition: selection
+    falsepositives:
+      - While this CLSID is specific to observed ForumTroll activity, it is possible
+        that legitimate software could use it. Further investigation of the
+        associated DLL and parent process is recommended.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.015
+tags:
+    - attack.persistence
+    - attack.t1546.015
+author: tim@detections.ai
+version: "3"
+references:
+    - https://securelist.com/operation-forumtroll-new-targeted-campaign/118492/
+data_sources:
+    - registry_event
+    - windows

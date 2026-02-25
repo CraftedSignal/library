@@ -1,0 +1,49 @@
+id: 2ed62c6f-02bc-48de-b251-c8cf64b85e63
+name: macOS Odyssey Stealer AppleScript Password Prompt
+description: Detects the execution of an AppleScript, characteristic of the Odyssey Stealer, that displays a dialog box prompting the user for their password.
+query: |
+    title: macOS Odyssey Stealer AppleScript Password Prompt
+    id: c5c6bb34-1156-4cbe-bcd8-30528a5d6349
+    status: experimental
+    description: Detects the execution of an AppleScript, characteristic of the Odyssey Stealer, that displays a dialog box prompting the user for their password.
+    references:
+      - https://www.jamf.com/blog/signed-and-stealing-uncovering-new-insights-on-odyssey-infostealer/
+    author: detections.ai
+    date: 2025-08-17
+    tags:
+      - attack.t1559.001
+      - attack.credential_access
+      - malware.odyssey
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection:
+            # Detects the execution of osascript, the command-line utility for running AppleScripts
+        Image|endswith: '/osascript'
+            # Detects keywords used by Odyssey Stealer to create a fake password prompt
+        CommandLine|contains|all:
+          - 'display dialog'
+          - 'Required Application Helper. Please enter device password to continue.'
+          - 'with hidden answer'
+      condition: selection
+    falsepositives:
+      - Legitimate administration scripts could potentially use similar dialogs, although the specific wording is highly suspicious. The rule can be broadened by removing the specific dialog text, but this may increase false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1555
+tags:
+    - attack.t1559.001
+    - attack.credential_access
+    - malware.odyssey
+author: detections.ai
+version: "1"
+references:
+    - https://www.jamf.com/blog/signed-and-stealing-uncovering-new-insights-on-odyssey-infostealer/
+data_sources:
+    - process_creation
+    - macos

@@ -1,0 +1,122 @@
+id: e89081a7-bd1a-49b9-a50d-61b2c0010f3c
+name: APT28 Phantom Net Voxel Campaign Activity
+description: This rule hunts for various artifacts and behaviors associated with the APT28 campaign "Phantom Net Voxel", which leverages COM hijacking, steganography, and cloud services for C2. This version is specifically tailored for Azure Sentinel using only DeviceProcessEvents, DeviceFileEvents, and DeviceNetworkEvents. It detects known malicious file hashes, regsvr32 execution of a specific DLL, Office applications dropping malicious DLLs or steganographic PNGs, C2 communications to known cloud storage domains, creation of SlimAgent log files, and explorer.exe accessing steganographic PNG files indicating successful COM hijacking.
+query: |
+    // Name: APT28 Phantom Net Voxel Campaign Activity
+    // Author: detections.ai
+    // Date: 2025-09-19
+    // Description: This query hunts for various artifacts and behaviors associated with the APT28 campaign "Phantom Net Voxel", which leverages COM hijacking, steganography, and cloud services for C2. This version is specifically tailored for Azure Sentinel using only DeviceProcessEvents, DeviceFileEvents, and DeviceNetworkEvents.
+    // References: https://blog.sekoia.io/apt28-operation-phantom-net-voxel/#h-weaponized-office-documents
+    // Tactic: Multiple
+    // Technique: Multiple
+    // False Positive Sensitivity: Medium
+
+    // Define IOCs and patterns from the report for easier maintenance
+    let v_md5_hashes = dynamic([
+        // Second stage DLL
+        "2338f420d66ef191c5a419353da2c12b", "766a89de96c50df2e33b42f05218c22e", "8cb79686725831395879227658c0dd5f", "d802290cb9e5c3fed1ba1a8daf827882",
+        "72c90b34fc75b251df525258c543be11", "8169a4e2e826d82b57cc98bc71ea6d7e", "2cd2bd837e2a2554c9c34a1564388e0b",
+        // HTTP Grunt Stager module of Covenant
+        "f442db1753a7475842607307a439870e", "8edc3c4868f2ef688c5250119c8aa6bb", "c60991effda994e4168ec2a63406cd6a", "8f916b6661e013ffbf318ed78e24a7c2",
+        // BeardShell
+        "d802290cb9e5c3fed1ba1a8daf827882",
+        // SlimAgent
+        "889b83d375a0fb00670af5276816080e",
+        // Miscellaneous
+        "bd76f54d26bf00686da42f3664e3f2ae", // sample-03.wav
+        // Weaponized Office documents
+        "915179579ab7dc358c41ea99e4fcab52", "f21b63ddd7d2a773eb21a065015cdd01", "66007a1ca6d07ebb4ed85bf82e79719d", "bbfb92161cb71825a16e49e2aa4d2750",
+        "608877a9e11101da53bce99b0effc75b", "3b4ea6079ac9f154e0d4ec2cb6d05431", "7de7febec6bed06c49efb4e2c3dd23e1", "1498f1df4ca0e9cf23babe00cf34ed3d",
+        "0fbc2bf2f66fc72c521a9b8561bab1da", "b6e3894c17fb05db754a61ac9a0e5925", "2632fa8fc67dd2fd5c5a6275465dcc95", "81159738f7ffb50d5bc3c75e5e0ac546",
+        // PNG/Image files
+        "5ddc34c5a9a2a1dc97c79d8777d54f14", "50199e69c6a23ce935267be72372de0a", "b52c71318815836126f1257a180a74e7", "bef42c5c079fe43c8353b24c607d9e4d", "82bb741aa37df26772188643bd7b3c84"
+    ]);
+    let v_c2_domains = dynamic([
+        "app.koofr.net",
+        "api.icedrive.net",
+        "gateway.filen.io", "gateway.filen.net", "gateway.filen-1.net", "gateway.filen-2.net", "gateway.filen-3.net", "gateway.filen-4.net", "gateway.filen-5.net", "gateway.filen-6.net",
+        "egest.filen.io", "egest.filen.net", "egest.filen-1.net", "egest.filen-2.net", "egest.filen-3.net", "egest.filen-4.net", "egest.filen-5.net", "egest.filen-6.net",
+        "ingest.filen.io", "ingest.filen.net", "ingest.filen-1.net", "ingest.filen-2.net", "ingest.filen-3.net", "ingest.filen-4.net", "ingest.filen-5.net", "ingest.filen-6.net"
+    ]);
+    let v_dropper_dll_path = "C:\\ProgramData\\prnfldr.dll";
+    let v_slimagent_log_pattern = "Desktop_.*\\.svc";
+    let v_office_procs = dynamic(["WINWORD.EXE", "EXCEL.EXE", "POWERPNT.EXE"]);
+
+    union isfuzzy=true
+    (
+        // Hunt for known malicious file hashes
+        union DeviceFileEvents, DeviceProcessEvents
+        | where MD5 in (v_md5_hashes)
+        | extend Activity = "Known Malicious File Hash Detected", Tactic = "Initial Access, Execution", Technique = "T1204.002"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, FileName, FolderPath, MD5, ProcessCommandLine
+    ),
+    (
+        // Hunt for the execution of the malicious DLL via regsvr32, as triggered by the initial macro
+        DeviceProcessEvents
+        | where InitiatingProcessFileName in (v_office_procs)
+        | where FileName =~ "regsvr32.exe" and ProcessCommandLine has_all ("/i", v_dropper_dll_path)
+        | extend Activity = "regsvr32 execution of prnfldr.dll", Tactic = "Execution", Technique = "T1218.010"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, ProcessCommandLine
+    ),
+    (
+        // Hunt for an Office application dropping the malicious prnfldr.dll
+        DeviceFileEvents
+        | where FolderPath =~ "C:\\ProgramData\\" and FileName =~ "prnfldr.dll"
+        | where InitiatingProcessFileName in (v_office_procs)
+        | extend Activity = "Office App dropped prnfldr.dll", Tactic = "Execution", Technique = "T1204.002"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, FileName, FolderPath
+    ),
+    (
+        // Hunt for an Office application dropping the steganographic PNG file
+        DeviceFileEvents
+        | where InitiatingProcessFileName in (v_office_procs)
+        | where FolderPath has "AppData\\Local" and FileName in ("windows.png", "koala.png")
+        // This could be noisy. Consider correlating with other activity like the DLL drop.
+        | extend Activity = "Office App dropped steganographic PNG", Tactic = "Execution", Technique = "T1204.002"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, FileName, FolderPath
+    ),
+    (
+        // Hunt for C2 communications to known cloud storage domains used by Covenant and BeardShell
+        DeviceNetworkEvents
+        | where RemoteUrl has_any (v_c2_domains) or RemoteIP in (v_c2_domains)
+        // Legitimate use of these services is possible. Focus on unusual processes making these connections.
+        | extend Activity = "C2 Communication to Cloud Storage API", Tactic = "Command and Control", Technique = "T1102"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, RemoteUrl, RemoteIP
+    ),
+    (
+        // Hunt for the creation of the SlimAgent keylogger output file
+        DeviceFileEvents
+        | where FolderPath has "AppData\\Local\\Temp" and FileName matches regex v_slimagent_log_pattern
+        | extend Activity = "SlimAgent log file created", Tactic = "Collection", Technique = "T1056.001"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, FileName, FolderPath
+    ),
+    (
+        // Hunt for explorer.exe accessing the steganographic PNG file (proxy for hijacked DLL execution)
+        DeviceFileEvents
+        | where InitiatingProcessFileName =~ "explorer.exe"
+        | where FolderPath has "AppData\\Local" and FileName in ("windows.png", "koala.png")
+        // This indicates the COM hijack was likely successful and the malicious DLL is reading the next stage.
+        | extend Activity = "explorer.exe accessed steganographic PNG (Hijack successful)", Tactic = "Persistence, Defense Evasion", Technique = "T1546.015"
+        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, FileName, FolderPath
+    )
+query_type: kql
+tactics:
+    - TA0002
+    - TA0005
+    - TA0011
+    - TA0009
+    - TA0006
+    - TA0004
+    - TA0003
+techniques:
+    - T1204.002
+    - T1218.010
+    - T1001.002
+    - T1102
+    - T1056.001
+    - T1546.015
+tags:
+    - kql
+version: "1"
+references:
+    - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/#h-weaponized-office-documents

@@ -1,0 +1,31 @@
+id: 2f42b133-3fa2-4abe-8183-a3cef2c7ee31
+name: High-Risk Email URL Clicks (Nation-State Domains)
+description: Detects when a user’s Outlook successfully connects to a high-risk nation-state domain (e.g., .ru, .cn, .kp, .ir) correlated to an email they received, highlighting potential exposure to malicious content.
+query: |
+    DeviceNetworkEvents
+    | where ActionType == "ConnectionSuccess"
+    | where InitiatingProcessFileName == "outlook.exe"
+    | extend RemoteHost = tostring(parse_url(RemoteUrl).Host)
+    | where RemoteHost endswith ".ru"
+          or RemoteHost endswith ".cn"
+          or RemoteHost endswith ".kp"
+          or RemoteHost endswith ".ir"
+    | project Timestamp, DeviceName, InitiatingProcessAccountUPN, RemoteHost, RemoteUrl
+    | join kind=inner (
+        EmailUrlInfo
+        | extend UrlHost = tostring(parse_url(Url).Host)
+        | project Url, UrlHost, NetworkMessageId
+    ) on $left.RemoteHost == $right.UrlHost
+    | join kind=inner (
+        EmailEvents
+        | project NetworkMessageId, RecipientEmailAddress, SenderFromAddress, Subject, DeliveryAction
+    ) on NetworkMessageId
+    | where tolower(InitiatingProcessAccountUPN) == tolower(RecipientEmailAddress)
+    | project Timestamp, DeviceName, InitiatingProcessAccountUPN, RemoteUrl, Url, NetworkMessageId,
+              SenderFromAddress, RecipientEmailAddress, Subject, DeliveryAction
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Matthew Metcalf
+version: "1"

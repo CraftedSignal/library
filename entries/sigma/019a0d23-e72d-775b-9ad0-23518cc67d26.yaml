@@ -1,0 +1,51 @@
+id: 019a0d23-e72d-775b-9ad0-23518cc67d26
+name: Jingle Thief Phishing URL with Embedded Credentials Syntax
+description: Detects URLs that use the `https://user@host` syntax where the 'user' part is crafted to look like a legitimate domain (e.g., `https://example.com@malicious-site.net`). This is a technique used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to craft convincing phishing links.
+query: |
+    title: Jingle Thief Phishing URL with Embedded Credentials Syntax
+    id: bc9f7f1b-fc03-4cef-8f71-2ec3a334b16f
+    status: experimental
+    description: >-
+      Detects URLs that use the `https://user@host` syntax where the 'user' part is
+      crafted to look like a legitimate domain (e.g.,
+      `https://example.com@malicious-site.net`). This is a technique used by the
+      Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to craft
+      convincing phishing links.
+    references:
+      - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.initial_access
+      - attack.t1566.001
+      - attack.t1566.002
+    logsource:
+      category: webproxy
+    detection:
+      selection:
+        # This regex identifies URLs where the user-info part of the URL contains a dot, making it look like a domain name.
+        # e.g., https://legitimate.com@malicious.com
+        url.original|re: 'https?:\/\/[^@\/]+\.[^@\/]+@.+'
+      condition: selection
+    falsepositives:
+      - Legitimate, though rare, use of this URL syntax for authentication where the
+        username is an email address. For example, some services might use
+        `https://user@email.com:password@service.com`. These should be investigated
+        and can be excluded if found to be legitimate.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.002
+tags:
+    - attack.initial_access
+    - attack.t1566.001
+    - attack.t1566.002
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+data_sources:
+    - webproxy

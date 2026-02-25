@@ -1,0 +1,77 @@
+id: 019aa5bc-7cd3-71a8-b3eb-649c77da529d
+name: DRAYN Malware Activity
+description: Detects various activities associated with the DRAYN malware family, as described in a detailed analysis. This includes stealthy installation command-line arguments, PowerShell-based system reconnaissance, and modification of file permissions for defense evasion.
+query: |
+    title: DRAYN Malware Activity
+    id: 4a568072-e448-4144-801a-a41a667a0f4c
+    status: experimental
+    description: >-
+      Detects various activities associated with the DRAYN malware family, as
+      described in a detailed analysis. This includes stealthy installation
+      command-line arguments, PowerShell-based system reconnaissance, and
+      modification of file permissions for defense evasion.
+    references:
+      - >-
+        https://medium.com/@shubhandrew/analysis-of-a-malicious-vs-code-executable-400a1353461a
+    author: Subhankar H.
+    date: 2025-11-21T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.discovery
+      - attack.t1059.001
+      - attack.t1564.001
+      - attack.t1222.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_recon:
+        Image|endswith: \powershell.exe
+        CommandLine|contains|all:
+          - Get-CimInstance
+          - Win32_ComputerSystem
+          - .Product.UUID
+      selection_stealth_install:
+        CommandLine|contains|all:
+          - /VERYSILENT
+          - /FORCERESTART
+        CommandLine|contains:
+          - /hidcon
+          - /nowait
+          - /SUPPRESSMSGBOXES
+      selection_perms:
+        Image|endswith: \icacls.exe
+        CommandLine|contains|all:
+          - /remove:g
+          - '*S-1-1-0'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate software installers or system administration scripts might use
+        similar command-line arguments, particularly those in
+        'selection_stealth_install'. Review the parent process and executable path
+        to determine legitimacy. Tuning may be required.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1222.001
+    - T1564.001
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.discovery
+    - attack.t1059.001
+    - attack.t1564.001
+    - attack.t1222.001
+author: Subhankar H.
+version: "3"
+references:
+    - https://medium.com/@shubhandrew/analysis-of-a-malicious-vs-code-executable-400a1353461a
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: c63810bc-181e-43b4-8831-9b761df9c918
+name: Threat Hunting Mshta with Sentinel TI
+description: 'KQL Query from file: Threat Hunting Mshta with Sentinel TI'
+query: "// Threat Hunting Mshta with Sentinel TI\n\nlet QueryPeriod = 1d;\nlet T1218IOC =\nThreatIntelIndicators\n| where TimeGenerated > ago(365d)\n| where now() between (ValidFrom .. ValidUntil)\n| where isnotempty(Data.labels)\n| mv-expand Data.labels\n| where Data_labels has \"mitre\"\n| extend MitreID = parse_json(tostring(Data_labels)).Alias \n| where MitreID == \"T1218.005\";\nlet NetworkTraffic =\nDeviceNetworkEvents\n| where TimeGenerated > ago(QueryPeriod)\n| where ActionType == \"ConnectionSuccess\"\n| join T1218IOC on ($left.RemoteIP == $right.ObservableValue);\nlet EmailURL =\nEmailUrlInfo\n| where TimeGenerated > ago(QueryPeriod)\n| join T1218IOC on $left.Url == $right.ObservableValue;\nDeviceFileEvents\n| where TimeGenerated > ago(QueryPeriod)\n| join T1218IOC on $left.SHA256 == $right.ObservableValue\n| union NetworkAccessTraffic, EmailURL\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0042
+    - TA0043
+    - TA0001
+techniques:
+    - T1218.005
+    - T1608.005
+    - T1598.003
+    - T1566.002
+tags:
+    - kql
+version: "1"

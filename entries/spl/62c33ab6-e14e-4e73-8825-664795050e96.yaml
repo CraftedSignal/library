@@ -1,0 +1,41 @@
+id: 62c33ab6-e14e-4e73-8825-664795050e96
+name: SLOW#TEMPEST Loader DLL Hash
+description: This rule detects a specific DLL hash (3d3837eb69c3b072fdfc915468cbc8a83bb0db7babd5f7863bdf81213045023c) associated with the SLOW#TEMPEST campaign. This file is the loader DLL responsible for executing the malware's payload. The rule looks for this hash in both executed processes and files on disk.
+query: |
+    `comment("name: SLOW#TEMPEST Loader DLL IOC")`
+    `comment("author: detections.ai")`
+    `comment("date: 2025-07-23")`
+    `comment("description: This rule detects a specific DLL hash (3d3837eb69c3b072fdfc915468cbc8a83bb0db7babd5f7863bdf81213045023c) associated with the SLOW#TEMPEST campaign. This file is the loader DLL responsible for executing the malware's payload.")`
+    `comment("references: https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/")`
+
+    `comment("This query uses the Endpoint data model to find the malicious hash in both executed processes and files on disk.")`
+    | tstats summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint where (nodename=Endpoint.Processes Processes.hash="3d3837eb69c3b072fdfc915468cbc8a83bb0db7babd5f7863bdf81213045023c") OR (nodename=Endpoint.Filesystem Filesystem.file_hash="3d3837eb69c3b072fdfc915468cbc8a83bb0db7babd5f7863bdf81213045023c") by dest, user, Processes.process_name, Processes.process_path, Filesystem.file_name, Filesystem.file_path, Processes.hash, Filesystem.file_hash
+    | `drop_dm_object_name("Processes")`
+    | `drop_dm_object_name("Filesystem")`
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+
+    `comment("Combine fields from Processes and Filesystem data models for a unified view.")`
+    | fillnull value="" process_path, file_path, process_name, file_name, hash, file_hash
+    | eval process = if(process_name!="", process_name, file_name)
+    | eval path = if(process_path!="", process_path, file_path)
+    | eval sha256 = if(hash!="", hash, file_hash)
+
+    `comment("Analyst Note: This is a high-fidelity alert for a known malicious file. Any host with this file should be considered compromised and investigated immediately. The 'process' field indicates the name of the malicious file itself, while 'user' and 'dest' (host) show where it was observed.")`
+    | table firstTime, lastTime, dest, user, process, path, sha256, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+    - DS0022
+    - T1059
+tags:
+    - spl
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/

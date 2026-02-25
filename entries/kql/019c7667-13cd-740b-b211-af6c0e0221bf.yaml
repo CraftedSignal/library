@@ -1,0 +1,16 @@
+id: 019c7667-13cd-740b-b211-af6c0e0221bf
+name: TrustConnect/DocConnect C2 Infrastructure Communication
+description: Detects network connections to identified command and control (C2) infrastructure for both the original TrustConnect malware and its successor, DocConnect. This rule specifically looks for connections to known suspicious domains and IP addresses associated with these malware families.
+query: "// Name: TrustConnect/DocConnect C2 Infrastructure Communication\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects network connections to identified command and control (C2) infrastructure for both the original TrustConnect malware and its successor, DocConnect.\r\n// MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols)\r\n// References: https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat\r\n// False Positive Sensitivity: Medium. The domains are highly specific to this threat. However, the IP address could be repurposed by the hosting provider over time, potentially leading to false positives.\r\n// Tuning Suggestion: If alerts are generated from the IP address for legitimate services, consider removing it or scoping the rule to specific processes known to be associated with the malware.\r\n// Define the list of known C2 domains and IPs\r\nlet suspiciousDomains = dynamic([\"trustconnectsoftware.com\", \"networkservice.cyou\"]);\r\nlet suspiciousIPs = dynamic([\"178.128.69.245\"]);\r\nDeviceNetworkEvents\r\n// Filter for network connections to the suspicious domains or IPs\r\n| where RemoteUrl has_any (suspiciousDomains) or RemoteIP in (suspiciousIPs)\r\n// Add additional context for investigation\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat

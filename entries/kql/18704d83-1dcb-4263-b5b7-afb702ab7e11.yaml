@@ -1,0 +1,26 @@
+id: 18704d83-1dcb-4263-b5b7-afb702ab7e11
+name: Hunting malicious oauth grant by phished user
+description: 'KQL Query from file: Hunting malicious oauth grant by phished user'
+query: "// 'Tis the season – Hunting Season!\U0001F602\n\n// With the rise in phishing campaigns \U0001F4C8, threat actors are stealing tokens from phished users to deploy malicious OAuth applications on compromised cloud tenants. These applications are then used to control Exchange Online settings and spread spam. Can you swiftly detect and lock down the compromised user and OAuth app? The following KQL query leverages Sentinel UEBA identity risk information and cloudapp events to check for OAuth grants for high-risk users.\n\nlet OauthRiskLevel = dynamic([\"High\", \"Medium\"]);\nlet OauthBlastRadius = dynamic([\"High\",\"Medium\"]);\nlet RiskUsers =\nIdentityInfo\n| where RiskLevel has_any(OauthRiskLevel)\n| where BlastRadius has_any(OauthBlastRadius)\n| where RiskState == \"AtRisk\"\n| summarize arg_max(TimeGenerated, *) by AccountUPN\n| distinct AccountUPN;\nCloudAppEvents\n| where ActionType == @\"Add app role assignment grant to user.\"\n| extend OauthApp = parse_json(RawEventData)[\"Target\"][3][\"ID\"]\n| extend UPN = parse_json(RawEventData)[\"UserId\"]\n| where UPN has_any(RiskUsers)\n\n// MITRE ATT&CK\n"
+query_type: kql
+tactics:
+    - TA0006
+    - TA0005
+    - TA0008
+    - TA0001
+    - TA0043
+    - TA0010
+    - TA0003
+    - TA0004
+techniques:
+    - T1528
+    - T1527
+    - T1566.002
+    - T1566
+    - T1598
+    - T1537
+    - T1098.003
+    - T1098
+tags:
+    - kql
+version: "1"

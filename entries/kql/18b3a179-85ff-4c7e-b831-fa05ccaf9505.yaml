@@ -1,0 +1,31 @@
+id: 18b3a179-85ff-4c7e-b831-fa05ccaf9505
+name: Azure Cloud Security Monitoring
+description: 'KQL Query from file: Azure Cloud Security Monitoring'
+query: "// Azure Cloud Security Monitoring\n// https://www.linkedin.com/pulse/azure-cloud-security-monitoring-steven-lim-vf6ac/\n\n// Detect new blob with allowBlobPublicAccess enabled\n\nAzureActivity\n| where OperationNameValue startswith \"MICROSOFT.STORAGE/STORAGEACCOUNTS/\"\n| extend allowBlobPublicAccess = tostring(parse_json(tostring(parse_json(tostring(Properties_d.requestbody)).properties)).allowBlobPublicAccess)\n| where isnotempty(allowBlobPublicAccess)\n| where allowBlobPublicAccess == \"true\"\n| extend ResourceName = tostring(parse_json(Properties).resource)\n| extend CallerUPN = tostring(parse_json(Properties).caller)\n| project SubscriptionId, CallerIpAddress, CallerUPN, ResourceName, allowBlobPublicAccess\n\n// Detect new public IP address creation\n\nAzureActivity\n| where OperationNameValue startswith \"Microsoft.Network/publicIPAddresses/write\"\n| where ActivityStatusValue == \"Succeeded\" \n\n// Detect NSG creation or deletion\n\nAzureActivity\n| where OperationNameValue =~ \"Microsoft.Network/networkSecurityGroups/securityRules/delete\" or \nOperationNameValue =~ \"Microsoft.Network/networkSecurityGroups/securityRules/write\"\n| where ActivityStatusValue == \"Accept\"\n| extend NsgName = split(_ResourceId, '/')[8], NsgRule = split(_ResourceId, '/')[10]\n| project TimeGenerated, NsgName, NsgRule, ResourceGroup, Caller, CallerIpAddress, _ResourceId\n\n// Detect Azure VM password reset (Lateral movement technique)\n\nExposureGraphEdges\n| where EdgeLabel contains \"contains\"\n| where TargetNodeName contains \"PasswordReset\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| project SourceNodeName, TargetNodeName, NodeProperties, EntityIds \n\n// Detect Privilege Escalation on Azure Service Principal\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) \nand NodeProperties.rawData.criticalityLevel.criticalityLevel < 4\n| extend AccountID = tostring(NodeProperties.rawData.accountObjectId)\n| distinct AccountID;\nCloudAppEvents\n| where ActivityType == \"Add\"\n| where ActionType == @\"Add service principal credentials.\"\n| where AccountId has_any(CriticalIdentities)\n\n// Detect Azure API spray attacks\n\nlet threshold=5;\nApiManagementGatewayLogs\n| where TimeGenerated > ago(1d)\n| where IsRequestSuccess == \"false\"\n| summarize Count=count() by CallerIpAddress\n| sort by Count desc\n| where Count > threshold\n\n// Detect Azure API Secrets Extraction\n\nCloudAuditEvents\n| where Timestamp > ago(30d)\n| where OperationName == \"Microsoft.ApiManagement/service/tenant/listSecrets/action\"\n| extend SubscriptionID = tostring(RawEventData.subscriptionId)\n| extend PrincipalOID = tostring(RawEventData.principalOid)\n| extend ApplicationID = tostring(RawEventData.applicationId)\n| extend HttpRequest = tostring(RawEventData.httpRequest)\n| extend Properties = tostring(RawEventData.properties)\n| project Timestamp, OperationName, PrincipalOID, SubscriptionID, ApplicationID, HttpRequest, Properties \n\n// Detect Azure VM DNS Threat\n\nDnsEvents\n| where IPAddresses != \"\"\n| join ThreatIntelligenceIndicator on $left.Name == $right.DomainName\n| where ConfidenceScore > 50\n\n// MITRE ATT&CK Mapping\n\n// T1530 - Data from Cloud Storage Object\n// T1583.003 - Acquire Infrastructure: Cloud Account\n// T1562.004 - Impair Defenses: Disable or Modify System Firewall\n// T1078.004 - Valid Accounts: Cloud Accounts\n// T1110.003 - Brute Force: Password Spraying\n// T1530 - Data from Cloud Storage Object\n// T1071.004 - Application Layer Protocol: DNS\n"
+query_type: kql
+tactics:
+    - TA0009
+    - TA0042
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+    - TA0011
+    - TA0002
+techniques:
+    - T1530
+    - T1583.003
+    - T1562.004
+    - T1078.004
+    - T1110.003
+    - T1071.004
+    - T1110.002
+    - T1555.005
+    - T1068
+    - T1078.003
+    - T1106
+    - T1059.009
+tags:
+    - kql
+version: "1"

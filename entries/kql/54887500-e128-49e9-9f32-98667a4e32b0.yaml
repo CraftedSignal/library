@@ -1,0 +1,16 @@
+id: 54887500-e128-49e9-9f32-98667a4e32b0
+name: macOS - Suspicious Unsigned Spotlight Importer Creation
+description: Detects the creation or modification of an unsigned Spotlight importer (.mdimporter) bundle within a user's Library/Spotlight directory on macOS. This activity is indicative of the Sploitlight TCC bypass technique (CVE-2025-31199), where an attacker leverages a malicious, unsigned importer to gain unauthorized access to TCC-protected data via the mds/mdworker processes.
+query: "// Name: macOS - Suspicious Unsigned Spotlight Importer Creation\r\n// Author: detections.ai\r\n// Date: 2025-08-01\r\n// Description: Detects the creation of an unsigned Spotlight importer (.mdimporter) bundle in a user's Library directory. This is a key step in the Sploitlight TCC bypass technique (CVE-2025-31199), where an attacker places a malicious, unsigned importer to be loaded by the mds/mdworker processes, allowing it to access and exfiltrate data from TCC-protected locations.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.microsoft.com/en-us/security/blog/2025/07/28/sploitlight-analyzing-a-spotlight-based-macos-tcc-vulnerability/\r\n\r\nDeviceFileEvents\r\n// Look for file creation or move/rename events.\r\n| where ActionType in (\"FileCreated\", \"FileRenamed\")\r\n// Filter for .mdimporter files created in the user's Spotlight directory.\r\n| where FolderPath matches regex @\"/Users/[^/]+/Library/Spotlight/?$\" and FileName endswith \".mdimporter\"\r\n// The core of the detection: the created bundle is unsigned. Legitimate importers from third-party apps are typically signed.\r\n| where IsSigned == false\r\n// Potential for False Positives:\r\n// Legitimate software development or testing activities might involve creating unsigned importers.\r\n// Some niche or older legitimate applications might use unsigned importers.\r\n// Tuning:\r\n// Exclude known developer machines or specific user accounts if this is expected behavior.\r\n// -> where InitiatingProcessAccountName !in (\"developer_account\")\r\n// Exclude known legitimate but unsigned importers by their SHA1 hash.\r\n// -> where SHA1 !in (\"known_good_hash_1\", \"known_good_hash_2\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA1,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessAccountName\r\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1548.006
+    - T1553.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/28/sploitlight-analyzing-a-spotlight-based-macos-tcc-vulnerability/

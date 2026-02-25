@@ -1,0 +1,15 @@
+id: 019c9664-cfd6-723e-b961-59e62dd33d51
+name: Entra ID Password Spray Detection
+description: Detects potential password spray activity by identifying a single IP address generating failed sign-ins across multiple distinct user accounts within a short window. This rule specifically looks for '50126' result type, indicating an invalid username or password, from a single IP address attempting to authenticate against at least 5 distinct user accounts within a 10-minute window.
+query: "// Name: Entra ID Password Spray Detection\r\n// Author: MFA meex\r\n// Date: 2026-02-25\r\n// Description: Detects potential password spray activity by identifying a single IP address generating failed sign-ins across multiple distinct user accounts within a short window.\r\n// Reference: https://attack.mitre.org/techniques/T1110/003/\r\n// Note: To reduce false positives, exclude trusted corporate IP ranges, VPN gateways, or proxy infrastructure.\r\n\r\nlet Window = 10m;\r\nlet UserThreshold = 5;\r\n\r\nSigninLogs\r\n// Filters for password failures.\r\n| where TimeGenerated > ago(Window)\r\n| where ResultType == \"50126\"\r\n// Detects potential password spray behavior from a single IP targeting multiple accounts.\r\n| summarize\r\n    FailedUsers = dcount(UserPrincipalName),\r\n    TotalFailures = count(),\r\n    FirstSeen = min(TimeGenerated),\r\n    LastSeen = max(TimeGenerated)\r\n    by IPAddress\r\n| where FailedUsers >= UserThreshold\r\n| project\r\n    IPAddress,\r\n    FailedUsers,\r\n    TotalFailures,\r\n    FirstSeen,\r\n    LastSeen"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1110/003/

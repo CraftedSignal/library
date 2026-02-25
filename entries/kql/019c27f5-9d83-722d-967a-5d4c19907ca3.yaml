@@ -1,0 +1,85 @@
+id: 019c27f5-9d83-722d-967a-5d4c19907ca3
+name: Hunting for CVE-2026-21509 Associated Domains
+description: This query hunts for network activity and other events related to specific domains (freefoodaid.com, wellnessmedcare.org) potentially associated with CVE-2026-21509. It searches DNS queries, network connections, generic web proxy/firewall logs, and URL click events to identify interactions with these domains.
+query: |4
+    // Name: Hunting Query for Domains Associated with CVE-2026-21509
+    // Author: detections.ai
+    // Date: 2026-02-04
+    // Description: This query hunts for network activity and other events related to domains (freefoodaid.com, wellnessmedcare.org) potentially associated with CVE-2026-21509.
+    // False Positive Sensitivity: Medium. This query is for hunting and may return benign activity if the domains have been used for legitimate purposes.
+    // Triage: Investigate the source of the activity, including the user, device, and process, to determine if the behavior is malicious.
+    // Tags: cve-2026-21509, domain, network, hunting
+
+    // Define the suspicious domains of interest
+    let suspiciousDomains = dynamic(["freefoodaid.com", "wellnessmedcare.org"]);
+    // Union data from various sources to find activity related to the domains
+    union isfuzzy=true
+        (
+            // Search for DNS queries for the suspicious domains
+            DnsEvents
+            | where QueryName has_any (suspiciousDomains)
+            | project-reorder
+                Timestamp,
+                DeviceName,
+                QueryName,
+                ClientIP
+            | extend EventType = "DNS Query", Indicator = QueryName
+        ),
+        (
+            // Search for network connections to the suspicious domains
+            DeviceNetworkEvents
+            | where RemoteUrl has_any (suspiciousDomains)
+            // For more comprehensive hunting, resolve the domains to IPs and include them here.
+            // Example: or RemoteIP in (known_ips)
+            | project-reorder
+                Timestamp,
+                DeviceName,
+                ActionType,
+                RemoteUrl,
+                RemoteIP,
+                InitiatingProcessAccountName,
+                InitiatingProcessCommandLine
+            | extend EventType = "Network Connection", Indicator = RemoteUrl
+        ),
+        (
+            // Search generic web proxy, firewall, or web gateway logs
+            CommonSecurityLog
+            | where isnotempty(RequestURL)
+            | where RequestURL has_any (suspiciousDomains)
+            // Consider filtering for traffic that was not blocked to find successful connections.
+            // Example: | where DeviceAction != "Deny"
+            | project-reorder
+                TimeGenerated,
+                DeviceName,
+                SourceIP,
+                DestinationHostName,
+                RequestURL,
+                DeviceAction
+            | extend Timestamp = TimeGenerated, EventType = "Proxy/Firewall Log", Indicator = RequestURL
+        ),
+        (
+            // Search for clicks on URLs in emails or documents (Microsoft 365 Defender)
+            UrlClickEvents
+            | where Url has_any (suspiciousDomains)
+            | project-reorder
+                Timestamp,
+                Url,
+                ActionType,
+                AccountUpn,
+                Workload
+            | extend EventType = "URL Click", Indicator = Url
+        )
+    | project-away TimeGenerated
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1071
+    - T1071.001
+    - T1566
+    - T1566.001
+tags:
+    - kql
+version: "2"

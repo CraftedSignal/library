@@ -1,0 +1,48 @@
+id: 019c9197-c6a3-70a5-81dd-08ebae899ad4
+name: SSHStalker Botnet Activity Detection
+description: This rule detects various indicators associated with the SSHStalker botnet on Linux systems, including outbound IRC-like network connections, modifications to cron files for persistence, log tampering (specifically utmp/wtmp/lastlog files), and the execution of compilers from suspicious directories like /tmp or /dev/shm. Each section of the rule targets a specific behavior of the botnet.
+query: |+
+    ## SSHStalker botnet (Linux): cron persistence + log tampering + outbound IRC + on-host compilation
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en
+
+    ### Network: outbound IRC-like ports (tune ports for your environment)
+    (index=netflow OR index=firewall) (dest_port=6667 OR dest_port=6697 OR dest_port=7000)
+    | stats count min(_time) as first_seen max(_time) as last_seen values(dest_ip) as dest_ips by src_ip, dest_port
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Auditd/Syslog: cron file changes
+    (index=os OR index=auditd OR sourcetype=linux_secure OR sourcetype=syslog) ("/etc/cron" OR "/var/spool/cron" OR "/etc/crontab")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(_raw) as examples by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Auditd/Syslog: utmp/wtmp/lastlog modifications (log tampering)
+    (index=os OR index=auditd OR sourcetype=syslog) ("/var/run/utmp" OR "/var/log/wtmp" OR "/var/log/lastlog")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(_raw) as examples by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Process telemetry: compilers executed from /tmp or /dev/shm (high signal on servers)
+    (index=os OR index=edr) (process_name=gcc OR process_name=cc OR process_name=clang OR process_name=make OR Image="*\\gcc" OR Image="*\\make")
+    | eval cmd=coalesce(process, CommandLine, cmdline, process_command_line)
+    | where like(cmd,"%/tmp/%") OR like(cmd,"%/var/tmp/%") OR like(cmd,"%/dev/shm/%")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(cmd) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.003
+    - T1070.002
+    - T1027.004
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en

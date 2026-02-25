@@ -1,0 +1,58 @@
+id: 019c8aca-8cd0-72c6-88bb-8702fb1e71c6
+name: Rundll32 Execution Without Command Line Arguments
+description: Detects the execution of "rundll32.exe" without any command-line arguments. This is highly unusual behavior, as "rundll32.exe" is intended to load and run functions from DLLs, which requires specifying a DLL path in the command line. This technique is used by malware like ValleyRAT (as part of the Winos4.0 framework) to inject modular plugins into memory.
+query: |
+    title: Rundll32 Execution Without Command Line Arguments
+    id: e03a7488-b0c2-4a36-833e-a6fb4aee180c
+    status: experimental
+    description: Detects the execution of "rundll32.exe" without any command-line
+      arguments. This is highly unusual behavior, as "rundll32.exe" is intended to
+      load and run functions from DLLs, which requires specifying a DLL path in the
+      command line. This technique is used by malware like ValleyRAT (as part of the
+      Winos4.0 framework) to inject modular plugins into memory.
+    author: tim@detections.ai
+    references:
+      - https://www.malwarebytes.com/blog/scams/2026/02/huorong
+    date: 2026-02-23
+    tags:
+      - attack.t1218.011
+      - attack.t1055
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        - Image|endswith: '\rundll32.exe'
+        - OriginalFileName: 'RUNDLL32.EXE'
+      filter:
+        # Legitimate rundll32 executions with arguments will contain a space between the executable and the DLL path.
+        CommandLine|contains: ' '
+        # CommandLine|re: '(?i)rundll32(\.exe)?\s+\S'
+      condition: selection and not filter
+    falsepositives:
+      - >
+        False positives are highly unlikely as any legitimate use of rundll32.exe
+        requires arguments.
+
+        Some log sources might populate the CommandLine field in a way that omits
+        spaces for single-argument executions, which could lead to a false positive.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1218.011
+    - T1055
+tags:
+    - attack.t1218.011
+    - attack.t1055
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong
+data_sources:
+    - process_creation
+    - windows

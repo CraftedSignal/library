@@ -1,0 +1,53 @@
+id: 019c0f2d-2532-73d4-9205-3051edc50f09
+name: In-Memory Credential Dumping via GDB
+description: Detects the use of GDB (GNU Debugger) to dump the memory of a running process. This technique is used by frameworks like ShadowHS to extract credentials and other secrets from live processes without writing traditional credential dumping tools to disk.
+query: |
+    title: In-Memory Credential Dumping via GDB
+    id: b942e87f-b686-4d43-9667-913a8ae25f55
+    status: experimental
+    description: Detects the use of GDB (GNU Debugger) to dump the memory of a
+      running process. This technique is used by frameworks like ShadowHS to extract
+      credentials and other secrets from live processes without writing traditional
+      credential dumping tools to disk.
+    references:
+      - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/
+    author: tim@detections.ai
+    date: 2026-01-30
+    tags:
+      - attack.credential_access
+      - attack.t1555
+      - attack.t1003.007
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        Image|endswith: '/gdb' # Identifies the GNU Debugger process
+        CommandLine|contains|all:
+          - '--batch' # Flag to run GDB in non-interactive batch mode
+          - 'dump memory' # GDB command to write a region of memory to a file
+      condition: selection
+    falsepositives:
+      - Legitimate debugging or troubleshooting by developers or system
+        administrators may involve dumping process memory. However, the use of
+        '--batch' mode for this purpose is less common for interactive debugging and
+        might indicate automated or scripted activity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555
+    - T1003.007
+tags:
+    - attack.credential_access
+    - attack.t1555
+    - attack.t1003.007
+author: tim@detections.ai
+version: "3"
+references:
+    - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/
+data_sources:
+    - process_creation
+    - linux

@@ -1,0 +1,51 @@
+id: 019b30ec-7e2d-75f3-b91d-cbcefa78f110
+name: 01flip Ransom Note Creation Detection
+description: Detects the mass creation of the 'RECOVER-YOUR-FILE.TXT' ransom note, a behavior characteristic of the 01flip ransomware. A high count of these notes on a single host is a strong indicator of compromise, suggesting that data has been encrypted for impact.
+query: |
+    // Name: 01flip Ransom Note Creation
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the mass creation of the 'RECOVER-YOUR-FILE.TXT' ransom note, a behavior characteristic of the 01flip ransomware. A high count of these notes on a single host is a strong indicator of compromise.
+    // Tactic: Impact
+    // Technique: T1486 - Data Encrypted for Impact
+    // References: https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/
+
+    let TimeFrame = 1h;
+    let NoteName = "RECOVER-YOUR-FILE.TXT";
+    // FP Tuning: Adjust this threshold based on your environment. A higher number reduces FPs but might miss early-stage encryption.
+    let CreationThreshold = 10;
+
+    DeviceFileEvents
+    | where Timestamp > ago(TimeFrame)
+    // Filter for the creation of the specific ransom note file.
+    | where ActionType == "FileCreated" and FileName == NoteName
+    // Summarize the activity per device to count the number of notes created.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        NoteCount = count(),
+        // Collect the paths where the notes were created and the processes that created them.
+        FilePaths = make_set(FolderPath, 100),
+        InitiatingProcesses = make_set(InitiatingProcessCommandLine, 10)
+        by DeviceId, DeviceName
+    // Trigger an alert if the number of created notes exceeds the defined threshold.
+    | where NoteCount > CreationThreshold
+    | project
+        StartTime,
+        EndTime,
+        DeviceId,
+        DeviceName,
+        NoteCount,
+        InitiatingProcesses,
+        FilePaths
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/

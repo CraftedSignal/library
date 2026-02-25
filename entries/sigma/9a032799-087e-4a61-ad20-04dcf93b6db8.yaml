@@ -1,0 +1,138 @@
+id: 9a032799-087e-4a61-ad20-04dcf93b6db8
+name: RustyPages macOS Malware Activity
+description: Detects various techniques, procedures, and indicators associated with the RustyPages macOS malware dropper, including persistence, defense evasion, payload download, and known IOCs. This rule specifically looks for the use of `curl` to download a hidden file, `launchctl` to establish persistence, `chmod` to make the payload executable, `xattr` to clear extended attributes, `pgrep` to discover security tools, shell commands to silence notifications, C2 domain/IP connections, and known malware file hashes.
+query: |
+    title: RustyPages macOS Malware Activity
+    id: 836f38b5-fccb-493a-913c-1d4bbb57445c
+    status: experimental
+    description: Detects various techniques, procedures, and indicators associated with the RustyPages macOS malware dropper, including persistence, defense evasion, payload download, and known IOCs.
+    references:
+      - https://the-sequence.com/rustypages-malware-part-i
+    author: detections.ai
+    date: 2025-08-25
+    tags:
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.command_and_control
+      - attack.t1543.001
+      - attack.t1562.001
+      - attack.t1105
+      - attack.t1059.004
+      - attack.t1070.004
+      - malware.rustypages
+    logsource:
+      - product: macos
+        category: process_creation
+      - category: network_connection
+      - category: file_event
+    detection:
+      # TTP: Payload download via curl from a specific URL to a hidden file
+      payload_download:
+        Image|endswith: '/curl'
+        CommandLine|contains|all:
+          - '-o'
+          - '/Users/Shared/.updeventsd'
+          - 'p92nd.pages.dev/lsjnc8t.avif2'
+
+      # TTP: Persistence setup via launchctl loading a specific plist
+      persistence_setup:
+        Image|endswith: '/launchctl'
+        CommandLine|contains|all:
+          - 'load'
+          - 'com.apple.updevents.plist'
+
+      # TTP: Making the payload executable
+      payload_perms:
+        Image|endswith: '/chmod'
+        CommandLine|contains|all:
+          - '777'
+          - '/Users/Shared/.updeventsd'
+
+      # TTP: Clearing extended attributes from the payload
+      payload_attrs:
+        Image|endswith: '/xattr'
+        CommandLine|contains|all:
+          - '-c'
+          - '/Users/Shared/.updeventsd'
+
+      # TTP: Discovery of specific macOS security tools
+      security_tool_discovery:
+        Image|endswith: '/pgrep'
+        CommandLine|contains:
+          - 'LuLu'
+          - 'KnockKnock'
+          - 'BlockBlock'
+
+      # TTP: Silencing user notifications for stealthy persistence
+      notification_silencing:
+        Image|endswith: '/sh' # Assumes execution via shell script/command
+        CommandLine|contains|all:
+          - 'kill'
+          - '-STOP'
+          - 'pgrep'
+        CommandLine|contains:
+          - 'NotificationCenter'
+          - 'usernotificationsd'
+
+      # IOC: C2 Domain connection
+      c2_domain:
+        DestinationHostname|contains: 'p92nd.pages.dev'
+
+      # IOC: C2 IP and Port connections
+      c2_ip:
+        DestinationIp:
+          - '103.245.231.111'
+          - '93.115.172.151'
+        DestinationPort:
+          - 44974
+          - 45259
+
+      # IOC: Known malware file hashes
+      file_hashes:
+        sha256:
+          - 'e98756472404aeef70ba4d403339962989d9ed733fa0f6a23bdf4c2900d7e877'
+          - '7ab47b7b14f4d6848b9f4d410d1315ccc68e9a6714d94a2e870b6ba77d28e828'
+          - '5cee6368c6a9922a81a03831979947db8e5365986b4ad725c552ab6018a083b3'
+          - '204bae0402d68b89e729144fd92950f8c832d029320b50b030eacb81c0b8b3ea'
+          - 'd2c48f4fa4b0285889ef6c7667e12a1c0eda1393632ef2eac67b32777bf096f7'
+          - 'f4c41111960771e0d7558ec2453b76ba9c422fcb9408e09a8de1fd611c272846'
+
+      condition: 1 of them
+
+    falsepositives:
+      - Legitimate administrative or development activities could involve similar commands (e.g., `chmod 777`, `launchctl load`). However, the combination of these commands with the specific file paths and names (`/Users/Shared/.updeventsd`, `com.apple.updevents.plist`) significantly increases the fidelity of the detection.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0005
+    - TA0007
+    - TA0011
+    - TA0004
+techniques:
+    - T1543.001
+    - T1562.001
+    - T1105
+    - T1059.004
+    - T1070.004
+    - T1543
+    - T1562
+    - T1059
+    - T1070
+    - T1518.001
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.command_and_control
+    - attack.t1543.001
+    - attack.t1562.001
+    - attack.t1105
+    - attack.t1059.004
+    - attack.t1070.004
+    - malware.rustypages
+author: detections.ai
+version: "1"
+references:
+    - https://the-sequence.com/rustypages-malware-part-i

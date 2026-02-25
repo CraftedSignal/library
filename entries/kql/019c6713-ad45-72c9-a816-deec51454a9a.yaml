@@ -1,0 +1,38 @@
+id: 019c6713-ad45-72c9-a816-deec51454a9a
+name: AD Computer Enumeration via AdsiSearcher
+description: Detects the use of a specific PowerShell command pattern using the '[adsiSearcher]' type accelerator to enumerate and count computer objects in Active Directory. This technique was observed being used for discovery in campaigns following the exploitation of CVE-2026-1731 (BeyondTrust).
+query: |
+    // Name: AD Computer Enumeration via AdsiSearcher
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-16
+    // Description: Detects the use of a specific PowerShell command pattern using the '[adsiSearcher]' type accelerator to enumerate and count computer objects in Active Directory. This technique was observed being used for discovery in campaigns following the exploitation of CVE-2026-1731 (BeyondTrust).
+    // False Positives: Legitimate administrative or monitoring scripts may use this command. It is recommended to investigate the initiating process and user context. If legitimate use cases exist, consider adding exclusions for specific script names or user accounts.
+    // References: https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
+    // Tactics: Discovery
+    // Techniques: T1018, T1059.001
+    DeviceProcessEvents
+    // Look for command-line events, including PowerShell.
+    | where FileName in~ ("powershell.exe", "pwsh.exe", "cmd.exe")
+    // Detect the specific command pattern used for AD computer enumeration via the adsiSearcher type accelerator.
+    | where ProcessCommandLine has_all ("[adsiSearcher]", "ObjectClass=computer", "FindAll().count")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        FileName,
+        ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1018
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/

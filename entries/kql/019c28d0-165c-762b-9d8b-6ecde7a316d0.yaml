@@ -1,0 +1,39 @@
+id: 019c28d0-165c-762b-9d8b-6ecde7a316d0
+name: SharePoint File Operation via PowerShell
+description: Detects file access or download operations from Microsoft SharePoint Online where the User-Agent string indicates the use of PowerShell. This behavior has been observed in campaigns by threat groups for bulk data exfiltration.
+query: |-
+    // Name: SharePoint File Operation via PowerShell
+    // Author: detections.ai
+    // Date: 2026-02-04
+    // Tactic: Collection, Exfiltration
+    // Technique: T1567, T1020
+    // Description: Detects file access or download operations from SharePoint where the User-Agent string indicates the use of PowerShell.
+    // This behavior was observed in campaigns by ShinyHunters-affiliated groups (UNC6661, UNC6671) for bulk data exfiltration.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/expansion-shinyhunters-saas-data-theft
+    // False Positive Sensitivity: Medium
+    // Potential False Positives: Legitimate administrative scripts or automation tools may use PowerShell to interact with SharePoint.
+    // It is recommended to baseline normal PowerShell activity and exclude known administrative accounts or specific approved scripts if noise occurs.
+    CloudAppEvents
+    | where Application == "Microsoft SharePoint Online"
+    | where ActionType in ("FileDownloaded", "FileAccessed")
+    | extend useragent = parse_json(RawEventData.UserAgent)
+    | extend Name = iif(ActionType == "FileDownloaded", "SharePoint File Download via PowerShell", "SharePoint File Access via PowerShell")
+    | extend Operation = ActionType
+    | extend User = UserId
+    | extend TargetFile = tostring(RawEventData.SourceFileName)
+    | extend TargetUrl = tostring(RawEventData.SiteUrl)
+    | extend SourceIP = ClientIP
+    | where useragent contains "PowerShell"
+    | project TimeGenerated, Name, User, SourceIP, TargetFile, TargetUrl, UserAgent, Operation
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567
+    - T1020
+tags:
+    - kql
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/expansion-shinyhunters-saas-data-theft

@@ -1,0 +1,19 @@
+id: 593d8fdc-f34c-4dd0-a886-2b7b7752d37d
+name: Unusual User Activity from an Unusual Location
+description: This rule identifies unusual activity from locations not previously observed for a user within a defined lookback period. It leverages Microsoft Entra ID (Azure AD) Behavior Analytics and SigninLogs to baseline legitimate user locations and filter out trusted devices/IPs. The rule flags unusual activity where the source IP location is new for the user and exceeds a configurable threshold of 'unusual' behavior indicators, while also excluding specified trusted countries.
+query: "//Title: Unusual User Activity from an Unusual Location\r\n// Description: This rule identifies unusual activity from locations not previously observed for a user within a defined lookback period. It leverages Microsoft Entra ID (Azure AD) Behavior Analytics and SigninLogs to baseline legitimate user locations and filter out trusted devices/IPs. The rule flags unusual activity where the source IP location is new for the user and exceeds a configurable threshold of 'unusual' behavior indicators, while also excluding specified trusted countries.\r\n// Author: Dylan Evans (detections.ai/user/Decksy), https://github.com/dylanevans-cybersec/KQL-Queries\r\n\r\nlet baselineUnusualEvents = 10; //adjust this, lower = more sensitive/more results\r\nlet lookbackTime = ago(14d); //lookback time, generally the longer this is, the more records are checked against legit sources so results in less hits.\r\nlet RecentUserLocations = BehaviorAnalytics\r\n| where TimeGenerated >= lookbackTime\r\n| extend Country = case(\r\n    SourceIPLocation matches regex @\".*,\\s*(.+)$\", extract(@\".*,\\s*(.+)$\", 1, SourceIPLocation),\r\n    SourceIPLocation matches regex @\"^[^,]+$\", SourceIPLocation,\r\n    \"Unknown\"\r\n)\r\n| summarize RecentCountries = make_set(Country) by UserPrincipalName;\r\nlet LegitimateSignIns = SigninLogs // identify legitimate IPs based on user sign in activity\r\n| where TimeGenerated >= lookbackTime\r\n| where (isnotempty(DeviceDetail.deviceId) or isnotempty(MfaDetail.authMethod) or DeviceDetail.trustType has_any (\"Azure AD Joined\"))) // Trusted devices and IPs, you can add \"Azure AD Registered\" here as well if required\r\n| where ResultType == 0\r\n| summarize by UserPrincipalName, IPAddress;\r\nBehaviorAnalytics\r\n| extend ParsedInsights = parse_json(ActivityInsights)\r\n| mv-expand bagexpansion=array Property = bag_keys(ParsedInsights) to typeof(string)\r\n| extend Value = tostring(ParsedInsights[Property])\r\n| where Value == \"True\"\r\n| summarize TrueFieldsList = strcat_array(make_list(Property), \", \"), TrueFieldCount = count(), \r\n    FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), OccurrenceCount = dcount(TimeGenerated) \r\n    by UserPrincipalName, IPAddress = SourceIPAddress, Location = SourceIPLocation\r\n| where TrueFieldCount >= baselineUnusualEvents\r\n| extend Country = case(\r\n    Location matches regex @\".*,\\s*(.+)$\", extract(@\".*,\\s*(.+)$\", 1, Location),\r\n    Location matches regex @\"^[^,]+$\", Location,\r\n    \"Unknown\"\r\n)\r\n| where not(Country has_any (\"country1\", \"country2\")) // Adjust trusted countries here\r\n| join kind=leftouter RecentUserLocations on UserPrincipalName\r\n| extend CountrySeen7Days = iff(set_has_element(RecentCountries, Country), \"Yes\", \"No\")\r\n| where CountrySeen7Days == \"No\"\r\n| join kind=leftanti LegitimateSignIns on UserPrincipalName, IPAddress\r\n| project FirstSeen, LastSeen, UserPrincipalName, IPAddress, unusualActivityCount = TrueFieldCount, unusualActivityList = TrueFieldsList, Country, CountrySeen7Days"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0008
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1078
+    - T1133
+tags:
+    - kql
+author: Dylan Evans
+version: "1"

@@ -1,0 +1,14 @@
+id: 019a059b-609e-72df-a983-8f8915a841f3
+name: 'CVE-2025-49144: Notepad++ Privilege Escalation Vulnerability'
+description: KQL Query
+query: "let Lookback = 1h;\r\nlet SuspiciousRegSvr =\r\nDeviceFileEvents\r\n| where Timestamp > ago(Lookback)\r\n| where ActionType == \"FileCreated\"\r\n| where FileName == \"regsvr32.exe\"\r\n| where isempty(InitiatingProcessVersionInfoCompanyName)\r\n| distinct DeviceName;\r\nDeviceImageLoadEvents\r\n| where TimeGenerated > ago(Lookback)\r\n| where ActionType == \"ImageLoaded\"\r\n| where InitiatingProcessFileName == \"regsvr32.exe\"\r\n| where FolderPath has \"notepad++\"\r\n| where DeviceName has_any(SuspiciousRegSvr)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.010
+tags:
+    - kql
+author: Steven Lim
+version: "2"

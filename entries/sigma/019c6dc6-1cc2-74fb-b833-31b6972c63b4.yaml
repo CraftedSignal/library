@@ -1,0 +1,58 @@
+id: 019c6dc6-1cc2-74fb-b833-31b6972c63b4
+name: AI Agent Command Injection Attempts
+description: |
+    Detects potential command injection attacks against AI agents through
+    suspicious prompt patterns or system command execution by AI processes.
+query: |
+    title: AI Agent Command Injection Attempts
+    id: 4dc1a1be-f7e7-4ebd-a560-a7db0bcae481
+    status: experimental
+    description: |
+      Detects potential command injection attacks against AI agents through
+      suspicious prompt patterns or system command execution by AI processes.
+    author: zendannyy
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_ai_processes:
+        ParentImage|contains:
+          - langchain
+          - openai
+          - anthropic
+          - claude
+          - deepseek
+          - llama
+          - ollama
+          - openclaw
+          - clawdbot
+      selection_dangerous_commands:
+        CommandLine|contains:
+          - '&& curl'
+          - '| bash'
+          - '; wget'
+          - '`cat'
+          - '$(cat'
+          - '; nc'
+      condition: selection_ai_processes and selection_dangerous_commands
+    level: high
+    falsepositives:
+      - Legitimate AI agent development or debugging activities that involve
+        executing shell commands in a sandbox environment.
+      - System administrators or developers intentionally running commands
+        containing the specified patterns within an AI agent's environment.
+    references:
+      - https://techjacksolutions.com/news/security-news/clawdbot-moltbot-openclaw/
+query_type: sigma
+severity: medium
+techniques:
+    - T1059
+    - DS0009
+    - DS0017
+author: zendannyy
+version: "3"
+references:
+    - https://techjacksolutions.com/news/security-news/clawdbot-moltbot-openclaw/
+data_sources:
+    - process_creation
+    - macos

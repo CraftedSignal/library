@@ -1,0 +1,12 @@
+id: 019c4bab-1844-750a-a8f2-3758f7995648
+name: Firewall Automated Configuration Change Monitoring
+description: Automate daily manual monitoring of Firewall changes that are performed by the Security Engineer. Additionally, this can be fine-tuned (more on that on next upcoming queries) into an automated rule such as Custom Detection Rule in Defender, Analytics Rule in Sentinel, or Saved Search with Alert Actions within Splunk (SPL) to detect potential changes by unknown authorized individual.
+query: "//#########################################################################################\r\n//##  PLATFORM: Palo Alto Firewall\r\n//##  AUTHOR: IGOR OLIVEIRA (#IO)\r\n//##  LOCATION: Microsoft Sentinel | Logs\r\n//##  TITLE: KQL to daily search for firewall changes that can be performed by the engineer\r\n//#########################################################################################\r\nlet endDate = datetime_local_to_utc(todatetime('2026-02-10 00:00:00'),'US/Pacific');\r\nlet startDate = endDate - 1d;\r\nCommonSecurityLog\r\n    | where TimeGenerated between (startDate .. endDate)\r\n    | where Activity == \"CONFIG\"\r\n    | where DeviceAction != \"audit-commit\"\r\n    | extend\r\n        Client = DestinationServiceName,\r\n        Administrator = DestinationUserName,\r\n        Host_IP = SourceHostName,\r\n        Command = DeviceAction,\r\n        Result = DeviceEventClassID,\r\n        Configuration_Path = Message,\r\n        Before_Change = DeviceCustomString1,\r\n        After_Change = DeviceCustomString2\r\n    | project-reorder TimeGenerated, Administrator, Host_IP, Client, Command, Result, Configuration_Path, Before_Change, After_Change"
+query_type: kql
+severity: medium
+techniques:
+    - T1562
+tags:
+    - kql
+author: Igor Oliveira
+version: "4"

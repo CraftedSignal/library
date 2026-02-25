@@ -1,0 +1,30 @@
+id: 51a28144-bf8f-48c9-b3d7-e0b039729469
+name: Suspicious DLL Invocation Using Rundll32 Triggered by Node.js Runtime
+description: |-
+    Rundll32.exe is a built-in Windows utility that enables execution of DLL files by invoking specific functions exported from them. While it is used legitimately across various system operations, attackers frequently exploit it to execute malicious code because it is a trusted binary and less likely to trigger security alerts. This technique is recognized in the MITRE ATT and CK framework under the identifier T1218.011 as a method for defense evasion.
+
+    In typical usage scenarios, Node.js operates as a JavaScript runtime for developing applications and executing server-side scripts. It does not ordinarily engage with DLL files or initiate their execution through rundll32.exe.. When Node.js is observed invoking rundll32 to launch a DLL, this represents highly unusual behavior and may signal a compromise or malware deployment. Such activity warrants investigation, especially when linked to suspicious network callbacks or unverified software packages distributed through npm.
+query: |-
+    # Querying image load events from devices, useful for tracking DLLs loaded into memory
+    DeviceImageLoadEvents
+    # Filtering where the parent process or original filename of the initiating process is node.exe
+    # This could indicate Node.js is executing or spawning processes, which is atypical for DLL execution in native Windows environments
+    | where InitiatingProcessParentFileName has "node.exe" or InitiatingProcessVersionInfoOriginalFileName has "node.exe"
+    # Further narrowing to cases where the initiating process is RUNDLL32.exe
+    # This is critical because rundll32.exe is often abused for proxy execution, including loading malicious DLLs
+    # MITRE ATT&CK Technique: T1218.011 - Signed Binary Proxy Execution: Rundll32
+    | where InitiatingProcessVersionInfoOriginalFileName has "RUNDLL32.exe" or InitiatingProcessFileName has "rundll32.exe"
+query_type: kql
+severity: medium
+techniques:
+    - T1218
+tags:
+    - '#node.js #npm'
+    - kql
+author: '@AdairJCollins'
+version: "1"
+references:
+    - https://www.linkedin.com/pulse/microsoft-defender-nodejs-supply-chain-security-alert-adair-collins-jwlce/
+    - https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
+    - https://www.virustotal.com/gui/file/c68e42f416f482d43653f36cd14384270b54b68d6496a8e34ce887687de5b441/detection
+    - https://www.joesandbox.com/analysis/1739752/0/html

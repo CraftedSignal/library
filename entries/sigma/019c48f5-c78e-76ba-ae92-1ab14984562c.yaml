@@ -1,0 +1,20 @@
+id: 019c48f5-c78e-76ba-ae92-1ab14984562c
+name: Overly Permissive File Permissions via chmod 777
+description: This rule detects the use of the 'chmod' command to set overly permissive file permissions, specifically '777' (read, write, and execute for all users) in either octal or symbolic notation. It looks for 'chmod' as the executed command and then checks its arguments for '777', '0777', 'a=rwx', 'ugo+rwx', or 'a+rwx'. This activity can indicate a misconfiguration, a security vulnerability being introduced, or an attempt to bypass security controls.
+query: "title: Overly Permissive File Permissions via chmod 777\r\nid: 3a3ff720-33fb-4e1b-a7a2-0a0e79ef1e51\r\nstatus: experimental\r\ndescription: Detects chmod commands setting 777 (or equivalent) permissions in octal or symbolic notation. These permissions allow any user full read, write, and execute access.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1222.002/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.defense-evasion\r\n    - attack.t1222.002\r\nlogsource:\r\n    product: linux\r\n    service: auditd\r\ndetection:\r\n    selection_chmod:\r\n        type: 'EXECVE'\r\n        a0: 'chmod'\r\n    selection_octal_a1:\r\n        a1:\r\n            - 777\r\n            - 0777\r\n    selection_octal_a2:\r\n        a2:\r\n            - 777\r\n            - 0777\r\n    selection_octal_a3:\r\n        a3:\r\n            - 777\r\n            - 0777\r\n    selection_symbolic_a1:\r\n        a1:\r\n            - 'a=rwx'\r\n            - 'ugo+rwx'\r\n            - 'a+rwx'\r\n    selection_symbolic_a2:\r\n        a2:\r\n            - 'a=rwx'\r\n            - 'ugo+rwx'\r\n            - 'a+rwx'\r\n    selection_symbolic_a3:\r\n        a3:\r\n            - 'a=rwx'\r\n            - 'ugo+rwx'\r\n            - 'a+rwx'\r\n    condition: selection_chmod and (1 of selection_octal_* or 1 of selection_symbolic_*)\r\nfields:\r\n    - a0\r\n    - a1\r\n    - a2\r\n    - a3\r\n    - a4\r\n    - AUID\r\n    - UID\r\nfalsepositives:\r\n    - Development and testing environments\r\n    - Installation scripts and software deployment\r\n    - Random User Activity\r\nlevel: low"
+query_type: sigma
+severity: low
+tactics:
+    - TA0005
+techniques:
+    - T1222.002
+tags:
+    - attack.defense-evasion
+    - attack.t1222.002
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1222.002/
+data_sources:
+    - linux
+    - auditd

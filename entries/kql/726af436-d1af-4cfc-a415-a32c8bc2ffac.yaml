@@ -1,0 +1,18 @@
+id: 726af436-d1af-4cfc-a415-a32c8bc2ffac
+name: Malicious Chrome Extension FreeVPN.One Detection
+description: This Logic detects the presence of the malicious Chrome extension FreeVPN.One by identifying its unique extension ID across installed browsers. The logic further correlates this presence with network communications initiated by the extension to suspicious or untrusted domains. By combining extension enumeration with traffic analysis, the detection ensures high fidelity with minimal false positives. This layered approach strengthens visibility into malicious browser add-ons masquerading as VPN tools.
+query: "let BrowserSchema=union DeviceTvmBrowserExtensions,DeviceTvmBrowserExtensionsKB\r\n|where ExtensionId =~\"jcbiifklmgnkppebelchllpdbnibihel\";\r\nlet MaliciousExtensionID = DeviceFileEvents\r\n| where FileName endswith \".crx\"\r\n| where FileName contains \"jcbiifklmgnkppebelchllpdbnibihel\"\r\n| summarize by FileName,InitiatingProcessFileName,DeviceName\r\n| summarize make_list(FileName) by InitiatingProcessFileName,DeviceName\r\n| summarize make_list(InitiatingProcessFileName) by DeviceName,tostring(list_FileName);\r\nlet ExtensionC2CTraffic=DeviceNetworkEvents\r\n| where RemoteUrl has_any (\"aitd.one\",\"extrahefty.com\",\"scan.aitd.one\",\"freevpn.one\");\r\nunion ExtensionC2CTraffic,MaliciousExtensionID,BrowserSchema\r\n\r\n//If you have TVM License for DeviceTvmBrowserExtensions then BrowserSchema is enough to detect, those who dont have it , can utilise MaliciousExtensionID.\r\n\r\n//https://koi-security.webflow.io/blog/spyvpn-the-vpn-that-secretly-captures-your-screen\r\n//https://cyberinsider.com/chrome-vpn-extension-with-100k-installs-screenshots-all-sites-users-visit/"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1176.001
+    - T1071.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://cyberinsider.com/chrome-vpn-extension-with-100k-installs-screenshots-all-sites-users-visit/
+    - https://koi-security.webflow.io/blog/spyvpn-the-vpn-that-secretly-captures-your-screen

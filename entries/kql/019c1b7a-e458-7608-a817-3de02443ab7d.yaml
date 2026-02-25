@@ -1,0 +1,14 @@
+id: 019c1b7a-e458-7608-a817-3de02443ab7d
+name: Mshta.exe HTA File Execution
+description: This rule detects the execution of Microsoft HTML Applications (HTA) files via mshta.exe, specifically when initiated by explorer.exe and the command line contains a reference to an .hta file. This behavior is often abused by adversaries to execute malicious scripts or payloads.
+query: "\r\n// KQL to detect hta execution\r\nDeviceProcessEvents\r\n| where FileName == \"mshta.exe\"\r\n  and InitiatingProcessFileName == \"explorer.exe\"\r\n  and ProcessCommandLine has \".hta\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    AccountDomain,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine,\r\n    FolderPath = tostring(split(ProcessCommandLine, \"\\\"\")[0])\r\n| extend HTAFile = extract(@\"\\S+\\.hta\", 0, ProcessCommandLine)\r\n| where isnotempty(HTAFile)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    User = strcat(AccountDomain, \"\\\\\", AccountName),\r\n    HTAFile,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.005
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

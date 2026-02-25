@@ -1,0 +1,21 @@
+id: e2d0d5c8-4eb3-446c-8cea-2f49b202988a
+name: Suspicious Use of Diskshadow by Privileged Account
+description: |+
+    This detection identifies instances where the diskshadow.exe utility is executed by a privileged user shortly after a successful logon. diskshadow.exe is a legitimate tool often abused by attackers for shadow copy manipulation and data exfiltration. Monitoring its use by privileged accounts helps identify potential malicious activity.
+
+query: "let privilegedLogons = SecurityEvent\r\n| where EventID == 4624\r\n| where TargetUserSid has \"S-1-5-21\" and TargetUserName !contains \"$\"\r\n| extend LogonID = tostring(LogonId)\r\n| project LogonTime = TimeGenerated, DeviceName, AccountName, LogonID;\r\nDeviceProcessEvents\r\n| where FileName =~ \"diskshadow.exe\"\r\n| extend LogonID = tostring(InitiatingProcessLogonId)\r\n| project ProcTime = TimeGenerated, DeviceName, AccountName = SubjectAccount, ProcessCommandLine, LogonID\r\n| join kind=inner (privilegedLogons) on DeviceName, AccountName\r\n| where ProcTime > LogonTime and ProcTime < LogonTime + 1d\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1003.003
+    - T1047
+    - T1059.003
+    - T1059.001
+    - T1560.001
+tags:
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/software/S0684/
+    - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/diskshadow

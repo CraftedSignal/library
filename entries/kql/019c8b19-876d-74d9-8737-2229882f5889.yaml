@@ -1,0 +1,19 @@
+id: 019c8b19-876d-74d9-8737-2229882f5889
+name: AI Toolchain Configuration File Modification by Package Managers or Shells
+description: This rule detects modifications to AI assistant configuration files by suspicious processes like package managers (npm, yarn) or shell interpreters (bash, powershell). This activity is indicative of a supply chain attack, specifically the SANDWORM_MODE campaign, where an attacker injects a rogue Model Context Protocol (MCP) server entry to hijack AI tools. This enables automated source code and secret theft via prompt injection.
+query: "// Name: SANDWORM_MODE AI Toolchain MCP Injection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Tactic: Persistence, Collection\r\n// Technique: T1546, Event Triggered Execution; T1539, Steal Web Session Cookie\r\n// Description: This rule detects modifications to AI assistant configuration files, a technique used by the SANDWORM_MODE campaign. The malware injects a rogue Model Context Protocol (MCP) server entry to hijack the tool, enabling automated source code and secret theft via prompt injection.\r\n// False Positive Sensitivity: Medium\r\n// References: https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning\r\n// Define the list of target configuration files for various AI developer tools.\r\nlet TargetConfigFiles = dynamic([\r\n    \"/.claude/settings.json\",\r\n    \"/Library/Application Support/Claude/claude_desktop_config.json\",\r\n    \"/.config/Claude/claude_desktop_config.json\",\r\n    \"/.cursor/mcp.json\",\r\n    \"/.continue/config.json\",\r\n    \"/.windsurf/mcp.json\"\r\n]);\r\n// Define suspicious processes that might write to these files during a supply chain attack.\r\nlet SuspiciousProcesses = dynamic([\r\n    \"npm\", \"npm.exe\",\r\n    \"npx\", \"npx.exe\",\r\n    \"yarn\", \"yarn.exe\",\r\n    \"node\", \"node.exe\",\r\n    \"sh\",\r\n    \"bash\",\r\n    \"zsh\",\r\n    \"pwsh\", \"pwsh.exe\",\r\n    \"powershell.exe\"\r\n]);\r\nDeviceFileEvents\r\n// Look for file creation or modification events.\r\n| where ActionType in (\"FileCreated\", \"FileModified\")\r\n// Filter for files matching the target configuration file paths. Using 'has_any' is more efficient than multiple 'endswith' checks.\r\n| where FolderPath has_any (TargetConfigFiles)\r\n// Filter for modifications made by suspicious scripting engines or package managers, which is indicative of a malicious post-install script.\r\n| where InitiatingProcessFileName in~ (SuspiciousProcesses)\r\n// FP Tuning: Legitimate updates to these AI tools or manual user configuration changes could cause alerts.\r\n// However, modifications by package managers or shells are highly suspicious.\r\n// If FPs occur, investigate the InitiatingProcessCommandLine to understand the context and exclude known-good scripts or processes if necessary.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    RequestAccountName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+    - TA0006
+techniques:
+    - T1546
+    - T1539
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning

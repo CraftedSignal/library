@@ -1,0 +1,28 @@
+id: a145e2f6-c503-465a-951b-48345e288fdd
+name: macOS Suspicious Launchd Entry Detection
+description: Detects macOS launchd entries that are not part of the standard Apple system, which could indicate persistence mechanisms used by malware; it is an invalid rule due to a future date.
+query: |-
+    | from datamodel:Endpoint.Filesystem where Filesystem.vendor="Plaso" AND Filesystem.agent_type="macos:launchd:entry"
+    | spath input=Filesystem.labels path=name output=launchd_label_name
+    | where isnotnull(launchd_label_name) AND NOT match(launchd_label_name, "(?i)(com\\.apple\\.|com\\.zoom\\.|com\\.google\\.GoogleUpdater|org\\.virtualbox\\.|com\\.adobe\\.|com\\.microsoft\\.)")
+    | `security_content_annotations`
+    | eval severity="high"
+    | eval rule_name="macOS Suspicious Launchd Entry"
+    | eval description="Detects macOS launchd entries that are not part of the standard Apple system, which could indicate persistence mechanisms used by malware. This rule identifies entries from forensic images (e.g., Plaso output) that do not match common benign vendor patterns."
+    | eval author="Detections.ai"
+    | eval date="2025-07-06"
+    | eval mitre_attack_techniques="T1543.001, T1543.003"
+    | eval references="https://www.abstract.security/blog/automating-macos-incident-response-dfir-as-code-in-action-against-appleprocesshub"
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.001
+    - T1543.003
+    - T1543.004
+tags:
+    - spl
+author: Rajshekar Vijay
+version: "1"

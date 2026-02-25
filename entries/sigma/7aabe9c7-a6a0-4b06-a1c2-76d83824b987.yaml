@@ -1,0 +1,59 @@
+id: 7aabe9c7-a6a0-4b06-a1c2-76d83824b987
+name: Staging of Certificate Files via Archiving Utility
+description: Detects the use of common command-line archiving utilities to compress files with extensions commonly associated with digital certificates and private keys. This behavior can indicate the staging of stolen certificates for exfiltration.
+query: |-
+    title: Staging of Certificate Files via Archiving Utility
+    id: c4c8424b-afbc-4654-911f-076252e3c281
+    status: experimental
+    description: Detects the use of common command-line archiving utilities to compress files with extensions commonly associated with digital certificates and private keys. This behavior can indicate the staging of stolen certificates for exfiltration.
+    references:
+      - https://phrack.org/issues/72/7_md
+      - https://medium.com/s2wblog/kimsuky-disguised-as-a-korean-company-signed-with-a-valid-certificate-to-distribute-troll-stealer-cfa5d54314e2
+    author: Jamari Donovan (JDtheHiddenOne)
+    date: 2025-08-27
+    tags:
+      - attack.exfiltration
+      - attack.t1560.001
+      - exfil.certificates
+      - apt.kimsuky
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: #Archive Utilities
+          - '\7z.exe'
+          - '\rar.exe'
+          - '\winrar.exe'
+          - '\zip.exe'
+        CommandLine|contains: #Command line arguments containing certificate file extensions
+          - '.key'
+          - '.crt'
+          - '.cer'
+          - '.pem'
+          - '.pfx'
+          - '.p12'
+      condition: selection
+    falsepositives:
+      - Legitimate backup or archival of certificate files by administrators
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+    - TA0009
+techniques:
+    - T1560.001
+tags:
+    - attack.exfiltration
+    - attack.t1560.001
+    - exfil.certificates
+    - apt.kimsuky
+author: Jamari Donovan (JDtheHiddenOne)
+version: "1"
+references:
+    - https://phrack.org/issues/72/7_md
+    - https://medium.com/s2wblog/kimsuky-disguised-as-a-korean-company-signed-with-a-valid-certificate-to-distribute-troll-stealer-cfa5d54314e2
+data_sources:
+    - process_creation
+    - windows

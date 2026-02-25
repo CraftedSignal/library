@@ -1,0 +1,28 @@
+id: 567fa6fa-29a7-4b2b-8578-ea74f2eb32b3
+name: Massive services termination burst
+description: Detects scenarios where an attacker attempts to stop multiples services on a host. Attacker may target services related to databases, security products or backups (Veeam, Symantec, Acronis ...).
+query: "title: Massive services termination burst\ndescription: Detects scenarios where an attacker attempts to stop multiples services on a host. Attacker may target services related to databases, security products or backups (Veeam, Symantec, Acronis ...).\nreferences:\n- https://www.microsoft.com/security/blog/2020/03/05/human-operated-ransomware-attacks-a-preventable-disaster/\n- https://fourcore.io/blogs/ryuk-ransomware-simulation-mitre-ttp\n- https://thedfirreport.com/2021/12/13/diavol-ransomware/\n- https://www.sentinelone.com/labs/black-basta-ransomware-attacks-deploy-custom-edr-evasion-tools-tied-to-fin7-threat-actor/\n- https://www.trendmicro.com/en_us/research/22/h/ransomware-actor-abuses-genshin-impact-anti-cheat-driver-to-kill-antivirus.html\ntags:\n- attack.impact\n- attack.t1489 # Service Stop \n- attack.defense_evasion\n- attack.1562.001 # Impair Defenses: Disable or Modify Tools \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection: # net stop <service> | sc stop <service>\n  selection_net_stop:  \n    NewProcessName|endswith:\n      - '\\net1.exe'\n      - '\\net.exe'\n    CommandLine|contains|all:\n      - net\n      - stop\n  \n  selection_sc_stop:\n    NewProcessName|endswith: '\\sc.exe'\n    CommandLine|contains|all:\n      - sc\n      - stop\n\n  condition: selection_net_stop or selection_sc_stop | count(EventRecordID) by Computer > 2\n  timeframe: 1m\nfalsepositives:\n- Administrator debugging\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1489
+    - T1562.001
+tags:
+    - attack.impact
+    - attack.t1489
+    - attack.defense_evasion
+    - attack.1562.001
+author: mdecrevoisier
+version: "1"
+references:
+    - https://www.microsoft.com/security/blog/2020/03/05/human-operated-ransomware-attacks-a-preventable-disaster/
+    - https://fourcore.io/blogs/ryuk-ransomware-simulation-mitre-ttp
+    - https://thedfirreport.com/2021/12/13/diavol-ransomware/
+    - https://www.sentinelone.com/labs/black-basta-ransomware-attacks-deploy-custom-edr-evasion-tools-tied-to-fin7-threat-actor/
+    - https://www.trendmicro.com/en_us/research/22/h/ransomware-actor-abuses-genshin-impact-anti-cheat-driver-to-kill-antivirus.html
+data_sources:
+    - process_creation
+    - windows

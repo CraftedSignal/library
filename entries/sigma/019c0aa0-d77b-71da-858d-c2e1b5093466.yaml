@@ -1,0 +1,53 @@
+id: 019c0aa0-d77b-71da-858d-c2e1b5093466
+name: Browser Search Hijacking via Manifest Override
+description: Detects the creation or modification of a browser extension's manifest.json file that overrides the default search provider to a known malicious or suspicious domain. This technique is used by extensions like 'DPS Websafe' and 'Stock Informer' for search hijacking.
+query: |
+    title: Browser Search Hijacking via Manifest Override
+    id: 8931232b-7d71-4cd9-aa81-5f242308e189
+    status: experimental
+    description: >-
+      Detects the creation or modification of a browser extension's manifest.json
+      file that overrides the default search provider to a known malicious or
+      suspicious domain. This technique is used by extensions like 'DPS Websafe' and
+      'Stock Informer' for search hijacking.
+    references:
+      - https://www.security.com/threat-intelligence/chrome-extensions-are-you-getting-more-you-bargained
+    author: detections.ai
+    date: 2026-01-29
+    tags:
+      - attack.t1176
+    logsource:
+      category: file_event
+    detection:
+      # This rule requires a log source that can inspect the contents of created or modified files.
+      selection_file:
+        TargetFilename|endswith: '\manifest.json' # Catches manifest files for various browsers (Chrome, Edge, etc.)
+      selection_keywords:
+        FileContents|contains|all:
+          - '"chrome_settings_overrides"'
+          - '"search_provider"'
+          - '"search_url"' # Key strings indicating a search override configuration
+      selection_domains:
+        FileContents|contains:
+          - 'dpswebsafe.com'
+          - 'searchingpart.com' # Known malicious domains from the intel
+      condition: all of selection_*
+    falsepositives:
+      - This rule is specific to known malicious domains, so false positives are
+        unlikely. However, threat actors may change domains.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+techniques:
+    - T1176.001
+    - T1176
+tags:
+    - attack.t1176
+author: detections.ai
+version: "2"
+references:
+    - https://www.security.com/threat-intelligence/chrome-extensions-are-you-getting-more-you-bargained
+data_sources:
+    - file_event

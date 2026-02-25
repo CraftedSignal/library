@@ -1,0 +1,13 @@
+id: ab3dcb56-d324-4f96-bec6-2a6fa41d6bab
+name: '[IC] - Identifying Devices by Vendor based on Inbound Connections'
+description: This KQL Query focuses on summarising the number of devices attempting to connect to exposed servers, categorised by vendor, by decoding their MAC addresses. This information can help you to identify unexpected devices vendors, detect virtual devices or correlate specific manufacturers with known threats.
+query: "// Importing the Vendor MAC Address table \nlet mac_info = externaldata(mac: string)[@\"https://raw.githubusercontent.com/Sergio-Albea-Git/Threat-Hunting-KQL-Queries/refs/heads/main/Security-Lists/mac_list_Type2.txt\"] with (format=\"txt\", ignoreFirstRecord=True);\nlet info =mac_info\n| extend SplitValues = split(mac, \",\")\n| extend mac = tostring(SplitValues[0]), vendor_sn = tostring( SplitValues[1]), vendor = tostring(SplitValues[2])\n| project mac,vendor;\n// selecting the Source MAC Address of the remote connections\nDeviceNetworkEvents \n| extend AdditionalFields = parse_json( AdditionalFields)\n| extend direction =  AdditionalFields[\"direction\"]\n| where direction has \"In\"\n| extend Source_Mac =  tostring(AdditionalFields[\"Source Mac\"])\n// formatting the First 3 Octets of the MAC Address\n| extend MAC_Prefix_format = replace(\":\", \"-\", Source_Mac)\n| extend MAC_Prefix = substring(MAC_Prefix_format, 0, 8)\n// joining the Vendor MAC address info table\n| join kind=inner (info) on $left.MAC_Prefix == $right.mac\n// Getting the Country of the RemoteIPs\n| extend geo_ip = tostring(geo_info_from_ip_address(RemoteIP).country)\n| where isnotempty (geo_ip)\n| summarize Different_Countries_using_Manufacter_Device= dcount(geo_ip), make_set(geo_ip),Total_devices_by_vendor=dcount(Source_Mac),Total_different_RemoteIPs=dcount(RemoteIP),make_set(RemoteIP)  by vendor```"
+query_type: kql
+severity: medium
+tags:
+    - KQL
+    - Sergio_Albea
+    - kql
+version: "1"
+references:
+    - https://medium.com/detect-fyi/identifying-device-vendors-behind-connections-attempts-based-on-mac-addresses-648ffef86941

@@ -1,0 +1,62 @@
+id: 019ab074-9731-719a-92d3-60b0495fe326
+name: DadSec default URL pattern
+description: |
+    This query identifies an anomalous pattern associated with behavior performed using the PhaaS platform with adversary-in-the-middle (AiTM) capabilities, DadSec.
+query: |-
+    id: 3b7b825d-5c15-45b3-a93c-dcc4b8dad47b
+    name: DadSec default URL pattern
+    description: |
+      'This query identifies an anomalous pattern associated with behavior performed using the PhaaS platform with adversary-in-the-middle (AiTM) capabilities, DadSec.
+      Ref: https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/phaas-the-secrets-the-hidden-ties-between-tycoon2fa-and-dadsecs-operations/'
+    requiredDataConnectors:
+      - connectorId: MicrosoftThreatProtection
+        dataTypes:
+        - DeviceNetworkEvents
+      - connectorId: PaloAltoNetworks
+        dataTypes:
+          - CommonSecurityLog
+    tactics:
+      - Credential Access
+    relevantTechniques:
+      - T1557
+    query: |
+      let starttime = ago(90d);
+      let endtime = now();
+      let DeviceNetworkEvents = materialize(DeviceProcessEvents
+        | where TimeGenerated >= starttime
+        | where TimeGenerated <= endtime
+        | where isnotempty(RemoteUrl)
+        | where RemoteUrl has '?id='
+        | exend encodeduser = strcat('?id=', base64_encode_tostring(InitiatingProcessAccountUpn))
+        | where isnotempty(encodeduser)
+        | where RemoteUrl has encodeduser);
+      let CommonSecurityLog = materialize(CommonSecurityLog
+        | where TimeGenerated >= starttime
+        | where TimeGenerated <= endtime
+        | where DeviceVendor =~ 'palo alto networks'
+        | where DeviceEventClassID =~ 'url'
+        | where isnotempty(RequestURL)
+        | where RequestURL has '?id='
+        | extend encodeduser = strcat('?id=', base64_encode_tostring(SourceUserName))
+        | where isnotempty(encodeduser)
+        | where RequestURL has encodeduser);
+      union DeviceNetworkEvents, CommonSecurityLog
+      | project-reorder TimeGenerated, Type
+      | sort by TimeGenerated asc
+    version: 1.0.2
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1557
+tags:
+    - kql
+    - tactic:Credential Access
+    - technique:T1557
+version: "4"
+references:
+    - https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/phaas-the-secrets-the-hidden-ties-between-tycoon2fa-and-dadsecs-operations/
+data_sources:
+    - DeviceNetworkEvents
+    - CommonSecurityLog

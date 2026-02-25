@@ -1,0 +1,67 @@
+id: 608db39a-5359-4834-9990-b5a5a00d3cf6
+name: TryCloudflare Tunnel Misuse for Malware Delivery
+description: Detects the misuse of TryCloudflare tunnels for malware delivery, often involving the download and execution of malicious scripts or payloads. Threat actors abuse the temporary tunnel feature to host and deliver malware.
+query: |-
+    title: TryCloudflare Tunnel Misuse for Malware Delivery
+    id: e8f7c6d5-a4b3-2c1d-0e9f-8a7b6c5d4e3f
+    status: experimental
+    description: Detects the misuse of TryCloudflare tunnels for malware delivery, often involving the download and execution of malicious scripts or payloads. Threat actors abuse the temporary tunnel feature to host and deliver malware.
+    author: Detections.ai
+    date: 2025-07-08
+    references:
+        - https://www.proofpoint.com/us/blog/threat-insight/threat-actor-abuses-cloudflare-tunnels-deliver-rats
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_trycloudflare_domain:
+            CommandLine|contains: '.trycloudflare.com'
+        selection_exec_tools:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\cmd.exe'
+                - '\python.exe'
+                - '\py.exe'
+                - '\wscript.exe'
+                - '\cscript.exe'
+                - '\mshta.exe'
+                - '\bitsadmin.exe'
+                - '\curl.exe'
+                - '\wget.exe'
+                - '\certutil.exe'
+                - '\regsvr32.exe'
+                - '\rundll32.exe'
+        condition: all of selection_*
+    falsepositives:
+        - Legitimate use of Cloudflare tunnels for temporary development or testing purposes, though `trycloudflare.com` is less common for enterprise legitimate use.
+    level: high
+    tags:
+        - attack.defense_evasion
+        - attack.command_and_control
+        - attack.t1572 # Cloudflare Tunneling
+        - attack.t1102.002 # Web Service - Bidirectional Communication (C2 over web service)
+        - attack.t1071.001 # Application Layer Protocol - Web Protocols (C2 over HTTP/S)
+        - detection.emerging_threats
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1572
+    - T1102.002
+    - T1071.001
+tags:
+    - attack.defense_evasion
+    - attack.command_and_control
+    - attack.t1572
+    - attack.t1102.002
+    - attack.t1071.001
+    - detection.emerging_threats
+author: Detections.ai
+version: "1"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/threat-actor-abuses-cloudflare-tunnels-deliver-rats
+data_sources:
+    - process_creation
+    - windows

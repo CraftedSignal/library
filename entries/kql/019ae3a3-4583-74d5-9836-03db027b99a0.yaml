@@ -1,0 +1,44 @@
+id: 019ae3a3-4583-74d5-9836-03db027b99a0
+name: Shai-Hulud 2.0 - Large bun_environment.js File Creation
+description: Detects the creation of an unusually large 'bun_environment.js' file (>= 9MB). This is a characteristic of the Shai-Hulud 2.0 worm which uses extreme obfuscation, resulting in a massive payload file.
+query: |
+    // Name: Shai-Hulud 2.0 - Large bun_environment.js File Creation
+    // Author: detections.ai
+    // Date: 2025-12-03
+    // Description: Detects the creation of an unusually large 'bun_environment.js' file (>= 9MB). This is a characteristic of the Shai-Hulud 2.0 worm which uses extreme obfuscation, resulting in a massive payload file.
+    // MITRE ATT&CK: T1027 (Obfuscated Files or Information), T1059.003 (JavaScript/Node.js)
+    // References: https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    // False Positive Sensitivity: Medium
+    DeviceFileEvents
+    // Look for file creation or modification events.
+    | where ActionType in ("FileCreated", "FileRenamed")
+    // Filter for the specific malicious filename.
+    | where FileName == "bun_environment.js"
+    // Filter for the large file size characteristic of the malware's obfuscated payload.
+    | where FileSize >= 9437184
+    // FP Tuning: While the large file size is a strong indicator, legitimate but poorly bundled JavaScript files could trigger this.
+    // Investigate the file path (FolderPath) to understand the associated package and context.
+    // Consider adding process-based exclusions if legitimate tools are found to cause FPs.
+    | project
+        Timestamp,
+        DeviceName,
+        FileName,
+        FolderPath,
+        FileSize,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.007
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

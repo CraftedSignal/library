@@ -1,0 +1,20 @@
+id: 5ed9895f-0d49-4166-a0b3-3ae4b9a36de5
+name: Base64 Encoded UPN in Clicked URL
+description: This rule detects attempts to phish user credentials by identifying Base64 encoded User Principal Names (UPNs) or their domains within URLs clicked by users. Adversaries often encode sensitive information like UPNs in malicious URLs to bypass security controls or to make the links appear less suspicious. The rule specifically looks for partial Base64 encoded strings of the user's UPN or domain within the 'UrlChain' field of URL click events.
+query: "// Hunt Base64 encoded UPN's in clicked URL's\r\nlet Length = 20;\r\nUrlClickEvents\r\n| extend AccountUpnLower = tolower(AccountUpn)\r\n| extend EncodedUpn = base64_encode_tostring(AccountUpnLower)\r\n| extend ShortUpn = substring(EncodedUpn,0,Length)\r\n| extend AccountDomain = tostring(split(AccountUpnLower,\"@\")[-1])\r\n| extend EncodedDomain = base64_encode_tostring(AccountDomain)\r\n| extend DomainLength = strlen(EncodedDomain)-8\r\n| extend ShortDomain = substring(EncodedDomain, 4, DomainLength)\r\n| where UrlChain contains ShortUpn or UrlChain contains ShortDomain\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566
+    - T1566.002
+    - T1132
+    - T1132.001
+tags:
+    - kql
+author: LindenSec
+version: "1"
+references:
+    - https://www.lindensec.com/post/detecting-b64-encoded-upns-in-clicked-urls-with-kql

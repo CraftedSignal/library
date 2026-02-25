@@ -1,0 +1,62 @@
+id: 0199c03a-5838-716e-9b22-42138e6bfdb8
+name: FreePBX SQL Injection Attempt (CVE-2025-57819)
+description: Detects attempts to exploit a SQL injection vulnerability (CVE-2025-57819) in FreePBX via a malicious GET request to '/admin/ajax.php'. Attackers leverage this to achieve remote code execution by inserting a malicious cron job.
+query: |
+    title: FreePBX SQL Injection Attempt (CVE-2025-57819)
+    id: 811e4087-61ff-40af-a910-a9cdab3937e1
+    status: experimental
+    description: Detects attempts to exploit a SQL injection vulnerability
+      (CVE-2025-57819) in FreePBX via a malicious GET request to '/admin/ajax.php'.
+      Attackers leverage this to achieve remote code execution by inserting a
+      malicious cron job.
+    references:
+      - https://isc.sans.edu/diary/32350
+    author: detections.ai
+    date: 2025-10-07
+    tags:
+      - attack.t1190
+      - attack.t1213
+      - attack.t1505.003
+      - cve.2025.57819
+      - vuln.freepbx
+      - tech.sqli
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        cs-method: 'GET' # The exploit uses a GET request
+        c-uri-path|endswith: '/admin/ajax.php' # The vulnerable endpoint
+        c-uri-query|contains|all:
+          - 'module=FreePBX\modules\endpoint\ajax' # Specifies the vulnerable module
+          - 'command=model' # The command used in the exploit chain
+          - 'brand=' # The parameter vulnerable to SQL injection
+          - 'INSERT INTO cron_jobs' # SQL statement to insert a malicious cron job for persistence and RCE
+      condition: selection
+    falsepositives:
+      - Legitimate administrative traffic should not match this pattern.
+    level: critical
+    associated_cves:
+      - CVE-2025-57819
+query_type: sigma
+severity: critical
+tactics:
+    - TA0001
+    - TA0009
+    - TA0003
+techniques:
+    - T1190
+    - T1213
+    - T1505.003
+tags:
+    - attack.t1190
+    - attack.t1213
+    - attack.t1505.003
+    - cve.2025.57819
+    - vuln.freepbx
+    - tech.sqli
+author: detections.ai
+version: "3"
+references:
+    - https://isc.sans.edu/diary/32350
+data_sources:
+    - webserver

@@ -1,0 +1,47 @@
+id: 019bfa80-4257-778c-ab01-d15ca0f22c56
+name: Suspicious TrueSight Driver Load from Temporary Location
+description: Detects the loading of the 'truesight.sys' driver from non-standard or temporary locations. This activity is associated with a campaign where threat actors use a vulnerable version of this driver to terminate security products before deploying ransomware or RATs, a technique known as Bring Your Own Vulnerable Driver (BYOVD).
+query: |-
+    // Rule Title: Suspicious TrueSight Driver Load
+    // Author: detections.ai
+    // Date: 2026-01-26
+    // Description: Detects the loading of the 'truesight.sys' driver from non-standard or temporary locations. This activity is associated with a campaign where threat actors use a vulnerable version of this driver to terminate security products before deploying ransomware or RATs.
+    // References: https://cybersecuritynews.com/hackers-weaponized-2500-security-tools/
+    // MITRE ATT&CK TTPs: T1562.001 (Impair Defenses: Disable or Modify Tools), T1068 (Exploitation for Privilege Escalation)
+    // False Positive Sensitivity: Medium
+
+    DeviceEvents
+    // Look for driver load events, which are essential for this BYOVD technique
+    | where ActionType == "DriverLoad"
+    // Filter for the specific driver file name associated with the threat
+    | where FileName =~ "truesight.sys"
+    // Focus on drivers loaded from common staging directories used by malware
+    | where FolderPath has_any (@"\Temp\", @"\AppData\Local\", @"\Users\Public\", @"\PerfLogs\", @"\Windows\Tasks\")
+    // Potential for False Positives: The legitimate RogueKiller software uses this driver.
+    // While loading from temp/user directories is suspicious, a legitimate installer might do this during setup.
+    // Consider adding exclusions for known legitimate installer processes or paths if false positives occur.
+    // For example: `and InitiatingProcessFileName !~ "roguekiller_setup.exe"`
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA1,
+        SHA256,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1068
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://cybersecuritynews.com/hackers-weaponized-2500-security-tools/

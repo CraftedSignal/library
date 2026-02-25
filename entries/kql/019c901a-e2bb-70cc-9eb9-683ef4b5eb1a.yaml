@@ -1,0 +1,37 @@
+id: 019c901a-e2bb-70cc-9eb9-683ef4b5eb1a
+name: Affiliate Tag Hijacking Indicators
+description: Detects web navigation to Amazon and AliExpress that contains specific hardcoded affiliate tags used by the 10xprofit extension network. The presence of these tags indicates active affiliate hijacking, likely due to a malicious browser extension.
+query: |
+    // Name: Affiliate Tag Hijacking Indicators
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects web navigation to Amazon and AliExpress that contains specific hardcoded affiliate tags used by the 10xprofit extension network. The presence of these tags indicates active affiliate hijacking.
+    // Severity: Medium
+    // Status: Available
+    // Tactics: Impact
+    // Techniques: T1657
+    // References: https://socket.dev/blog/malicious-chrome-extension-performs-hidden-affiliate-hijacking
+    let MaliciousTags = dynamic(["tag=10xprofit-20", "affiliate_key=_c3pFXV63"]);
+    let TargetDomains = dynamic(["amazon.", "aliexpress."]);
+    let BrowserProcesses = dynamic(["msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "vivaldi.exe"]);
+    DeviceNetworkEvents
+    // Scope to common browser processes to improve performance and reduce false positives.
+    | where InitiatingProcessFileName in~ (BrowserProcesses)
+    // Filter for network connections to target e-commerce sites.
+    | where RemoteUrl has_any (TargetDomains)
+    // Look for the specific affiliate tags in the URL.
+    | where RemoteUrl has_any (MaliciousTags)
+    // Summarize results to reduce alert volume, showing the first and last time the activity was seen.
+    | summarize FirstSeen=min(Timestamp), LastSeen=max(Timestamp), Urls=make_set(RemoteUrl, 5) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1657
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-chrome-extension-performs-hidden-affiliate-hijacking

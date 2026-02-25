@@ -1,0 +1,46 @@
+id: 019c8a25-fc22-7396-bd82-bf086c74ce56
+name: PowerShell ETW/AMSI Logging Bypass Attempt
+description: Detects PowerShell commands attempting to disable Event Tracing for Windows (ETW) or the Antimalware Scan Interface (AMSI) by accessing and modifying internal .NET fields. This technique is used by malware like MIMICRAT to evade detection.
+query: |
+    // Name: PowerShell ETW/AMSI Logging Bypass Attempt
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects PowerShell commands attempting to disable Event Tracing for Windows (ETW) or the Antimalware Scan Interface (AMSI) by accessing and modifying internal .NET fields. This technique is used by malware like MIMICRAT to evade detection.
+    // Mitre ATT&CK Tactic: Defense Evasion
+    // Mitre ATT&CK Technique: T1562.001 - Impair Defenses: Disable or Modify Tools
+    // References: https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    | where FileName =~ "powershell.exe" or InitiatingProcessFileName =~ "powershell.exe"
+    // Key logic: Looks for command lines containing specific strings used to patch ETW or AMSI in memory via reflection.
+    | where ProcessCommandLine has_all (
+        "System.Diagnostics.Eventing.EventProvider",
+        "m_enabled",
+        "NonPublic"
+      ) or ProcessCommandLine has_all (
+        "System.Management.Automation.AmsiUtils",
+        "amsiInitFailed",
+        "NonPublic"
+      )
+    // Comment: While highly suspicious, some legitimate administrative or security testing scripts might interact with these components. Review the full command line and parent process to determine legitimacy.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/mimicrat-custom-rat-mimics-c2-frameworks

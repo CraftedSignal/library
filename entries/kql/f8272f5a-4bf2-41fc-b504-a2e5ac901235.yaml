@@ -1,0 +1,13 @@
+id: f8272f5a-4bf2-41fc-b504-a2e5ac901235
+name: Kerberos Roasting Detection
+description: 'KQL Query from file: Kerberos Roasting Detection'
+query: "// Kerberos Roasting Detection \U0001F575️‍♀️\U0001F525\n\n// Built a KQL detection with the IdentityLogonEvents table to outsmart attackers. Bonus? A VIP whitelist entry: Wendy@Wendy.com, roasting bad actors with style!\U0001F354\U0001F923\n\nlet WhitelistAdminAccount = dynamic([\"Wendy@Wendy.com\"]);\nIdentityLogonEvents \n| where Timestamp > ago(1h)\n| where Protocol == \"Kerberos\"\n| where parse_json(AdditionalFields)[\"AttackTechniques\"] has 'T1558.003'\n| where parse_json(AdditionalFields)[\"EncryptionType\"] has \"rc4hmac\"\n| extend SPNs = tostring(parse_json(AdditionalFields)[\"Spns\"])\n| summarize Target_SPN=dcount(SPNs) by AccountUpn\n| where not (AccountUpn has_any(WhitelistAdminAccount))\n| where Target_SPN > 3\n"
+query_type: kql
+tactics:
+    - TA0006
+techniques:
+    - T1558.003
+    - T1558
+tags:
+    - kql
+version: "1"

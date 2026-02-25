@@ -1,0 +1,14 @@
+id: d08fa3b6-420b-4643-8b30-306b92887fc2
+name: Detection of Remote Monitoring and Management (RMM) Tool Usage
+description: This rule detects suspicious activities related to Remote Monitoring and Management (RMM) tools by querying various data sources. It identifies processes, file signatures, network connections, and firewall logs associated with known RMM tools and domains, helping to uncover potential security threats. The rule leverages an external IOC list for RMM tool names, file signatures, and associated domains.
+query: "## \U0001F50D KQL Description\n#### The objective of this KQL script is to detect suspicious activities related to Remote Monitoring and Management (RMM) tools by querying various data sources. \n#### It identifies processes, file signatures, network connections, and firewall logs associated with known RMM tools and domains, helping to uncover potential security threats.\n#### The list of RMM tools are provided in the IOC Folder with name IOC_RMM where the KQL checks if the list of RMM Tools from the IOC_RMM is present in the organization.\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic: Command and Control(TA0011)\n#### Technique: Remote Access Tools(T1219)\n### Query:\n```KQL\nlet IOC_RMM = externaldata(Type:string, Value:string, Source:string)\n[h'https://raw.githubusercontent.com/SubashGhimire/Hunting-Queries-and-Detection-Rule-Microsoft-Sentinel-Defender/refs/heads/main/IOC/IOC_RMM.csv'];\nlet RmmTool =\nIOC_RMM\n| where Type == \"RmmToolName\"\n| project Value;\nlet DigitalSignature =\nIOC_RMM\n| where Type == \"File Signature\"\n| project Value;\nlet URLDomain =\nIOC_RMM\n| where Type == \"domain\"\n| project Value;\nlet DeviceProcess =\nDeviceProcessEvents\n| where Timestamp >= ago(90d)\n| where ProcessVersionInfoCompanyName has_any(RmmTool) or ProcessVersionInfoProductName has_any (RmmTool);\nlet FileCertificateevents =\nDeviceFileCertificateInfo\n| where Timestamp >= ago(90d)\n| where Signer has_any(DigitalSignature);\nlet DeviceNetworkConnection = \nDeviceNetworkEvents\n| where Timestamp >= ago(90d)\n| where RemoteUrl has_any (URLDomain);\nlet FirewallNetworkConnection = CommonSecurityLog\n| where TimeGenerated >= ago(90d)\n| where DeviceAction == \"pass\"\n| where DestinationHostName has_any (URLDomain);\nunion DeviceProcess, FileCertificateevents, DeviceNetworkConnection, FirewallNetworkConnection\n```\n"
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - kql
+version: "1"
+references:
+    - https://raw.githubusercontent.com/SubashGhimire/Hunting-Queries-and-Detection-Rule-Microsoft-Sentinel-Defender/refs/heads/main/IOC/IOC_RMM.csv

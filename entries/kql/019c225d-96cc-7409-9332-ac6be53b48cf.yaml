@@ -1,0 +1,26 @@
+id: 019c225d-96cc-7409-9332-ac6be53b48cf
+name: Identify Vulnerable versions of Notepad++ (Ver <8.9.1)
+description: Identify Vulnerable versions of Notepad++ (Ver <8.9.1)
+query: |-
+    //Identify Vulnerable versions of NOtepad++
+    // https://notepad-plus-plus.org/news/hijacked-incident-info-update/
+    DeviceTvmSoftwareInventory
+    | where SoftwareName == @"notepad++"
+    | extend Major = toint(split(SoftwareVersion, ".")[0]),
+             Minor = toint(split(SoftwareVersion, ".")[1]),
+             Patch = toint(split(SoftwareVersion, ".")[2])
+    | extend VulnerabilityStatus = iff(Major < 8 or (Major == 8 and Minor < 9) or (Major == 8 and Minor == 9 and Patch < 1), "vulnerable", "not vulnerable")
+    | where VulnerabilityStatus == "vulnerable"
+    | project DeviceName, SoftwareName, SoftwareVersion, VulnerabilityStatus
+query_type: kql
+severity: medium
+techniques:
+    - T1195.002
+    - T1204.002
+    - T1105
+tags:
+    - kql
+author: AJ
+version: "2"
+references:
+    - https://notepad-plus-plus.org/news/hijacked-incident-info-update/

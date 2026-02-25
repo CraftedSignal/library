@@ -1,0 +1,18 @@
+id: 019c8c23-7b56-705c-b9e2-3dc0cebc5822
+name: ASP.NET Identity Data Exfiltration Endpoints via Malicious NuGet Packages
+description: Detects network requests to specific URI endpoints associated with the DOMOAuth2_ and IRAOAuth2.0 malicious NuGet packages. These packages exfiltrate ASP.NET Identity data to a local C2 proxy. The rule specifically looks for traffic to these URIs on localhost via port 7152.
+query: "// Name: ASP.NET Identity Data Exfiltration Endpoints\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects network requests to specific URI endpoints associated with the DOMOAuth2_ and IRAOAuth2.0 malicious NuGet packages. These packages exfiltrate ASP.NET Identity data to a local C2 proxy.\r\n// False Positives: While the URI paths are specific to the malware, other applications could theoretically use similar endpoint names. The rule is scoped to localhost traffic on port 7152 to significantly reduce false positives. If legitimate applications use this port, they may need to be excluded.\r\n// References: https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential\r\n// MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols)\r\nlet exfil_endpoints = dynamic([\r\n    \"/get-permissions\",\r\n    \"/get-role-permissions\",\r\n    \"/update-role-permissions\",\r\n    \"/update-user-permissions\"\r\n]);\r\nlet loopback_ips = dynamic([\"127.0.0.1\", \"::1\"]);\r\nDeviceNetworkEvents\r\n// Look for network requests containing the specific URI paths used for exfiltration.\r\n| where RemoteUrl has_any (exfil_endpoints)\r\n// The malware directs this traffic to a local proxy on a non-standard port.\r\n| where (RemoteIP in (loopback_ips) or RemoteUrl has \"localhost\") and RemotePort == 7152\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1071.001
+    - T1090.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential

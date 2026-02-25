@@ -1,0 +1,53 @@
+id: 09ce41e9-3826-4635-8b0e-6979ecbcc431
+name: COLDRIVER LOSTKEYS PowerShell Execution Detection
+description: Detects suspicious PowerShell command lines often used in the initial stage of the COLDRIVER LOSTKEYS infection chain.
+query: |-
+    title: COLDRIVER LOSTKEYS Initial PowerShell Execution
+    id: 00000000-0000-0000-0000-000000000000 # Placeholder, replace with a unique ID
+    status: experimental
+    description: Detects suspicious PowerShell command lines often used in the initial stage of the COLDRIVER LOSTKEYS infection chain to fetch and execute subsequent stages, potentially delivered via a fake CAPTCHA page and Run dialog.
+    author: Aaron Mog - Detections.ai
+    date: 2025-05-09
+    references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/coldriver-steal-documents-western-targets-ngos
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+            CommandLine|contains:
+                - 'DownloadString'
+                - 'Invoke-Expression'
+                - 'iex'
+                - '-enc'
+                - '-encodedcommand'
+                - 'FromBase64String'
+        condition: selection
+    falsepositives:
+        - Legitimate administrative scripts or tools that use these PowerShell cmdlets or parameters. Further tuning may be required.
+    level: high
+    tags:
+        - attack.execution
+        - attack.t1059.001 # PowerShell
+        - attack.defense_evasion
+        - attack.t1027 # Obfuscated Files or Information
+        - attack.ingress_tool_transfer # T1105
+        - detection.emerging_threats
+        - threat_group.coldriver
+        - malware.lostkeys
+query_type: sigma
+severity: medium
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense_evasion
+    - attack.t1027
+    - attack.ingress_tool_transfer
+    - detection.emerging_threats
+    - threat_group.coldriver
+    - malware.lostkeys
+author: Detections.ai
+version: "1"

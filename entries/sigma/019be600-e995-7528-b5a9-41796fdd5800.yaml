@@ -1,0 +1,58 @@
+id: 019be600-e995-7528-b5a9-41796fdd5800
+name: Python In-Memory Execution via ProcFS
+description: Detects a Python process executing a binary from an in-memory file descriptor via the /proc filesystem. This technique was observed in the malicious 'sympy-dev' PyPI package, which used it to execute a cryptominer from memory, bypassing some file-based detections.
+query: |
+    title: Python In-Memory Execution via ProcFS
+    id: 7fdd22a2-8dfb-4230-87ca-63f79b3ce5e6
+    status: experimental
+    description: >-
+      Detects a Python process executing a binary from an in-memory file descriptor
+      via the /proc filesystem. This technique was observed in the malicious
+      'sympy-dev' PyPI package, which used it to execute a cryptominer from memory,
+      bypassing some file-based detections.
+    references:
+      - >-
+        https://socket.dev/blog/pypi-package-impersonates-sympy-to-deliver-cryptomining-malware
+    author: tim@detections.ai
+    date: 2026-01-22T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1059.006
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        CommandLine|contains: /proc/self/fd/
+        Image|endswith:
+          - /python
+          - /python2
+          - /python3
+          - /python3.8
+          - /python3.9
+          - /python3.10
+          - /python3.11
+          - /python3.12
+      condition: selection
+    falsepositives:
+      - Legitimate but rare software behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.006
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1059.006
+author: tim@detections.ai
+version: "3"
+references:
+    - https://socket.dev/blog/pypi-package-impersonates-sympy-to-deliver-cryptomining-malware
+data_sources:
+    - process_creation
+    - linux

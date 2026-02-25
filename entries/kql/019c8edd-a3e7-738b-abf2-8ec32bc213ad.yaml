@@ -1,0 +1,19 @@
+id: 019c8edd-a3e7-738b-abf2-8ec32bc213ad
+name: PowerShell WSUS Recon and Exfil
+description: Detects PowerShell execution containing encoded commands that perform network and domain enumeration and exfiltrate the output to an external web service. This is a known pattern following exploitation of WSUS vulnerability CVE-2025-59287.
+query: "// Name: PowerShell WSUS Recon and Exfil\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects PowerShell execution containing encoded commands that perform network and domain enumeration and exfiltrate the output to an external web service. This is a known pattern following exploitation of WSUS vulnerability CVE-2025-59287.\r\n// False Positives: Medium. The combination of enumeration commands with encoded execution and exfiltration to a webhook is highly suspicious. However, legitimate administrative scripts might perform similar actions. Review the full command line and parent process for context. Consider adding specific webhook domains to an exclusion list if they are used for legitimate purposes.\r\n// References: https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability\r\n// MITRE TTPs: T1059.001, T1087.002, T1016, TA0010\r\nDeviceProcessEvents\r\n// Look for process creation events from the last day\r\n| where Timestamp > ago(1d)\r\n// Focus on PowerShell execution\r\n| where FileName =~ \"powershell.exe\"\r\n// Detects the specific combination of enumeration and exfiltration commands seen in CVE-2025-59287 exploitation\r\n| where (ProcessCommandLine has_any (\"-ec\", \"-encodedcommand\") or ProcessCommandLine contains \"FromBase64String\") // Checks for encoded commands\r\n    and ProcessCommandLine has \"net user /domain\" // Domain user enumeration\r\n    and ProcessCommandLine has \"ipconfig /all\" // Network configuration enumeration\r\n    and ProcessCommandLine has_any (\"webhook.site\", \"iwr\", \"curl.exe\") // Exfiltration methods\r\n// Correlate with the parent process being w3wp.exe or wsusservice.exe for higher fidelity, if possible in your environment.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0002
+    - TA0007
+techniques:
+    - T1059.001
+    - T1087.002
+    - T1016
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability

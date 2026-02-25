@@ -1,0 +1,22 @@
+id: e05ff913-2639-4138-abc2-67ba72effeaf
+name: '[IC] - Detecting non-familiar DHCPDomains configured in our devices'
+description: On environments managing sensible or critical information, I am not really happy when their local device configuration are modified and their network rely on airports, hotels, or the nearest coffee shop's Wi-Fi. This Query review if the TCPIP register is modified and it DHCP Domain is managed by a non-trusted/known network. It would help to restrict their access to enterprise data until be 100% sure they are using a VPN or back to enterprise DHCP Domain.
+query: |-
+    DeviceRegistryEvents
+    | where RegistryKey contains "tcpip"
+    | where RegistryValueName contains "dhcpdomain"
+    // to reduce the number of false positive, I moved out localIPs, results with "." to reduce the number of local home routers and specific country
+    | where RegistryValueData !contains "192." and RegistryValueData contains "." and RegistryValueData !endswith ".es"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1112
+tags:
+    - KQL
+    - Sergio_Albea
+    - kql
+author: Sergio Albea
+version: "1"

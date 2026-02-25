@@ -1,0 +1,57 @@
+id: 019a078c-d013-707b-9b7b-7a682785745b
+name: macOS AMOS/Odyssey Stealer XPC Service Interaction
+description: Detects the interaction with macOS XPC services such as 'nsurlstoraged' and 'CoreSpotlightService' via 'xpcproxy'. This technique is used by malware like AMOS and Odyssey Stealer to blend malicious activity with legitimate system processes for stealth and persistence.
+query: |
+    title: macOS AMOS/Odyssey Stealer XPC Service Interaction
+    id: 56f54d81-3357-4595-b0e9-2da171cfe444
+    status: experimental
+    description: Detects the interaction with macOS XPC services such as
+      'nsurlstoraged' and 'CoreSpotlightService' via 'xpcproxy'. This technique is
+      used by malware like AMOS and Odyssey Stealer to blend malicious activity with
+      legitimate system processes for stealth and persistence.
+    references:
+      - https://hunt.io/blog/macos-odyssey-amos-malware-campaign
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.defense_evasion
+      - attack.t1562
+      - attack.persistence
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_xpcproxy:
+        Image|endswith: '/usr/libexec/xpcproxy' # xpcproxy is a system process used to manage XPC services.
+        CommandLine|contains:
+          - 'com.apple.nsurlstoraged' # Service for managing URL storage sessions, abused by malware for stealth.
+          - 'com.apple.corespotlightservice' # Service for system-wide search, can be invoked to blend in.
+      selection_nsurlstoraged:
+        Image|endswith: '/usr/libexec/nsurlstoraged' # Direct invocation of the nsurlstoraged service.
+        CommandLine|contains: '--privileged' # Running the service with the privileged flag can be suspicious.
+      condition: 1 of selection*
+    falsepositives:
+      - Legitimate system operations or third-party applications may interact with
+        these XPC services. This activity might need to be correlated with other
+        suspicious behaviors to confirm malicious intent.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0002
+techniques:
+    - T1562
+    - T1559.003
+tags:
+    - attack.defense_evasion
+    - attack.t1562
+    - attack.persistence
+author: detections.ai
+version: "2"
+references:
+    - https://hunt.io/blog/macos-odyssey-amos-malware-campaign
+data_sources:
+    - process_creation
+    - macos

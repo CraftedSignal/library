@@ -1,0 +1,88 @@
+id: 019c1012-a8bc-7361-9456-e5f4a85957a9
+name: ShadowHS Fileless Linux Framework Activity
+description: Detects various activities associated with the ShadowHS fileless Linux post-exploitation framework, including fileless execution, specific command-line patterns, covert exfiltration, and connections to known C2 infrastructure.
+query: |-
+    title: ShadowHS Fileless Linux Framework Activity
+    id: e10a7f4b-f7d2-426d-bd48-374c19621316
+    status: experimental
+    description: Detects various activities associated with the ShadowHS fileless Linux post-exploitation framework, including fileless execution, specific command-line patterns, covert exfiltration, and connections to known C2 infrastructure.
+    references:
+      - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/
+    author: detections.ai
+    date: 2026-01-30
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.exfiltration
+      - attack.lateral_movement
+      - attack.resource_hijacking
+      - attack.t1059.004
+      - attack.t1620
+      - attack.t1048.003
+      - attack.t1496
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_fileless_exec:
+        process.executable|startswith: '/proc/'
+        process.executable|contains: '/fd/'
+      selection_memfd_exec:
+        process.executable|contains:
+          - '(deleted)'
+          - 'memfd:'
+      selection_openssl_decrypt:
+        process.command_line|contains|all:
+          - 'openssl'
+          - 'enc -d'
+          - '-aes-256-cbc'
+          - '-nosalt'
+      selection_gsocket_exfil:
+        process.command_line|contains:
+          - 'gs-dbus'
+          - 'gs-netcat'
+      selection_lateral_tools:
+        process.executable|endswith:
+          - '/rustscan'
+          - '/spirit'
+          - '/-bash'
+      selection_network_c2:
+        network.destination.ip:
+          - '91.92.242.200'
+          - '62.171.153.47'
+          - '204.93.253.180'
+      condition: 1 of them
+    falsepositives:
+      - 'Legitimate applications may execute from memory-backed file descriptors, though it is uncommon. Baselining may be required.'
+      - 'rustscan is a legitimate security tool that may be used by administrators or red teams.'
+      - 'The OpenSSL command is specific, but could theoretically be used for benign purposes.'
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0010
+    - TA0005
+    - TA0040
+techniques:
+    - T1059.004
+    - T1620
+    - T1048.003
+    - T1496
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.exfiltration
+    - attack.lateral_movement
+    - attack.resource_hijacking
+    - attack.t1059.004
+    - attack.t1620
+    - attack.t1048.003
+    - attack.t1496
+author: detections.ai
+version: "2"
+references:
+    - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/
+data_sources:
+    - process_creation
+    - linux

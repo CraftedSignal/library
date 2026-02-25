@@ -1,0 +1,61 @@
+id: 019b5cb2-8176-73e9-adfa-2d960bfe714f
+name: Okta Signon Policy Modification
+description: |
+    Detects events in Okta where there is the eventType of ~'policy.lifecycle' and the policy of 'OktaSignOn'.
+    This will capture when new signon policies are created or updated. This could allow users to authenticate to Okta where the current policy does not apply. (i.e: enforcing MFA)
+query: |
+    title: Okta Signon Policy Modification
+    id: bf30ab89-ecb8-440a-b5cd-00b56bc325b0
+    status: experimental
+    description: >
+      Detects events in Okta where there is the eventType of ~'policy.lifecycle' and
+      the policy of 'OktaSignOn'.
+
+      This will capture when new signon policies are created or updated. This could
+      allow users to authenticate to Okta where the current policy does not apply.
+      (i.e: enforcing MFA)
+    references:
+      - https://www.beyondtrust.com/blog/entry/okta-support-unit-breach
+      - https://developer.okta.com/docs/reference/system-log-query/
+      - https://attack.mitre.org/techniques/T1484/
+    author: zendannyy
+    date: 2025-12-24T00:00:00.000Z
+    tags:
+      - attack.privilege_escalation
+    logsource:
+      service: okta
+      product: okta
+    detection:
+      selection:
+        debugContext.debugData.requestUri|contains: admin
+        eventType|contains:
+          - OktaSignOn
+          - policy.lifecycle
+        target.displayName|contains:
+          - Admin Accounts
+          - Default Policy
+          - MFA
+      condition: selection
+    falsepositives:
+      - False positives would include legitimate modification to the OktaSignOn
+        policy, with approved change management.
+      - Apply additional filters if necessary
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1484
+tags:
+    - attack.privilege_escalation
+author: zendannyy
+version: "1"
+references:
+    - https://www.beyondtrust.com/blog/entry/okta-support-unit-breach
+    - https://developer.okta.com/docs/reference/system-log-query/
+    - https://attack.mitre.org/techniques/T1484/
+data_sources:
+    - okta
+    - okta

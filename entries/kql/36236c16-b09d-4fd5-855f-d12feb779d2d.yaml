@@ -1,0 +1,12 @@
+id: 36236c16-b09d-4fd5-855f-d12feb779d2d
+name: Suspicious Signed Binary Detection
+description: This rule identifies potentially suspicious signed binaries by looking for files with digital signatures from signers that are not commonly known or trusted vendors. It aims to detect the abuse of code signing certificates by threat actors to bypass security controls, leveraging the trust associated with digital signatures. The rule explicitly excludes a list of well-known and trusted software vendors to reduce false positives.
+query: "## \U0001F50D KQL Description\n#### This query is used to:\n#### 1.Identify potentially suspicious signed binaries in the environment.\n#### 2.Detect abuse of code signing certificates by threat actors.\n#### 3.Support threat hunting and malware analysis.\n#### 4.Reduce false positives by excluding known good vendors.\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic:Defense Evasion\n#### Goal: Adversaries may use signed binaries to bypass security controls.\n#### Technique: Signed Binary Proxy Execution (T1218)\n#### Attackers may use signed, trusted binaries to execute malicious payloads, leveraging the trust associated with digital signatures.\n### Query:\n```KQL\nDeviceFileCertificateInfo\n| join kind=inner (DeviceFileEvents) on SHA1\n//| extend VT_hash = iff(isnotempty(SHA1), strcat(\"https://www.virustotal.com/gui/file/\", SHA1), SHA1)\n| summarize count() by Signer\n| where Signer !contains \"Google \"\n| where not(Signer has_any(\"Intel\", \"fortinet\", \".net\", \"citrix\", \"microsoft\", \"HP Inc.\", \"adobe\", \"cisco\", \n                           \"Avaya Inc.\", \"Zoom Video Communications, Inc.\", \"zscaler\", \"oracle\", \n                           \"Advanced Micro Devices Inc.\", \"Lenovo\", \"Hewlett-Packard Company\", \n                           \"RingCentral\", \"Symantec\", \"Mozilla\", \"Dell Technologies Inc.\"))\n| sort by count_\n```\n"
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1218
+tags:
+    - kql
+version: "1"

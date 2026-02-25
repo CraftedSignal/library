@@ -1,0 +1,14 @@
+id: 019bfe35-c603-7509-a60e-ee7401222f8c
+name: Amatera Stealer Network IOC Hunt
+description: This rule detects network connections to known malicious IP addresses and domains, as well as the presence of files with known malicious hashes. It specifically looks for indicators associated with the Amatera Stealer, including specific domains, an IP address, and file hashes. The rule correlates network events (DeviceNetworkEvents) and file events (DeviceFileEvents) to identify these indicators of compromise (IOCs).
+query: "let maliciousDomains = dynamic([\r\n    \"sec-t2.fainerkern.ru\",\r\n    \"svc-int-api-identity-token-issuer-v2-mn.in.net\",\r\n    \"gcdnb.pbrd.co\",\r\n    \"iili.io\",\r\n    \"s6.imgcdn.dev\",\r\n    ]);\r\nlet maliciousIp = \"212.34.138.4\";\r\nlet maliciousHashes = dynamic([\r\n    \"b61fe68f0b1bef12eed8a34769120d77579af9d3c529ac48dfe82a08eefa001b\",\r\n    \"64d723ead9b43a049f9c8e23c8d4ec09ffabeac2d9b079c863c89a4aab7c9a45\",\r\n    \"9c35e9f637365706c00acaa050a4510adfcb47e7052b870c6d07f6d4464ac2d2\",\r\n    \"3df78f628494b9d8d560ee2841fc3b5da6eecf9397f693f4416dab9e573ce38f\",\r\n    \"bbfc4b48676aa78b5f18b50e733837a94df744da329fe5b1b7ba6920d9e02dc3\",\r\n    \"5339d1169e2187a482fcbc86ea94e9799bb9dbaf264622595ee6e94b54b51778\",\r\n    \"d8db6df5c28db9967206c652d5f48d46b6f863b4c4abb2f234ce8f41aea601cc\",\r\n    \"18dad9cb91fb97a817e00fa0cd1cb9ab59f672b8ddab29f72708787f19bf6aa1\"\r\n]);\r\nlet network_hits =\r\nDeviceNetworkEvents\r\n| where RemoteIP == maliciousIp\r\n    or RemoteUrl has_any (maliciousDomains)\r\n    or RemoteUrl has \"cdn.extreme\" \r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DetectionType = \"Network IOC\",\r\n    Indicator = iff(RemoteIP == maliciousIp, RemoteIP, RemoteUrl),\r\n    ProcessFileName = InitiatingProcessFileName,\r\n    ProcessCommandLine = InitiatingProcessCommandLine,\r\n    AccountName = InitiatingProcessAccountName;\r\nlet file_hits =\r\nDeviceFileEvents\r\n| where SHA256 in (maliciousHashes)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DetectionType = \"File IOC\",\r\n    Indicator = SHA256,\r\n    ProcessFileName = InitiatingProcessFileName,\r\n    ProcessCommandLine = InitiatingProcessCommandLine,\r\n    AccountName = InitiatingProcessAccountName;\r\nunion network_hits, file_hits\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "3"

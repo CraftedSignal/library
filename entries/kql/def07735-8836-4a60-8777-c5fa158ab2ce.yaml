@@ -1,0 +1,16 @@
+id: def07735-8836-4a60-8777-c5fa158ab2ce
+name: 'Threat Hunt: Suspicious PowerShell Email Enumeration and Export Activity'
+description: Detects potential email harvesting using PowerShell cmdlets with export parameters, stealth flags, and uncommon parent processes.
+query: "let timeframe = 30d;\r\nlet SuspiciousCmdlets = dynamic([\r\n    \"Get-Mailbox\", \"Get-Recipient\", \"Get-User\", \"Get-DistributionGroupMember\", \r\n    \"Export-Csv\", \"Out-File\", \"ConvertTo-Csv\"\r\n]);\r\nlet SuspiciousParams = dynamic([\r\n    \"-ResultSize\", \"-ExpandProperty\", \"-NoTypeInformation\", \"-hidetableheaders\"\r\n]);\r\n//let ExcludedAccounts = dynamic([\"admin@yourcorp.com\", \"svc_backup\", \"itopsuser1\"]);  // suppress known-good\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n| where FileName =~ \"powershell.exe\"\r\n//| where AccountName !in~ (ExcludedAccounts)\r\n| where ProcessCommandLine has_any (SuspiciousCmdlets)\r\n    and ProcessCommandLine has_any (SuspiciousParams)\r\n| extend StealthUsed = iff(ProcessCommandLine matches regex @\"(?i)(-enc|-noni|-nop|-w\\s+hidden)\", \"YES\", \"NO\")\r\n| extend SuspiciousParent = iff(\r\n    InitiatingProcessFileName has_any(\"outlook.exe\", \"iexplore.exe\", \"chrome.exe\", \"winword.exe\"), \"YES\", \"NO\"\r\n)\r\n| join kind=leftouter (\r\n    DeviceFileEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where FileName matches regex @\"(?i)\\.(csv|xml|zip|txt)$\"\r\n    | summarize FirstFileWrite=min(Timestamp), FileCount=count() by DeviceId, InitiatingProcessId, FolderPath\r\n) on DeviceId, InitiatingProcessId\r\n| summarize EventCount=count() by \r\n    DeviceName, AccountName, FileName, ProcessCommandLine, \r\n    FolderPath, FirstFileWrite, FileCount, StealthUsed, SuspiciousParent\r\n| where EventCount > 1 or isnotempty(FileCount)\r\n| order by FirstFileWrite desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1114.001
+    - T1074.001
+    - T1059.001
+tags:
+    - kql
+author: AwaisM
+version: "1"
+references:
+    - AwaisM

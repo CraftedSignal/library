@@ -1,0 +1,24 @@
+id: 628dd802-2f3b-4b9a-b794-84fcf1cc5af3
+name: Office 365 email forwarding rule to external domain
+description: Detects scenarios where an attacker creates a forwarding rules to a non company email in order to collect information.
+query: "title: Office 365 email forwarding rule to external domain\ndescription: Detects scenarios where an attacker creates a forwarding rules to a non company email in order to collect information.\nreferences:\n- https://redcanary.com/blog/email-forwarding-rules/\n- https://raw.githubusercontent.com/PwC-IR/Business-Email-Compromise-Guide/main/PwC-Business_Email_Compromise-Guide.pdf\n- https://docs.microsoft.com/en-us/microsoft-365/security/defender/alert-grading-playbook-email-forwarding?view=o365-worldwide\n- https://logrhythm.com/blog/detecting-and-preventing-auto-forwarding-and-phishing-attacks-in-office-365/\n- https://www.microsoft.com/en-us/security/blog/2023/06/08/detecting-and-mitigating-a-multi-stage-aitm-phishing-and-bec-campaign/\ntags:\n- attack.collection\n- attack.t1114.003\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: azure\n  service: office365\ndetection:\n  selection:\n    Operation: \n      - 'New-InboxRule'\n      - 'Set-InboxRule'\n    Parameters.Name: \n      - 'ForwardAsAttachmentTo'\n      - 'ForwardTo'\n      - 'RedirectTo'\n  filter_internal_emails:\n      - ForwardAsAttachmentTo|contains: '@company-domain.com'\n      - ForwardTo|contains: '@company-domain.com'\n      - RedirectTo|contains: '@company-domain.com'\n  condition: selection and not filter_internal_emails\nfalsepositives:\n- users forwarding emails to personal mailbox or third party providers\nlevel: high\n\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+techniques:
+    - T1114.003
+tags:
+    - attack.collection
+    - attack.t1114.003
+author: mdecrevoisier
+version: "1"
+references:
+    - https://redcanary.com/blog/email-forwarding-rules/
+    - https://raw.githubusercontent.com/PwC-IR/Business-Email-Compromise-Guide/main/PwC-Business_Email_Compromise-Guide.pdf
+    - https://docs.microsoft.com/en-us/microsoft-365/security/defender/alert-grading-playbook-email-forwarding?view=o365-worldwide
+    - https://logrhythm.com/blog/detecting-and-preventing-auto-forwarding-and-phishing-attacks-in-office-365/
+    - https://www.microsoft.com/en-us/security/blog/2023/06/08/detecting-and-mitigating-a-multi-stage-aitm-phishing-and-bec-campaign/
+data_sources:
+    - azure
+    - office365

@@ -1,0 +1,35 @@
+id: 019c8a02-b334-766c-9d20-5ad6583ddbca
+name: Ivanti EPMM Web Shell Deployment
+description: Detects the creation of suspicious JSP web shells or CSS staging files within the specific Ivanti EPMM web application directory, which is indicative of post-exploitation activity for CVE-2026-1281 and CVE-2026-1340.
+query: |
+    kql
+    // Name: Ivanti EPMM Web Shell Deployment
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects the creation of suspicious JSP web shells or CSS staging files within the specific Ivanti EPMM web application directory, which is indicative of post-exploitation activity for CVE-2026-1281 and CVE-2026-1340.
+    // MITRE ATT&CK: T1505.003 (Server-Side Request Forgery), T1105 (Ingress Tool Transfer)
+    // References: https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/
+    // False Positive Sensitivity: Medium
+    DeviceFileEvents
+    // Look for file creation events.
+    | where ActionType in ("FileCreated", "FileRenamed")
+    // The web shell is typically dropped in this specific directory on Ivanti EPMM appliances.
+    | where FolderPath has "/mi/tomcat/webapps/mifs/"
+    // These are known web shell and staging file names observed in exploitation campaigns.
+    | where FileName in~ ("401.jsp", "403.jsp", "1.jsp", "test.css", "poc.css", "cssaaa.css", "login.css")
+    // FP Mitigation: Legitimate administrative activity or patching could potentially create files with these names.
+    // Review the initiating process and user account to determine if the activity is authorized.
+    | project TimeGenerated, DeviceName, FileName, FolderPath, ActionType, InitiatingProcessAccountName, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1505.003
+    - T1105
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

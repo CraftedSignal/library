@@ -1,0 +1,20 @@
+id: 019c8a5a-aa9b-7704-aae1-215d951e9f6e
+name: IDE Spawned Suspicious Shell Process
+description: Detects when a Visual Studio Code or Cursor process spawns a shell (PowerShell, cmd) with suspicious arguments, such as those used to hide the window or execute encoded commands. This behavior can indicate a malicious extension or workspace attempting to execute code.
+query: "// Name: IDE Spawned Suspicious Shell Process\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects when a Visual Studio Code or Cursor process spawns a shell (PowerShell, cmd) with suspicious arguments, such as those used to hide the window or execute encoded commands. This behavior can indicate a malicious extension or workspace attempting to execute code.\r\n// False Positive Sensitivity: Medium\r\n// References: https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/\r\n// Tactics: Execution, Privilege Escalation\r\n// Techniques: T1059.001, T1059.003, T1548.002\r\nDeviceProcessEvents\r\n// Define the parent IDE processes to monitor.\r\n| where InitiatingProcessFileName has_any (\"Code.exe\", \"Cursor.exe\", \"code-oss\")\r\n// Look for common shell processes being launched.\r\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\", \"cmd.exe\")\r\n// Identify suspicious arguments associated with obfuscation, hidden execution, or policy bypass.\r\n// The terms 'bypass' and 'hidden' may need to be tuned with more specific context to reduce potential false positives in some environments.\r\n| where ProcessCommandLine has_any (\"-WindowStyle Hidden\", \"-w hidden\", \"-EncodedCommand\", \"-enc\", \"bypass\", \"Hidden\", \"iex\", \"irm\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ParentProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1548.002
+    - T1027
+tags:
+    - kql
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/

@@ -1,0 +1,20 @@
+id: 019c8bfb-64aa-724c-8525-f7e45d8598ba
+name: dYdX Malware Hardcoded Tokens Detection
+description: This rule detects the presence of hardcoded tokens associated with the dYdX supply chain attack. These tokens were used for C2 authentication and as an API key for data exfiltration. The rule searches across process command lines, network URLs, network headers, and common security logs for these specific tokens.
+query: "// Name: dYdX Malware Hardcoded Tokens\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: This rule detects the presence of hardcoded tokens associated with the dYdX supply chain attack. These tokens were used for C2 authentication and as an API key for data exfiltration.\r\n// References: https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi\r\n// Tags: T1041, T1552.001, supply chain, dYdX, RAT\r\n// Define the hardcoded tokens used by the malware\r\nlet maliciousTokens = dynamic([\r\n    \"490CD9DAD3FAE1F59521C27A96B32F5D677DD41BF1F706A0BF85E69CA6EBFE75\", // RAT authorization token\r\n    \"dydx1gh6fj28w37rykqu6szgp9q0rzejslmj0umk55c\" // Credential theft API key\r\n]);\r\n// Search across multiple data sources for the presence of the tokens\r\nunion withsource=TableName isfuzzy=true DeviceProcessEvents, DeviceNetworkEvents, CommonSecurityLog\r\n| where\r\n    // Search process command lines\r\n    (TableName == \"DeviceProcessEvents\" and (ProcessCommandLine has_any (maliciousTokens) or InitiatingProcessCommandLine has_any (maliciousTokens)))\r\n    // Search network URLs and headers (often in AdditionalFields)\r\n    or (TableName == \"DeviceNetworkEvents\" and (RemoteUrl has_any (maliciousTokens) or tostring(AdditionalFields) has_any (maliciousTokens)))\r\n    // Search proxy/firewall logs for URLs or custom headers\r\n    or (TableName == \"CommonSecurityLog\" and (RequestURL has_any (maliciousTokens) or AdditionalExtensions has_any (maliciousTokens) or Message has_any (maliciousTokens)))\r\n// FP-TUNING: These tokens are highly specific. False positives could occur if security tools scan for these IOCs or if threat intelligence reports containing them are saved on disk and processed.\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Host = coalesce(DeviceName, SourceHostName),\r\n    Account = coalesce(InitiatingProcessAccountName, SourceUserName, SourceUserID),\r\n    Process = coalesce(InitiatingProcessParentFileName, InitiatingProcessFileName),\r\n    CommandLine = coalesce(ProcessCommandLine, InitiatingProcessCommandLine),\r\n    NetworkActivity = coalesce(RemoteUrl, RequestURL),\r\n    Rule = \"dYdX Malware Hardcoded Tokens\"\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    Process,\r\n    CommandLine,\r\n    NetworkActivity,\r\n    Rule,\r\n    TableName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0006
+    - TA0001
+techniques:
+    - T1041
+    - T1552.001
+    - T1195
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi

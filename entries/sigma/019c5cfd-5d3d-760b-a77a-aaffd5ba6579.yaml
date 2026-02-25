@@ -1,0 +1,65 @@
+id: 019c5cfd-5d3d-760b-a77a-aaffd5ba6579
+name: Remcos RAT (SmartApeSG)
+description: Detects Remcos RAT payload drop - zip archive saved with .pdf extension (2120206.pdf) in user Temp. Requires known SHA256 to avoid false positives from arbitrary .pdf files; use field name your backend provides (e.g. FileHash, Hash, SHA256).
+query: |
+    title: 'Remcos RAT (SmartApeSG)'
+    id: c9d0e1f2-a3b4-2c3d-6e7f-8a9b0c1d2e3f
+    status: experimental
+    description: >-
+      Detects Remcos RAT payload drop - zip archive saved with .pdf extension
+      (2120206.pdf) in user Temp. Requires known SHA256 to avoid false positives
+      from arbitrary .pdf files; use field name your backend provides (e.g.
+      FileHash, Hash, SHA256).
+    references:
+      - https://app.any.run/tasks/361eb125-357d-4c59-b83e-9d27d0f314ce
+      - https://malpedia.caad.fkie.fraunhofer.de/details/win.remcos
+      - https://blog.talosintelligence.com/picking-apart-remcos
+      - >-
+        https://www.broadcom.com/support/security-center/protection-bulletin/new-clickfix-campaign-delivers-remcos-rat-to-italian-users
+      - https://isc.sans.edu/diary/32474
+    author: PCAP Analysis
+    date: 2026/02/14
+    modified: 2026/02/14
+    logsource:
+      product: windows
+    detection:
+      selection_path:
+        - TargetFilename|contains: '2120206'
+        - TargetFilename|endswith: .pdf
+      selection_temp:
+        - TargetFilename|contains: Temp
+        - TargetFilename|contains: TEMP
+      selection_hash:
+        - SHA256: 0f7d358f3a96d7f185be26a349ec16dfb75bde1bda8312945931d69b472d950e
+      condition: selection_path and selection_temp and selection_hash
+    falsepositives:
+      - None when hash condition is applied; without it, any file named 2120206.pdf
+        in Temp could match
+    level: medium
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.005
+      - malware.remcos
+      - campaign.smartapesg
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - attack.defense_evasion
+    - attack.t1036.005
+    - malware.remcos
+    - campaign.smartapesg
+author: PCAP Analysis
+version: "5"
+references:
+    - https://app.any.run/tasks/361eb125-357d-4c59-b83e-9d27d0f314ce
+    - https://malpedia.caad.fkie.fraunhofer.de/details/win.remcos
+    - https://blog.talosintelligence.com/picking-apart-remcos
+    - https://www.broadcom.com/support/security-center/protection-bulletin/new-clickfix-campaign-delivers-remcos-rat-to-italian-users
+    - https://isc.sans.edu/diary/32474
+data_sources:
+    - file_create
+    - windows

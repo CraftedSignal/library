@@ -1,0 +1,69 @@
+id: 019c2e32-af35-752b-ba16-cdda8d01a7d9
+name: Stan Ghouls Java Shell Execution
+description: Detects the execution of a command shell by the Java Runtime to run a batch file from a typical malware staging directory. This behavior is a core TTP of the Stan Ghouls group, used to execute their malicious Java-based loaders which in turn drop and run the NetSupport RAT.
+query: |
+    title: Stan Ghouls Java Shell Execution
+    id: f8b946bc-699a-4106-9bf6-4b1a91f03f4b
+    status: experimental
+    description: Detects the execution of a command shell by the Java Runtime to run
+      a batch file from a typical malware staging directory. This behavior is a core
+      TTP of the Stan Ghouls group, used to execute their malicious Java-based
+      loaders which in turn drop and run the NetSupport RAT.
+    references:
+      - https://securelist.com/stan-ghouls-in-uzbekistan/118738/
+    author: tim@detections.ai
+    date: 2026-02-05
+    tags:
+      - attack.execution
+      - attack.t1059.003
+      - attack.t1204.002
+      - attack.t1105
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_1:
+        ParentImage|endswith:
+          - '\java.exe'
+          - '\javaw.exe' # Child process is the command prompt
+        Image|endswith: '\cmd.exe'
+        CommandLine|contains|all:
+          - ' /c '
+          - '.bat'
+      selection_2:
+        CommandLine|contains:
+          - '\Documents\'
+          - '\Users\Public\'
+          - '\ProgramData\'
+          - '\AppData\Local\'
+          - '\AppData\Roaming\'
+          - '\Temp\'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate Java applications may execute batch scripts from user
+        directories. Tuning may be required to exclude known good applications or
+        specific script paths.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.003
+    - T1204.002
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.t1204.002
+    - attack.t1105
+author: tim@detections.ai
+version: "3"
+references:
+    - https://securelist.com/stan-ghouls-in-uzbekistan/118738/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

@@ -1,0 +1,16 @@
+id: 019bc24d-c100-7669-a3da-9b0c3a16ec44
+name: VoidLink Malware File Hashes Detected
+description: This rule detects files matching known SHA256 hashes associated with the VoidLink malware framework. This is a high-fidelity indicator with a very low chance of false positives.
+query: "// Name: VoidLink Malware File Hashes Detected\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-15\r\n// Description: This rule detects files matching known SHA256 hashes associated with the VoidLink malware framework. This is a high-fidelity indicator with a very low chance of false positives.\r\n// MITRE ATT&CK: T1204.002 - User Execution: Malicious File\r\n// References: https://research.checkpoint.com/2026/voidlink-the-cloud-native-malware-framework/\r\nlet voidlink_hashes = dynamic([\r\n    \"70aa5b3516d331e9d1876f3b8994fc8c18e2b1b9f15096e6c790de8cdadb3fc9\",\r\n    \"13025f83ee515b299632d267f94b37c71115b22447a0425ac7baed4bf60b95cd\",\r\n    \"05eac3663d47a29da0d32f67e10d161f831138e10958dcd88b9dc97038948f69\",\r\n    \"15cb93d38b0a4bd931434a501d8308739326ce482da5158eb657b0af0fa7ba49\",\r\n    \"6850788b9c76042e0e29a318f65fceb574083ed3ec39a34bc64a1292f4586b41\",\r\n    \"6dcfe9f66d3aef1efd7007c588a59f69e5cd61b7a8eca1fb89a84b8ccef13a2b\",\r\n    \"28c4a4df27f7ce8ced69476cc7923cf56625928a7b4530bc7b484eec67fe3943\",\r\n    \"e990a39e479e0750d2320735444b6c86cc26822d86a40d37d6e163d0fe058896\",\r\n    \"4c4201cc1278da615bacf48deef461bf26c343f8cbb2d8596788b41829a39f3f\"\r\n]);\r\n// Search across common event tables where file hashes are recorded.\r\nunion DeviceProcessEvents, DeviceFileEvents, DeviceImageLoadEvents\r\n| where SHA256 in (voidlink_hashes)\r\n    or InitiatingProcessSHA256 in (voidlink_hashes)\r\n    or FileHash in (voidlink_hashes)\r\n// Project relevant fields for analysis.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    ProcessCommandLine,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessSHA256,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/voidlink-the-cloud-native-malware-framework/

@@ -1,0 +1,14 @@
+id: 019c255c-5071-70c1-94f4-5ce4fabb63a4
+name: Github Default Branch Bypass
+description: This alert identifies a potential bypass of repository governance controls. It triggers when a GitHub repository's default branch is changed and then reverted or updated again within a 24-hour window.  By temporarily changing the default branch to an unprotected branch, an actor can push code or merge pull requests to the primary branch (e.g., main) without satisfying mandatory status checks or peer review requirements.
+query: "```\r\nAuthor: Tayvion P (@tayontech\r\nDescription: This alert identifies a potential bypass of repository governance controls. It triggers when a GitHub repository's default branch is changed and then reverted or updated again within a 24-hour window.  By temporarily changing the default branch to an unprotected branch, an actor can push code or merge pull requests to the primary branch (e.g., main) without satisfying mandatory status checks or peer review requirements.\r\n```\r\n\r\nindex=github action=\"repo.update_default_branch\"\r\n| sort 0 repo created_at\r\n| streamstats current=f\r\n    last(created_at) as prev_created_at\r\n    last(changes.default_branch) as prev_default_branch\r\n    last(changes.old_default_branch) as prev_old_default_branch\r\n    last(actor) as prev_actor\r\n    last(programmatic_access_type) as prev_programmatic_access_type\r\n    last(request_id) as prev_request_id\r\n  by repo\r\n| where isnotnull(prev_created_at)\r\n| eval window_start=prev_created_at, window_end=created_at\r\n| eval delta_ms=window_end-window_start\r\n| where delta_ms<=86400000\r\n| stats\r\n    min(window_start) as initial_detection_time\r\n    max(window_end) as last_change\r\n    count as change_pairs\r\n    values(prev_old_default_branch) as old_default_branch\r\n    values(prev_default_branch) as interim_default_branch\r\n    values(changes.default_branch) as final_default_branch\r\n    values(prev_actor) as first_actor\r\n    values(actor) as second_actor\r\n    values(prev_programmatic_access_type) as first_programmatic_access_type\r\n    values(programmatic_access_type) as second_programmatic_access_type\r\n    values(prev_request_id) as first_request_id\r\n    values(request_id) as second_request_id\r\n  by repo\r\n\r\n| eval initial_detection_time = strftime(initial_detection_time/1000, \"%F %H:%M:%S %Z\"),\r\n       last_change = strftime(last_change/1000, \"%F %H:%M:%S %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+tags:
+    - spl
+version: "1"

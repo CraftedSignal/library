@@ -1,0 +1,27 @@
+id: 6ccb28ab-5955-4b3c-b9d5-1273dae960ae
+name: Potential Obfuscated Web Request via PowerShell
+description: |
+    This rule detects the presence of a plain text artifact in a common download scenario in PowerShell where the second required portion of the command is not present. This could be an attempt to obfuscate the script in order to evade detections.
+query: "title: Potential Obfuscated Web Request via PowerShell\r\nid: 02f36b0c-e2e6-480c-a21a-aeea7e525f47\r\nstatus: experimental\r\ndescription: >\r\n  This rule detects the presence of a plain text artifact in a common download\r\n  scenario in PowerShell where the second required portion of the command is not present. This could be an attempt to obfuscate the script in order to evade detections.\r\nauthor: Tim Peck\r\nreferences:\r\n  - https://www.uptycs.com/blog/threat-research-report-team/understanding-stealerium-malware-and-its-evasion-techniques\r\n  - https://www.trendmicro.com/en_us/research/24/b/threat-actor-groups-including-black-basta-are-exploiting-recent-.html\r\n  - https://www.ic3.gov/CSA/2025/250312.pdf\r\ndate: 2025/07/28\r\nlogsource:\r\n  product: windows\r\n  category: ps_script\r\ndetection:\r\n  selection_webclient:\r\n    ScriptBlockText|contains:\r\n      - 'Net.WebClient'\r\n  filter_webclient:\r\n    ScriptBlockText|contains:\r\n      - 'DownloadFile'\r\n      - 'DownloadString'\r\n      - 'DownloadData'\r\n  selection_curl:\r\n    ScriptBlockText|contains:\r\n      - ' -useb'\r\n  filter_curl:\r\n    ScriptBlockText|contains:\r\n      - 'curl'\r\n      - 'Invoke-WebRequest'\r\n      - 'Invoke-RestMethod'\r\n      - 'irm'\r\n      - 'iwr'\r\n  condition: (selection_webclient and not filter_webclient) or (selection_curl and not\r\n    filter_curl)\r\nlevel: medium\r\ntags:\r\n  - attack.defense_evasion\r\n  - attack.T1027.010\r\n  - threat.stealerium\r\n  - threat.black_basta\r\n  - threat.medusa\r\n  - threat.xworm\r\nfalsepositives:\r\n  - Legitimate PowerShell scripts that build or pull resources from external\r\n    resources to download functions in parts\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1027.010
+tags:
+    - attack.defense_evasion
+    - attack.T1027.010
+    - threat.stealerium
+    - threat.black_basta
+    - threat.medusa
+    - threat.xworm
+author: Tim Peck
+version: "1"
+references:
+    - https://www.uptycs.com/blog/threat-research-report-team/understanding-stealerium-malware-and-its-evasion-techniques
+    - https://www.trendmicro.com/en_us/research/24/b/threat-actor-groups-including-black-basta-are-exploiting-recent-.html
+    - https://www.ic3.gov/CSA/2025/250312.pdf
+data_sources:
+    - ps_script
+    - windows

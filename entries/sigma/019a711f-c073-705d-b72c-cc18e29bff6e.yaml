@@ -1,0 +1,61 @@
+id: 019a711f-c073-705d-b72c-cc18e29bff6e
+name: Suspicious VS Code Process Spawning Shell
+description: Detects when Visual Studio Code or its extension host spawns PowerShell, CMD, or similar interpreters (possible SleepyDuck payload execution).
+query: |-
+    title: Suspicious VS Code Process Spawning Shell
+    id: 0bdb5e3a-97ac-4d8d-b52e-8f6e91c23d12
+    description: Detects when Visual Studio Code or its extension host spawns PowerShell, CMD, or similar interpreters (possible SleepyDuck payload execution).
+    status: experimental
+    author: Thaung Htet
+    references:
+        - https://thehackernews.com/2025/11/malicious-vsx-extension-sleepyduck-uses.html
+        - https://www.the-quantum-observer.com/post/sleepyduck-the-ethereum-powered-malware-that-redefines-command-and-control/
+    date: 2025-11-11
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        parent_process:
+            ParentImage|endswith:
+                - '\Code.exe'
+                - '\code.exe'
+                - '\Code Helper.exe'
+        child_process:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\cmd.exe'
+                - '\cscript.exe'
+                - '\wscript.exe'
+        condition: parent_process and child_process
+    fields:
+        - Image
+        - ParentImage
+        - CommandLine
+        - User
+    level: high
+    tags:
+        - attack.execution
+        - attack.t1059
+        - attack.t1059.001
+        - malware.sleepyduck
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.t1059.001
+    - malware.sleepyduck
+author: Thaung Htet
+version: "1"
+references:
+    - https://thehackernews.com/2025/11/malicious-vsx-extension-sleepyduck-uses.html
+    - https://www.the-quantum-observer.com/post/sleepyduck-the-ethereum-powered-malware-that-redefines-command-and-control/
+data_sources:
+    - process_creation
+    - windows

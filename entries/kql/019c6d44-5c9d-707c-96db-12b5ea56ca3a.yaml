@@ -1,0 +1,15 @@
+id: 019c6d44-5c9d-707c-96db-12b5ea56ca3a
+name: EventID 5142 (ShareName + ShareLocalPath + Creator)
+description: 'verifica se um share de rede foi criado nos ultimos x dias '
+query: "SecurityEvent\r\n| where TimeGenerated >= ago(30d)\r\n| where EventID == 5142\r\n| extend Who = strcat(SubjectDomainName, \"\\\\\", SubjectUserName)\r\n| extend ShareName =\r\n    coalesce(\r\n        extract(@\"<Data Name=\"\"ShareName\"\">([^<]*)</Data>\", 1, EventData),\r\n        extract(@\"<Data Name='ShareName'>([^<]*)</Data>\", 1, EventData)\r\n    )\r\n| extend ShareLocalpath =\r\n    coalesce(\r\n        extract(@\"<Data Name=\"\"ShareLocalpath\"\">([^<]*)</Data>\", 1, EventData),\r\n        extract(@\"<Data Name='ShareLocalpath'>([^<]*)</Data>\", 1, EventData),\r\n        extract(@\"<Data Name=\"\"ShareLocalPath\"\">([^<]*)</Data>\", 1, EventData),\r\n        extract(@\"<Data Name='ShareLocalPath'>([^<]*)</Data>\", 1, EventData)\r\n    )\r\n| project TimeGenerated, Computer, Who, ShareName, ShareLocalpath, SubjectUserSid, SubjectLogonId\r\n| order by TimeGenerated desc\r\n| take 50\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1135
+    - DS0033
+tags:
+    - kql
+author: 'Maycon Vieira '
+version: "2"

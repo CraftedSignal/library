@@ -1,0 +1,80 @@
+id: 26f12e89-87c7-4e5d-800d-f6e8d19b9900
+name: GeoServer JXPath Injection Exploit Attempt (CVE-2024-36401)
+description: This detection rule identifies potential exploitation attempts of CVE-2024-36401, a JXPath injection vulnerability in GeoServer. Attackers can send malicious WFS, WMS, or WPS requests to achieve remote code execution. The rule looks for common GeoServer service paths and request types combined with Java code execution strings in web server or network logs.
+query: |
+    // Name: GeoServer JXPath Injection Exploit Attempt (CVE-2024-36401)
+    // Author: detections.ai
+    // Date: 2025-08-21
+    // Tactic: Initial Access
+    // Technique: T1190, Exploit Public-Facing Application
+    // References: https://unit42.paloaltonetworks.com/attackers-sell-your-bandwidth-using-sdks/
+    //
+    // Description:
+    // This detection rule identifies potential exploitation attempts of CVE-2024-36401, a JXPath injection vulnerability in GeoServer.
+    // Attackers can send malicious WFS, WMS, or WPS requests to achieve remote code execution.
+    // The rule looks for common GeoServer service paths and request types combined with Java code execution strings in web server or network logs.
+
+    let timeframe = 1h;
+
+    // Define keywords indicative of the JXPath injection payload for CVE-2024-36401.
+    // This is the core of the exploit, attempting to execute commands via Java Runtime.
+    let jxpath_injection_keywords = dynamic([
+        "java.lang.Runtime.getRuntime().exec",
+        "JXPathContext"
+    ]);
+
+    // Define keywords related to GeoServer services and requests mentioned in the vulnerability details.
+    // This helps to focus the search on relevant services and reduce potential false positives.
+    let geoserver_keywords = dynamic([
+        "/geoserver/wfs",
+        "/geoserver/wms",
+        "/geoserver/wps",
+        "GetFeature",
+        "GetPropertyValue",
+        "GetMap",
+        "GetFeatureInfo",
+        "GetLegendGraphic",
+        "ValueReference"
+    ]);
+
+    // Search across common web log and network tables.
+    // Note: You may need to adjust table and field names (e.g., CommonSecurityLog, W3CIISLog, DeviceNetworkEvents, etc.) for your environment.
+    union isfuzzy=true
+        (
+            CommonSecurityLog
+            | where TimeGenerated > ago(timeframe)
+            // The malicious payload can be in the URL or the request body (Message field).
+            // Note: Payloads may be URL encoded. Most log sources decode this, but if not, further decoding might be needed.
+            | where (RequestURL has_any (geoserver_keywords) or Message has_any (geoserver_keywords))
+                and (RequestURL has_any (jxpath_injection_keywords) or Message has_any (jxpath_injection_keywords))
+            | extend EventTime = TimeGenerated, DstIp = DestinationIP, SrcIp = SourceIP, Url = RequestURL, RequestBody = Message
+            | project EventTime, DstIp, SrcIp, Url, RequestBody
+        ),
+        (
+            DeviceNetworkEvents
+            | where Timestamp > ago(timeframe)
+            // This table is useful for detecting exploit attempts in GET requests captured in the RemoteUrl field.
+            | where isnotempty(RemoteUrl)
+            | where RemoteUrl has_any (geoserver_keywords) and RemoteUrl has_any (jxpath_injection_keywords)
+            | extend EventTime = Timestamp, DstIp = RemoteIP, SrcIp = LocalIP, Url = RemoteUrl
+            | project EventTime, DstIp, SrcIp, Url, DeviceName
+        )
+    // False Positive Tuning:
+    // If legitimate applications use JXPath in a way that triggers this rule, consider adding exclusions for specific source/destination IPs or trusted application paths.
+    // For example: | where SrcIp !in ("1.2.3.4")
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0004
+    - TA0008
+techniques:
+    - T1190
+    - T1055
+    - T1021
+tags:
+    - kql
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/attackers-sell-your-bandwidth-using-sdks/

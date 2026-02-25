@@ -1,0 +1,41 @@
+id: 019c6709-84d7-7349-b5c2-c01274d1e48c
+name: BeyondTrust Suspicious Process Lineage
+description: Detects a BeyondTrust (Bomgar) process spawning shell or system administration child processes. This activity is highly indicative of OS command injection, potentially related to the exploitation of CVE-2026-1731.
+query: |-
+    // Name: BeyondTrust Suspicious Process Lineage
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-16
+    // Description: Detects a BeyondTrust (Bomgar) process spawning shell or system administration child processes. This activity is highly indicative of OS command injection, potentially related to the exploitation of CVE-2026-1731.
+    // False Positives: Legitimate administrative actions using the BeyondTrust tool might spawn some of these processes. This detection is scoped to processes running as SYSTEM, as seen in observed attacks. This may need to be tuned for your environment.
+    // References: https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
+    // Tactics: Execution
+    // Techniques: T1203, T1059.001, T1059.003
+    DeviceProcessEvents
+    // Define the parent processes associated with BeyondTrust/Bomgar.
+    | where InitiatingProcessFileName has_any ("bomgar-rep.exe", "bomgar-scc.exe", "bomgar-app.exe")
+    // Define the suspicious child processes often used for command execution and discovery.
+    | where FileName in~ ("cmd.exe", "powershell.exe", "pwsh.exe", "net.exe", "net1.exe", "whoami.exe", "systeminfo.exe", "ipconfig.exe")
+    // Observed exploitation often occurs in the context of the SYSTEM account on the appliance.
+    | where InitiatingProcessAccountName in ("SYSTEM", "NT AUTHORITY\\SYSTEM")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1203
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/

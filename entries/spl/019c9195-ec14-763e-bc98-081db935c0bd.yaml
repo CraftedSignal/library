@@ -1,0 +1,33 @@
+id: 019c9195-ec14-763e-bc98-081db935c0bd
+name: Grandstream GXP1600 CVE-2026-2329 Exploit Attempt
+description: This rule detects attempts to exploit CVE-2026-2329, a critical unauthenticated stack buffer overflow vulnerability in Grandstream GXP1600 VoIP phones. The detection logic looks for HTTP requests to the vulnerable endpoint '/cgi-bin/api.values.get' and specifically for an oversized 'request' parameter where the first identifier before a colon is 65 characters or longer, indicating a likely buffer overflow attempt.
+query: |+
+    ## Grandstream GXP1600 CVE-2026-2329 hunts (api.values.get + oversized request parameter)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/
+
+    ### 1) Web/proxy logs: any access to vulnerable endpoint
+    (index=web OR index=proxy OR index=waf) (uri_path="/cgi-bin/api.values.get" OR url="*/cgi-bin/api.values.get*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(src_ip) as src_ips values(user_agent) as uas by dest, host
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Likely exploit attempt: oversized single identifier in request= (no colon until >=65 chars)
+    (index=web OR index=proxy OR index=waf) (uri_path="/cgi-bin/api.values.get" OR url="*/cgi-bin/api.values.get*")
+    | rex field=url "(?i)[\\?&]request=(?<request_param>[^&]+)"
+    | eval request_param=urldecode(request_param)
+    | where isnotnull(request_param)
+    | rex field=request_param "^(?<first_ident>[^:]+)"
+    | eval first_ident_len=len(first_ident)
+    | where first_ident_len>=65
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(first_ident_len) as lens values(user_agent) as uas by src_ip, dest, host
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/

@@ -1,0 +1,20 @@
+id: 019c77ab-b7d0-715c-a6eb-404cc1b13134
+name: Unfamiliar Sign-in After Admin MFA Change
+description: This rule detects suspicious activity where an 'unfamiliar sign-in properties' alert occurs shortly after an administrator has changed a user's Multi-Factor Authentication (MFA) method. It correlates security alerts for unfamiliar sign-ins with audit logs indicating MFA method changes for the same user within a short timeframe. The rule then checks if the user's sign-in activity shows multiple IP addresses or locations, indicating a potential compromise or MFA bypass after the change.
+query: "\r\n//Repo - T1078 - Unfamiliar sign in after MFA change\r\n// Look for cases where an unfamiliar sign in alert has occurred after an admin has changed the MFA method\r\nlet lookbacktime = ago(1h);\r\nlet userIDs = (SecurityAlert // first get user entities for which there have been unfamiliar sign-in properties recently\r\n| where TimeGenerated >= lookbacktime\r\n| where DisplayName == 'Unfamiliar sign-in properties'\r\n| extend AadUserId = extract('AadUserId\":\"([^\"]+)', 1, Entities)\r\n| distinct AadUserId);\r\nlet userUPNs = (IdentityInfo // second get UPNs for those user entities\r\n| join kind=inner userIDs on $left.AccountObjectId == $right.AadUserId\r\n| distinct AccountUPN\r\n| extend UPNsofInterest = AccountUPN\r\n| project UPNsofInterest);\r\nlet mfaChanges = (AuditLogs // third look at audit logs for those user entities\r\n| where TimeGenerated >= lookbacktime\r\n| extend UserPrincipalName = tostring(TargetResources[0].userPrincipalName)\r\n| join kind=inner userUPNs on $left.UserPrincipalName == $right.UPNsofInterest\r\n| where Category == 'UserManagement'\r\n| where OperationName == 'Admin updated security info' // where an admin has updated their MFA methods\r\n| extend Target = tolower(tostring(TargetResources[0].userPrincipalName))\r\n| extend Actor = parse_json(InitiatedBy.user).userPrincipalName\r\n| extend modifiedProperties = TargetResources[0].modifiedProperties\r\n| extend PreviousPhoneNumber = modifiedProperties[2].oldValue\r\n| extend NewPhoneNumber = modifiedProperties[2].newValue\r\n| order by TimeGenerated asc\r\n| project TimeGenerated,Target,Actor,ResultReason,PreviousPhoneNumber,NewPhoneNumber);\r\nlet userSigninsBeforeMfaChange = (mfaChanges\r\n| join kind=inner SigninLogs on $left.Target == $right.UserPrincipalName\r\n| where TimeGenerated1 > lookbacktime\r\n| where TimeGenerated1 < TimeGenerated);\r\nlet userSignInsAfterMfaChange = (mfaChanges\r\n| join kind=inner SigninLogs on $left.Target == $right.UserPrincipalName\r\n| where TimeGenerated1 > lookbacktime\r\n| where TimeGenerated1 > TimeGenerated);\r\nuserSigninsBeforeMfaChange\r\n| union userSignInsAfterMfaChange, mfaChanges\r\n| summarize make_set(IPAddress), make_set(tostring(LocationDetails)), make_set(DeviceDetail), make_set(tostring(NetworkLocationDetails)), make_set(UserAgent) by UserPrincipalName\r\n| where array_length(set_IPAddress) > 1 or array_length(set_LocationDetails) > 1  // where more than one source IP or location seen for this user "
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1556.006
+    - T1621
+tags:
+    - kql
+author: 'Rudra Verma - CyberHawk '
+version: "4"

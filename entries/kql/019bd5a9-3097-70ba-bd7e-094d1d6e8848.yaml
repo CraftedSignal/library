@@ -1,0 +1,87 @@
+id: 019bd5a9-3097-70ba-bd7e-094d1d6e8848
+name: Unusual Mailbox or Folder Access in Office 365_V_1
+description: 'This rule detects suspicious activity related to mailbox access within Office 365. It has two main parts: 1) Identifies users accessing a high number of unique mailboxes belonging to other users. 2) Identifies users accessing a high number of unique folders within another user''s mailbox. Both scenarios can indicate unauthorized access, data exfiltration attempts, or compromised accounts.'
+query: |
+    // Set the time frame for the detection.
+    let timeFrame = 1h;
+    // Set the threshold for the number of unique mailboxes a user can access.
+    // FP Tuning: Adjust this threshold based on normal administrative or delegated access patterns in your environment.
+    let mailboxAccessThreshold = 3;
+    // Set the threshold for the number of unique folders a user can access in a single mailbox.
+    // FP Tuning: Users with legitimate delegate access (e.g., executive assistants) may access many folders. Consider excluding known delegate pairs or adjusting the threshold.
+    let folderAccessThreshold = 10;
+    // Create a list of accounts to exclude from this detection, such as service accounts or administrators with legitimate cross-mailbox access needs.
+    let account_exclusions = dynamic([]);
+
+    (
+        // Part 1: Detects a user accessing multiple other users' mailboxes.
+        OfficeActivity
+        | where TimeGenerated > ago(timeFrame)
+        // Filter for mail item access events.
+        | where RecordType == "ExchangeItem" and Operation == "MailItemsAccessed"
+        // Exclude activity where the user is accessing their own mailbox and exclude known accounts.
+        | where isnotempty(UserId) and isnotempty(MailboxOwnerUPN) and UserId != MailboxOwnerUPN and UserId !in (account_exclusions)
+        // Summarize access activity by the user.
+        | summarize
+            startTime = min(TimeGenerated),
+            endTime = max(TimeGenerated),
+            accessedMailboxes = make_set(MailboxOwnerUPN),
+            accessedMailboxCount = dcount(MailboxOwnerUPN),
+            ClientIPs = make_set(ClientIP)
+            by Actor = UserId
+        // Alert if the number of unique mailboxes accessed exceeds the threshold.
+        | where accessedMailboxCount >= mailboxAccessThreshold
+        | project
+            TimeGenerated = startTime,
+            startTime,
+            endTime,
+            Actor,
+            ClientIPs,
+            DetectionType = "Access to Multiple Mailboxes",
+            Description = strcat(Actor, " accessed ", accessedMailboxCount, " other users' mailboxes."),
+            Count = accessedMailboxCount,
+            AccessedEntities = tostring(accessedMailboxes)
+    )
+    | union
+    (
+        // Part 2: Detects a user accessing multiple folders in another user's mailbox.
+        OfficeActivity
+        | where TimeGenerated > ago(timeFrame)
+        // Filter for mail item access events.
+        | where RecordType == "ExchangeItem" and Operation == "MailItemsAccessed"
+        // Exclude activity where the user is accessing their own mailbox and exclude known accounts.
+        | where isnotempty(UserId) and isnotempty(MailboxOwnerUPN) and UserId != MailboxOwnerUPN and UserId !in (account_exclusions)
+        // The 'Folders' field is a JSON array; expand it to analyze individual folder access.
+        | mv-expand todynamic(Folders)
+        | extend FolderPath = tostring(Folders.Path)
+        | where isnotempty(FolderPath)
+        // Summarize folder access activity by user and the target mailbox.
+        | summarize
+            startTime = min(TimeGenerated),
+            endTime = max(TimeGenerated),
+            accessedFolders = make_set(FolderPath),
+            accessedFolderCount = dcount(FolderPath),
+            ClientIPs = make_set(ClientIP)
+            by Actor = UserId, TargetMailbox = MailboxOwnerUPN
+        // Alert if the number of unique folders accessed exceeds the threshold.
+        | where accessedFolderCount >= folderAccessThreshold
+        | project
+            TimeGenerated = startTime,
+            startTime,
+            endTime,
+            Actor,
+            ClientIPs,
+            DetectionType = strcat("Access to Multiple Folders in Mailbox: ", TargetMailbox),
+            Description = strcat(Actor, " accessed ", accessedFolderCount, " folders in ", TargetMailbox, "'s mailbox."),
+            Count = accessedFolderCount,
+            AccessedEntities = tostring(accessedFolders)
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1114
+tags:
+    - kql
+version: "3"

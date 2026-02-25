@@ -1,0 +1,58 @@
+id: 019c964d-7700-74da-987e-14e18d670ac6
+name: Github Repo Cloned by External User
+description: |
+    Detects action of git clone or git push in a repo where the source actor is not coming from a Corp IP Space. (Add your IP Blocks as needed to the filter)
+query: |
+    title: Github Repo Cloned by External User
+    id: 466f1659-780c-4baf-a6f5-eb6ef6cacfb7
+    status: experimental
+    description: >
+      Detects action of git clone or git push in a repo where the source actor is
+      not coming from a Corp IP Space. (Add your IP Blocks as needed to the filter)
+    references:
+      - >-
+        https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#git
+    tags:
+      - attack.persistence
+      - attack.privilege-escalation
+    logsource:
+      product: github
+      category: audit
+    detection:
+      selection_action:
+        - git.clone
+        - git.push
+      selection_repo:
+        repository_public:
+          - 'true'
+      filter_ip_space:
+        src_ip|cidr:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+      condition: selection_action and selection_repo  and not filter_ip_space
+    level: medium
+    falsepositives:
+      - Automated tools or CI/CD pipelines operating from external IP addresses that
+        interact with public repositories.
+      - Misconfigured IP address ranges in the filter_ip_space that incorrectly
+        exclude legitimate internal or trusted external networks.
+    author: zendannyy
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0010
+techniques:
+    - T1567
+tags:
+    - attack.persistence
+    - attack.privilege-escalation
+author: zendannyy
+version: "1"
+references:
+    - https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#git
+data_sources:
+    - audit
+    - github

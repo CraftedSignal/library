@@ -1,0 +1,72 @@
+id: 019a6ef5-fa8a-7016-9508-6accdfde52a3
+name: ClickFix PowerShell Download And Persistence
+description: Detects the execution of PowerShell commands associated with the ClickFix social engineering tactic. This involves downloading and executing remote payloads, often followed by creating a .lnk file in the Startup folder for persistence.
+query: |
+    title: ClickFix PowerShell Download And Persistence
+    id: 23fd2168-b478-42a4-bde5-000615b06d00
+    status: experimental
+    description: Detects the execution of PowerShell commands associated with the
+      ClickFix social engineering tactic. This involves downloading and executing
+      remote payloads, often followed by creating a .lnk file in the Startup folder
+      for persistence.
+    references:
+      - https://blog.sekoia.io/phishing-campaigns-i-paid-twice-targeting-booking-com-hotels-and-customers/
+    author: detections.ai
+    date: 2025-11-10
+    tags:
+      - attack.t1204.002
+      - attack.t1059.001
+      - attack.t1547.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects PowerShell process execution
+      selection_process:
+        - Image|endswith: '\powershell.exe'
+        - OriginalFileName: 'PowerShell.EXE'
+        # Detects the download and execution pattern
+      selection_download_exec:
+        CommandLine|contains|all:
+          - 'New-Object'
+          - 'Net.WebClient'
+          - 'DownloadString'
+          - 'iex'
+        # Detects the specific URL path seen in the campaign
+      selection_bomla_url:
+        CommandLine|contains: '/bomla'
+        # Detects creation of a .lnk file in the startup directory
+      selection_startup_lnk:
+        CommandLine|contains|all:
+          - '\Programs\Startup\'
+          - '.lnk'
+      condition: selection_process and (selection_download_exec and
+        selection_bomla_url or selection_startup_lnk)
+    falsepositives:
+      - Legitimate administrative scripts may create shortcuts in the startup
+        folder. It is recommended to filter for known administrative scripts or
+        parent processes.
+      - Some legitimate software update mechanisms might use PowerShell to download
+        components, though the combination with 'iex' is less common.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1204.002
+    - T1059.001
+    - T1547.001
+tags:
+    - attack.t1204.002
+    - attack.t1059.001
+    - attack.t1547.001
+author: detections.ai
+version: "2"
+references:
+    - https://blog.sekoia.io/phishing-campaigns-i-paid-twice-targeting-booking-com-hotels-and-customers/
+data_sources:
+    - process_creation
+    - windows

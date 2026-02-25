@@ -1,0 +1,65 @@
+id: 8c64adfd-b3b4-4001-9a1d-539bdec10fa5
+name: Suspicious Registry Reconnaissance and Persistence via Scheduled Tasks (LummaC2 TTPs)
+description: Detects a combination of suspicious activities often associated with the LummaC2 stealer. This includes querying the 'Run' registry key for reconnaissance and creating a scheduled task for persistence, often named "Update" and set to run on logon.
+query: |-
+    title: Suspicious Registry Reconnaissance and Persistence via Scheduled Tasks
+      (LummaC2 TTPs)
+    id: 9f8ccdf4-b643-4511-84b4-48cab29725d6
+    status: experimental
+    description: Detects a combination of suspicious activities often associated
+      with the LummaC2 stealer. This includes querying the 'Run' registry key for
+      reconnaissance and creating a scheduled task for persistence, often named
+      "Update" and set to run on logon.
+    author: Kaung Khant Ko
+    date: 2025-08-25
+    tags:
+      - attack.discovery
+      - attack.t1012
+      - attack.persistence
+      - attack.t1053.005
+      - malware.lumma
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_reg_query:
+        Image|endswith: '\reg.exe'
+        CommandLine|contains|all:
+          - 'query'
+          - 'HKCU\Software\Microsoft\Windows\CurrentVersion\Run'
+      selection_schtasks:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create'
+          - '/sc'
+          - 'onlogon' # Detects tasks set to run at user logon, a common persistence method.
+          - '/tn'
+          - 'Update' # A generic task name often used by malware to blend in.
+      condition: 1 of them
+    falsepositives:
+      - Legitimate administrative scripts might perform similar actions.
+      - Software installers or updaters could create scheduled tasks named "Update".
+        Tuning might be required based on the specific environment, such as
+        excluding legitimate updater paths or parent processes.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1012
+    - T1053.005
+tags:
+    - attack.discovery
+    - attack.t1012
+    - attack.persistence
+    - attack.t1053.005
+    - malware.lumma
+author: Kaung Khant Ko
+version: "1"
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,54 @@
+id: 019c248f-4dd5-720c-a3af-ea12b109da44
+name: Evasive Panda MgBot Install Path ProgramData Microsoft MF
+description: This rule detects the installation path of the Evasive Panda loader/MgBot malware. It specifically looks for file events where the target filename contains '\Microsoft\MF' within the 'ProgramData' directory. To reduce false positives, it excludes file creations by trusted system installers like 'TrustedInstaller.exe' and 'msiexec.exe' when run from 'System32'. The rule also implies that the initiating process should originate from user-space directories or the same '\Microsoft\MF' path, though this is not explicitly enforced in the final condition.
+query: |-
+    title: Evasive Panda MgBot Install Path ProgramData Microsoft MF (High Fidelity)
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda004
+    status: experimental
+    description: |
+        High-fidelity detection of Evasive Panda loader/MgBot path. Context: C:\ProgramData\Microsoft\MF is
+        the primary install path (not a standard Microsoft path). Require file event with TargetFilename under
+        \Microsoft\MF and exclude creation by trusted system installers (TrustedInstaller, msiexec from system32,
+        Windows Update). Initiating process should be user-space or from same MF path.
+    references:
+        - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.persistence
+        - attack.t1547
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_path:
+            TargetFilename|contains: '\Microsoft\MF'
+        exclude_trusted_installer:
+            Image|endswith: '\TrustedInstaller.exe'
+            negate: true
+        exclude_msi_system:
+            Image|re: '.*\\System32\\\\msiexec\.exe'
+            negate: true
+        context_user_or_mf:
+            Image|re: '(?i).*\\(Microsoft\\MF|explorer\.exe|Temp|AppData|Downloads).*'
+        condition: selection_path and exclude_trusted_installer and exclude_msi_system
+    falsepositives:
+        - Legitimate software using ProgramData\Microsoft\MF (rare); TrustedInstaller/msiexec excluded
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547
+tags:
+    - attack.persistence
+    - attack.t1547
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securelist.com/evasive-panda-apt/118576/
+data_sources:
+    - file_event
+    - windows

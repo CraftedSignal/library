@@ -1,0 +1,68 @@
+id: 019c0cc5-c081-736f-b495-f32f8856ab52
+name: HoneyMyte Post-Exploitation Script Behavior
+description: This rule detects behaviors associated with HoneyMyte post-exploitation scripts. Specifically, it looks for `curl.exe` or `curl` being used to download executables or files into 'Libraries' or 'Public' directories. It also identifies executables named `getlogindata.exe` or `getlogindataedge.exe` when their command line arguments contain 'Login Data' or 'Local State', indicating browser credential theft. Additionally, it detects `powershell.exe` or `cmd.exe` command lines that include keywords related to HoneyMyte's exfiltration methods (e.g., 'pixeldrain', 'PIXELDRAIN', '113.23.212', 'log.dat', 'nbtscan').
+query: |
+    title: HoneyMyte Post-Exploitation Script Behavior
+    id: e3f4a5b6-c7d8-9012-ef01-3456789abcde
+    status: experimental
+    description: |
+        Detection of HoneyMyte batch/PowerShell scripts: 1.bat downloads
+        curl/rar/nbtscan, collects log.dat, exfiltrates via FTP (113.23.212.15);
+        Ttraazcs32.ps1 collects system/network info and documents, RAR upload;
+        t.ps1 copies Chrome Login Data/Local State, creates Local State-journal, RAR to
+        pixeldrain (password PIXELDRAIN). Behavior: curl/wget download to Libraries or
+        Public; PowerShell/bat invoking curl with FTP or pixeldrain; creation of log.dat
+        in context of network enumeration; getlogindataedge.exe or getloginedge in path.
+    references:
+        - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/
+    author: Daniel Jeremiah
+    date: 2026/01/25
+    tags:
+        - attack.collection
+        - attack.command_and_control
+        - attack.t1041
+        - attack.t1059.003
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_curl_download:
+            Image|endswith|any:
+                - '\curl.exe'
+                - '\curl'
+            CommandLine|re: '(?i).*(-o|--output|/c).*(\\.exe|getlogin|Libraries|Public)'
+        selection_stealer_naming:
+            Image|re: '(?i).*getlogindata(edge)?\\.exe'
+            CommandLine|contains|any:
+                - 'Login Data'
+                - 'Local State'
+        selection_script_context:
+            Image|endswith|any:
+                - '\powershell.exe'
+                - '\cmd.exe'
+            CommandLine|re: '(?i).*(pixeldrain|PIXELDRAIN|113\\.23\\.212|log\\.dat|nbtscan).*'
+        condition: selection_curl_download or selection_stealer_naming or selection_script_context
+    falsepositives:
+        - Legitimate security testing (e.g. POC, authorized testing) using the C2 as testing
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+    - TA0002
+techniques:
+    - T1041
+    - T1059.003
+tags:
+    - attack.collection
+    - attack.command_and_control
+    - attack.t1041
+    - attack.t1059.003
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/
+data_sources:
+    - process_creation
+    - windows

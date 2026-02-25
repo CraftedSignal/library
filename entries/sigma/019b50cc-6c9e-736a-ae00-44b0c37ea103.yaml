@@ -1,0 +1,54 @@
+id: 019b50cc-6c9e-736a-ae00-44b0c37ea103
+name: GUID-Named DLL Creation in Staging Paths
+description: Detects the creation of DLL files named with a GUID pattern in common staging directories. This technique was observed being used by the threat actor UKC-1230 to drop surrogate COM DLLs for persistence.
+query: |
+    title: GUID-Named DLL Creation in Staging Paths
+    id: aea9a9fb-dc72-4931-b65f-a0b38710cd77
+    status: experimental
+    description: >-
+      Detects the creation of DLL files named with a GUID pattern in common staging
+      directories. This technique was observed being used by the threat actor
+      UKC-1230 to drop surrogate COM DLLs for persistence.
+    references:
+      - https://www.blackhillsinfosec.com/the-curious-case-of-the-comburglar/
+    author: tim@detections.ai
+    date: 2025-12-24T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1546.015
+    logsource:
+      category: file_event
+      product: windows
+      service: sysmon
+    detection:
+      selection_paths:
+        TargetFilename|contains:
+          - '\ProgramData\'
+          - '\Users\Public\'
+          - '\AppData\'
+          - '\Temp\'
+      selection_pattern:
+        TargetFilename|re: '.*\\\{[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\}\.dll$'
+      condition: selection_paths and selection_pattern
+    falsepositives:
+      - Legitimate software installers or updaters might create temporary files with
+        GUID-like names. Investigate the parent process and file properties (e.g.,
+        digital signature, imphash) to triage.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.015
+tags:
+    - attack.persistence
+    - attack.t1546.015
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.blackhillsinfosec.com/the-curious-case-of-the-comburglar/
+data_sources:
+    - file_event
+    - windows

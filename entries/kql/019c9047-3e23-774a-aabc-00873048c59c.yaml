@@ -1,0 +1,20 @@
+id: 019c9047-3e23-774a-aabc-00873048c59c
+name: ActiveMQ Spawning CertUtil for Payload Download
+description: Detects the Java process, commonly associated with Apache ActiveMQ, spawning certutil.exe to download a file from a remote URL. This behavior is a strong indicator of initial compromise via vulnerabilities like CVE-2023-46604.
+query: "// Name: ActiveMQ Spawning CertUtil for Payload Download\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects the Java process, commonly associated with Apache ActiveMQ, spawning certutil.exe to download a file from a remote URL. This behavior is a strong indicator of initial compromise via vulnerabilities like CVE-2023-46604.\r\n// Tactics: Initial Access, Command and Control\r\n// Techniques: T1190, T1105\r\n// References:\r\n// - https://www.rapid7.com/blog/post/2023/11/01/etr-suspected-exploitation-of-apache-activemq-cve-2023-46604/\r\n// - https://www.trendmicro.com/en_us/research/23/k/cve-2023-46604-exploited-by-kinsing.html\r\n// - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceProcessEvents\r\n// Set the lookback window for the detection\r\n| where Timestamp > ago(1d)\r\n// Key detection logic: Looks for java.exe spawning certutil.exe\r\n| where InitiatingProcessFileName =~ \"java.exe\" and FileName =~ \"certutil.exe\"\r\n// Certutil command line arguments used for downloading files from a URL. The presence of 'http' confirms a web-based download.\r\n| where ProcessCommandLine has_all (\"-urlcache\", \"-f\", \"http\")\r\n// FP Tuning: Legitimate Java applications might use certutil for certificate operations, but downloading files this way is rare.\r\n// If false positives occur, consider filtering by the user account running the ActiveMQ service or excluding specific known-good Java application paths.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    ReportId,\r\n    DeviceId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1190
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.rapid7.com/blog/post/2023/11/01/etr-suspected-exploitation-of-apache-activemq-cve-2023-46604/
+    - https://www.trendmicro.com/en_us/research/23/k/cve-2023-46604-exploited-by-kinsing.html
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/

@@ -1,0 +1,94 @@
+id: 019c458f-99c3-7518-84f3-e8db47565304
+name: Winget Abuse Detection for Non-Admin Accounts
+description: This detection identifies potential abuse of the Windows Package Manager (winget.exe) for malicious activities, including arbitrary command execution, execution from temporary directories, suspicious network egress, and installation of unsigned binaries from non-admin accounts.
+query: |
+    // Name: Winget Abuse Detection
+    // Author: Nicholas I.
+    // Date: 2026-02-09
+    // Description: This detection identifies potential abuse of the Windows Package Manager (winget.exe) for malicious activities, including arbitrary command execution, execution from temporary directories, suspicious network egress, and installation of unsigned binaries.
+    // References: https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/detecting-and-hunting-for-winget-abuse/
+    // False Positive Sensitivity: Medium
+    // Tags: T1218, T1059, T1105
+    let timeframe = 1d;
+    // Base events for winget installations, excluding administrative accounts.
+    let winget_execution =
+        DeviceProcessEvents
+        | where Timestamp > ago(timeframe)
+        | where FileName =~ "winget.exe"
+        | where ProcessCommandLine has "install"
+        // Exclude administrative accounts to focus on non-privileged user activity. This can be tuned to your environment's naming convention.
+        | where not(AccountName contains "adm");
+    // Detects winget spawning a command shell, which could be used for arbitrary command execution.
+    let command_execution =
+        winget_execution
+        | join kind=inner (
+            DeviceProcessEvents
+            | where Timestamp > ago(timeframe)
+            | where InitiatingProcessFileName =~ "winget.exe"
+            // Legitimate installers may spawn shells. Consider filtering for known-good parent/child relationships or command lines if this is noisy.
+            | where FileName in~ ("cmd.exe", "powershell.exe", "pwsh.exe", "bash.exe", "sh.exe", "zsh.exe")
+        ) on InitiatingProcessId
+        | extend DetectionType = "Winget Spawning Command Shell";
+    // Detects processes spawned by winget that are executing from a temporary path.
+    let temp_path_execution =
+        winget_execution
+        | join kind=inner (
+            DeviceProcessEvents
+            | where Timestamp > ago(timeframe)
+            | where InitiatingProcessFileName =~ "winget.exe"
+            // Many legitimate installers unpack and run from temp locations. Tune by excluding known-good installer names or paths.
+            | where FolderPath has_any (@"\AppData\Local\Temp\", @"\Windows\Temp\")
+        ) on InitiatingProcessId
+        | extend DetectionType = "Winget Child Process Executing from Temp";
+    // Detects network connections made by winget to non-private IP addresses.
+    let egress =
+        winget_execution
+        | join kind=inner (
+            DeviceNetworkEvents
+            | where Timestamp > ago(timeframe)
+            // Winget must connect to repositories to download packages, which can be noisy.
+            // Consider filtering for connections to known malicious IPs, unusual ports, or domains not associated with legitimate package sources.
+            | where not(ipv4_is_private(RemoteIP))
+        ) on DeviceId, ProcessId
+        | extend DetectionType = "Winget Network Egress";
+    // Detects winget creating unsigned executable files.
+    let unsigned_binaries =
+        winget_execution
+        | join kind=inner (
+            DeviceFileEvents
+            | where Timestamp > ago(timeframe)
+            | where InitiatingProcessFileName =~ "winget.exe"
+            | where FileName endswith ".exe" or FileName endswith ".dll"
+            | where IsSigned == false
+        ) on InitiatingProcessId
+        | extend DetectionType = "Winget Dropped Unsigned Binary";
+    // Union all detection types
+    union command_execution, temp_path_execution, egress, unsigned_binaries
+    | project
+        Timestamp,
+        DetectionType,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteIP,
+        RemoteUrl,
+        SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059
+    - T1105
+    - T1218
+tags:
+    - kql
+author: Nicholas Isakson
+version: "3"
+references:
+    - https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/detecting-and-hunting-for-winget-abuse/

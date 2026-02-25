@@ -1,0 +1,52 @@
+id: 019c4d91-0654-77b7-b901-d87b4c3ec43d
+name: Azure Managed Identity Lateral Movement via VM Run Command
+description: Detects lateral movement where a Managed Identity of one Azure resource (e.g., VM) is used to execute code or access another resource. This is identified by successful 'Microsoft.Compute/virtualMachines/runCommand' operations where the caller is a ServicePrincipal (indicated by a GUID) and the 'InitiatedBy' field contains 'resourcegroups', suggesting the action was initiated by a resource rather than a direct user.
+query: |
+    title: Azure Managed Identity Lateral Movement via IMDS
+    id: b1c2d3e4-f5a6-4b5c-9d0e-azuremi001
+    status: experimental
+    description: |
+        Detects lateral movement where a Managed Identity of one Azure resource (e.g. VM) is used to execute code or access another resource. AzureActivity shows ServicePrincipal as caller; Claims xms_mirid indicates the resource that initiated the action. Combined with Managed Identity sign-in from ImdsIdentityProvider this indicates token theft via IMDS and abuse.
+    references:
+        - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.lateral_movement
+        - attack.t1550
+        - attack.t1134
+    logsource:
+        product: azure
+        category: cloud
+    detection:
+        selection_activity:
+            OperationNameValue|contains: 'Microsoft.Compute/virtualMachines/runCommand'
+            ActivityStatus|startswith: 'Succeeded'
+        selection_principal:
+            Caller|re: '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+        selection_claims:
+            InitiatedBy|contains: 'resourcegroups'
+        condition: selection_activity and selection_principal and selection_claims
+    falsepositives:
+        - Legitimate automation using MI to run commands on same or authorized VMs
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0008
+    - TA0004
+techniques:
+    - T1550
+    - T1134
+tags:
+    - attack.lateral_movement
+    - attack.t1550
+    - attack.t1134
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms
+data_sources:
+    - cloud
+    - azure

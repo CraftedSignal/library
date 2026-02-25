@@ -1,0 +1,16 @@
+id: 00e6f972-c90b-4850-81a4-73a192dc8405
+name: 'IOC Hunting: Detection of Known Malicious Hashes'
+description: This rule detects the presence of specific file hashes (MD5, SHA1, SHA256) across device file events, device process events, and email attachment information. It is designed to identify known malicious files or indicators of compromise (IOCs) within an environment.
+query: "let IOC = dynamic([\"hash\", \"hash\"]);\r\nlet DeviceFileHunt = (\r\n    DeviceFileEvents\r\n    | where Timestamp > ago(30d)\r\n    | where MD5 in (IOC) or SHA1 in (IOC) or SHA256 in (IOC)\r\n    | project Table = Type, Timestamp, DeviceName, FileName, MD5, SHA1, SHA256);\r\nlet DeviceProcessHunt = (\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(30d)\r\n    | where MD5 in (IOC) or SHA1 in (IOC) or SHA256 in (IOC)\r\n    | project Table = Type, Timestamp, DeviceName, FileName, MD5, SHA1, SHA256);\r\nlet EmailAttachmentHunt = ( \r\n    EmailAttachmentInfo\r\n    | where Timestamp > ago(30d)\r\n    | where SHA256 in (IOC)\r\n    | project Table = Type, Timestamp, NetworkMessageId, FileName, SHA256, SenderFromAddress\r\n    | join EmailEvents on NetworkMessageId\r\n    | project Table = Type, Timestamp, NetworkMessageId, FileName, SHA256, SenderFromAddress, RecipientEmailAddress);\r\nunion isfuzzy=true DeviceFileHunt, DeviceProcessHunt, EmailAttachmentHunt"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0042
+techniques:
+    - T1070
+    - DS0022
+    - T1588.001
+tags:
+    - kql
+version: "1"

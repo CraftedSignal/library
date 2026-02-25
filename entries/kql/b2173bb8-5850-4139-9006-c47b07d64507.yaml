@@ -1,0 +1,14 @@
+id: b2173bb8-5850-4139-9006-c47b07d64507
+name: ' Detect Pod started with privileged container'
+description: This rule detects the creation of a Kubernetes pod with a privileged container. Privileged containers have full root capabilities on the host and can bypass many security mechanisms, making them a significant security risk. The rule specifically excludes system service accounts from the 'kube-system' namespace to reduce false positives from legitimate system operations.
+query: "GCPOakPlatProduction_CL\r\n| where TimeGenerated > now()-60d\r\n| where parse_json(protoPayload_response_spec_initContainers_s)[0].securityContext.privileged == \"true\"\r\n| where protoPayload_authenticationInfo_principalEmail_s !startswith \"system:serviceaccount:kube-system\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1610
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,52 @@
+id: 2e93cf54-b78d-435e-81f6-3eafb0959560
+name: Entra ID OAuth Phishing via Visual Studio Code Client
+description: Detects successful non-interactive sign-ins to Microsoft Graph using the Visual Studio Code (VSCode) application identity. This behavior was observed in a phishing campaign where threat actors tricked users into an OAuth flow to harvest tokens. These tokens were then used to access user data, such as emails, via the Graph API.
+query: |
+    // Name: Entra ID OAuth Phishing via Visual Studio Code Client
+    // Author: AEspejo
+    // Date: 2025-09-02
+    // References: https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    // Description: Detects successful non-interactive sign-ins to Microsoft Graph using the Visual Studio Code (VSCode) application identity.
+    // This behavior was observed in a phishing campaign where threat actors tricked users into an OAuth flow to harvest tokens.
+    // These tokens were then used to access user data, such as emails, via the Graph API.
+    // False Positive Sensitivity: Medium. Legitimate developer tools or automation may use this workflow.
+    // Tuning: Consider filtering for IP addresses outside of expected corporate or developer locations.
+    // You can also baseline this activity for specific developer groups and alert on deviations.
+    SigninLogs
+    // Look for successful non-interactive sign-ins from member accounts.
+    | where ResultType == 0
+    | where UserType == "Member"
+    | where SignInEventTypes has "nonInteractiveUser"
+    // The application used is Visual Studio Code.
+    | where AppId == "aebc6443-996d-45c2-90f0-388ff96faa56"
+    // The target resource is Microsoft Graph.
+    | where ResourceIdentity == "00000003-0000-0000-c000-000000000000" or ResourceDisplayName == "Microsoft Graph"
+    // Ensure the authentication method involves OAuth.
+    | where AuthenticationProcessingDetails has "Oauth"
+    | project-reorder
+        TimeGenerated,
+        UserPrincipalName,
+        AppDisplayName,
+        IPAddress,
+        Location,
+        ResourceDisplayName,
+        AuthenticationProcessingDetails,
+        DeviceDetail,
+        UserAgent,
+        CorrelationId
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0001
+    - TA0003
+techniques:
+    - T1528
+    - T1566.002
+    - T1671
+tags:
+    - kql
+author: AEspejo
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection

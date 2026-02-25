@@ -1,0 +1,53 @@
+id: 9c5602dc-61a7-48c4-a9d7-a033656e915e
+name: User browser credentials dump via network share (DonPapi, Lazagne)
+description: Detects scenarios where an attacker attempt to dump browser credentials (Firefox, Google Chrome, ...) via network share.
+query: |-
+    title: User browser credentials dump via network share (DonPapi, Lazagne)
+    description: Detects scenarios where an attacker attempt to dump browser credentials (Firefox, Google Chrome, ...) via network share.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/T1555-Credentials%20from%20Password%20Stores
+    - https://github.com/login-securite/DonPAPI
+    - https://thedfirreport.com/2021/12/13/diavol-ransomware/
+    tags:
+    - attack.credential_access
+    - attack.t1555.003
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection_event:
+        EventID: 5145
+        ShareName: '\\*\C$'
+      selection_browsers_credentials:
+        - RelativeTargetName|endswith:
+          - '\AppData\Roaming\Mozilla\Firefox\Profiles\'
+          - '\AppData\Local\Temp\edge-cookies.json'
+        - RelativeTargetName|contains:
+          - '\AppData\Local\Google\Chrome\User Data\'
+          - '\AppData\Local\Microsoft\Edge\User Data\Default\Login Data\'
+          - '\AppData\Local\Microsoft\Edge\User Data\Default\Cookies\'
+      condition: selection_event and selection_browsers_credentials
+    falsepositives:
+    - Roaming user profile, vulnerability scanners
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1555.003
+    - T1555
+tags:
+    - attack.credential_access
+    - attack.t1555.003
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/T1555-Credentials%20from%20Password%20Stores
+    - https://github.com/login-securite/DonPAPI
+    - https://thedfirreport.com/2021/12/13/diavol-ransomware/
+data_sources:
+    - windows
+    - security

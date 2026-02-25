@@ -1,0 +1,72 @@
+id: 019bb7fb-7ef4-75c1-9206-a718a896300b
+name: Suspicious Child Process from Python AI Environment
+description: Detects when a Python process spawns a shell or a network utility. This behavior can be indicative of Remote Code Execution (RCE) vulnerabilities being exploited in AI/ML libraries (e.g., CVE-2025-23304, CVE-2026-22584) that allow attackers to execute arbitrary code when a malicious model file is loaded.
+query: |
+    title: Suspicious Child Process from Python AI Environment
+    id: 2899511f-0972-4029-b47b-11bdfce865b0
+    status: experimental
+    description: Detects when a Python process spawns a shell or a network utility.
+      This behavior can be indicative of Remote Code Execution (RCE) vulnerabilities
+      being exploited in AI/ML libraries (e.g., CVE-2025-23304, CVE-2026-22584) that
+      allow attackers to execute arbitrary code when a malicious model file is
+      loaded.
+    references:
+      - https://unit42.paloaltonetworks.com/rce-vulnerabilities-in-ai-python-libraries/
+    author: tim@detections.ai
+    date: 2026-01-13
+    tags:
+      - attack.execution
+      - attack.t1203
+      - attack.t1059.004
+      - cve.2025.23304
+      - cve.2026.22584
+    logsource:
+      category: process_creation
+      product: generic
+    detection:
+      # Parent process is a Python interpreter
+      selection_parent:
+        ParentImage|endswith:
+          - '\python.exe'
+          - '\python3.exe'
+          - '/python'
+          - '/python3'
+        # Child process is a shell or common network utility
+      selection_child:
+        Image|endswith:
+          # Windows shells and utilities
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\curl.exe'
+          - '\wget.exe' # Linux/macOS shells and utilities
+          - '/sh'
+          - '/bash'
+          - '/zsh'
+          - '/curl'
+          - '/wget'
+      condition: all of selection_*
+    falsepositives:
+      - Build scripts, installers, or automation tools written in Python.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1203
+    - T1059.004
+    - T1059.003
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1203
+    - attack.t1059.004
+    - cve.2025.23304
+    - cve.2026.22584
+author: tim@detections.ai
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/rce-vulnerabilities-in-ai-python-libraries/
+data_sources:
+    - process_creation
+    - generic

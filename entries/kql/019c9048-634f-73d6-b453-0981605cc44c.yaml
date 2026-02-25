@@ -1,0 +1,16 @@
+id: 019c9048-634f-73d6-b453-0981605cc44c
+name: LSASS Memory Access for Credential Dumping
+description: Detects a process requesting read access (GrantedAccess 0x1010) to the LSASS process memory (lsass.exe). This technique is commonly used by threat actors to dump credentials for lateral movement and ransomware deployment. The rule specifically looks for the GrantedAccess value '0x1010', which corresponds to PROCESS_VM_READ and PROCESS_QUERY_INFORMATION access rights, and excludes a list of known legitimate processes.
+query: "// Name: LSASS Memory Access for Credential Dumping\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects a process requesting read access (GrantedAccess 0x1010) to the LSASS process memory (lsass.exe). This technique is commonly used by threat actors to dump credentials for lateral movement and ransomware deployment. In the referenced attack, this access originated from injected code with an 'UNKNOWN' call trace.\r\n// Tactics: Credential Access\r\n// Techniques: T1003.001\r\n// References: https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nlet lsass_exceptions = dynamic([\r\n    \"MsMpEng.exe\",\r\n    \"NisSrv.exe\",\r\n    \"svchost.exe\",\r\n    \"csrss.exe\",\r\n    \"wininit.exe\",\r\n    \"services.exe\",\r\n    \"smss.exe\",\r\n    \"taskmgr.exe\",\r\n    \"procexp.exe\",\r\n    \"procexp64.exe\",\r\n    \"vmms.exe\",\r\n    \"VsTskMgr.exe\",\r\n    \"WmiPrvSE.exe\"\r\n]);\r\nDeviceEvents\r\n// Set the lookback window for the detection\r\n| where Timestamp > ago(1d)\r\n// Filter for events specifically monitoring LSASS process access\r\n| where ActionType == \"LsassProcessAccess\"\r\n// Key detection logic: GrantedAccess 0x1010 indicates a request for PROCESS_VM_READ and PROCESS_QUERY_INFORMATION access rights.\r\n| where todynamic(AdditionalFields).GrantedAccess == \"0x1010\"\r\n// FP Tuning: Exclude known legitimate processes (e.g., security products, system utilities) that access LSASS memory. This list should be customized for your environment.\r\n| where not(InitiatingProcessFileName in~ (lsass_exceptions))\r\n// The intel noted the CallTrace was UNKNOWN, which is a strong indicator of injected code. Uncomment the line below for higher fidelity but potentially lower coverage.\r\n// | where todynamic(AdditionalFields).CallTrace == \"UNKNOWN\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ReportId,\r\n    DeviceId,\r\n    AdditionalFields\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/

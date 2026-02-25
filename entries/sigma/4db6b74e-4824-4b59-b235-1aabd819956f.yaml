@@ -1,0 +1,25 @@
+id: 4db6b74e-4824-4b59-b235-1aabd819956f
+name: NodeInitRAT Persistence via Registry Key
+description: Detects instances where NodeJS (node.exe) spawns the Command Processor (cmd.exe) to execute the 'reg add' command. This behavior is a known persistence technique used by the NodeInitRAT backdoor, associated with the Mocha Manakin threat actor, to add a run key to the Windows Registry.
+query: "title: NodeInitRAT Persistence via Registry Key\r\nid: 2923d39d-bf52-4fe5-9ea1-c2d6b242a23c\r\nstatus: experimental\r\ndescription: Detects instances where NodeJS (node.exe) spawns the Command\r\n  Processor (cmd.exe) to execute the 'reg add' command. This behavior is a known\r\n  persistence technique used by the NodeInitRAT backdoor, associated with the\r\n  Mocha Manakin threat actor, to add a run key to the Windows Registry.\r\nreferences:\r\n  - https://redcanary.com/blog/threat-intelligence/mocha-manakin-nodejs-backdoor/\r\nauthor: Reda BELHAJ @ReadytoB\r\ndate: 2025-08-18\r\ntags:\r\n  - attack.persistence\r\n  - attack.t1112\r\n  - attack.execution\r\n  - attack.t1059.003\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    ParentImage|endswith: '\\node.exe' # Parent process is NodeJS\r\n    Image|endswith: '\\cmd.exe' # Child process is the command processor\r\n    CommandLine|contains|all:\r\n      # Command line must contain both 'reg' and 'add'\r\n      - 'reg'\r\n      - 'add'\r\n  condition: selection\r\nfalsepositives:\r\n  - Legitimate software installation or configuration scripts that are part of a\r\n    NodeJS-based application or development tool might perform this action.\r\n  - Build scripts or package management scripts (e.g., npm 'postinstall'\r\n    scripts) could legitimately modify the registry. Consider filtering based on\r\n    specific registry keys or parent process command lines if legitimate\r\n    activity is common.\r\nlevel: medium\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0005
+techniques:
+    - T1112
+    - T1059.003
+tags:
+    - attack.persistence
+    - attack.t1112
+    - attack.execution
+    - attack.t1059.003
+author: Reda BELHAJ @ReadytoB
+version: "1"
+references:
+    - https://redcanary.com/blog/threat-intelligence/mocha-manakin-nodejs-backdoor/
+data_sources:
+    - process_creation
+    - windows

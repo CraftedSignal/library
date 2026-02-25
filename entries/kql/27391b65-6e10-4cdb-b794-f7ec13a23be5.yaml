@@ -1,0 +1,28 @@
+id: 27391b65-6e10-4cdb-b794-f7ec13a23be5
+name: DefenderXDR Exposure Management for CVE-2024-3094
+description: 'KQL Query from file: DefenderXDR Exposure Management for CVE-2024-3094'
+query: "//DefenderXDR Exposure Management for CVE-2024-3094\n//https://www.linkedin.com/posts/activity-7180041278829580288-I4hU/\n\n//After reading so many infosec posts relating XZ, I decided to build this high precision KQL detection using the latest DefenderXDR exposure management capability to determine Azure internet facing Linux machines that has vulnerable compromised XZ and running SSHD which are susceptible to RCE attack. If you have this rule triggered, I would strongly suggest you quickly remediate your Linux VM.\U0001FAE1\n\nlet DeviceWithVulnerableXZ =\nDeviceTvmSoftwareInventory \n| where SoftwareName contains \"xz\"\n| where SoftwareVersion contains \"5.6.\"\n| distinct DeviceName;\nlet DevicewithSSHD =\nDeviceNetworkEvents\n| where ActionType == \"ListeningConnectionCreated\"\n| where LocalPort == 22\n| distinct DeviceName;\nExposureGraphNodes\n| where NodeLabel == 'device' or (Categories has 'virtual_machine' and set_has_element(Categories, 'virtual_machine'))\n// Condition: Internet Facing with vulnerable XZ and running SSHD\n| where NodeProperties.rawData.isInternetFacing == true\n| where NodeName has_any (DeviceWithVulnerableXZ)\n| where NodeName has_any (DevicewithSSHD)\n\n\n// MITRE ATT&CK Mapping\n\n// Based on the KQL code, the following MITRE ATT&CK techniques are relevant:\n\n// T1190 - Exploit Public-Facing Application:\n// The query identifies internet-facing devices with vulnerable software, which could be exploited by attackers.\n\n// T1078 - Valid Accounts:\n// The presence of SSHD (port 22) suggests potential use of valid accounts for remote access.\n\n// T1046 - Network Service Scanning:\n// Identifying devices with specific services running (like SSHD) can be part of network service scanning activities.\n\n// T1210 - Exploitation of Remote Services:\n// Exploiting vulnerabilities in remote services (like SSHD) to gain unauthorized access.\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0007
+    - TA0008
+    - TA0002
+techniques:
+    - T1190
+    - T1078
+    - T1046
+    - T1210
+    - T1021.004
+    - T1184
+    - T1563.001
+    - T1037.004
+    - T1164
+    - T1547.007
+    - T1053.001
+tags:
+    - kql
+version: "1"

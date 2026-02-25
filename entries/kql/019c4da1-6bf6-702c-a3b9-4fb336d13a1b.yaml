@@ -1,0 +1,32 @@
+id: 019c4da1-6bf6-702c-a3b9-4fb336d13a1b
+name: ClickFix / CrashFix Python RAT Activity
+description: 'This rule detects suspicious activities associated with the ClickFix / CrashFix Python RAT. It identifies three main patterns: the execution of ''finger.exe'' as a potential fetch mechanism, PowerShell execution with encoded commands originating from web browsers or common system utilities, and Python script execution from suspicious temporary or download directories, indicative of RATs like ModeloRAT or CastleRAT.'
+query: |
+    // ClickFix / CrashFix Python RAT. Microsoft.
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+
+    // finger.exe execution (ClickFix fetch pattern)
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName == "finger.exe"
+    | project Timestamp, DeviceName, ProcessCommandLine, InitiatingProcessFileName
+
+    // PowerShell with encoded command from browser or Run
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName in ("powershell.exe", "pwsh.exe")
+    | where ProcessCommandLine contains "EncodedCommand" or ProcessCommandLine contains " -Enc " or ProcessCommandLine contains "IEX(" or ProcessCommandLine contains "Invoke-Expression"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "rundll32.exe", "dllhost.exe", "explorer.exe")
+    | project Timestamp, DeviceName, ProcessCommandLine, InitiatingProcessFileName
+
+    // Python from suspicious path (ModeloRAT / CastleRAT style)
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName in ("python.exe", "pythonw.exe", "python3.exe")
+    | where (FolderPath contains "AppData\\Local\\Temp" or FolderPath contains "Downloads") and ProcessCommandLine contains ".py"
+    | project Timestamp, DeviceName, FolderPath, ProcessCommandLine, InitiatingProcessFileName
+query_type: kql
+tags:
+    - kql
+version: "2"

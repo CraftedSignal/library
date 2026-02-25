@@ -1,0 +1,20 @@
+id: 019abc7c-cef7-7169-a4ff-a18655910780
+name: ConvertMate - suspicious PDF editor
+description: 'KQL Query from file: ConvertMate - suspicious PDF editor'
+query: "//https://www.truesec.com/hub/blog/reoccurring-use-of-highly-suspicious-pdf-editors-to-infiltrate-environments\r\n\r\nlet Files =\r\n    DeviceProcessEvents\r\n    | where FileName in~ (\"conmate_update.ps1\",\"ConvertMate.exe\",\"Convert Mate.exe\",\r\n                          \"UpdateRetreiver.exe\",\"pdfclick.exe\",\"PDFClickUpdater.exe\")\r\n           or SHA256 in (\r\n              \"372d89d7dd45b2120f45705a4aa331dfff813a4be642971422e470eb725c4646\",\r\n              \"08b9f93000512b45f8c2e8d3d6624536b366e67c40fd4b958db58e3a1d129c3d\",\r\n              \"d9f9584f4f071be9c5cf418cae91423c51d53ecf9924ed39b42028d1314a2edc\",\r\n              \"09c2af472ab86b62a702e94a39df2bef09205f4249ed871cbeece751c1e7ef4f\",\r\n              \"6bf2cc4e9d9901541214d7efc8bb8bb24ef5bddc238598333c843e421c042c6b\",\r\n              \"09474277051fc387a9b43f7f08a9bf4f6817c24768719b21f9f7163d9c5c8f74\",\r\n              \"50651ed57b60d48da11117a170241da8669bf0e6e7ea76d7f2d364db80e16d6f\"\r\n           )\r\n    | summarize FileEvents=count(), FileNames=make_set(FileName) by DeviceName;\r\n\r\nlet Downloads =\r\n    DeviceNetworkEvents\r\n    | where RemoteUrl has_any (\"conmateapp.com\",\"trm.conmateapp.com\",\"runeton.com\")\r\n    | summarize DownloadEvents=count(), DownloadURLs=make_set(RemoteUrl) by DeviceName;\r\n\r\nlet C2 =\r\n    DeviceNetworkEvents\r\n    | where RemoteUrl has_any (\"confetly.com\",\"climatcon.com\",\"conmateapp.com\",\"chrialletworton.com\",\r\n                               \"banifuri.com\",\"dcownil.com\",\"takelecon.com\",\r\n                               \"hamarit.com\",\"netarlio.com\",\"oblifagi.com\",\"pdfclickapp.com\")\r\n    | summarize C2Events=count(), C2Domains=make_set(RemoteUrl) by DeviceName;\r\n\r\nlet Registry =\r\n    DeviceRegistryEvents\r\n    | where RegistryKey has_any (@\"ConvertMateTask\", @\"PDC_Update\", @\"379F7B04\")\r\n    | summarize RegEvents=count(), RegKeys=make_set(RegistryKey) by DeviceName;\r\n\r\nFiles\r\n| join kind=fullouter Downloads on DeviceName\r\n| join kind=fullouter C2 on DeviceName\r\n| join kind=fullouter Registry on DeviceName\r\n| order by coalesce(C2Events,0) desc, coalesce(FileEvents,0) desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+    - TA0003
+    - TA0004
+techniques:
+    - T1071.001
+    - T1547.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.truesec.com/hub/blog/reoccurring-use-of-highly-suspicious-pdf-editors-to-infiltrate-environments
+    - https://www.lindensec.com/post/detecting-manualfinder-pdf-editor-malware-campaign-with-kql

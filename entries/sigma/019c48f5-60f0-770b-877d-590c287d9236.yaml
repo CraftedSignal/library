@@ -1,0 +1,28 @@
+id: 019c48f5-60f0-770b-877d-590c287d9236
+name: Explorer.exe Spawning PowerShell with Whitespace Obfuscation
+description: Detects PowerShell spawned by explorer.exe with extensive whitespace padding followed by comment characters and fake document paths. This technique is used in social engineering attacks where victims are instructed to paste commands into File Explorer, with malicious code hidden by whitespace and a visible fake path comment (e.g., "# C:\Documents\policy.docx") to appear benign.
+query: "title: Explorer.exe Launching PowerShell with Whitespace-Obfuscated Command\r\nid: 43df21af-1a90-45ea-be7c-c9e123b30e24\r\nstatus: experimental\r\ndescription: |\r\n    Detects PowerShell spawned by explorer.exe with extensive whitespace padding\r\n    followed by comment characters and fake document paths. This technique is used\r\n    in social engineering attacks where victims are instructed to paste commands\r\n    into File Explorer, with malicious code hidden by whitespace and a visible fake\r\n    path comment (e.g., \"# C:\\Documents\\policy.docx\") to appear benign.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1059.001/\r\n    - https://attack.mitre.org/techniques/T1027/\r\n    - https://attack.mitre.org/techniques/T1204.002/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.execution\r\n    - attack.defense-evasion\r\n    - attack.t1059.001\r\n    - attack.t1027\r\n    - attack.t1204.002\r\nlogsource:\r\n    product: windows\r\n    category: process_creation\r\ndetection:\r\n    selection_parent:\r\n        ParentImage|endswith: '\\explorer.exe'\r\n    selection_process:\r\n        Image|endswith:\r\n            - '\\powershell.exe'\r\n            - '\\pwsh.exe'\r\n    selection_obfuscation_whitespace:\r\n        CommandLine|re: '\\s{100,}'\r\n    selection_obfuscation_comment:\r\n        CommandLine|re: '\\s{50,}#\\s*[A-Z]:\\\\'\r\n    condition: selection_parent and selection_process and (selection_obfuscation_whitespace or selection_obfuscation_comment)\r\nfields:\r\n    - CommandLine\r\n    - ParentImage\r\n    - Image\r\n    - User\r\nfalsepositives:\r\n    - Administrative scripts with unusual formatting\r\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+    - T1204.002
+tags:
+    - attack.execution
+    - attack.defense-evasion
+    - attack.t1059.001
+    - attack.t1027
+    - attack.t1204.002
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059.001/
+    - https://attack.mitre.org/techniques/T1027/
+    - https://attack.mitre.org/techniques/T1204.002/
+data_sources:
+    - process_creation
+    - windows

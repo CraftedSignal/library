@@ -1,0 +1,82 @@
+id: 019abeac-3389-71cf-b0c5-155b650dead7
+name: FlexibleFerret Activity
+description: Detects the execution of shell scripts and creation of files associated with the FlexibleFerret macOS malware campaign, which is tied to fake job recruitment lures to trick users into executing malicious commands.
+query: |
+    title: FlexibleFerret Activity
+    id: dcd163e8-5f5d-41a9-ba80-9ac960cd8b6f
+    status: experimental
+    description: Detects the execution of shell scripts and creation of files
+      associated with the FlexibleFerret macOS malware campaign, which is tied to
+      fake job recruitment lures to trick users into executing malicious commands.
+    references:
+      - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    author: detections.ai
+    date: 2025-11-26
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.t1204.002
+      - attack.t1059.004
+      - attack.t1543.001
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection_initial_download:
+        # Detects the initial curl command downloading the stage 2 script
+        CommandLine|contains|all:
+          - 'curl'
+          - '-o /var/tmp/macpatch.sh'
+      selection_script_exec:
+        # Detects the execution of the downloaded stage 2 script
+        Image|endswith: '/bash'
+        CommandLine|contains: '/var/tmp/macpatch.sh'
+      selection_loader_exec:
+        # Detects the execution of the stage 3 loader script
+        Image|endswith: '/bash'
+        CommandLine|contains: '/var/tmp/CDrivers/drivfixer.sh'
+      selection_go_run:
+        # Detects the Go backdoor being executed via the bundled Go runtime
+        Image|endswith: '/go'
+        CommandLine|contains|all:
+          - 'run'
+          - 'driv.go'
+        CurrentDirectory: '/var/tmp/CDrivers'
+      selection_persistence:
+        # Detects the loading of the persistence LaunchAgent
+        Image|endswith: '/launchctl'
+        CommandLine|contains|all:
+          - 'load'
+          - '~/Library/LaunchAgents/com.driver'
+          - 'patch.plist'
+      condition: 1 of selection*
+    falsepositives:
+      - Legitimate scripts or tools might coincidentally use the filename
+        'macpatch.sh' in the /var/tmp directory, though this is unlikely.
+      - The persistence detection uses a broad match on the plist filename and could
+        trigger on unrelated files if they match the pattern. Tuning may be required
+        if legitimate software uses a similar naming convention.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1204.002
+    - T1059.004
+    - T1543.001
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.t1204.002
+    - attack.t1059.004
+    - attack.t1543.001
+author: detections.ai
+version: "3"
+references:
+    - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+data_sources:
+    - process_creation
+    - macos

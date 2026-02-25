@@ -1,0 +1,62 @@
+id: 019c201e-48ff-73cf-89cd-0fe924b045ed
+name: Decoy File Access Detection
+description: 'Detects unauthorized access to decoy files (canary files) placed in strategic locations. By monitoring for access to files with enticing names (e.g., ''passwords.xlsx''), organizations can identify file discovery and data staging activities. Any access to these files is highly suspicious as they have no legitimate purpose. Walkthrough for the creation of Canary Files can be found here: https://github.com/fluffybunnies-h4x/CyberDeception?tab=readme-ov-file#canary-files'
+query: |-
+    title: Decoy File Access Detection
+    id: 5fd06be8-d533-45bc-a193-1e4a1aaf843d
+    status: experimental
+    description: "Detects unauthorized access to decoy files (canary files) placed in strategic locations. By monitoring for access to files with enticing names (e.g., 'passwords.xlsx'), organizations can identify file discovery and data staging activities. Any access to these files is highly suspicious as they have no legitimate purpose. Walkthrough for the creation of Canary Files can be found here: https://github.com/fluffybunnies-h4x/CyberDeception?tab=readme-ov-file#canary-files"
+    references:
+      - https://github.com/fluffybunnies-h4x/CyberDeception
+      - https://www.sans.org/white-papers/41
+      - https://bloodhound.readthedocs.io/
+      - https://canarytokens.org/
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.discovery
+      - attack.t1083
+    logsource:
+      product: windows
+      service: security
+      category: file_access
+    detection:
+      selection:
+        EventID: 4663
+        ObjectName|endswith:
+          - '\passwords.xlsx'
+          - '\credentials.txt'
+          - '\employee_ssn.csv'
+          - 'admin_passwords.docx'
+          - 'network_diagram.pdf'
+          - 'vpn_credentials.txt'
+          - 'bitcoin_wallet.txt'
+          - '\customer_database_backup.sql'
+          - '\hr_salaries_confidential.xlsx'
+      condition: selection
+    falsepositives:
+      - False positives should be extremely rare, as these files have no legitimate use.
+      - Accidental access by a legitimate user is possible but unlikely. Any alert should be investigated.
+      - Ensure that the file names in the detection are exclusively used for canary files.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0009
+techniques:
+    - T1083
+    - T1074
+tags:
+    - attack.discovery
+    - attack.t1083
+author: detections.ai
+version: "2"
+references:
+    - https://github.com/fluffybunnies-h4x/CyberDeception
+    - https://www.sans.org/white-papers/41
+    - https://bloodhound.readthedocs.io/
+    - https://canarytokens.org/
+data_sources:
+    - windows
+    - security

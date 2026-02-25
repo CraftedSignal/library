@@ -1,0 +1,61 @@
+id: 0414d7d7-51bf-4b2f-91e9-81b53e7bcd71
+name: DLL Sideloading via SentinelOne Executable in Suspicious Location
+description: |
+    Detects the execution of a legitimate SentinelOne executable, 'SentinelBrowserNativeHost.exe', from a suspicious location (such as user profile, ProgramData, or Temp directories), which then sideloads a malicious 'SentinelAgentCore.dll'. This is a technique used by Cephalus ransomware.
+query: |
+    title: DLL Sideloading via SentinelOne Executable in Suspicious Location
+    id: f768559d-6058-4f30-94e2-253a5a3ae4e9
+    status: experimental
+    description: >
+      Detects the execution of a legitimate SentinelOne executable,
+      'SentinelBrowserNativeHost.exe', from a suspicious location (such as user
+      profile, ProgramData, or Temp directories), which then sideloads a malicious
+      'SentinelAgentCore.dll'. This is a technique used by Cephalus ransomware.
+    references:
+      - https://www.huntress.com/blog/cephalus-ransomware
+    author: detections.ai
+    date: 2025-08-22T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+      - os.windows
+      - threat.ransomware.cephalus
+    logsource:
+      category: image_load
+      product: windows
+      service: security
+    detection:
+      selection:
+        Image|endswith: \SentinelBrowserNativeHost.exe
+        ImageLoaded|endswith: \SentinelAgentCore.dll
+      filter_legit_path:
+        Image|startswith:
+          - C:\Program Files\SentinelOne\
+          - C:\Program Files (x86)\SentinelOne\
+      condition: selection and not filter_legit_path
+    falsepositives:
+      - Legitimate instances of SentinelBrowserNativeHost.exe running from
+        non-standard paths. This is highly unlikely but could occur during manual
+        software installations or troubleshooting. The filter for standard
+        installation paths should be adapted to the environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+    - os.windows
+    - threat.ransomware.cephalus
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/cephalus-ransomware
+data_sources:
+    - image_load
+    - windows

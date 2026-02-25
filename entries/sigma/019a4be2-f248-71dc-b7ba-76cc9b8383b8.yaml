@@ -1,0 +1,86 @@
+id: 019a4be2-f248-71dc-b7ba-76cc9b8383b8
+name: Suspicious Browser Extensions Installed (CrowdStrike)
+description: Detects non-allowlisted browser extensions with risky names/permissions or TLD indicators in CrowdStrike Falcon InstalledBrowserExtension events.
+query: |
+    title: Suspicious Browser Extensions Installed (CrowdStrike)
+    id: be-001-cs-extensions
+    status: experimental
+    description: >-
+      Detects non-allowlisted browser extensions with risky names/permissions or TLD
+      indicators in CrowdStrike Falcon InstalledBrowserExtension events.
+    author: Carolina Dietz-Vargas
+    date: 2025/11/03
+    tags:
+      - attack.persistence
+      - attack.credential_access
+      - attack.t1176
+    logsource:
+      product: windows
+      definition: event_simpleName = "InstalledBrowserExtension"
+    detection:
+      selection_event:
+        event_simpleName: InstalledBrowserExtension
+      filter_allowlist_ids:
+        BrowserExtensionId:
+          - bnloapiedmegfapoomlbhpnkipeekgfo
+          - ghbmnnjooekpmoecnnnilnnbdlolhkhi
+          - jjkchpdmjjdmalgembblgafllbpcjlei
+          - jmjflgjpcpepeafmmgdpfkogkghcpiha
+          - efaidnbmnnnibpcajpcglclefindmkaj
+          - cpbdlogdokiacaifpokijfinplmdiapa
+          - bfgjjammlemhdcocpejaompfoojnjjfn
+          - felcaaldnbdncclmgdcncolpebgiejap
+          - pjkljhegncpnkpknbcohdijeoejaedia
+          - apdfllckaahabafndbhieahigkjlhalf
+          - webcompat@mozilla.org
+          - nmmhkkegccagdldgiimedpiccmgmieda
+          - aohghmighlieiainnegkcijnfilokake
+          - aapocclcgogkmnckokdopfmhonfmgoek
+          - ikdddppdhmjcdfgilpnbkdeggoiicjgo
+          - cmihkeafcknlomclapaddfljaeegfbdl
+          - jlhmfgmfgeifomenelglieieghnjghma
+      filter_enterprise_policy:
+        BrowserExtensionInstallMethod: enterprise_policy
+      selection_perms_risky:
+        BrowserExtensionRequestedPermissions|re: (?i)(wallet|vpn|proxy|malware|miner|steal|clipboard|secure|private)
+      selection_name_risky:
+        BrowserExtensionName|re: (?i)(wallet|vpn|proxy|miner|hack|secure|private)
+      selection_ru_perms:
+        BrowserExtensionRequestedPermissions|re: \.ru(\b|/)
+      selection_ru_path:
+        BrowserExtensionPath|re: \.ru(\b|/)
+      condition: >-
+        selection_event and not filter_allowlist_ids and not
+        filter_enterprise_policy and (selection_perms_risky or selection_name_risky
+        or 1 of selection_ru_*)
+    fields:
+      - BrowserExtensionName
+      - BrowserExtensionId
+      - BrowserExtensionInstallMethod
+      - BrowserExtensionInstalledTimestamp
+      - BrowserExtensionRequestedPermissions
+      - BrowserExtensionPath
+      - BrowserFileHash
+      - BrowserProfileName
+      - BrowserProfileId
+      - ComputerName
+      - UserName
+    falsepositives:
+      - Enterprise-managed extensions deployed via policy
+      - Security tooling helpers (PDF viewers, EDR/SSO helpers)
+    level: medium
+    references: []
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1176
+tags:
+    - attack.persistence
+    - attack.credential_access
+    - attack.t1176
+author: Carolina Dietz-Vargas
+version: "1"
+data_sources:
+    - windows

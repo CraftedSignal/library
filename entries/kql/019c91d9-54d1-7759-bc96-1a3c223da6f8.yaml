@@ -1,0 +1,33 @@
+id: 019c91d9-54d1-7759-bc96-1a3c223da6f8
+name: Suspicious Node.js Execution from User-Writable Paths
+description: Detects node.exe executing from non-standard, user-writable locations, a TTP associated with the Tsundere Bot malware used by TA584. This rule specifically looks for Node.js runtime execution initiated by common shell or script host processes from directories like AppData or Users\Public.
+query: |-
+    // Name: Suspicious Node.js Execution Path
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects node.exe executing from non-standard, user-writable locations, a TTP associated with the Tsundere Bot malware used by TA584.
+    // False Positive Sensitivity: Medium
+    // References: https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access
+    // MITRE ATT&CK: T1543.003, T1059.001
+    DeviceProcessEvents
+    // Look for the execution of the Node.js runtime
+    | where FileName =~ "node.exe"
+    // Filter for execution from suspicious user-writable directories where malware often places it to avoid admin rights.
+    | where FolderPath has_any ("\\AppData\\Local\\", "\\AppData\\Roaming\\", "\\Users\\Public\\")
+    // The malware is typically launched by a shell or script host following user interaction.
+    | where InitiatingProcessFileName in~ ("powershell.exe", "pwsh.exe", "cmd.exe", "mshta.exe")
+    // False positives may occur in developer environments. The parent process filter helps reduce this,
+    // but further tuning by excluding specific developer user accounts or legitimate script paths may be needed.
+    | project-reorder TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, ProcessCommandLine, AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/cant-stop-wont-stop-ta584-innovates-initial-access

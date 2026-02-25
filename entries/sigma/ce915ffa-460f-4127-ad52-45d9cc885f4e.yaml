@@ -1,0 +1,51 @@
+id: ce915ffa-460f-4127-ad52-45d9cc885f4e
+name: TerraStealerV2 and TerraLogger Detection
+description: Detects potential execution patterns and file artifacts associated with Venom Spider's TerraStealerV2 and TerraLogger malware, including execution via regsvr32.exe or mshta.exe and creation of specific data files.
+query: |
+    title: Venom Spider TerraStealerV2 TerraLogger Execution and Artifacts
+    id: 52382345-6789-4321-abcd-ef1234567890
+    status: experimental
+    description: Detects potential execution patterns and file artifacts associated with Venom Spider's TerraStealerV2 and TerraLogger malware, including execution via regsvr32.exe or mshta.exe and creation of specific data files.
+    author: Aaron Mog - Detections.ai
+    date: 2025-05-09
+    references:
+        - https://polyswarm.io/blog/venom-spider-using-new-terrastealerv2-and-terralogger-malware
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        # Detects regsvr32.exe executing an OCX file, a common method for both malware families
+        selection_regsvr32_ocx:
+            Image|endswith: '\regsvr32.exe'
+            CommandLine|contains: '.ocx'
+        # Detects mshta.exe executing an MP4 file, observed with TerraStealerV2
+        selection_mshta_mp4:
+            Image|endswith: '\mshta.exe'
+            CommandLine|contains: '.mp4'
+        # Detects the creation of the specific file used by TerraStealerV2 to stage stolen credentials
+        selection_terrastealer_file:
+            EventID: 11 # Sysmon EventID for FileCreate
+            TargetFilename|contains: '\ProgramData\Temp\LoginData'
+        # Detects the creation of specific log files used by TerraLogger
+        selection_terralogger_files:
+            EventID: 11 # Sysmon EventID for FileCreate
+            TargetFilename|contains:
+                - '\ProgramData\a.txt'
+                - '\ProgramData\save.txt'
+        condition: 1 of selection*
+    fields:
+        - ComputerName
+        - User
+        - Image
+        - CommandLine
+        - ParentImage
+        - ParentCommandLine
+        - TargetFilename # For FileCreate events
+    falsepositives:
+        - Legitimate software using regsvr32.exe with OCX files (rare but possible)
+        - Legitimate file creation in ProgramData (context is key)
+    level: high
+query_type: sigma
+severity: medium
+author: Aaron MODetections.ai
+version: "1"

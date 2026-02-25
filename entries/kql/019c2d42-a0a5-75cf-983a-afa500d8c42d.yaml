@@ -1,0 +1,59 @@
+id: 019c2d42-a0a5-75cf-983a-afa500d8c42d
+name: Suspicious RMM Tool Execution from User-Writable Directories
+description: Detects the execution of known Remote Monitoring and Management (RMM) tools or related lures from suspicious user-writable directories like Downloads or Temp folders. Adversaries trick users into downloading RMM tools into these locations to bypass typical software installation monitoring.
+query: |
+    // Name: Suspicious RMM Installation Path
+    // Author: detections.ai
+    // Date: 2026-02-05
+    // Description: Detects the execution of known Remote Monitoring and Management (RMM) tools or related lures from suspicious user-writable directories like Downloads or Temp folders. Adversaries trick users into downloading RMM tools into these locations to bypass typical software installation monitoring.
+    // Tactics: Command and Control
+    // Techniques: T1219 - Remote Access Software
+    // References: https://www.huntress.com/blog/series-of-unfortunate-rmm-events
+
+    // Define the list of RMM tools and known lures from the report.
+    let rmmAndLures = dynamic([
+        "GoToResolve.exe",
+        "PDQ.exe",
+        "ITarian.exe",
+        "Thanksgiving-iv.exe",
+        "Open Revised Contract (2).exe",
+        "EVITEINVITERSOLVELIST.exe",
+        "OPENINVITATION.exe",
+        "Contract Revised.exe"
+    ]);
+    // Define suspicious user-writable paths.
+    let suspiciousPathIndicators = dynamic([
+        @"\Downloads\",
+        @"\AppData\Local\Temp\"
+    ]);
+    DeviceProcessEvents
+    // Look for a process that matches a known RMM tool or lure.
+    | where FileName in~ (rmmAndLures)
+    // And is executing from a suspicious user folder path like Downloads or Temp.
+    | where FolderPath has_any (suspiciousPathIndicators) and FolderPath contains @"\Users\"
+    // FP-TUNING: A legitimate user may download and run an RMM tool from their Downloads folder for a one-time support session.
+    // Consider excluding known IT support staff or specific, sanctioned RMM tools if this generates noise in your environment.
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1219
+    - T1204.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/series-of-unfortunate-rmm-events

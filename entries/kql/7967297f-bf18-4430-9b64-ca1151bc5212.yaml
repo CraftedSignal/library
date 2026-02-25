@@ -1,0 +1,19 @@
+id: 7967297f-bf18-4430-9b64-ca1151bc5212
+name: Skynet Malware Tor Proxy Detection
+description: KQL Query
+query: "// Rule Name: Skynet Malware - Tor Proxy Setup\r\n// Description: Detects the execution of the 'Skynet' malware prototype, identified by its unique Tor proxy setup command-line arguments and known SHA256 hash. This malware is notable for embedding a prompt injection string.\r\n// Author: HybridHunter\r\n// Date: 2025-07-02\r\n// References:\r\n//   - https://research.checkpoint.com/2025/ai-evasion-prompt-injection/\r\n// Tactics:\r\n//   - Defense Evasion (TA0005)\r\n//   - Command and Control (TA0011)\r\n// Techniques:\r\n//   - T1071.001: Application Layer Protocol: Web Protocols (for C2 via Tor)\r\n//   - T1572: Protocol Tunneling (Tor proxy)\r\n//   - T1036.005: Masquerading: Match Legitimate Name or Location (using tor.exe)\r\n//   - T1027: Obfuscated Files or Information (malware uses string obfuscation)\r\n//   - T1562.001: Impair Defenses: Disable or Modify Tools (skynet.bypass file)\r\nDeviceProcessEvents\r\n| where ActionType == \"ProcessCreated\"\r\n| where FileName =~ \"tor.exe\"\r\n| where (CommandLine has_all (\"--ControlPort 127.0.0.1:24616\", \"--SocksPort 127.0.0.1:24615\", \"--Log \\\\\\\"notice stdout\\\\\\\"\"))\r\n    or (SHA256 == \"6cdf54a6854179bf46ad7bc98d0a0c0a6d82c804698d1a52f6aa70ffa5207b02\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1071.001
+    - T1572
+    - T1036.005
+    - T1027
+    - T1562.001
+tags:
+    - kql
+author: HybridHunter
+version: "1"

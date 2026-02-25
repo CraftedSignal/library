@@ -1,0 +1,17 @@
+id: 019c89d4-ba81-723c-bfe2-6a368fb0ae20
+name: BeyondTrust RCE CVE-2026-1731 Exploitation Attempt
+description: This rule detects attempts to exploit a critical pre-authentication remote code execution vulnerability (CVE-2026-1731) in BeyondTrust remote support software. It looks for a specific command injection pattern 'a[$(...)]0' sent to vulnerable endpoints like '/nw' or 'get_portal_info'.
+query: "// Name: BeyondTrust RCE CVE-2026-1731 Exploitation Attempt\r\n// Author: Adarsh Pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects attempts to exploit a critical pre-authentication remote code execution vulnerability (CVE-2026-1731) in BeyondTrust remote support software. It looks for a specific command injection pattern 'a[$(...)]0' sent to vulnerable endpoints.\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// Tactics: Initial Access, Execution\r\n// Techniques: T1190, T1059.004\r\n// False Positive Sensitivity: Medium\r\n// Comments: The injection pattern is highly specific and unlikely to be legitimate traffic. However, the log source must have visibility into WebSocket handshake parameters or the raw request body. The table and field names used below are generic; adjust them to match your specific logging schema (e.g., W3CIISLog, CommonSecurityLog, DeviceNetworkEvents).\r\n\r\nlet lookback = 1d;\r\n// The table 'WebLogs' is a placeholder for any log source capturing web traffic to the BeyondTrust appliance.\r\nWebLogs\r\n| where TimeGenerated > ago(lookback)\r\n// Filter for URI paths associated with the vulnerable component.\r\n| where Url has_any (\"/nw\", \"get_portal_info\")\r\n// Search for the specific command injection pattern in the raw request data.\r\n| where RawData matches regex @\"a\\[\\$\\(.*\\)]0\"\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    DestinationIP = DstIpAddr,\r\n    SourceIP = SrcIpAddr\r\n| project-reorder\r\n    timestamp,\r\n    SourceIP,\r\n    DestinationIP,\r\n    Url,\r\n    RawData\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

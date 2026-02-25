@@ -1,0 +1,40 @@
+id: a93a96cd-0e53-44c5-bbc0-7bfe3944aa2e
+name: Lumma Stealer ClickFix Command Execution Detection
+description: KQL Query
+query: |-
+    DeviceRegistryEvents
+    | where ActionType =~ "RegistryValueSet"
+    | where InitiatingProcessFileName =~ "explorer.exe"
+    | where RegistryKey has @"\CurrentVersion\Explorer\RunMRU"
+    | where (RegistryValueData has "✅"
+            or (RegistryValueData has_any ("powershell", "mshta", "curl", "msiexec", "^")
+                 and RegistryValueData matches regex "[\u0400-\u04FF\u0370-\u03FF\u0590-\u05FF\u0600-\u06FF\u0E00-\u0E7F\u2C80-\u2CFF\u13A0-\u13FF\u0530-\u058F\u10A0-\u10FF\u0900-\u097F]")
+            or (RegistryValueData has "mshta" and RegistryValueName !~ "MRUList" and RegistryValueData !in~ ("mshta.exe\\1", "mshta\\1"))
+            or (RegistryValueData has_any ("bitsadmin", "forfiles", "ProxyCommand=") and RegistryValueName !~ "MRUList")
+            or ((RegistryValueData startswith "cmd" or RegistryValueData startswith "powershell")
+                and (RegistryValueData has_any ("-W Hidden ", " -eC ", "curl", "E:jscript", "ssh", "Invoke-Expression", "UtcNow", "Floor", "DownloadString", "DownloadFile", "FromBase64String",  "System.IO.Compression", "System.IO.MemoryStream", "iex", "Invoke-WebRequest", "iwr", "Get-ADDomainController", "InstallProduct", "-w h", "-X POST", "Invoke-RestMethod", "-NoP -W", ".InVOKe", "-useb", "irm ", "^", "[char]", "[scriptblock]", "-UserAgent", "UseBasicParsing", ".Content")
+                  or RegistryValueData matches regex @"[-/–][Ee^]{1,2}[NnCcOoDdEeMmAa^]*\s[A-Za-z0-9+/=]{15,}")))
+    | extend
+        RuleName = "Lumma Stealer - ClickFix Command Execution",
+        Description = "Detects the execution of suspicious commands via the Windows Run dialog (RunMRU registry key), a technique (ClickFix) used by Lumma Stealer for initial access and payload delivery.",
+        Severity = "High",
+        Tactics = "Initial Access, Execution",
+        Techniques = "T1566.001 (Phishing: Spearphishing Attachment), T1566.002 (Phishing: Spearphishing Link), T1059.001 (PowerShell), T1059.003 (Windows Command Shell), T1218.005 (Mshta)",
+        Author = "Detections.ai",
+        Date = "2025-07-06",
+        References = "https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1566.001
+    - T1566.002
+    - T1059.001
+    - T1059.003
+    - T1218.005
+tags:
+    - kql
+version: "1"

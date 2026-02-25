@@ -1,0 +1,72 @@
+id: 019be2f1-7342-770b-8bc8-f623ad5be622
+name: Github Copilot Autoapprove Enabled Followed By Suspicious Child Process
+description: Detects when a Visual Studio Code configuration file is modified, followed by the execution of a shell or networking tool by VS Code. This pattern may indicate abuse of GitHub Copilot via prompt injection (CVE-2025-53773) to achieve remote code execution.
+query: |
+    title: Github Copilot Autoapprove Enabled Followed By Suspicious Child Process
+    id: 12345678-1234-1234-1234-123456789012
+    status: experimental
+    description: Detects when a Visual Studio Code configuration file is modified,
+      followed by the execution of a shell or networking tool by VS Code. This
+      pattern may indicate abuse of GitHub Copilot via prompt injection
+      (CVE-2025-53773) to achieve remote code execution.
+    author: trust1n
+    date: 2025-10-13
+    references:
+      - https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/
+    tags:
+      - LLM
+      - COPILOT
+      - VSCODE
+      - CVE-2025-53773
+      - PROMPT_INJECTION
+      - attack.tactic.defense_evasion
+      - attack.tactic.execution
+      - attack.technique.T1562.001
+      - attack.technique.T1059
+    falsepositives:
+      - Legitimate developer activity involving VS Code tasks that run shell
+        scripts. The correlation window is short to reduce this, but allowlisting
+        specific projects or command lines may be necessary.
+    level: high
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      file_mod_selection:
+        EventID:
+          - 11
+          - 4663
+        TargetFilename|re: '.*\\.vscode\\(settings|tasks)\\.json'
+        Image|re: '.*\\(Code|Visual Studio Code)\\.exe'
+      process_creation_selection:
+        EventID: 1
+        ParentImage|re: '.*\\(Code|Visual Studio Code)\\.exe'
+        Image|re: '.*\\(sh|bash|zsh|cmd|powershell|curl|wget)(\\.exe)?'
+      condition: file_mod_selection and process_creation_selection
+    associated_cves:
+      - CVE-2025-53773
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1059
+tags:
+    - LLM
+    - COPILOT
+    - VSCODE
+    - CVE-2025-53773
+    - PROMPT_INJECTION
+    - attack.tactic.defense_evasion
+    - attack.tactic.execution
+    - attack.technique.T1562.001
+    - attack.technique.T1059
+author: trust1n
+version: "3"
+references:
+    - https://embracethered.com/blog/posts/2025/github-copilot-remote-code-execution-via-prompt-injection/
+data_sources:
+    - file_event
+    - windows

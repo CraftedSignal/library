@@ -1,0 +1,57 @@
+id: 019c903b-0091-705a-bfed-66b764a56e6d
+name: Fake macOS System Preferences Dialog for Password Phishing
+description: Detects the execution of osascript to display a deceptive dialog box mimicking 'System Preferences' to harvest user passwords. This technique was observed being used by the Atomic Stealer (AMOS) malware.
+query: |
+    title: Fake macOS System Preferences Dialog for Password Phishing
+    id: da30cac4-6045-48c4-9f73-889691a85cac
+    status: experimental
+    description: >-
+      Detects the execution of osascript to display a deceptive dialog box mimicking
+      'System Preferences' to harvest user passwords. This technique was observed
+      being used by the Atomic Stealer (AMOS) malware.
+    author: tim@detections.ai
+    references:
+      - >-
+        https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+    date: 2026-02-24T00:00:00.000Z
+    tags:
+      - attack.credential_access
+      - attack.t1566.002
+      - attack.t1059.002
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection:
+        Image|endswith: '/osascript'
+        CommandLine|contains|all:
+          - 'display dialog'
+          - 'System Preferences'
+          - 'password'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or custom scripts that prompt for a password using
+        a similar dialog text. However, the combination of 'System Preferences' and
+        'password' in an osascript dialog is highly suspicious.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+    - TA0043
+techniques:
+    - T1059.002
+    - T1566
+    - T1598
+tags:
+    - attack.credential_access
+    - attack.t1566.002
+    - attack.t1059.002
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+data_sources:
+    - process_creation
+    - macos

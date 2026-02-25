@@ -1,0 +1,75 @@
+id: 019c0c77-5608-713c-9ebf-5f7e199970ce
+name: Fake ClawdBot VS Code Extension - ScreenConnect RAT Activity
+description: Detects process, network, and file events associated with the fake 'ClawdBot Agent' VS Code extension. This malware drops weaponized ScreenConnect (Code.exe) and a Rust-based DWrite.dll loader. The rule covers Lightshot staging paths, relay C2 (bulletmailer.net:8041), extension C2 domains (getintwopc.site, clawdbot.getintwopc, darkgptprivate.com), and known payload hashes.
+query: |
+    // Name: Fake ClawdBot VS Code Extension – ScreenConnect RAT
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-03
+    // Description: Hunts process, network, and file events for the fake "ClawdBot Agent" VS Code extension that drops weaponized ScreenConnect (Code.exe) and a Rust-based DWrite.dll loader. Covers Lightshot staging paths, relay C2 (bulletmailer.net:8041), extension C2 domains, and known payload hashes.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware
+
+    let payload_hashes = dynamic([
+        "e20b920c7af988aa215c95bbaa365d005dd673544ab7e3577b60fecf11dcdea2",
+        "d1e0c26774cb8beabaf64f119652719f673fb530368d5b2166178191ad5fcbea"
+    ]);
+    let T = ago(30d);
+
+    let payload_process = DeviceProcessEvents
+        | where Timestamp > T
+        | where (FileName == "Code.exe" and (FolderPath contains "Lightshot" or FolderPath contains "TEMP"))
+           or (FolderPath contains "ScreenConnect Client (083e4d30c7ea44f7)" and (FileName startswith "ScreenConnect." or FileName == "Code.exe"))
+           or SHA256 in (payload_hashes)
+        | extend Path = strcat(FolderPath, "\\", FileName)
+        | project ProcessTime = Timestamp, DeviceId, DeviceName, AccountName = coalesce(AccountName, ""), Path, FileName, FolderPath, InitiatingProcessFileName, SHA256;
+
+    let payload_by_hash = DeviceProcessEvents
+        | where Timestamp > T
+        | where SHA256 in (payload_hashes)
+        | extend Path = strcat(FolderPath, "\\", FileName)
+        | project ProcessTime = Timestamp, DeviceId, DeviceName, AccountName = coalesce(AccountName, ""), Path, FileName, FolderPath, InitiatingProcessFileName, SHA256;
+
+    union (
+        payload_process
+        | extend Timestamp = ProcessTime, InitiatingProcessCommandLine = "", RemoteUrl = "", RemoteIP = ""
+        | project Path, FileName, FolderPath, InitiatingProcessFileName, SHA256, Timestamp, DeviceName, AccountName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP
+    ),
+    (
+        DeviceNetworkEvents
+        | where Timestamp > T
+        | where (RemoteUrl contains "bulletmailer.net" and (RemotePort == 8041 or isnull(RemotePort)))
+           or RemoteUrl contains "getintwopc.site" or RemoteUrl contains "clawdbot.getintwopc" or RemoteUrl contains "darkgptprivate.com"
+        | project Path = "", FileName = "", FolderPath = "", InitiatingProcessFileName, SHA256 = "", Timestamp, DeviceName, AccountName = "", InitiatingProcessCommandLine = "", RemoteUrl, RemoteIP = coalesce(tostring(RemoteIP), "")
+    ),
+    (
+        DeviceFileEvents
+        | where Timestamp > T
+        | where ((FolderPath contains "Lightshot" and (FolderPath contains "TEMP" or FolderPath contains "Temp")) and (FileName endswith ".exe" or FileName endswith ".dll" or FileName endswith ".msi"))
+           or (FolderPath contains "ScreenConnect Client (083e4d30c7ea44f7)" and FolderPath contains "Program Files")
+        | extend Path = strcat(FolderPath, "\\", FileName)
+        | project Path, FileName, FolderPath, InitiatingProcessFileName, SHA256, Timestamp, DeviceName, AccountName = "", InitiatingProcessCommandLine = "", RemoteUrl = "", RemoteIP = ""
+    ),
+    (
+        payload_by_hash
+        | join kind=inner (
+            DeviceNetworkEvents
+            | where Timestamp > T
+            | where isnotempty(RemoteIP) and RemoteIP matches regex @"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"
+            | project NetworkTime = Timestamp, DeviceId, RemoteUrl, RemoteIP
+        ) on DeviceId
+        | where abs(datetime_diff('day', ProcessTime, NetworkTime)) <= 30
+        | project Path, FileName, FolderPath, InitiatingProcessFileName, SHA256, Timestamp = NetworkTime, DeviceName, AccountName, InitiatingProcessCommandLine = "", RemoteUrl, RemoteIP = coalesce(tostring(RemoteIP), "")
+    )
+    | sort by Timestamp desc
+    | project Path, FileName, FolderPath, InitiatingProcessFileName, SHA256, Timestamp, DeviceName, AccountName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware

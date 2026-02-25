@@ -1,0 +1,14 @@
+id: 019c8d5b-abb8-771e-8dbf-93e0034534c7
+name: Outbound Connection to Moonrise C2 IP
+description: This rule detects outbound network connections from devices to a known Moonrise C2 IP address (193.23.199.88). It specifically looks for successful connections, inbound connections accepted, or connection attempts to this malicious IP.
+query: "//Outbound connection to known Moonrise C2\r\nlet C2_IPs = dynamic([\"193.23.199.88\"]);\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(1h)\r\n| where RemoteIP in (C2_IPs)\r\n| where ActionType in (\"ConnectionSuccess\", \"InboundConnectionAccepted\", \"ConnectionAttempt\")\r\n| project TimeGenerated, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName,\r\n          InitiatingProcessFolderPath, InitiatingProcessCommandLine,\r\n          RemoteIP, RemotePort, Protocol, ReportId\r\n| extend HostCustomEntity = DeviceName, IPAddressCustomEntity = RemoteIP, AccountCustomEntity = InitiatingProcessAccountName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

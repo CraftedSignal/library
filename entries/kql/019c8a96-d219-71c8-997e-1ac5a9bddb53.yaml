@@ -1,0 +1,52 @@
+id: 019c8a96-d219-71c8-997e-1ac5a9bddb53
+name: OAST DNS Tunneling for Exfiltration
+description: Detects potential DNS tunneling used for system fingerprinting and exfiltration. The query looks for DNS requests to known Out-of-Band Application Security Testing (OAST) domains where the query name contains a long, hexadecimal-encoded string. This pattern is indicative of attackers using DNS to bypass egress firewalls, as seen in post-exploitation of CVE-2026-1731.
+query: |
+    // Name: OAST DNS Tunneling for Exfiltration
+    // Author: adarsh pandey
+    // Date: 2026-02-23
+    // Description: Detects potential DNS tunneling used for system fingerprinting and exfiltration. The query looks for DNS requests to known Out-of-Band Application Security Testing (OAST) domains where the query name contains a long, hexadecimal-encoded string. This pattern is indicative of attackers using DNS to bypass egress firewalls, as seen in post-exploitation of CVE-2026-1731.
+    // False Positive Sensitivity: Medium
+    // Tactic: Command and Control, Exfiltration
+    // Technique: T1071.004, T1041
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    let timeframe = 1d;
+    // List of known OAST provider domains used by attackers.
+    let oast_domains = dynamic(["oastify.com", "oast.pro", "oast.fun"]);
+    // This query runs against DNS logs. Common table names are DnsEvents, VMConnection, or CommonSecurityLog.
+    // Adjust the table name and field names (Name, IPAddresses, DeviceName) as per your schema.
+    DnsEvents
+    | where TimeGenerated > ago(timeframe)
+    // Pre-filter for performance to only include queries to the target OAST domains.
+    | where Name has_any (oast_domains)
+    // Extract any part of the DNS query that is a hex string of 60 or more characters.
+    // The DNS label limit is 63 characters, and attackers use this to encode data.
+    | extend HexLabels = extract_all(@"([a-f0-9]{60,})", Name)
+    // Trigger an alert if one or more such labels are found in the query name.
+    | where array_length(HexLabels) > 0
+    // FP Tuning: Legitimate security scanning tools (e.g., Burp Suite Enterprise) may generate this traffic.
+    // If this is a known activity, consider excluding the IP addresses or hostnames of the scanners.
+    // For example: | where ClientIP !in ("<scanner_ip_1>", "<scanner_ip_2>")
+    | project
+        TimeGenerated,
+        QueryName = Name,
+        ClientIP = tostring(IPAddresses),
+        DeviceName,
+        ExtractedHexLabels = HexLabels
+    | extend
+        timestamp = TimeGenerated,
+        HostCustomEntity = DeviceName,
+        AccountCustomEntity = ClientIP // Using ClientIP as the entity initiating the request.
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.004
+    - T1041
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

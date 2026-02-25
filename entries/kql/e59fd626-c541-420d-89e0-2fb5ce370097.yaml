@@ -1,0 +1,19 @@
+id: e59fd626-c541-420d-89e0-2fb5ce370097
+name: Intra-organizational SVG Smuggling with Authentication Failure
+description: This rule detects potential intra-organizational SVG smuggling attempts. It identifies emails where the sender and recipient are within the same organization (or the sender is spoofing an internal address) and an SVG file is attached. Additionally, it filters for emails where authentication details indicate a failure, suggesting a spoofing attempt. The combination of an SVG attachment, an internal sender/recipient, and authentication failure points to a malicious attempt to bypass email security and deliver weaponized SVG files.
+query: "EmailAttachmentInfo\r\n| where RecipientEmailAddress == SenderFromAddress or (RecipientEmailAddress endswith \"hansainvest.de\" and SenderFromAddress endswith \"hansainvest.de\")\r\n| where tolower(FileName) endswith \".svg\" \r\n| join kind = inner(\r\n    EmailEvents\r\n    | where AuthenticationDetails has \"fail\"\r\n    | where (ThreatTypes !has \"Phish\" or ThreatTypes !has \"Spam\") and DeliveryAction != \"Blocked\"\r\n    | project TimeGenerated, AuthenticationDetails, NetworkMessageId, EmailAction, Subject,Threat = ThreatTypes, DeliveryAction\r\n    )\r\n    on TimeGenerated, NetworkMessageId\r\n| project\r\n    TimeGenerated,\r\n    NetworkMessageId,\r\n    RecipientEmailAddress,\r\n    SenderFromAddress,\r\n    AuthenticationDetails,\r\n    Subject,\r\n    FileName,\r\n    EmailAction, \r\n    Threat, \r\n    DeliveryAction"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0043
+    - TA0001
+techniques:
+    - T1672
+    - T1598.002
+    - T1027.017
+    - T1566.001
+tags:
+    - kql
+author: M6R
+version: "3"

@@ -1,0 +1,17 @@
+id: 019bb094-be1e-7143-8663-6c4f9cf22f00
+name: User-Driven Download of Potentially Malicious File Type
+description: This query detects when a user downloads a potentially malicious or unauthorized file type (e.g., executable, script, archive) from the internet using a web browser. It leverages endpoint file creation events from data mapped to the Elastic Common Schema (ECS).
+query: "// Name: User-Driven Download of Potentially Malicious File Type\n// Author: detections.ai\n// Date: 2026-01-11\n// Description: This query detects when a user downloads a potentially malicious or unauthorized file type (e.g., executable, script, archive) from the internet using a web browser. It leverages endpoint file creation events from data mapped to the Elastic Common Schema (ECS).\n\nFROM file\n// Look for file creation events from endpoint security data.\nwhere event.kind == \"event\" and event.category == \"file\" and event.type == \"creation\"\n\n// Filter for files created by common web browser processes.\nand process.name in \n    ('chrome.exe', 'firefox.exe', 'msedge.exe', 'iexplore.exe', 'opera.exe', 'brave.exe', 'vivaldi.exe')\n\n// Filter for suspicious or notable file extensions.\nand file.extension in \n    ('exe', 'dll', 'msi', 'bat', 'ps1', 'vbs', 'scr', 'jar', 'zip', 'rar', '7z')\n\n// Ensure the file has a source URL, indicating it was a download.\nand file.url.original != null\n\n// FP Tuning: Exclude downloads from known safe and trusted domains.\n// Add your company's trusted software repositories or partner domains here.\nand not file.url.domain in \n    ('microsoft.com', 'windowsupdate.com', 'google.com', 'apple.com', 'adobe.com')\n\n// FP Tuning: Exclude common browser cache and temp folders. \n// This list may need to be expanded based on your environment.\nand not file.path like \n    (\n        '*\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Temp\\\\\\\\*',\n        '*\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Microsoft\\\\\\\\Windows\\\\\\\\INetCache\\\\\\\\*',\n        '*\\\\\\\\AppData\\\\\\\\Local\\\\\\\\Google\\\\\\\\Chrome\\\\\\\\User Data\\\\\\\\Default\\\\\\\\Cache\\\\\\\\*'\n    )\n\n// Structure the output for analysis and alerting.\n| keep\n    @timestamp,\n    host.name,\n    user.name,\n    process.name,\n    file.name,\n    file.path,\n    file.size,\n    file.hash.sha1,\n    file.url.original\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0001
+techniques:
+    - T1105
+    - T1204
+    - T1566
+tags:
+    - spl
+version: "2"

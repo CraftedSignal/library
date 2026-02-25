@@ -1,0 +1,87 @@
+id: 019c05ee-bd8a-72f4-8feb-dd9fa3d7058a
+name: PowerShell CIM-Based Virtual Machine Detection
+description: |
+    Detects PowerShell execution using Get-CimInstance to query Win32_ComputerSystem, Win32_BIOS, Win32_BaseBoard, or other WMI classes commonly checked by malware to detect virtual machine or sandbox environments. This technique is frequently used by malware families to evade analysis in virtualized security research environments.
+query: |
+    title: PowerShell CIM-Based Virtual Machine Detection
+    id: d51cfa5f-d37c-4c02-a659-26d5012ea362
+    status: experimental
+    description: |
+      Detects PowerShell execution using Get-CimInstance to query Win32_ComputerSystem, Win32_BIOS, Win32_BaseBoard, or other WMI classes commonly checked by malware to detect virtual machine or sandbox environments. This technique is frequently used by malware families to evade analysis in virtualized security research environments.
+    references:
+      - https://github.com/LordNoteworthy/al-khaser
+      - https://evasions.checkpoint.com/techniques/registry.html
+      - https://www.deepinstinct.com/blog/malware-evasion-techniques
+      - https://unprotect.it/technique/detecting-virtual-machine/
+      - https://attack.mitre.org/techniques/T1497/001/
+    author: detections.ai, Aaron Beardslee
+    date: 2026-01-28
+    tags:
+      - attack.defense_evasion
+      - attack.discovery
+      - attack.t1497.001
+      - attack.t1082
+    logsource:
+      product: windows
+      category: powershell_script
+    detection:
+      # Detects the use of the Get-CimInstance cmdlet, which can bypass some WMI monitoring tools
+      selection_cim:
+        ScriptBlockText|contains: 'Get-CimInstance'
+      # Detects queries for WMI classes commonly used to identify system hardware and configuration
+      selection_vm_classes:
+        ScriptBlockText|contains:
+          - 'Win32_ComputerSystem'
+          - 'Win32_BIOS'
+          - 'Win32_BaseBoard'
+          - 'Win32_DiskDrive'
+          - 'Win32_VideoController'
+          - 'Win32_NetworkAdapter'
+          - 'Win32_PnPEntity'
+      # Detects keywords associated with common virtualization platforms
+      selection_vm_keywords:
+        ScriptBlockText|contains:
+          - 'VMware'
+          - 'VirtualBox'
+          - 'Hyper-V'
+          - 'QEMU'
+          - 'Xen'
+          - 'Parallels'
+          - 'innotek'
+          - 'vbox'
+          - 'VBoxGuest'
+      # The condition requires the CIM cmdlet, a relevant WMI class, and a VM keyword to be present in the same script block
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate system inventory scripts used by IT administrators.
+      - System management tools such as SCCM, SCOM, or Lansweeper may perform
+        similar checks. Consider filtering based on script content or parent
+        processes if these are causing noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+    - TA0002
+techniques:
+    - T1497
+    - T1497.001
+    - T1082
+    - T1059.001
+tags:
+    - attack.defense_evasion
+    - attack.discovery
+    - attack.t1497.001
+    - attack.t1082
+author: detections.ai, Aaron Beardslee
+version: "2"
+references:
+    - https://github.com/LordNoteworthy/al-khaser
+    - https://evasions.checkpoint.com/techniques/registry.html
+    - https://www.deepinstinct.com/blog/malware-evasion-techniques
+    - https://unprotect.it/technique/detecting-virtual-machine/
+    - https://attack.mitre.org/techniques/T1497/001/
+data_sources:
+    - powershell_script
+    - windows

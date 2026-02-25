@@ -1,0 +1,8 @@
+id: 019c48f7-d4b3-7769-a2f7-df50067116ff
+name: Short Interactive Sessions on Linux or Vyatta
+description: This rule identifies unusually short user sessions on Linux and Vyatta systems. It looks for instances where a user session is opened and then closed within 10 seconds. The rule then aggregates these short sessions over 5-minute intervals per host, counting the number of such sessions, listing affected users, and calculating the minimum, maximum, and average duration of these short sessions. This could indicate rapid login/logout activity, potential script-based access, or unusual system behavior.
+query: "index IN (\"linux\", \"vyatta\") sourcetype=syslog (action=\"session opened\" OR action=\"session closed\")\r\n| sort 0 _time\r\n| streamstats current=f window=1 last(_time) as prev_time, last(action) as prev_action by host, user, pid\r\n| where action=\"session closed\" AND prev_action=\"session opened\"\r\n| eval session_duration=_time - prev_time\r\n| where session_duration <= 10\r\n| bin _time span=5m\r\n| stats count as short_sessions,\r\n        values(user) as users,\r\n        min(session_duration) as min_duration,\r\n        max(session_duration) as max_duration,\r\n        avg(session_duration) as avg_duration\r\n        by _time, host\r\n| where short_sessions >= 1\r\n| eval min_duration=round(min_duration, 2), max_duration=round(max_duration, 2), avg_duration=round(avg_duration, 2)"
+query_type: spl
+tags:
+    - spl
+version: "1"

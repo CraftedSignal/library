@@ -1,0 +1,20 @@
+id: c96b3893-a50e-41bf-b5a2-2c01b8fc9c1c
+name: Suspicious File Activity by mstsc.exe
+description: SPL Query
+query: |-
+    | tstats `security_content_summaries` from datamodel=Endpoint.Filesystem where Filesystem.EventCode=11 AND (Filesystem.Image="*\\mstsc.exe" OR Filesystem.ParentImage="*\\mstsc.exe") NOT (Filesystem.TargetFilename="*\\AppData\\Local\\Temp\\_TS*.tmp" OR Filesystem.TargetFilename="*\\AppData\\Local\\Microsoft\\Terminal Server Client\\*") by Filesystem.dest, Filesystem.Image, Filesystem.ParentImage, Filesystem.TargetFilename, Filesystem.User, Filesystem.CommandLine
+    | `drop_dm_object_name(Filesystem)`
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0011
+techniques:
+    - T1021.001
+    - T1219.002
+    - T1563.002
+tags:
+    - spl
+version: "1"

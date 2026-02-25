@@ -1,0 +1,60 @@
+id: 019b9a24-1bdb-7278-872c-1e378c7641eb
+name: N8n Content-Type Confusion Exploit Attempt (CVE-2026-21858)
+description: Detects HTTP POST requests to n8n '/form/*' endpoints where the Content-Type header is 'application/json'. This indicates an attempt to exploit the Content-Type confusion vulnerability (CVE-2026-21858) to achieve arbitrary file read and subsequent remote code execution.
+query: |
+    title: N8n Content-Type Confusion Exploit Attempt (CVE-2026-21858)
+    id: 59874d4f-26f6-4d76-b7a6-b75c2eb715ae
+    status: experimental
+    description: Detects HTTP POST requests to n8n '/form/*' endpoints where the
+      Content-Type header is 'application/json'. This indicates an attempt to
+      exploit the Content-Type confusion vulnerability (CVE-2026-21858) to achieve
+      arbitrary file read and subsequent remote code execution.
+    references:
+      - https://www.cyera.com/research-labs/ni8mare-unauthenticated-remote-code-execution-in-n8n-cve-2026-21858
+    author: tim@detections.ai
+    date: 2026-01-07
+    tags:
+      - cve.2026.21858
+      - attack.t1190
+      - attack.t1505.003
+      - attack.initial_access
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        # Detects POST requests, which are used for form submissions
+        cs-method: 'POST'
+        # The vulnerability is specific to the '/form/' webhook endpoint, which uses a UUID
+        cs-uri-path|re: '^/form/[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$'
+        # The exploit involves sending a JSON content type instead of the expected multipart/form-data
+        cs-content-type: 'application/json'
+        # Filters for successful requests to reduce noise from scanners or failed attempts
+        sc-status: 200
+      condition: selection
+    falsepositives:
+      - Legitimate requests to n8n form endpoints should use 'multipart/form-data'.
+        However, custom integrations or misconfigured clients could potentially
+        trigger this rule. It's recommended to verify the source of the request and
+        the workflow configuration.
+    level: critical
+    associated_cves:
+      - CVE-2026-21858
+query_type: sigma
+severity: critical
+tactics:
+    - TA0001
+    - TA0003
+techniques:
+    - T1190
+    - T1505.003
+tags:
+    - cve.2026.21858
+    - attack.t1190
+    - attack.t1505.003
+    - attack.initial_access
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.cyera.com/research-labs/ni8mare-unauthenticated-remote-code-execution-in-n8n-cve-2026-21858
+data_sources:
+    - webserver

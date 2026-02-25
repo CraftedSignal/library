@@ -1,0 +1,16 @@
+id: 019c7142-1416-727c-9582-46a02c2eba7b
+name: Spam Campaign Abusing Atlassian Jira
+description: This rule detects emails originating from Atlassian Jira (specifically the .atlassian.net domain) that contain subject lines associated with a known spam campaign. The campaign uses various lures, including investment scams and online casinos, across multiple languages.
+query: "// Name: Spam Campaign Abusing Atlassian Jira\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// References:\r\n// - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html\r\n// This rule detects emails from Atlassian Jira containing subject lines associated with a known spam campaign.\r\nEmailEvents\r\n// Filter for emails originating from the atlassian.net domain, used by Jira Cloud.\r\n| where SenderFromDomain endswith \".atlassian.net\"\r\n// Match against a regex of known spam subject lines in various languages.\r\n// The patterns are based on lures for investment scams and online casinos.\r\n| where Subject matches regex @\"(?i)(Заявка No.*(Необходимо|Требуется) Ваше подтверждение|A (new year gift|holiday note) for you|Haven`t you picked up your gifts yet|Get your first bonus now|Special Gaming Opportunity|Una nuova opportunità di gioco|Il gioco è ora disponibile|Aggiornamento della piattaforma e offerta)\"\r\n// FP Tuning: To reduce potential false positives, consider excluding legitimate Jira instances your organization uses.\r\n// For example: | where SenderFromDomain !in~ (\"mycompany.atlassian.net\", \"partner-jira.atlassian.net\")\r\n| project\r\n    TimeGenerated,\r\n    Subject,\r\n    SenderFromAddress,\r\n    RecipientEmailAddress,\r\n    AuthenticationDetails,\r\n    UrlCount,\r\n    AttachmentCount,\r\n    NetworkMessageId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html

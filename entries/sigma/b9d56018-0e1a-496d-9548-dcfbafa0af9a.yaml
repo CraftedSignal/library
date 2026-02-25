@@ -1,0 +1,102 @@
+id: b9d56018-0e1a-496d-9548-dcfbafa0af9a
+name: HazyBeacon Backdoor Activity
+description: Detects TTPs associated with the HazyBeacon backdoor, which has been observed targeting governmental entities in Southeast Asia. This rule identifies specific service creation for persistence, DLL sideloading of mscorsvc.dll, C2 communication via AWS Lambda URLs, and execution of known exfiltration tools from the C:\ProgramData directory.
+query: |
+    title: HazyBeacon Backdoor Activity
+    id: a6586299-4d1a-47f8-8fbb-ad77da684503
+    status: experimental
+    description: >-
+      Detects TTPs associated with the HazyBeacon backdoor, which has been observed
+      targeting governmental entities in Southeast Asia. This rule identifies
+      specific service creation for persistence, DLL sideloading of mscorsvc.dll, C2
+      communication via AWS Lambda URLs, and execution of known exfiltration tools
+      from the C:\ProgramData directory.
+    references:
+      - >-
+        https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/
+    author: Aaron Mog - detections.ai
+    date: 2025-07-14
+    tags:
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.command_and_control
+      - attack.exfiltration
+      - attack.t1543.003
+      - attack.t1574.002
+      - attack.t1071.004
+      - attack.t1567.002
+    logsource:
+      product: windows
+    detection:
+      selection_hashes:
+        category: file_event
+        sha256:
+          - 4931df8650521cfd686782919bda0f376475f9fc5f1fee9d7cf3a4e0d9c73e30
+          - d20b536c88ecd326f79d7a9180f41a2e47a40fcf2cc6a2b02d68a081c89eaeaa
+          - 304c615f4a8c2c2b36478b693db767d41be998032252c8159cc22c18a65ab498
+          - f0c9481513156b0cdd216d6dfb53772839438a2215d9c5b895445f418b64b886
+          - 3255798db8936b5b3ae9fed6292413ce20da48131b27394c844ecec186a1e92f
+          - 279e60e77207444c7ec7421e811048267971b0db42f4b4d3e975c7d0af7f511e
+          - d961aca6c2899cc1495c0e64a29b85aa226f40cf9d42dadc291c4f601d6e27c3
+      selection_service:
+        category: process_creation
+        Image|endswith: \sc.exe
+        CommandLine|contains|all:
+          - create
+          - msdnetsvc
+          - binPath=
+          - mscorsvw.exe
+      selection_sideload:
+        category: image_load
+        Image|endswith: \mscorsvw.exe
+        ImageLoaded|startswith: C:\Windows\assembly\
+        ImageLoaded|endswith: \mscorsvc.dll
+      selection_network:
+        category: network_connection
+        Image|endswith: \mscorsvw.exe
+        DestinationDnsDomain|contains|all:
+          - .lambda-url.
+          - .on.aws
+      selection_payloads:
+        category: process_creation
+        Image|startswith: C:\ProgramData\
+        Image|endswith:
+          - \GoogleGet.exe
+          - \google.exe
+          - \GoogleDrive.exe
+          - \GoogleDriveUpload.exe
+          - \Dropbox.exe
+          - \igfx.exe
+      condition: 1 of them
+    falsepositives:
+      - Legitimate use of AWS Lambda URLs by non-browser applications could trigger
+        the network selection. Tuning may be required to baseline normal activity.
+      - The file `igfx.exe` could be a legitimate Intel graphics component
+      - although its execution from `C:\ProgramData` is highly suspicious.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0010
+    - TA0004
+    - TA0011
+techniques:
+    - T1543.003
+    - T1071.004
+    - T1567.002
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.command_and_control
+    - attack.exfiltration
+    - attack.t1543.003
+    - attack.t1574.002
+    - attack.t1071.004
+    - attack.t1567.002
+author: Aaron Mog - detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/
+data_sources:
+    - windows

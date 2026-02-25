@@ -1,0 +1,25 @@
+id: 019c48f5-ec03-76dc-8dc4-155983f9efcd
+name: PowerShell Compressed Base64 Payload with Assembly Load
+description: Detects PowerShell scripts that perform a multi-stage obfuscation pattern involving the decompression of data using 'IO.Compression.DeflateStream' or 'IO.Compression.GzipStream', followed by base64 decoding using 'FromBase64String' or 'Convert::FromBase64', and finally loading the resulting payload as a .NET assembly using 'Reflection.Assembly' or 'Assembly]::Load'. This combination of actions is indicative of malware delivery techniques.
+query: "title: PowerShell Compressed Base64 Payload with Assembly Load\r\nid: 2806b203-fa8c-4784-a8ca-b4ea84a21607\r\nstatus: experimental\r\ndescription: Detects PowerShell decompressing base64-encoded payloads and loading them as .NET assemblies. This multi-stage obfuscation pattern is commonly used for malware delivery.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1027/\r\n    - https://attack.mitre.org/techniques/T1059.001/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.defense-evasion\r\n    - attack.execution\r\n    - attack.t1027\r\n    - attack.t1059.001\r\nlogsource:\r\n    product: windows\r\n    category: ps_script\r\ndetection:\r\n    selection_compression:\r\n        EventID: 4104\r\n        ScriptBlockText|contains:\r\n            - 'IO.Compression.DeflateStream'\r\n            - 'IO.Compression.GzipStream'\r\n    selection_decode:\r\n        ScriptBlockText|contains:\r\n            - 'FromBase64String'\r\n            - 'Convert::FromBase64'\r\n    selection_load:\r\n        ScriptBlockText|contains:\r\n            - 'Reflection.Assembly'\r\n            - 'Assembly]::Load'\r\n            - '.Load('\r\n    condition: selection_compression and selection_decode and selection_load\r\nfields:\r\n    - ScriptBlockText\r\n    - User\r\nfalsepositives:\r\n    - Unknown\r\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.defense-evasion
+    - attack.execution
+    - attack.t1027
+    - attack.t1059.001
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1027/
+    - https://attack.mitre.org/techniques/T1059.001/
+data_sources:
+    - ps_script
+    - windows

@@ -1,0 +1,62 @@
+id: 019beb1d-4311-702d-9ece-f58644316e8a
+name: SyncAppvPublishingServer.vbs Command Injection For Proxy Execution
+description: Detects the use of a command injection vulnerability in the legitimate Windows script 'SyncAppvPublishingServer.vbs' to execute arbitrary code. As seen in the ClearFake campaign, attackers can append a semicolon to the command-line arguments to execute subsequent malicious PowerShell commands.
+query: |
+    title: SyncAppvPublishingServer.vbs Command Injection For Proxy Execution
+    id: b1413fcb-0ece-4390-90d8-bbf1b327c3b2
+    status: experimental
+    description: >-
+      Detects the use of a command injection vulnerability in the legitimate Windows
+      script 'SyncAppvPublishingServer.vbs' to execute arbitrary code. As seen in
+      the ClearFake campaign, attackers can append a semicolon to the command-line
+      arguments to execute subsequent malicious PowerShell commands.
+    references:
+      - https://expel.com/blog/clearfake-new-lotl-techniques/
+    author: tim@detections.ai
+    date: 2026-01-23T00:00:00.000Z
+    tags:
+      - attack.t1202
+      - attack.t1059.001
+      - attack.t1059.005
+      - attack.t1218
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+        CommandLine|contains|all:
+          - 'SyncAppvPublishingServer.vbs'
+          - ';'
+      condition: selection
+    falsepositives:
+      - Legitimate use of 'SyncAppvPublishingServer.vbs' is not expected to contain
+        a semicolon in its command-line arguments. However, it's recommended to
+        verify if any administrative scripts in your environment use this binary in
+        an unusual manner.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1202
+    - T1059.001
+    - T1059.005
+    - T1218
+tags:
+    - attack.t1202
+    - attack.t1059.001
+    - attack.t1059.005
+    - attack.t1218
+author: tim@detections.ai
+version: "3"
+references:
+    - https://expel.com/blog/clearfake-new-lotl-techniques/
+data_sources:
+    - process_creation
+    - windows

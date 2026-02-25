@@ -1,0 +1,108 @@
+id: 0199da47-e870-726f-81df-581b6f3aabb5
+name: Suspicious Child Process of Analysis Tool
+description: Detects the creation of a child process by a known analysis, debugging, or reverse engineering tool. Malware like Stealit checks for these parent processes to determine if it's being analyzed. Spawning unexpected child processes from these tools can indicate malicious activity, such as the malware continuing its execution path after a failed anti-analysis check or a user interacting with a malicious file within a sandbox. The rule is filtered to exclude common legitimate child processes spawned by these tools.
+query: |
+    title: Suspicious Child Process of Analysis Tool
+    id: d76ad5ed-7414-450e-a4ae-2d4555315002
+    status: experimental
+    description: Detects the creation of a child process by a known analysis,
+      debugging, or reverse engineering tool. Malware like Stealit checks for these
+      parent processes to determine if it's being analyzed. Spawning unexpected
+      child processes from these tools can indicate malicious activity, such as the
+      malware continuing its execution path after a failed anti-analysis check or a
+      user interacting with a malicious file within a sandbox. The rule is filtered
+      to exclude common legitimate child processes spawned by these tools.
+    references:
+      - https://www.fortinet.com/blog/threat-research/stealit-campaign-abuses-nodejs-single-executable-application
+    author: detections.ai
+    date: 2025-10-11
+    tags:
+      - attack.defense_evasion
+      - attack.t1518.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects child processes spawned by blacklisted analysis tools
+      selection_parent:
+        ParentImage|endswith:
+          - '\x64dbg.exe'
+          - '\x32dbg.exe'
+          - '\ollydbg.exe'
+          - '\ida.exe'
+          - '\ida64.exe'
+          - '\ghidra.exe'
+          - '\immunity.exe'
+          - '\windbg.exe'
+          - '\cheatengine.exe'
+          - '\cheat engine.exe'
+          - '\processhacker.exe'
+          - '\apimonitor.exe'
+          - '\wireshark.exe'
+          - '\Fiddler.exe'
+      # Filters for whitelisted child process names from the Stealit report
+      filter_child_name:
+        Image|endswith:
+          - '\svchost.exe'
+          - '\explorer.exe'
+          - '\dwm.exe'
+          - '\winlogon.exe'
+          - '\csrss.exe'
+          - '\lsass.exe'
+          - '\services.exe'
+          - '\spoolsv.exe'
+          - '\taskhost.exe'
+          - '\taskhostw.exe'
+          - '\conhost.exe'
+          - '\dllhost.exe'
+          - '\rundll32.exe'
+          - '\msiexec.exe'
+          - '\wininit.exe'
+          - '\smss.exe'
+          - '\wermgr.exe'
+          - '\searchindexer.exe'
+          - '\audiodg.exe'
+      # Filters for whitelisted child process paths from the Stealit report
+      filter_child_path:
+        Image|startswith:
+          - 'c:\windows\system32\'
+          - 'c:\windows\syswow64\'
+          - 'c:\windows\winsxs\'
+          - 'c:\program files\windows'
+          - 'c:\program files (x86)\windows'
+          - 'c:\program files\microsoft'
+          - 'c:\program files (x86)\microsoft'
+          - 'c:\windows\servicing\'
+          - 'c:\windows\ccm\'
+          - 'c:\windows\ccmcache\'
+        Image|contains:
+          - '\windowsapps\'
+      # The 'Company' field may not be available in all log sources. Tune or remove if necessary.
+      filter_child_company:
+        Company: 'Microsoft Corporation'
+      condition: selection_parent and not (filter_child_name or filter_child_path or
+        filter_child_company)
+    falsepositives:
+      - Some analysis tools may legitimately spawn helper processes or command
+        shells that are not on the whitelist. This may require further tuning based
+        on legitimate tool usage in your environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1622
+    - T1497
+    - T1518.001
+tags:
+    - attack.defense_evasion
+    - attack.t1518.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/stealit-campaign-abuses-nodejs-single-executable-application
+data_sources:
+    - process_creation
+    - windows

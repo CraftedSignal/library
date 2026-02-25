@@ -1,0 +1,42 @@
+id: 019bbef4-0315-7056-9294-aa29b5fce5d1
+name: Browser Network Connection to Known C2 Domains for Malicious 'ChatGPTStealer' Extension
+description: This rule detects common chromium browser processes establishing outbound network connections to known C2 domains associated with malicious 'ChatGPTStealer' infostealer extension. Detections by this rule indicates a high likelihood that a malicious chromium infostealer extension is currently or had been installed on an endpoint.
+query: |-
+    let MaliciousC2Domains = dynamic([
+        "deepaichats.com",
+        "chatsaigpt.com"
+    ]);
+    let CommonChromiumBrowsers = dynamic([
+        "chrome.exe",
+        "opera.exe",
+        "brave.exe",
+        "msedge.exe",
+        "vivaldi.exe",
+        "duckduckgo.exe"
+    ]);
+    DeviceNetworkEvents
+    | where Timestamp >= ago(30d)
+    | where InitiatingProcessFileName has_any (CommonChromiumBrowsers)
+    | where RemoteUrl has_any (MaliciousC2Domains)
+    | order by Timestamp desc
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessRemoteSessionDeviceName,
+        InitiatingProcessAccountName,
+        InitiatingProcessAccountUpn,
+        InitiatingProcessFileName,
+        RemoteUrl,
+        RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Zachary McManus
+version: "1"
+references:
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/

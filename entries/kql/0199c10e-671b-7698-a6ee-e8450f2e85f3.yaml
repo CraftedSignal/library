@@ -1,0 +1,18 @@
+id: 0199c10e-671b-7698-a6ee-e8450f2e85f3
+name: Potential URL Redirection or Phishing Attempt via Encoded Parameters
+description: This rule detects URLs that contain common redirection or link parameters (u=, url=, redirect=, r=, link=, target=, dest=) where the value of the parameter is a long, alphanumeric string that appears to be an encoded domain. This pattern can indicate attempts to obfuscate the true destination of a link, often seen in phishing campaigns or malicious redirection attempts. The rule specifically looks for encoded parameters containing common top-level domains like .com, .net, or .org.
+query: "UrlClickEvents\r\n| where Url matches regex @\"(u=|url=|redirect=|r=|link=|target=|dest=)\"\r\n| extend EncodedParam = extract(@\"(?:u|url|redirect|r|link|target|dest)=([^&]{15,})\", 1, Url)\r\n| where isnotempty(EncodedParam) and EncodedParam matches regex @\"^[A-Za-z0-9\\-_]+$\"\r\n| where EncodedParam contains \".\" or EncodedParam contains \"com\" or EncodedParam contains \"net\" or EncodedParam contains \"org\"\r\n| extend PossibleDomain = extract(@\"([a-z0-9\\-]{3,}\\.(com|net|org|info|biz|xyz|top|site|online|club|gov|io|co|us|me|tech))\", 1, EncodedParam)\r\n| project TimeGenerated, AccountUpn, IPAddress, Url, EncodedParam, PossibleDomain, UrlChain, IsClickedThrough"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+    - TA0042
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+    - T1608.005
+tags:
+    - kql
+version: "1"

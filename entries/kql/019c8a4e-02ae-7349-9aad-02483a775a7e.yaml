@@ -1,0 +1,16 @@
+id: 019c8a4e-02ae-7349-9aad-02483a775a7e
+name: Windows Admin Center Service Hijack Detection
+description: Detects when the Windows Admin Center service ('SmeSvc') is stopped, and shortly thereafter, a different process starts listening on the WAC port (TCP/6516). This behavior is a key indicator of CVE-2026-20965 exploitation, where an attacker hijacks the service to intercept administrator credentials.
+query: "// Name: Windows Admin Center Service Hijack\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects when the Windows Admin Center service ('SmeSvc') is stopped, and shortly thereafter, a different process starts listening on the WAC port (TCP/6516). This behavior is a key indicator of CVE-2026-20965 exploitation, where an attacker hijacks the service to intercept administrator credentials.\r\n// Tags: security, defense evasion, credential access, CVE-2026-20965, WAC, T1562.001, TA0006\r\n// References: https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/\r\n// Severity: High\r\nlet lookback = 1d;\r\nlet timeWindow = 2m; // Time window between the service stop and the new process listening.\r\n// Find events where the Windows Admin Center service (SmeSvc) is stopped via common command-line tools.\r\nlet serviceStopEvents = DeviceProcessEvents\r\n| where Timestamp > ago(lookback)\r\n| where FileName in~ (\"sc.exe\", \"net.exe\")\r\n| where ProcessCommandLine has_all (\"stop\", \"SmeSvc\")\r\n| project StopTime = Timestamp, DeviceId, DeviceName, StopCommandLine = ProcessCommandLine, InitiatingProcessAccountName;\r\n// Find events where a process, other than the legitimate WAC service, starts listening on the WAC port.\r\nlet networkListenEvents = DeviceNetworkEvents\r\n| where Timestamp > ago(lookback)\r\n// Note: The ActionType for a listening event can vary. \"ListenSuccess\" is common in MDE. Adjust if needed for your environment.\r\n| where ActionType == \"ListenSuccess\"\r\n| where LocalPort == 6516\r\n| where InitiatingProcessFileName !=~ \"SmeSvc.exe\"\r\n| project ListenTime = Timestamp, DeviceId, ListenProcess = InitiatingProcessFileName, ListenCommandLine = InitiatingProcessCommandLine;\r\n// Join the two event types on the same device within the specified time window.\r\n// This correlates the service stop with a rogue process listening on the same port.\r\nserviceStopEvents\r\n| join kind=inner (\r\n    networkListenEvents\r\n) on DeviceId\r\n// Ensure the listening event happens after the stop command and within the time window.\r\n| where ListenTime between (StopTime .. (StopTime + timeWindow))\r\n// FP Tuning: Legitimate update or re-installation scripts might perform this sequence.\r\n// Exclude known good processes or scripts if they cause false positives.\r\n// | where ListenProcess !in (\"good_installer.exe\")\r\n| project\r\n    Timestamp = ListenTime,\r\n    DeviceName,\r\n    ListenProcess,\r\n    ListenCommandLine,\r\n    StopCommandLine,\r\n    InitiatingProcessAccountName,\r\n    TimeDelta = ListenTime - StopTime\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/

@@ -1,0 +1,18 @@
+id: 019b9e42-1c7c-733b-abd5-70a4176626b1
+name: ClickFix Social Engineering Attack Chain
+description: Detects a ClickFix attack chain involving an email client opening a browser to a suspicious domain, followed by a file download, and subsequent execution via cmd.exe from explorer within a short timeframe. This chain of events is indicative of a social engineering attack designed to trick users into executing malicious files.
+query: "title: ClickFix Social Engineering Attack Chain\r\nid: 9f2e5d8a-7c4b-4e3f-8a9d-6b5c4e3d2f1a\r\nstatus: experimental\r\ndescription: Detects a ClickFix attack chain - email client opening browser to suspicious domain, file download, and execution via cmd.exe from explorer within a short timeframe.\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1204/002/\r\n  - https://attack.mitre.org/techniques/T1566/002/\r\nauthor: SimSpace\r\ndate: 2026-01-01\r\ntags:\r\n  - attack.execution\r\n  - attack.t1204.002\r\n  - attack.initial-access\r\n  - attack.t1566.002\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    Image|exists: true\r\n  condition: selection\r\ncorrelation:\r\n  type: event_count\r\n  rules:\r\n    - browser_from_email_client\r\n    - file_download_from_browser\r\n    - cmd_execution_from_explorer\r\n    - document_network_connection\r\n  group-by:\r\n    - ComputerName\r\n  timespan: 5m\r\n  condition:\r\n    gte: 3\r\nlevel: high\r\n---\r\ntitle: Email client spawning browser with URL\r\nid: 9f2e5d8a-7c4b-4e3f-8a9d-6b5c4e3d2f1b\r\nname: browser_from_email_client\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    ParentImage|endswith:\r\n      - '\\outlook.exe'\r\n      - '\\thunderbird.exe'\r\n    Image|endswith:\r\n      - '\\msedge.exe'\r\n      - '\\chrome.exe'\r\n      - '\\firefox.exe'\r\n    CommandLine|contains: 'http'\r\n  condition: selection\r\nfalsepositives:\r\n  - Normal user clicking links in emails\r\nlevel: informational\r\n---\r\ntitle: Browser downloading file\r\nid: 9f2e5d8a-7c4b-4e3f-8a9d-6b5c4e3d2f1c\r\nname: file_download_from_browser\r\nlogsource:\r\n  category: file_event\r\n  service: sysmon\r\ndetection:\r\n  selection:\r\n    Image|endswith:\r\n      - '\\msedge.exe'\r\n      - '\\chrome.exe'\r\n      - '\\firefox.exe'\r\n    TargetFilename|contains: '\\Downloads\\'\r\n  condition: selection\r\nfalsepositives:\r\n  - Normal file downloads\r\nlevel: informational\r\n---\r\ntitle: Explorer spawning cmd.exe with start command\r\nid: 9f2e5d8a-7c4b-4e3f-8a9d-6b5c4e3d2f1d\r\nname: cmd_execution_from_explorer\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    ParentImage|endswith: '\\explorer.exe'\r\n    Image|endswith: '\\cmd.exe'\r\n    CommandLine|contains|all:\r\n      - '/c'\r\n      - 'start'\r\n    CommandLine|contains: '\\Downloads\\'\r\n  condition: selection\r\nfalsepositives:\r\n  - Legitimate shortcuts or batch files in Downloads\r\nlevel: medium\r\n---\r\ntitle: Document extension making network connection\r\nid: 9f2e5d8a-7c4b-4e3f-8a9d-6b5c4e3d2f1e\r\nname: document_network_connection\r\nlogsource:\r\n  category: network_connection\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    Image|endswith:\r\n      - '.pdf'\r\n      - '.doc'\r\n      - '.docx'\r\n      - '.xls'\r\n      - '.xlsx'\r\n  condition: selection\r\nfalsepositives:\r\n  - None known\r\nlevel: critical"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1204
+    - T1204.002
+    - T1566
+    - T1566.002
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1204/002/
+    - https://attack.mitre.org/techniques/T1566/002/

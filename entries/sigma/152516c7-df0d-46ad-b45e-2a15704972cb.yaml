@@ -1,0 +1,52 @@
+id: 152516c7-df0d-46ad-b45e-2a15704972cb
+name: PowerShell ClickFix Execution Detection
+description: Detects PowerShell execution patterns associated with the "Clipboard to Compromise" technique, where users are tricked into pasting malicious commands that download and execute further payloads.
+query: |-
+    title: PowerShell ClickFix Execution
+    status: experimental
+    description: Detects PowerShell execution patterns associated with the "Clipboard to Compromise" technique, where users are tricked into pasting malicious commands that download and execute further payloads.
+    author: Detections.ai
+    date: 2025-05-09
+    references:
+        - https://www.proofpoint.com/uk/blog/threat-insight/clipboard-compromise-powershell-self-pwn
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+            CommandLine|contains|all:
+                - 'invoke-webrequest'
+                - '-uri'
+                - '-outfile'
+            CommandLine|contains:
+                - 'start-process'
+                - 'Set-Clipboard -Value' # Often used to clear the clipboard after pasting
+        condition: selection
+    fields:
+        - CommandLine
+        - ParentCommandLine
+        - Image
+        - ParentImage
+    tags:
+        - attack.execution
+        - attack.t1059.001
+        - attack.defense_evasion
+        - attack.t1566.001
+        - detection.emerging_threats
+    falsepositives:
+        - Legitimate scripts using Invoke-WebRequest and Start-Process for software deployment or updates.
+        - Legitimate scripts clearing the clipboard.
+    level: high
+query_type: sigma
+severity: medium
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.defense_evasion
+    - attack.t1566.001
+    - detection.emerging_threats
+author: Detections.ai
+version: "1"

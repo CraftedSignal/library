@@ -1,0 +1,65 @@
+id: 019c955f-f313-7227-aea2-9e62be89ea08
+name: Suspicious Aspnet_compiler.exe Execution by Scripting Engine
+description: Detects the execution of the .NET compiler utility 'Aspnet_compiler.exe' by a scripting engine like PowerShell or JScript/VBScript. This behavior is highly unusual and is a known technique used by malware like Agent Tesla to perform process hollowing, where the legitimate 'Aspnet_compiler.exe' process is hollowed out and injected with malicious code.
+query: |
+    title: Suspicious Aspnet_compiler.exe Execution by Scripting Engine
+    id: ee133ac1-7c57-4802-b135-8ee8091c69a2
+    status: experimental
+    description: Detects the execution of the .NET compiler utility
+      'Aspnet_compiler.exe' by a scripting engine like PowerShell or
+      JScript/VBScript. This behavior is highly unusual and is a known technique
+      used by malware like Agent Tesla to perform process hollowing, where the
+      legitimate 'Aspnet_compiler.exe' process is hollowed out and injected with
+      malicious code.
+    author: tim@detections.ai
+    references:
+      - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    date: 2026-02-25
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1055.012
+      - attack.t1059.001
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_img:
+        Image|endswith: '\Aspnet_compiler.exe'
+        # suspicious scripting engines as parent
+      selection_parent:
+        ParentImage|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\wscript.exe'
+          - '\cscript.exe'
+          - '\cmd.exe'
+      condition: all of selection_*
+    falsepositives:
+      - Custom build scripts or development environments.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.012
+    - T1059.001
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1055.012
+    - attack.t1059.001
+    - attack.t1059.007
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,10 @@
+id: 0199eca2-edb4-7538-9c5b-82bda938f28d
+name: F5 BIGIP Excessive Failed Logins detection
+description: Triggers when more than 5 failed login detected in one hour time span. set rule to run every 60mins
+query: "index=\"<F5indexname>\"   eventtype=f5_bigip_user_authenticated action=failure\r\n| stats count min(_time) as firstTime max(_time) as lastTime values(message_id) as message_id values(message_severity) as message_severity values(f5_bigip_service) as f5_bigip_service sum(attempts) as attempts by message user addr action host vendor_product\r\n| `security_content_ctime(firstTime)` \r\n| `security_content_ctime(lastTime)`\r\n| table firstTime lastTime host addr user message message_id attempts count action vendor_product\r\n| where attempts > 5 OR count > 5 ```Threshold set for more than 5 failed logins attempts ```"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Rajauravind Sankar
+version: "1"

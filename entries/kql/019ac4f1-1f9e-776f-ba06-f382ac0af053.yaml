@@ -1,0 +1,61 @@
+id: 019ac4f1-1f9e-776f-ba06-f382ac0af053
+name: CHAMELEON#NET JavaScript Dropper Execution
+description: Detects the initial execution phase of the CHAMELEON#NET campaign, where specific obfuscated JavaScript files (e.g., POP2.js, adobe.js, svchost.js) are dropped into a temporary directory and then executed by a script host like wscript.exe or cscript.exe. The rule correlates file creation events of these suspicious JavaScript files in the user's temporary directory with their subsequent execution by wscript.exe or cscript.exe within a short timeframe.
+query: |
+    // Name: CHAMELEON#NET JavaScript Dropper Execution
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the initial execution phase of the CHAMELEON#NET campaign, where specific obfuscated JavaScript files (e.g., POP2.js, adobe.js, svchost.js) are dropped into a temporary directory and then executed by a script host like wscript.exe or cscript.exe.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+    // MITRE TTPs: T1059.007
+    // Data Source: DeviceProcessEvents, DeviceFileEvents
+    let Timeframe = 7d;
+    let TimeWindow = 5m;
+    // Specific script names dropped by the initial malware stage.
+    let SuspiciousScripts = dynamic(["POP2.js", "adobe.js", "svchost.js"]);
+    // Find the creation of the suspicious JavaScript files in the user's temporary directory.
+    let FileCreation = DeviceFileEvents
+    | where Timestamp > ago(Timeframe)
+    | where ActionType == "FileCreated"
+    | where FolderPath has @"\AppData\Local\Temp\"
+    | where FileName in (SuspiciousScripts)
+    | project FileEventTimestamp = Timestamp, DeviceName, FolderPath, FileName;
+    // Find the execution of JavaScript files from the temp directory by wscript.exe or cscript.exe.
+    let ScriptExecution = DeviceProcessEvents
+    | where Timestamp > ago(Timeframe)
+    | where FileName in ("wscript.exe", "cscript.exe")
+    | where ProcessCommandLine has ".js" and ProcessCommandLine has @"\AppData\Local\Temp\"
+    | project ProcessEventTimestamp = Timestamp, DeviceName, InitiatingProcessFileName, ProcessCommandLine;
+    // Correlate the file creation and script execution events on the same device within a short time window.
+    FileCreation
+    | join kind=inner (
+        ScriptExecution
+    ) on DeviceName
+    // Ensure the script was executed shortly after it was created.
+    | where ProcessEventTimestamp between (FileEventTimestamp .. (FileEventTimestamp + TimeWindow))
+    // Further ensure the command line contains the name of the file that was just created.
+    | where ProcessCommandLine has FileName
+    // Potential for False Positives: A legitimate installer could theoretically use a similarly named JS file in the temp directory.
+    // However, the combination of specific file names, location, execution by a script host, and tight time correlation makes this unlikely.
+    | project
+        Timestamp = ProcessEventTimestamp,
+        DeviceName,
+        FileCreationTime = FileEventTimestamp,
+        ProcessExecutionTime = ProcessEventTimestamp,
+        ScriptFileName = FileName,
+        ScriptPath = FolderPath,
+        ExecutingProcess = "wscript.exe/cscript.exe",
+        ProcessCommandLine,
+        ParentProcess = InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/

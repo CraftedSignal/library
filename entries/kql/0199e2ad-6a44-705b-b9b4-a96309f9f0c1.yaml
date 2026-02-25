@@ -1,0 +1,22 @@
+id: 0199e2ad-6a44-705b-b9b4-a96309f9f0c1
+name: '[EX] - Identifying File Exfiltration via RDP Sessions'
+description: The following KQL query focuses on detecting cases where files are created, modified, or otherwise accessed via RDP from another computer. Its main objective is to verify whether, during an RDP session, the connection has mapped a local disk or other redirected device — allowing us to easily identify potential cases of data exfiltration through RDP file transfer
+query: |-
+    DeviceFileEvents
+    | where FolderPath startswith "\\\\tsclient" and isnotempty(InitiatingProcessRemoteSessionIP)
+    | extend geo_info= tostring(geo_info_from_ip_address(InitiatingProcessRemoteSessionIP).country)
+    | project Timestamp,RemoteIP=InitiatingProcessRemoteSessionIP,geo_info,External_Device=InitiatingProcessRemoteSessionDeviceName,DeviceId,Connected_to=DeviceName, ActionType, FileName, FolderPath,InitiatingProcessVersionInfoFileDescription,RequestAccountName, RequestAccountDomain, IsInitiatingProcessRemoteSession, InitiatingProcessSessionId,ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0010
+techniques:
+    - T1021.001
+    - T1041
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://medium.com/detect-fyi/identifying-file-exfiltration-via-rdp-sessions-with-kql-queries-dia-de-los-muertos-special-6bec41c405c2

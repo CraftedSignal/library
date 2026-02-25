@@ -1,0 +1,32 @@
+id: a403b664-648f-4cfa-ba50-3da0fe5bfb4d
+name: DPRK Famous Chollima connections to DPRK-Adjacent Russian Infrastructure
+description: KQL Query
+query: |-
+    // Name: FC-05: Network Connection to DPRK-Adjacent Russian Infrastructure
+    // Description: Hunts for network traffic to the specific Russian IP ranges in Khasan and Khabarovsk used by the actor.
+    // MITRE ATT&CK: T1071
+    // Required Tables: DeviceNetworkEvents
+    // Fidelity: High
+    let dprk_border_ips = datatable(IPCidr:string) ['80.237.84.0/24', '80.237.87.0/24', '83.234.227.0/24', '188.43.136.0/24'];
+    DeviceNetworkEvents
+    | evaluate ipv4_lookup(dprk_border_ips, RemoteIP, IPCidr)
+    | where isnotempty(IPCidr)
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName = InitiatingProcessAccountUpn,
+        RemoteIP,
+        RemoteUrl,
+        InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - kql
+author: security4all
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/25/d/russian-infrastructure-north-korean-cybercrime.html

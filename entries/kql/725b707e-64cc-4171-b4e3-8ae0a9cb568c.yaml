@@ -1,0 +1,25 @@
+id: 725b707e-64cc-4171-b4e3-8ae0a9cb568c
+name: Outbound Automatic Reply Detection
+description: This rule detects outbound automatic reply emails sent from an organization's users to external recipients. It specifically looks for emails with subjects starting with "Automatic reply:" that have been delivered and are outbound.
+query: |
+    #### This Query Lists out all the Auto reply configured inside the organization's user's e-mails to sent to outbound recepient. In other words, it looks for Auto reply e-mails sent to the Recipent outside of the organization domain.
+    #### Query
+    ```KQL
+    EmailEvents_CL
+    // add your automatic replies cases in your languages
+    | where Subject_s startswith "Automatic reply:"
+    | where DeliveryAction_s has "Delivered" and EmailDirection_s has "Outbound"
+    | extend Username = split(RecipientEmailAddress_s, "@")[0], Domain = tostring(split(RecipientEmailAddress_s, "@")[1])
+    | extend DomainParts = split(RecipientEmailAddress_s, ".")
+    | extend DomainExtensions = tostring(DomainParts[-1])
+    | distinct  SenderFromAddress_s, SenderMailFromDomain_s, SenderIPv4_s, RecipientEmailAddress_s, DomainExtensions, Domain, Subject_s, EmailDirection_s, DeliveryAction_s, DeliveryLocation_s, ThreatTypes_s
+    ```
+query_type: kql
+tactics:
+    - TA0009
+techniques:
+    - T1114
+    - T1114.003
+tags:
+    - kql
+version: "1"

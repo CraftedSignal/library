@@ -1,0 +1,17 @@
+id: 019c8ec8-ea3d-715d-b252-f354e3fae451
+name: Suspicious Code.exe Execution from Temp Directory
+description: Detects the execution of a process named 'Code.exe' from a temporary directory, a behavior associated with the fake 'ClawdBot Agent' VS Code extension. This malware drops a weaponized ScreenConnect client renamed to 'Code.exe' into a temp folder to masquerade as the legitimate Visual Studio Code process.
+query: "// Rule Title: Suspicious Code.exe Execution from Temp Directory\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects the execution of a process named 'Code.exe' from a temporary directory, a behavior associated with the fake 'ClawdBot Agent' VS Code extension. This malware drops a weaponized ScreenConnect client renamed to 'Code.exe' into a temp folder to masquerade as the legitimate Visual Studio Code process.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware\r\n// MITRE ATT&CK: T1036.005 (Match Legitimate Name or Location), T1219 (Remote Access Software)\r\nDeviceProcessEvents\r\n// Look for process creation events for 'Code.exe'.\r\n| where FileName =~ \"Code.exe\"\r\n// Filter for execution from suspicious temporary paths used by the malware.\r\n// The '\\Temp\\Lightshot\\' path is a specific indicator for this campaign.\r\n| where FolderPath contains @\"\\Temp\\Lightshot\\\" or FolderPath contains @\"\\AppData\\Local\\Temp\\\"\r\n// Exclude legitimate VS Code installations to reduce false positives.\r\n// FP Tuning: You may need to add other legitimate paths if VS Code or related tools are installed in non-standard locations.\r\n| where FolderPath !contains @\"\\Programs\\Microsoft VS Code\\\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1036.005
+    - T1219
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.aikido.dev/blog/fake-clawdbot-vscode-extension-malware

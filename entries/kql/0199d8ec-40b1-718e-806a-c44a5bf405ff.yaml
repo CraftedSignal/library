@@ -1,0 +1,47 @@
+id: 0199d8ec-40b1-718e-806a-c44a5bf405ff
+name: Process Access to Browser Memory
+description: This detection identifies attempts by a process to open a handle to a web browser process with memory read permissions (PROCESS_VM_READ). This behavior is often associated with credential theft techniques where an adversary attempts to dump credentials, cookies, or other sensitive information from browser memory.
+query: |
+    // Technique: T1555.003, Credentials from Web Browsers
+    // Severity: Medium
+    // False Positive Sensitivity: Medium
+    // Define the specific access right for reading process memory
+    let PROCESS_VM_READ = 0x0010;
+    // Define a list of common web browser process names
+    let browser_processes = dynamic(["chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe"]);
+    // Define a list of known legitimate processes that might read browser memory to reduce false positives.
+    // Tuning: Add any other legitimate monitoring or security tools specific to your environment.
+    let legitimate_initiators = dynamic(["MsMpEng.exe", "sense.exe"]);
+    DeviceEvents
+    | where ActionType == "OpenProcessApiCall"
+    // Filter for events where the target process is a known web browser
+    | where FileName in~ (browser_processes)
+    // Filter out known legitimate processes that may perform this action for legitimate reasons.
+    | where not(InitiatingProcessFileName in~ (legitimate_initiators))
+    // Parse the DesiredAccess from the AdditionalFields JSON
+    | extend DesiredAccess = tolong(parse_json(AdditionalFields).DesiredAccess)
+    // Check if the requested access includes PROCESS_VM_READ
+    | where isnotnull(DesiredAccess) and binary_and(DesiredAccess, PROCESS_VM_READ) == PROCESS_VM_READ
+    // Project relevant fields for investigation
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        TargetProcessName = FileName,
+        TargetProcessId = ProcessId,
+        InitiatingProcessFileName,
+        InitiatingProcessId,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        DesiredAccess,
+        AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555.003
+tags:
+    - kql
+author: Suraj
+version: "8"

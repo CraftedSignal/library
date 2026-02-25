@@ -1,0 +1,51 @@
+id: 0475d5b1-e866-427e-92f6-777045c52263
+name: Linux Local Account Creation
+description: This query detects the creation of local user accounts on Linux systems using the 'useradd' or 'adduser' commands. Monitoring for local account creation is crucial as adversaries may create accounts for persistence, privilege escalation, or to facilitate lateral movement.
+query: |
+    // Name: Linux Local Account Creation
+    // Description: This query detects the creation of local user accounts on Linux systems using the 'useradd' or 'adduser' commands. Monitoring for local account creation is crucial as adversaries may create accounts for persistence, privilege escalation, or to facilitate lateral movement.
+    // Author: Daniel Jeremiah
+    // Date: 2025-08-05
+    // References:
+    // - https://attack.mitre.org/techniques/T1136/001/
+    // - https://linux.die.net/man/8/useradd
+    // - https://linux.die.net/man/8/adduser
+    DeviceProcessEvents
+    | where DeviceOSPlatform == "Linux"
+    // Use regex to find 'useradd' or 'adduser' commands, including with sudo or full paths.
+    | where ProcessCommandLine matches regex @"\b(sudo\s+)?(/usr/sbin/|/sbin/)?(useradd|adduser)\b"
+    // Exclude common help or version checks.
+    | where not (ProcessCommandLine has_any ("--help", "--version") or ProcessCommandLine matches regex @"\s-h\b")
+    // Potential False Positives: Legitimate admin scripts may create users. Tune by filtering the parent process.
+    // Example: | where InitiatingProcessFileName !in ("ansible", "puppet")
+    | extend
+        Command = iif(ProcessCommandLine has "useradd", "useradd", "adduser"),
+        // Best-effort extraction of the username being created from the end of the command line.
+        TargetUsername = extract(@"(\S+)\s*$", 1, ProcessCommandLine)
+    // Reduce FPs where the extracted "username" is an option or path.
+    | where isnotempty(TargetUsername) and TargetUsername !startswith "-" and TargetUsername !startswith "/"
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName, // The account that executed the command.
+        Command,
+        TargetUsername, // The new account being created.
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName,
+        ProcessId,
+        ParentProcessId,
+        AccountDomain,
+        AccountSid
+query_type: kql
+tactics:
+    - TA0003
+techniques:
+    - T1136.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1136/001/
+    - https://linux.die.net/man/8/useradd
+    - https://linux.die.net/man/8/adduser

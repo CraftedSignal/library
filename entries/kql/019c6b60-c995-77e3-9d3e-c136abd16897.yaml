@@ -1,0 +1,13 @@
+id: 019c6b60-c995-77e3-9d3e-c136abd16897
+name: Lateral Movement via Remote Logons (e.g., RDP or SMB)
+description: This rule detects potential RDP lateral movement by identifying accounts that log on to multiple distinct workstations via RDP (LogonType 10) within a one-hour window, where the workstation name is different from the computer name. A logon chain of more than two distinct computers for the same account and IP address within an hour is flagged as suspicious.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(24h)\r\n| where EventID == 4624  \r\n| where LogonType == 10  \r\n| where WorkstationName != Computer  \r\n| summarize LogonChain = make_set(Computer) by Account, IpAddress, bin(TimeGenerated, 1h)\r\n| where array_length(LogonChain) > 2  \r\n| project TimeGenerated, Account, IpAddress, LogonChain\r\n| extend Pattern = \"Potential RDP lateral movement\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.001
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,39 @@
+id: f6fd200e-abf6-47ee-94b1-6d28f11c11d7
+name: Shadow Copy Service Spawned Ransomware Tools Detection
+description: This detection identifies suspicious processes spawned from the Volume Shadow Copy Service (scpvss.exe), which attackers may exploit to delete backups or access sensitive files.
+query: |-
+    # Shadow Copy Service Process Detection
+
+    ## Description
+    This detection identifies suspicious processes spawned from the Volume Shadow Copy Service (vscpvss.exe). Attackers often abuse shadow copy services to delete backups or access sensitive files.
+
+    ## Detection Logic
+    The query looks for processes spawned by `scpvss.exe` that are commonly used in ransomware attacks or data destruction:
+    - `vssadmin.exe` - Volume Shadow Copy Service admin tool
+    - `WMIC.exe` - Windows Management Instrumentation Command-line
+    - `wbadmin.exe` - Windows Backup admin tool
+    - `bcdedit.exe` - Boot Configuration Data editor
+
+    ## Query
+    ```kusto
+    SecurityEvent
+    | where EventID == 4688
+    | where ((ParentProcessName endswith @'\scpvss.exe')
+    and (NewProcessName endswith @'\vssadmin.exe' or NewProcessName endswith @'\WMIC.exe' or NewProcessName endswith @'\wbadmin.exe'
+    or NewProcessName endswith @'\bcdedit.exe'))
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Defense Evasion, Impact
+    - **Technique**: T1490 - Inhibit System Recovery
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Review the command line arguments of the spawned processes
+    2. Check if shadow copies were deleted around the same time
+    3. Look for ransomware indicators on the affected system
+    4. Verify if this activity was authorized by IT operations
+query_type: kql
+version: "1"

@@ -1,0 +1,21 @@
+id: d0be8084-83d5-4db3-9712-9aa5346d86b3
+name: Encoded PowerShell Net Commands
+description: Detects PowerShell commands using encoded command-line arguments to execute 'net user', 'net group', or 'net share' commands. This technique is often used by adversaries to obfuscate their actions and evade detection.
+query: "let BaseCommand = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has \"-EncodedCommand\"\r\n    | distinct ProcessCommandLine ;\r\nlet EncodedNetUserPowershell=\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine contains \"bgBlAHQAIAB1AHMAZQByA\"\r\n    | distinct ProcessCommandLine ;\r\nlet EncodedNetGroupPowershell=\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine contains \"bgBlAHQAIABnAHIAbwB1AHAA\"\r\n    | distinct ProcessCommandLine ;\r\nlet EncodedNetSharePowershell=\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine contains \"bgBlAHQAIABzAGgAYQByAGUA\"\r\n    | distinct ProcessCommandLine ;\r\nDeviceProcessEvents\r\n| extend PCL = ProcessCommandLine\r\n| where PCL in (BaseCommand) and (PCL in (EncodedNetUserPowershell) or PCL in (EncodedNetGroupPowershell) or PCL in (EncodedNetSharePowershell))\r\n| project  ProcessCreationTime, InitiatingProcessAccountName,LogonId, DeviceId, DeviceName, InitiatingProcessFolderPath, PCL, InitiatingProcessId, ProcessCommandLine, ProcessId\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1027.010
+    - T1087.002
+    - T1136.002
+    - T1087
+    - T1098.007
+    - T1136
+tags:
+    - kql
+author: M6R
+version: "1"

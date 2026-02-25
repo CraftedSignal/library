@@ -1,0 +1,22 @@
+id: 0a01bef4-7eb2-4aef-86e4-939f625a19ed
+name: Detect Device Token Stealing with WDAC
+description: This rule detects PRT token stealing on a device when exploiting the MicrosoftAccountTokenProvider.dll, leveraging a WDAC audit policy to ingest missing Microsoft Defender for Endpoint events. This addresses a blind spot in default Defender for Endpoint detection.
+query: |-
+    DeviceEvents
+    | where ActionType startswith "AppControl"
+    | where FileName =~ "MicrosoftAccountTokenProvider.dll"
+    | invoke FileProfile(InitiatingProcessSHA1, 1000)
+    | where GlobalPrevalence < 250
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1212
+    - T1528
+    - T1539
+tags:
+    - kql
+version: "1"
+references:
+    - https://hybridbrothers.com/using-wdac-to-ingest-missing-mde-events/

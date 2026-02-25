@@ -1,0 +1,23 @@
+id: 05c43279-f33b-4c07-9517-77117af53ed3
+name: KQL URL Protection Report
+description: 'KQL Query from file: KQL URL Protection Report'
+query: "// KQL URL Protection Report\n// https://www.linkedin.com/posts/activity-7190735644749426691-SQlH/\n\n// For organization subscribed to Defender for Office 365, M365 or security admin would most of time go to DefenderXDR portal \"Reports\" > \"Email & Collaboration\" > \"URL protection report\" to check if a particular user has click on a malicious link and if it was blocked by Office 365 ATP.\n\n// Do you know you can access all these Threat Intelligence URL Click Data in CloudAppEvents table? \U0001F60E\n\n// Using DefenderXDR Advanced Hunting and the below KQL will provide information similar to the \"URL Protection Report\", you can further summarize these set of data to allow you to better understand the threats currently faced by your suite of Office 365 applications that support SafeLinks and possibly tweak your SafeLinks configuration to improve your organization Office 365 application protection.\U0001F6E1️\n\nCloudAppEvents\n| where ActionType == \"TIUrlClickData\"\n| where RawEventData.Workload==\"ThreatIntelligence\"\n| extend AppName = RawEventData.AppName\n| extend AccountUpn = RawEventData.UserId\n| extend UserIP = RawEventData.UserIp\n| extend ClickURL = RawEventData.Url\n| extend UrlClickAction = RawEventData.UrlClickAction\n| extend TimeOfClick = RawEventData.TimeOfClick\n| where ActivityType==\"Basic\"\n| project AppName, AccountUpn, UserIP, ClickURL, UrlClickAction, TimeOfClick\n| where UrlClickAction == 2 //User blocked from navigating to the URL\n\n// MITRE ATT&CK Mapping\n\n// Based on the analysis, the query is primarily focused on detecting events where users interact with potentially malicious URLs and are blocked from accessing them. This can be mapped to the following MITRE ATT&CK techniques:\n\n// T1071.001 - Application Layer Protocol: Web Protocols:\n// The query monitors URL clicks, which involves web protocols.\n// T1204.001 - User Execution: Malicious Link:\n// The detection of URL clicks and blocking access to malicious URLs aligns with detecting user execution of malicious links.\n// T1566.002 - Phishing: Spearphishing Link:\n// The query can help identify spearphishing attempts where users click on malicious links.\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0002
+    - TA0001
+    - TA0005
+    - TA0043
+techniques:
+    - T1071.001
+    - T1204.001
+    - T1566.002
+    - T1578.004
+    - T1566
+    - T1598
+    - T1204.002
+    - T1204.003
+tags:
+    - kql
+version: "1"

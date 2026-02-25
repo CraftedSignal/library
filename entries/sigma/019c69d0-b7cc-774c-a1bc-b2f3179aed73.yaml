@@ -1,0 +1,52 @@
+id: 019c69d0-b7cc-774c-a1bc-b2f3179aed73
+name: Linux/Unix Shell History Through Dev/Null
+description: |
+    Detects methods used by adversaries to clear or disable Linux shell command history (bash or zsh) in order to cover tracks and evade investigation.
+query: |
+    title: Linux/Unix Shell History Through Dev/Null
+    id: fcfbe60c-a486-445b-b713-9e38e2dbfe8a
+    status: experimental
+    description: >
+      Detects methods used by adversaries to clear or disable Linux
+      shell command history (bash or zsh) in order to cover tracks and evade
+      investigation.
+    references:
+      - https://attack.mitre.org/techniques/T1070/003/
+      - https://www.hackers-arise.com/post/2016/06/20/covering-your-bash-shell-tracks-antiforensics
+    logsource:
+      category: process_creation
+      product: linux
+      service: audit
+    detection:
+      selection_cat_null:
+        Image|endswith: /cat
+        CommandLine|contains|all:
+          - /dev/null
+          - .bash_history
+      selection_cat_null_zsh:
+        Image|endswith: /cat
+        CommandLine|contains|all:
+          - /dev/null
+          - .zsh_history
+      condition: selection_cat_null or selection_cat_null_zsh
+    falsepositives:
+      - Automated provisioning or configuration management scripts (Ansible, Chef,
+        Puppet) that reset HISTSIZE during provisioning
+      - CI/CD pipelines with shell cleanup steps
+    level: high
+    author: zendannyy
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.003
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1070/003/
+    - https://www.hackers-arise.com/post/2016/06/20/covering-your-bash-shell-tracks-antiforensics
+data_sources:
+    - process_creation
+    - linux
+    - audit

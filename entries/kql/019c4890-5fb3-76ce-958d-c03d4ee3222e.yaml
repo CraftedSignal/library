@@ -1,0 +1,13 @@
+id: 019c4890-5fb3-76ce-958d-c03d4ee3222e
+name: Exchange Inbox Rule Creation or Modification to Risky Folder
+description: Detects the creation or modification of Exchange inbox rules that move messages to potentially risky folders (e.g., Deleted Items, Junk Email, RSS Feeds, Archive, Clutter) or are configured to delete messages. This behavior can be indicative of an attacker attempting to hide malicious emails, exfiltrate data, or disrupt email flow.
+query: "OfficeActivity\r\n| where OfficeWorkload == \"Exchange\"\r\n| where Operation in~ (\"New-InboxRule\",\"Set-InboxRule\")\r\n| extend Params = parse_json(Parameters)\r\n| mv-expand Params\r\n| extend PName = tostring(Params.Name), PValue = tostring(Params.Value)\r\n| summarize ParamBag = make_bag(bag_pack(PName, PValue))\r\n          by TimeGenerated, UserId, Operation, ClientIP, ResultStatus\r\n| extend RuleName = tostring(ParamBag.Name)\r\n| extend MoveToFolder = tostring(ParamBag.MoveToFolder)\r\n| extend DeleteMessage = tostring(ParamBag.DeleteMessage)\r\n| extend ClientIPOnly = tostring(extract(@\"\\[?(?:::(?:ffff:)?)?((?:\\d{1,3}\\.){3}\\d{1,3}|[a-fA-F0-9:]+)\\]?\", 1, ClientIP))\r\n| extend MoveToFolder_lc = tolower(trim(\" \", MoveToFolder))\r\n| extend riskyFolders = dynamic([\r\n  \"deleted items\",\"trash\",\"bin\",\"recycle bin\",\"posta eliminata\",\"éléments supprimés\",\"elementos eliminados\",\"gelöschte elemente\",\r\n  \"junk email\",\"junk e-mail\",\"spam\",\"posta indesiderata\",\"correo no deseado\",\"courrier indésirable\",\"junk-e-mail\",\r\n  \"rss feeds\",\"rss-feeds\",\"rss\",\"feed rss\",\"fuentes rss\",\"flux rss\",\r\n  \"archive\",\"archiv\",\"archivo\",\"archiver\",\"archivio\",\"arquivamento\",\"clutter\",\r\n  \"conversation history\",\"cronologia delle conversazioni\",\"historique des conversations\",\"historial de conversaciones\"\r\n])\r\n| where MoveToFolder_lc in (riskyFolders)\r\n       or MoveToFolder_lc has_any (\"rss\",\"spam\",\"junk\",\"archive\",\"clutter\")\r\n       or DeleteMessage =~ \"True\"\r\n| project TimeGenerated, UserId, ClientIPOnly, Operation, ResultStatus, RuleName, MoveToFolder, DeleteMessage, ParamBag\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1114.003
+tags:
+    - kql
+version: "1"

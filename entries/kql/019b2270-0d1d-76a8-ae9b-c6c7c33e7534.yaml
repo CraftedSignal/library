@@ -1,0 +1,15 @@
+id: 019b2270-0d1d-76a8-ae9b-c6c7c33e7534
+name: 'Threat Hunt: Shanya BYOVD Activity - vulnerable Driver Drops and Loads'
+description: This KQL query identifies potential Bring Your Own Vulnerable Driver (BYOVD) activity associated with the Shanya packer by detecting the creation/modification of known vulnerable or malicious driver files (e.g., ThrottleStop.sys, rwdrv.sys, hlpdrv.sys) and their subsequent loads, a technique used to gain kernel access for disabling EDR/AV tools in ransomware attacks.
+query: "DeviceFileEvents\r\n| where Timestamp > ago(1d)\r\n| where FileName in~ (\"throttlestop.sys\", \"rwdrv.sys\", \"hlpdrv.sys\", \"wmp.dll\")\r\n| where ActionType in (\"FileCreated\", \"FileModified\")\r\n| project Timestamp, DeviceName, FileName, FolderPath, SHA256, InitiatingProcessFileName\r\n| union\r\n(DeviceEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"DriverLoad\"\r\n| where FileName in~ (\"throttlestop.sys\", \"hlpdrv.sys\")\r\n| project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName)\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1068
+    - T1562.001
+tags:
+    - kql
+author: AwaisM
+version: "2"
+references:
+    - https://news.sophos.com/en-us/2025/12/06/inside-shanya-a-packer-as-a-service-fueling-modern-attacks/

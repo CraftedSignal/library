@@ -1,0 +1,15 @@
+id: be7e0fd8-4963-41b1-bf51-d955443267b5
+name: Suspicious PowerShell Clipboard Module Usage
+description: This rule looks for the usage of less common PowerShell modules which interface directly with the current user's clipboard. This could be an attempt to steal sensitive data or attempt to modify clipboard contents.
+query: "// This rule looks for the usage of less common PowerShell modules which interface directly with the current user's clipboard. This could be an attempt to steal sensitive data or attempt to modify clipboard contents.  \r\nDeviceProcessEvents\r\n| where Timestamp > ago(7d)  // Adjust as needed\r\n| where FileName =~ \"powershell.exe\" or InitiatingProcessFileName =~ \"powershell.exe\"\r\n| where ProcessCommandLine has_any (\r\n    \"Set-Clipboard\",\r\n    \"Get-Clipboard\"\r\n)\r\n// Enrich with MITRE mapping (for reporting)\r\n| extend MITRE_TTP = case(\r\n    ProcessCommandLine has_any (\"Set-Clipboard\", \"Get-Clipboard\"), \"T1115 (Clipboard Data)\",\r\n    \"Unknown or Other Activity\"\r\n)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    AccountName,\r\n    FolderPath,\r\n    MITRE_TTP"
+query_type: kql
+severity: medium
+techniques:
+    - T1115
+tags:
+    - kql
+author: Tim Peck
+version: "1"
+references:
+    - https://www.reliaquest.com/blog/new-execution-technique-in-clearfake-campaign/
+    - https://www.logpoint.com/wp-content/uploads/2024/03/logpoint-etpr-a-comprehensive-overview-on-stealer-malware-families.pdf

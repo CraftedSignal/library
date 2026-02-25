@@ -1,0 +1,16 @@
+id: 019c4ae2-ae6f-7572-9823-8cd3a4d16770
+name: upStage Proxyware Firewall Rule Modification
+description: |-
+    Detects the use of netsh.exe to create firewall rules that allow traffic for the upStage proxyware binaries (hero.exe, Uphero.exe) or specific non-standard ports (1000, 1002) used for proxy traffic. This behavior is a key step for the malware to ensure its network communication is not blocked.
+    // False Positives: Medium. While the file names are specific, rules created for ports 1000 or 1002 could potentially be legitimate for other applications. Review the initiating process and rule details to confirm maliciousness.
+query: "DeviceProcessEvents\r\n| where FileName =~ \"netsh.exe\"\r\n| where ProcessCommandLine has \"advfirewall\" and ProcessCommandLine has \"firewall\" and ProcessCommandLine has \"add rule\"\r\n| where ProcessCommandLine has_any (\"hero.exe\", \"Uphero.exe\", \"localport=1000\", \"remoteport=1000\", \"localport=1002\", \"remoteport=1002\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName"
+query_type: kql
+severity: medium
+techniques:
+    - T1562.004
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.malwarebytes.com/blog/threat-intel/2026/02/fake-7-zip-downloads-are-turning-home-pcs-into-proxy-nodes

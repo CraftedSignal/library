@@ -1,0 +1,19 @@
+id: 019c2d10-32ac-74db-983e-2e5a83e6e76d
+name: Suspicious UserAccountBroker Parent Process with Network Connection (ValleyRAT)
+description: Detects UserAccountBroker.exe being spawned by explorer.exe, which is an unusual parent-child relationship. The rule is enriched by looking for subsequent outbound network connections from the UserAccountBroker.exe process, a behavior observed in ValleyRAT infections.
+query: "// Name: Suspicious UserAccountBroker Parent Process with Network Connection\r\n// Author: Andre Zeemering\r\n// Date: 2026-02-05\r\n// Description: Detects UserAccountBroker.exe being spawned by explorer.exe, which is an unusual parent-child relationship. The rule is enriched by looking for subsequent outbound network connections from the UserAccountBroker.exe process, a behavior observed in ValleyRAT infections.\r\n// False Positives: While the parent-child relationship is anomalous, some legitimate UAC-related activities might trigger it. The addition of an external network connection significantly increases fidelity. Further tuning might involve excluding connections to known good corporate or cloud service IPs.\r\n// References: https://www.cybereason.com/blog/fake-installer-valleyrat\r\n// Tactics: Defense Evasion, Persistence\r\n// Techniques: T1055.012, T1543.003\r\n\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1h)\r\n| where InitiatingProcessParentFileName =~ \"explorer.exe\"\r\n| where RemoteIPType == \"Public\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessAccountSid,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl,\r\n    Protocol,\r\n    ActionType,\r\n    ReportId\r\n    | summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime = max(Timestamp),\r\n    make_set(RemoteIP),\r\n    make_set(RemotePort),\r\n    make_set(RemoteUrl)\r\n    by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0003
+techniques:
+    - T1055.012
+    - T1543.003
+tags:
+    - kql
+author: Andre Zeemering
+version: "2"
+references:
+    - https://www.cybereason.com/blog/fake-installer-valleyrat

@@ -1,0 +1,56 @@
+id: 019a0d20-3dbd-771c-8668-711872dd072c
+name: Jingle Thief Internal Phishing for Lateral Movement
+description: Detects internal phishing emails with subject lines mimicking IT service notifications, such as from ServiceNow. This is a tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) for lateral movement within a compromised organization.
+query: |
+    title: Jingle Thief Internal Phishing for Lateral Movement
+    id: 5eeeea2f-4663-4c17-93e2-d8675ac39d2d
+    status: experimental
+    description: >-
+      Detects internal phishing emails with subject lines mimicking IT service
+      notifications, such as from ServiceNow. This is a tactic used by the Jingle
+      Thief group (also tracked as Atlas Lion and STORM-0539) for lateral movement
+      within a compromised organization.
+    references:
+      - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.lateral_movement
+      - attack.t1566.001
+    logsource:
+      product: o365
+      service: exchange
+    detection:
+      selection:
+        # Corresponds to email sending operations in Exchange audit logs
+        Operation: 'Send'
+        # Subject lines are based on lures observed in the Jingle Thief campaign
+        Subject|contains:
+          - 'ServiceNow Account Inactivity Notice'
+          - 'INCIDENT REQ'
+          - 'Incident pending your review'
+      # The condition is simply the presence of the selection criteria
+      condition: selection
+    falsepositives:
+      - Legitimate IT service notifications, especially from ServiceNow, may trigger
+        this rule.
+      - It is recommended to filter out emails sent from known, legitimate service
+        provider IP addresses or sender domains to reduce noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+    - TA0001
+techniques:
+    - T1566.001
+tags:
+    - attack.lateral_movement
+    - attack.t1566.001
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+data_sources:
+    - o365
+    - exchange

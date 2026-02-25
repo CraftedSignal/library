@@ -1,0 +1,17 @@
+id: 019c8c22-25de-7465-81af-77f3caab156f
+name: NCrypt.dll Standalone Execution via Rundll32
+description: 'Detects standalone execution of the malicious NCrypt.dll using rundll32.exe with its exported ordinal #1, a behavior observed in sandbox analysis that bypasses standard NuGet loading.'
+query: "// Name: NCrypt.dll Standalone Execution via Rundll32\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects standalone execution of the malicious NCrypt.dll using rundll32.exe with its exported ordinal #1, a behavior observed in sandbox analysis that bypasses standard NuGet loading.\r\n// False Positives: Unlikely. A legitimate DLL could theoretically be named NCrypt.dll and be executed via rundll32 with an ordinal, but this specific combination is highly indicative of the malicious package.\r\n// References: https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential\r\n// MITRE ATT&CK: T1574.002 (Hijack Execution Flow: DLL Side-Loading), T1036.005 (Masquerading: Match Legitimate Name or Location)\r\nDeviceProcessEvents\r\n// Look for process creation events where rundll32.exe is used.\r\n| where InitiatingProcessFileName =~ \"rundll32.exe\"\r\n// The malicious NCrypt.dll is executed by referencing its ordinal export #1.\r\n| where ProcessCommandLine has \"NCrypt.dll,#1\"\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.011
+    - T1036.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential

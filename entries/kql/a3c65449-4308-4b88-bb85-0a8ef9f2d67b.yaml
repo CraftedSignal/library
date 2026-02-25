@@ -1,0 +1,29 @@
+id: a3c65449-4308-4b88-bb85-0a8ef9f2d67b
+name: regreSSHion - Remote Unauthenticated Code Execution Vulnerability in OpenSSH server
+description: KQL Query
+query: "// regreSSHion - Remote Unauthenticated Code Execution Vulnerability in OpenSSH server\n// https://www.linkedin.com/posts/activity-7213658125323681793-p0wl/\n\n// Azure Resource Graph KQL Query to check Azure Linux server running OpenSSH: \n\nresources\n| where type =~ 'Microsoft.Compute/virtualMachines'\n| extend osType = properties.storageProfile.osDisk.osType\n| where osType =~ 'Linux'\n| mvexpand sshKey = properties.osProfile.linuxConfiguration.ssh.publicKeys\n| where sshKey.keyData contains 'ssh-rsa' or sshKey.keyData contains 'ssh-dss'\n| project name, location, osType, sshKey.keyData\n\n// Microsoft Defender for Endpoint device discovery capabilities KQL to detect Linux machines (probably with SSH enabled) connected to on-prem & cloud environments (Not onboarded to MDE) to further identify any other possible attack surface.\n\nDeviceInfo\n| where OnboardingStatus != \"Onboarded\"\n| where OSPlatform == \"Linux\"\n| where DeviceName != \"\"\n| where DeviceCategory == \"Endpoint\"\n\n// MITRE ATT&CK Mapping\n\n// T1078.003: Valid Accounts: SSH 1\n// T1136.001: Create Account: Local Account 1\n// T1082: System Information Discovery 1\n// T1018: Remote System Discovery 1\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0002
+    - TA0043
+    - TA0008
+techniques:
+    - T1078.003
+    - T1136.001
+    - T1082
+    - T1018
+    - T1593.003
+    - T1116
+    - T1506
+    - T1550.004
+    - T1075
+    - T1184
+    - T1021.004
+tags:
+    - kql
+version: "1"

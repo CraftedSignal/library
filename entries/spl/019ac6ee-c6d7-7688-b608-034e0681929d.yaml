@@ -1,0 +1,59 @@
+id: 019ac6ee-c6d7-7688-b608-034e0681929d
+name: SERPENTINE#CLOUD Suspicious Notepad.exe Network Connection
+description: Detects network connections originating from notepad.exe to suspicious domains or IP addresses. This is a high-fidelity indicator of compromise associated with the SERPENTINE#CLOUD campaign, where a malicious payload is injected into the notepad.exe process for C2 communications.
+query: |
+    # Name: SERPENTINE#CLOUD Suspicious Notepad.exe Network Connection
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # Detects network connections originating from notepad.exe to suspicious domains or IP addresses.
+    # This is a high-fidelity indicator of compromise associated with the SERPENTINE#CLOUD campaign,
+    # where a malicious payload is injected into the notepad.exe process for C2 communications.
+    #
+    # Data Source:
+    # This search requires network connection logs, such as Sysmon (Event Code 3) or other EDR data.
+    # The macro `network_traffic_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., process_name, dest_ip, dest_host, dest_port).
+    #
+    # References:
+    # - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Command and Control
+    # - Technique: T1071.001 (Application Layer Protocol: Web Protocols)
+    # - Technique: T1572 (Protocol Tunneling)
+    #
+    # False Positives:
+    # False positives are extremely unlikely, as notepad.exe should not initiate outbound network connections.
+    # Any alert from this rule should be treated as a high-priority incident and investigated immediately.
+
+    `network_traffic_events`
+
+    # Filter for network connections initiated by notepad.exe.
+    | search process_name="notepad.exe"
+
+    # Filter for known C2 IPs and domains associated with the SERPENTINE#CLOUD campaign.
+    | search (
+        dest_ip IN ("192.169.69.26", "51.89.212.145") OR
+        dest_host IN (
+            "*.duckdns.org", "nhvncpure.shop", "nhvncpure.sbs", "nhvncpure.click",
+            "*.twilightparadox.com", "*.strangled.net", "*.mooo.com", "ip145.ip-51-89-212.eu"
+        )
+    )
+
+    # Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, process_name, dest_ip, dest_host, dest_port
+    | `serpentine_cloud_suspicious_notepad_network_conn_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1572
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/

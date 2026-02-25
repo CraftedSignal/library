@@ -1,0 +1,61 @@
+id: 29078e83-457a-4db0-826d-e621b99c568e
+name: Lazarus Persistence and Privilege Escalation via SessionEnv Service
+description: Detects TTPs associated with a Lazarus subgroup using the SessionEnv service for persistence and privilege escalation. This involves phantom DLL loading, service auto-start configuration, and registry modification for elevated privileges.
+query: |
+    title: Lazarus Persistence and Privilege Escalation via SessionEnv Service
+    id: 3c781e9e-4d91-40d6-8af2-f3e8c5586404
+    status: experimental
+    description: Detects TTPs associated with a Lazarus subgroup using the
+      SessionEnv service for persistence and privilege escalation. This involves
+      phantom DLL loading, service auto-start configuration, and registry
+      modification for elevated privileges.
+    references:
+      - https://blog.fox-it.com/2025/09/01/three-lazarus-rats-coming-for-your-cheese/
+    author: Emanuele De Lucia
+    date: 2025-09-03
+    tags:
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1574.002
+      - attack.t1543.003
+      - group.lazarus
+    logsource:
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith: '\sc.exe'
+        CommandLine|contains|all:
+          - 'config'
+          - 'sessionenv'
+          - 'start=auto'
+      selection_file:
+        TargetFilename|endswith: '\system32\tsvipsrv.dll'
+      selection_registry:
+        TargetObject|endswith: '\SYSTEM\CurrentControlSet\Services\SessionEnv\RequiredPrivileges'
+        Details|contains:
+          - 'SeDebugPrivilege'
+          - 'SeLoadDriverPrivilege'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate administrative activity could involve modifying the 'sessionenv'
+        service. The creation of 'tsvipsrv.dll' in the System32 directory is highly specific and very unlikely to be a false positive.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.003
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1574.002
+    - attack.t1543.003
+    - group.lazarus
+author: Emanuele De Lucia
+version: "1"
+references:
+    - https://blog.fox-it.com/2025/09/01/three-lazarus-rats-coming-for-your-cheese/
+data_sources:
+    - windows

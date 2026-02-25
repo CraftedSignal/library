@@ -1,0 +1,19 @@
+id: e53962f0-3745-4970-a679-0d7f5b9369d4
+name: Potential Privilege Escalation via GenericAll Active Directory Rights
+description: This technique involves adversaries modifying access control lists (ACLs) in Active Directory to maintain access to domain resources. Specifically, this detection identifies when a DACL (Discretionary Access Control List) is changed to grant "GenericAll" rights, which provide complete control over an AD object.
+query: |-
+    IdentityDirectoryEvents
+    | where ActionType == "Sensitive Dacl changed"
+    | extend ControlEntries = tostring(parse_json(AdditionalFields).ModifiedAccessControlEntries)
+    | parse kind=regex ControlEntries with ".ActiveDirectoryRights.:.." ActiveDirectoryRightMAIN2".,."
+    | extend ActiveDirectoryRightMAIN1 = tostring(split(ActiveDirectoryRightMAIN2, '"')[0])
+    | where ActiveDirectoryRightMAIN1 == "GenericAll"
+    | project TimeGenerated, AccountName, DestinationDeviceName, ActionType, ActiveDirectoryRightMAIN1
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+tags:
+    - kql
+author: Dan Zero
+version: "1"

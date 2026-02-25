@@ -1,0 +1,66 @@
+id: 86b71aaf-5b2e-4bad-be4a-656231b57829
+name: Discord Invite Loop Hole - Scheduled Task Persistence
+description: Detects the creation of the scheduled task named 'checker' which is used for persistence in the Discord Invite Loop Hole campaign, executing a VBScript every 5 minutes.
+query: |-
+    title: Discord Invite Loop Hole - Scheduled Task Persistence
+    id: 2b3c4d5e-6f78-9012-3456-7890abcdef1a
+    status: experimental
+    description: Detects the creation of the scheduled task named 'checker' which is used for persistence in the Discord Invite Loop Hole campaign, executing a VBScript every 5 minutes.
+    references:
+        - https://research.checkpoint.com/2025/from-trust-to-threat-hijacked-discord-invites-used-for-multi-stage-malware-delivery/
+    author: Detections.ai
+    date: 2025-06-19
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith:
+                - '\schtasks.exe'
+                - '\cmd.exe' # schtasks might be run via cmd /c
+            CommandLine|contains:
+                - '/create'
+                - '/tn "checker"'
+                - '/tr "wscript.exe'
+                - '\AppData\Local\ServiceHelper\runsys.vbs'
+                - '/sc MINUTE'
+                - '/mo 5'
+                - '/RL HIGHEST'
+        condition: selection
+    fields:
+        - CommandLine
+        - ParentCommandLine
+        - Image
+        - ParentImage
+        - User
+        - Hashes
+        - Product
+        - Company
+    tags:
+        - attack.persistence
+        - attack.execution
+        - attack.t1053.005 # Scheduled Task
+        - detection.emerging_threats
+    falsepositives:
+        - Legitimate scheduled tasks with similar parameters (unlikely to match all)
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.execution
+    - attack.t1053.005
+    - detection.emerging_threats
+author: Detections.ai
+version: "1"
+references:
+    - https://research.checkpoint.com/2025/from-trust-to-threat-hijacked-discord-invites-used-for-multi-stage-malware-delivery/
+data_sources:
+    - process_creation
+    - windows

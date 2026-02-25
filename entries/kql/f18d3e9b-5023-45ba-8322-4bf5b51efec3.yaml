@@ -1,0 +1,43 @@
+id: f18d3e9b-5023-45ba-8322-4bf5b51efec3
+name: Sentinel Alerts & MITRE ATT&CK Analysis
+description: 'KQL Query from file: Sentinel Alerts & MITRE ATT&CK Analysis'
+query: |
+    // Sentinel Alerts & MITRE ATT&CK Analysis
+    // https://www.linkedin.com/posts/activity-7195301674301759488-rMQS/
+
+    // The Microsoft Sentinel MITRE ATT&CK (Preview) blade offers a comprehensive overview of all Sentinel detections aligned with the MITRE ATT&CK technique matrix. As a Security Operations Center (SOC) analyst overseeing analytic rules, are you aware of which MITRE Techniques are activated most frequently or infrequently? Running the subsequent KQL query will unveil the technique adversaries most commonly employ. Evaluate which techniques are triggered most or least often in comparison to your Microsoft Sentinel MITRE ATT&CK (preview) coverage. This analysis is crucial to determine if your analytic rules are sufficiently robust to identify these frequently used techniques.
+
+    // KQL - Summarization of Techniques Triggered
+
+    SecurityAlert
+    | where TimeGenerated > ago(90d)
+    | mv-expand todynamic(Techniques)
+    | extend MitreAttackTechniques = tostring(Techniques)
+    | where MitreAttackTechniques != ""
+    | summarize Technique_Count=count() by MitreAttackTechniques
+    | sort by Technique_Count desc
+
+    // MITRE ATT&CK Mapping
+
+    //The KQL code is designed to map security alerts to specific MITRE ATT&CK techniques. Each technique identified in the Techniques field corresponds to a specific tactic or technique in the MITRE ATT&CK framework. Here are some common techniques that might be detected:
+
+    // T1078: Valid Accounts: Detection of compromised accounts.
+    // T1059: Command and Scripting Interpreter: Detection of script execution.
+    // T1105: Ingress Tool Transfer: Detection of tools being transferred into the environment.
+    // T1027: Obfuscated Files or Information: Detection of obfuscated files or information.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1078
+    - T1059
+    - T1105
+    - T1027
+tags:
+    - kql
+version: "1"

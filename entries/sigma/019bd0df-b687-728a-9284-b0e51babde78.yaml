@@ -1,0 +1,83 @@
+id: 019bd0df-b687-728a-9284-b0e51babde78
+name: Turla Kazuar v3 VBScript Loader
+description: |
+    Detects the initial VBScript loader used in Turla's Kazuar v3 campaign. The loader script (8RWRLT.vbs) is executed via wscript.exe and creates a folder structure mimicking HP printer drivers at %LOCALAPPDATA%\Programs\HP\Printer\Driver. The script downloads multiple files from a remote C2 server including hpbprndi.exe (a legitimate signed HP driver), hpbprndiLOC.dll (the actual Kazuar loader), and encrypted payload files (jayb.dadk, kgjlj.sil, pkrfsu.ldy). The loader uses WinHttp.WinHttpRequest.5.1 COM object to download files while ignoring SSL certificate errors, and establishes persistence by creating a registry entry in HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run. This rule specifically looks for wscript.exe processes with command lines containing both the HP printer driver path and hpbprndi references, which are strong indicators of the Kazuar v3 loader execution.
+query: |
+    title: Turla Kazuar v3 VBScript Loader
+    id: 043e218c-bfe1-4853-9b31-effb96200d3c
+    status: experimental
+    description: >
+      Detects the initial VBScript loader used in Turla's Kazuar v3 campaign. The
+      loader script (8RWRLT.vbs) is executed via wscript.exe and creates a folder
+      structure mimicking HP printer drivers at
+      %LOCALAPPDATA%\Programs\HP\Printer\Driver. The script downloads multiple files
+      from a remote C2 server including hpbprndi.exe (a legitimate signed HP
+      driver), hpbprndiLOC.dll (the actual Kazuar loader), and encrypted payload
+      files (jayb.dadk, kgjlj.sil, pkrfsu.ldy). The loader uses
+      WinHttp.WinHttpRequest.5.1 COM object to download files while ignoring SSL
+      certificate errors, and establishes persistence by creating a registry entry
+      in HKEY_CURRENT_USER\SOFTWARE\Microsoft\Windows\CurrentVersion\Run. This rule
+      specifically looks for wscript.exe processes with command lines containing
+      both the HP printer driver path and hpbprndi references, which are strong
+      indicators of the Kazuar v3 loader execution.
+    references:
+      - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+      - attack.defense_evasion
+      - attack.persistence
+      - attack.command_and_control
+      - attack.collection
+      - attack.t1566.001
+      - attack.t1059.003
+      - attack.t1053.005
+      - attack.t1071.001
+      - attack.t1082
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection:
+        Image|endswith: \wscript.exe
+        CommandLine|contains|all:
+          - Programs\HP\Printer\Driver
+          - hpbprndi
+      condition: selection
+    falsepositives:
+      - Legitimate HP printer driver installations
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0009
+    - TA0001
+    - TA0002
+    - TA0004
+    - TA0011
+    - TA0007
+techniques:
+    - T1566.001
+    - T1059.003
+    - T1053.005
+    - T1071.001
+    - T1082
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.command_and_control
+    - attack.collection
+    - attack.t1566.001
+    - attack.t1059.003
+    - attack.t1053.005
+    - attack.t1071.001
+    - attack.t1082
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+data_sources:
+    - process_creation
+    - windows

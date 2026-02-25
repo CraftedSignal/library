@@ -1,0 +1,57 @@
+id: 0199b5d6-fdfb-76de-bca2-766b5274853f
+name: HrServ Web Shell Persistence via Scheduled Task
+description: Detects the creation of a scheduled task named "MicrosoftsUpdate" which is used to execute a malicious batch file as part of the HrServ web shell infection chain.
+query: |
+    title: HrServ Web Shell Persistence via Scheduled Task
+    id: 1e65abec-b811-480c-b5d2-bd4309ef7a82
+    status: experimental
+    description: >-
+      Detects the creation of a scheduled task named "MicrosoftsUpdate" which is
+      used to execute a malicious batch file as part of the HrServ web shell
+      infection chain.
+    references:
+      - >-
+        https://thehackernews.com/2023/11/new-hrservdll-web-shell-detected-in-apt.html
+    author: Ziya Deniz
+    date: 2025-10-05T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+      - malware.hrserv
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: \schtasks.exe
+        CommandLine|contains|all:
+          - hrserv
+          - .dll
+      selection2:
+        Image|endswith: schtasks.exe
+        CommandLine|contains|all:
+          - JKNLA
+          - .bat
+      condition: selection or selection2
+    falsepositives:
+      - Unlikely
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - malware.hrserv
+author: Ziya Deniz
+version: "2"
+references:
+    - https://thehackernews.com/2023/11/new-hrservdll-web-shell-detected-in-apt.html
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: 019c7727-fbd8-707f-bf76-0a0844c768d0
+name: Grandstream API Exploit Attempt (CVE-2026-2329)
+description: Detects potential exploitation attempts against a buffer overflow vulnerability (CVE-2026-2329) in Grandstream VoIP phones. This rule identifies web requests targeting the vulnerable API endpoint '/cgi-bin/api.values.get' with an overly long query string (>64 bytes) or the use of multiple colons (>=3) which could indicate a ROP chain attempt. The detection is based on DeviceNetworkEvents from Microsoft Defender for Endpoint.
+query: "// Name: Grandstream API Exploit Attempt (CVE-2026-2329)\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// References: https://www.bleepingcomputer.com/news/security/flaw-in-grandstream-voip-phones-allows-stealthy-eavesdropping/\r\n// Description: Detects potential exploitation attempts against a buffer overflow vulnerability (CVE-2026-2329) in Grandstream VoIP phones. This version uses DeviceNetworkEvents to detect attacks originating from a Microsoft Defender for Endpoint monitored device. The public release of a Metasploit module increases the likelihood of this activity.\r\n// Tactic: Initial Access\r\n// Technique: T1190, T1210\r\n// Data Source: DeviceNetworkEvents\r\nlet timeframe = 1h;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(timeframe)\r\n// Search for web requests targeting the vulnerable API endpoint.\r\n| where RemoteUrl has \"/cgi-bin/api.values.get\" and RemoteUrl has \"request=\"\r\n// Extract the query string from the full URL for analysis.\r\n| extend UrlQuery = tostring(parse_url(RemoteUrl).Query)\r\n// The exploit is characterized by an overly long query string (>64 bytes) or the use of multiple colons to build a ROP chain.\r\n| where strlen(UrlQuery) > 64 or countof(UrlQuery, \":\") >= 3\r\n// FP Tuning: Legitimate, complex API calls could potentially exceed the length threshold.\r\n// Monitor for legitimate traffic patterns and adjust the 'strlen' value if necessary.\r\n// This will only detect attacks originating from devices with a Defender agent.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    LocalIP,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n| extend\r\n    timestamp = Timestamp,\r\n    SrcIpAddr = LocalIP,\r\n    DstIpAddr = RemoteIP"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0008
+techniques:
+    - T1190
+    - T1210
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/flaw-in-grandstream-voip-phones-allows-stealthy-eavesdropping/

@@ -1,0 +1,63 @@
+id: 019c0c9c-056e-77ce-b1ba-6c7256bcaacb
+name: Generic MSSP Alert Tracking and Deduplication
+description: This rule tracks and deduplicates alert emails from a Managed Security Service Provider (MSSP). It identifies emails from a specific sender, filters by subject keywords (e.g., severity levels), and groups them into sessions to prevent duplicate alerts. It also extracts case numbers from portal URLs found within the emails.
+query: |
+    // Name: Generic MSSP Alert Tracking and Deduplication
+    // Author: Nicholas I.
+    // Date: 2026-01-29
+    //
+    //--- Configuration Section ---
+    // This section contains adjustable parameters for adapting the query to your specific MSSP.
+    // Set the lookback time period for the query.
+    let lookback = 90d;
+    // Set the sender address for your MSSP's alert emails.
+    let msspSenderAddress = "security@provider.com";
+    // Set keywords used by your MSSP to identify alert emails by subject (e.g., severity levels).
+    let msspSubjectKeywords = dynamic(["[HIGH]","[MEDIUM]","[LOW]"]);
+    // Set the domain used in your MSSP's portal links.
+    let msspUrlDomain = "portal.provider.com";
+    // Set the regular expression to extract the ticket/case number from the portal URL.
+    // The first capture group (in parentheses) should contain the ticket number.
+    let ticketExtractionRegex = @"tickets/(\d+)";
+    //--- Main Query Logic ---
+    EmailEvents
+    // Filter for MSSP alert emails within the specified time window.
+    | where TimeGenerated > ago(lookback)
+    | where SenderFromAddress == msspSenderAddress
+    // Exclude replies to focus on the initial alert.
+    | where not(Subject has_any ("!EXTERNAL! Re:", "Re: Re:", "Re:"))
+    // Filter for subjects that contain the specified alert keywords.
+    | where Subject has_any (msspSubjectKeywords)
+    // 1. Session Logic: Group email bursts for the same subject into a single session.
+    // This helps deduplicate alerts that arrive moments apart.
+    | sort by Subject asc, TimeGenerated asc
+    | extend SessionStarted = row_window_session(TimeGenerated, 5m, 4h, Subject != prev(Subject))
+    // 2. Select Latest Data: Grab the most recent email details from each session.
+    | summarize arg_max(TimeGenerated, NetworkMessageId, Subject, SenderFromAddress, RecipientEmailAddress) by SessionStarted, Subject
+    // 3. Get the Portal URL: Join with URL data to find the link to the MSSP portal.
+    | join kind=leftouter (
+        EmailUrlInfo
+        | where TimeGenerated > ago(lookback)
+        | where Url has msspUrlDomain
+        | project NetworkMessageId, Url
+    ) on NetworkMessageId
+    // 4. Final Deduplication: Ensure one result per session, even if the join created multiples.
+    | summarize arg_max(TimeGenerated, *) by SessionStarted, Subject
+    // 5. Extract Case Details: Parse the URL and Subject to create structured case fields.
+    | extend CaseNumber = extract(ticketExtractionRegex, 1, Url)
+    | extend CaseAction = replace_string(Subject, "!EXTERNAL! ", "")
+    // 6. Final Projection: Select and rename columns for the final output.
+    | project
+        TimeGenerated,
+        CaseNumber,
+        CaseAction,
+        Subject,
+        Url,
+        Sender = SenderFromAddress,
+        Recipient = RecipientEmailAddress,
+        NetworkMessageId
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "3"

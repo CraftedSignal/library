@@ -1,0 +1,15 @@
+id: be9eb09a-2c10-4e88-9ffa-bb1fefbd70f4
+name: Large Webmail Response Exfiltration Detection
+description: KQL Query
+query: "DeviceWebEvents\r\n| where ActionType == \"WebSession\" // Captures general web traffic sessions\r\n| where ResponseBytes > 2097152 // Filter for responses larger than 2 MB (2 * 1024 * 1024 bytes)\r\n// Filter for URLs commonly associated with webmail or cloud storage/file sharing services\r\n| where Url has_any (\"mail.\", \"outlook.\", \"gmail.\", \"webmail.\", \"owa.\", \"office365.com\", \"live.com\", \"drive.google.com\", \"onedrive.live.com\", \"dropbox.com\", \"sharepoint.com\")\r\n// Optionally, filter by common browser processes to reduce false positives from background services\r\n| where InitiatingProcessCommandLine has_any (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"iexplore.exe\")\r\n| project Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, Url, ResponseBytes, RemoteIP, RemoteUrl, InitiatingProcessParentFileName, InitiatingProcessFileName\r\n| extend\r\n    Techniques = dynamic([\"T1041\", \"T1567.002\"]), // Exfiltration Over Network, Exfiltration to Cloud Storage\r\n    Tactics = dynamic([\"Exfiltration\"]),\r\n    Severity = \"High\",\r\n    Description = \"Detects large web responses (>2MB) from webmail or cloud storage/file sharing services, potentially indicating data exfiltration via web-based email or cloud upload.\",\r\n    RuleName = \"Large_Webmail_Response_Exfiltration\",\r\n    References = dynamic([]),\r\n    Author = \"HybridHunter\",\r\n    Date = \"2025-07-05\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1567.002
+tags:
+    - kql
+author: HybridHunter
+version: "1"

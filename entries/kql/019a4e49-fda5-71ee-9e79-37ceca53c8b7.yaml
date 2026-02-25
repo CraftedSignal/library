@@ -1,0 +1,26 @@
+id: 019a4e49-fda5-71ee-9e79-37ceca53c8b7
+name: 'DETECT: Remote Logins from Non-Telemetry (Non reporting MDE) Source Devices to Servers'
+description: |-
+    This KQL query hunts for repeated remote logon activity (via RDP or similar) from source devices that lack Microsoft Defender for Endpoint (MDE) telemetry to server-class devices over an extended period (default 60 days). It identifies patterns where a non-monitored endpoint consistently connects to a server daily or near-daily, which may indicate:
+
+    => Compromised or unmanaged jump hosts
+    => Lateral movement from external or BYOD devices
+    => Unauthorized administrative access from unmonitored workstations
+    => Potential living-off-the-land or persistence techniques
+
+    The detection focuses on initiating devices without MDE sensor data (HasTelemetry == false) targeting servers, with logons occurring on multiple distinct days, suggesting routine access rather than one-off events.
+
+    Cross validate via HasTelemetry == true (i.e with this changes it identifies source devices which are reporting with proper MDE.)
+
+    KQL for MDE.
+query: "let lookback = 60d; // 60 days hunting, reduce to 24 hrs for alert\r\n// Step 1: Get last login per day per Source->Target and count logons per day\r\nDeviceProcessEvents\r\n| where Timestamp >= ago(lookback)\r\n| where isnotempty(InitiatingProcessRemoteSessionDeviceName)\r\n| extend SourceDeviceSimpleName = tolower(InitiatingProcessRemoteSessionDeviceName)\r\n| extend TargetDevice = DeviceName\r\n| extend LoginDate = startofday(Timestamp)  // normalize timestamp to day\r\n| summarize LogonCount = count(), LastSeen = max(Timestamp), AccountName = any(AccountName) by SourceDeviceSimpleName, TargetDevice, LoginDate\r\n// Step 2: Count distinct days logged and get latest login time\r\n| summarize DistinctDaysLogged = count(), LastSeenTime = max(LastSeen), TotalLogons = sum(LogonCount), AccountName = any(AccountName) by SourceDeviceSimpleName, TargetDevice\r\n| extend RepeatedLogins = case(\r\n    DistinctDaysLogged == 1, \"Logged in yesterday\",\r\n    DistinctDaysLogged == 2, \"Logged in past 2 days\",\r\n    DistinctDaysLogged == 3, \"Logged in past 3 days\",\r\n    DistinctDaysLogged == 4, \"Logged in past 4 days\",\r\n    DistinctDaysLogged == 5, \"Logged in past 5 days\",\r\n    DistinctDaysLogged == 6, \"Logged in past 6 days\",\r\n    DistinctDaysLogged == 7, \"Logged in past 7 days\",\r\n    \"Logged in multiple times\"\r\n)\r\n// Step 3: Check if source device has MDE telemetry\r\n| join kind=leftouter (\r\n    DeviceProcessEvents\r\n    | extend SourceDeviceSimpleName = tolower(extract(\"(^.+?)(\\\\..*)?$\", 1, DeviceName))\r\n    | summarize MatchingEventCount = count() by SourceDeviceSimpleName\r\n) on SourceDeviceSimpleName\r\n| extend HasTelemetry = isnotempty(MatchingEventCount)\r\n// Step 4: Filter only servers\r\n| join kind=inner (\r\n    DeviceInfo\r\n    | where DeviceType == \"Server\" or OSPlatform contains \"Server\"\r\n    | project TargetDevice = DeviceName, TargetDeviceType = DeviceType\r\n) on TargetDevice\r\n| where HasTelemetry == false\r\n// Step 5: Deduplicate per source-target based on LastSeenTime\r\n| summarize\r\n    TotalLogons = sum(TotalLogons),\r\n    DistinctDaysLogged = max(DistinctDaysLogged),\r\n    LastSeenTime = max(LastSeenTime),\r\n    RepeatedLogins = max(RepeatedLogins),\r\n    AccountName = any(AccountName)\r\n    by SourceDeviceSimpleName, TargetDevice, TargetDeviceType\r\n| project LastSeenTime, SourceDeviceSimpleName, TargetDevice, TargetDeviceType, AccountName, TotalLogons, DistinctDaysLogged, RepeatedLogins\r\n| order by LastSeenTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0003
+    - TA0007
+tags:
+    - kql
+author: PP
+version: "3"

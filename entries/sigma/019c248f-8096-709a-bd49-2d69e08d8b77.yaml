@@ -1,0 +1,44 @@
+id: 019c248f-8096-709a-bd49-2d69e08d8b77
+name: Evasive Panda SohuVA Lure URL Detection
+description: This rule detects network traffic indicative of the Evasive Panda APT's use of a specific SohuVA lure. It looks for connections to 'p2p.hd.sohu.com' with the path '/foxd/gz' combined with specific query parameters such as 'sohunewplayer', 'new=/66/157/', or 'ovztb0wktdmakeszwh2eha'. The detection logic applies to both 'c-uri' and 'RequestUrl' fields, suggesting it targets proxy or web traffic logs. The rule aims for high fidelity by combining these specific URL components and parameters, differentiating it from generic Sohu update traffic.
+query: |-
+    title: Evasive Panda SohuVA Lure URL p2p.hd.sohu.com (High Fidelity)
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda008
+    status: experimental
+    description: |
+        High-fidelity detection of Evasive Panda SohuVA lure. Context: full URL pattern from article -
+        p2p.hd.sohu.com/foxd/gz with query file=sohunewplayer or new=/66/157/ or ovztb0wktdmakeszwh2eha.
+        Generic Sohu update traffic may hit /foxd/gz but not necessarily with this file/new parameter combination.
+    references:
+        - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.command_and_control
+        - attack.t1071
+    logsource:
+        category: proxy
+        product: windows
+    detection:
+        selection_base:
+            c-uri|contains: 'p2p.hd.sohu.com'
+            c-uri|contains: '/foxd/gz'
+        context_lure_params:
+            c-uri|contains|any:
+                - 'sohunewplayer'
+                - 'new=/66/157/'
+                - 'ovztb0wktdmakeszwh2eha'
+        selection_alt_base:
+            RequestUrl|contains: 'p2p.hd.sohu.com'
+            RequestUrl|contains: '/foxd/gz'
+        context_lure_alt:
+            RequestUrl|contains|any:
+                - 'sohunewplayer'
+                - 'new=/66/157/'
+                - 'ovztb0wktdmakeszwh2eha'
+        condition: (selection_base and context_lure_params) or (selection_alt_base and context_lure_alt)
+    falsepositives:
+        - Legitimate SohuVA update using same query parameters (verify with file hash)
+    level: critical
+query_type: sigma
+version: "2"

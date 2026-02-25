@@ -1,0 +1,30 @@
+id: 893e13f8-16cf-4496-8d43-5a453cb7e24a
+name: KQLObfusGuard - Detecting ArgFuscator Obfuscation
+description: 'KQL Query from file: KQLObfusGuard - Detecting ArgFuscator Obfuscation'
+query: |
+    // KQLObfusGuard - Detecting ArgFuscator Obfuscation
+    // https://argfuscator.net/
+
+    let KQLObfusGuard=externaldata(RawData:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/argfuscator.txt']
+    | parse RawData with ArgfuscatorCommand :string;
+    let ArgfuscatorCmds =
+    KQLObfusGuard
+    | project ArgfuscatorCommand;
+    DeviceEvents
+    | where Timestamp > ago(1h)
+    | extend ParsedCommandLine = parse_command_line(tolower(InitiatingProcessCommandLine), "windows")
+    | extend IPCL_Length = strlen(InitiatingProcessCommandLine)
+    | extend PCL_Length = strlen(tostring(ParsedCommandLine))-2-(2*array_length(ParsedCommandLine))+(array_length(ParsedCommandLine)-1)
+    | where (IPCL_Length - PCL_Length > 1) and ParsedCommandLine has_any(ArgfuscatorCmds)
+query_type: kql
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1001
+    - T1027.010
+    - T1001.003
+tags:
+    - kql
+version: "1"

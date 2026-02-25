@@ -1,0 +1,17 @@
+id: 019a60ea-7210-7124-b4d4-56b06a161e5d
+name: Suspicious Execution of Living-Off-the-Land Binaries from Browser Parent via Weaponized Clip-Paste Technique
+description: "A detection triggered on endpoint events where common system binaries (e.g., mshta.exe, powershell.exe, cmd.exe) were launched by user-facing parent processes (explorer.exe, chrome.exe, msedge.exe, firefox.exe, iexplore.exe) and executed suspicious command-lines. The pattern matches the evolving technique used in ClickFix-style campaigns whereby malicious pages dynamically place payloads into the clipboard and prompt users to paste or execute them. \n"
+query: "let timeframe = 1d;\r\nlet suspicious_processes = dynamic([\"powershell.exe\", \"mshta.exe\", \"cmd.exe\"]);\r\nlet parent_processes = dynamic([\"explorer.exe\", \"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"iexplore.exe\"]);\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(timeframe)\r\n| where FileName in~ (suspicious_processes)\r\n| where InitiatingProcessFileName in~ (parent_processes)\r\n| where\r\n    (FileName =~ \"mshta.exe\" and ProcessCommandLine matches regex @'(?i)mshta\\.exe\\s+(javascript:|vbscript:|https?://)') or\r\n    (\r\n        FileName =~ \"powershell.exe\" and\r\n        (\r\n            ProcessCommandLine has \"-enc\" or\r\n            ProcessCommandLine contains \"IEX\" or ProcessCommandLine contains \"Invoke-Expression\" or\r\n            (ProcessCommandLine contains \"DownloadString\" and ProcessCommandLine contains \"New-Object\") or\r\n            (strlen(ProcessCommandLine) > 400 and not(ProcessCommandLine has \".ps1\"))\r\n        )\r\n    ) or\r\n    (FileName =~ \"cmd.exe\" and (ProcessCommandLine has \"/c powershell\" or ProcessCommandLine has \"/c mshta\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1218.005
+    - T1059
+    - T1218
+tags:
+    - kql
+version: "1"

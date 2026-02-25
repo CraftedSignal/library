@@ -1,0 +1,49 @@
+id: 019c7b70-ab01-73a8-937a-5497744adb81
+name: Fake Windows 11 Phishing Domains Detected
+description: Identifies network connections or DNS queries to known phishing domains mimicking Windows 11 update sites, which are used to distribute infostealer malware. These domains are highly specific to this campaign.
+query: |
+    // Name: Fake Windows 11 Phishing Domains
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-20
+    // Description: Identifies network connections or DNS queries to known phishing domains mimicking Windows 11 update sites, used to distribute infostealer malware.
+    // MITRE ATT&CK: T1583.001, T1204.001
+    // References: https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+    // False Positive Sensitivity: Medium
+    let malicious_domains = dynamic([
+        "ms-25h2-download.pro",
+        "ms-25h2-update.pro",
+        "ms25h2-download.pro",
+        "ms25h2-update.pro"
+    ]);
+    union DeviceNetworkEvents, DnsEvents
+    // Check for network connections or DNS queries to the list of known malicious domains
+    | where RemoteUrl has_any (malicious_domains) or Name in~ (malicious_domains)
+    // These domains are highly specific to this campaign. False positives are unlikely unless the domains are sinkholed by security vendors or repurposed.
+    // Consider adding this list to a watchlist for easier management and scalability.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        Name, // From DnsEvents
+        IPAddresses // From DnsEvents
+query_type: kql
+severity: medium
+tactics:
+    - TA0042
+    - TA0002
+    - TA0001
+techniques:
+    - T1583.001
+    - T1204.001
+    - T1566
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets

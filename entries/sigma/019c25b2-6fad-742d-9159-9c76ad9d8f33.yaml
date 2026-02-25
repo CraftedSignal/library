@@ -1,0 +1,62 @@
+id: 019c25b2-6fad-742d-9159-9c76ad9d8f33
+name: Notepad++ Attack Chain Staging Artifacts
+description: Detects the creation of specific files in AppData paths associated with the second and third infection chains of the Notepad++ supply chain attack. These files are related to Lua script execution and DLL sideloading for persistence and execution.
+query: |
+    title: Notepad++ Attack Chain Staging Artifacts
+    id: 707693d0-ba86-4f2d-8f6d-cb16522dce85
+    status: experimental
+    description: Detects the creation of specific files in AppData paths associated
+      with the second and third infection chains of the Notepad++ supply chain
+      attack. These files are related to Lua script execution and DLL sideloading
+      for persistence and execution.
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    author: detections.ai
+    date: 2026-02-03
+    tags:
+      - attack.t1574.002
+      - attack.t1059.006
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_chain2:
+        TargetFilename|contains: '\AppData\Roaming\Adobe\Scripts\' # Staging directory for the Lua-based execution chain
+        TargetFilename|endswith:
+          - '\alien.dll'
+          - '\lua5.1.dll'
+          - '\script.exe'
+          - '\alien.ini'
+      selection_chain3:
+        TargetFilename|contains: '\AppData\Roaming\Bluetooth\' # Staging directory for the DLL sideloading chain
+        TargetFilename|endswith:
+          - '\BluetoothService.exe'
+          - '\log.dll'
+          - '\BluetoothService'
+      condition: 1 of them
+    falsepositives:
+      - These file paths and names are highly specific to the described attack
+        chains. False positives are considered unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1195.002
+    - T1574.001
+    - T1059.011
+tags:
+    - attack.t1574.002
+    - attack.t1059.006
+author: detections.ai
+version: "4"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/
+data_sources:
+    - file_event
+    - windows

@@ -1,0 +1,14 @@
+id: 0199ba2c-5c39-723d-8396-5ec36a6aeab1
+name: Hunting Unauthorized Mail Access via Microsoft Graph API Abuse
+description: KQL Query
+query: "let AppTable =\r\nAADSignInEventsBeta\r\n| where Timestamp > ago(30d) \r\n| distinct ApplicationId, Application;\r\nGraphAPIAuditEvents \r\n| where RequestMethod == \"GET\"\r\n| where RequestUri has_all (\"https://graph.microsoft.com\", \"/users/\", \"/messages\")\r\n| where ResponseStatusCode in (\"200\")\r\n| join AppTable on $left.ApplicationId == $right.ApplicationId\r\n| where Application matches regex @\"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.009
+tags:
+    - kql
+author: Steven Lim
+version: "2"

@@ -1,0 +1,20 @@
+id: 0199b358-6a6b-7228-8fbc-24358aab9988
+name: Detection of Suspicious URLs Shared in Microsoft Teams
+description: |-
+    This query detects URLs shared in Microsoft Teams messages, chats, or meetings that may represent potential security risks. It filters out internal domains, SharePoint URLs, placeholder links, and known system domains to focus specifically on unique external URLs being exchanged within the organization.
+
+    The detection is useful for identifying phishing attempts, malware distribution, unauthorized data sharing, or other unsafe activities originating from collaboration tools.
+query: "// Name: Detection of Suspicious URLs Shared in Microsoft Teams\r\n// Author: Andre Zeemering\r\n// Date: 2025-10-05\r\n// Description: This query detects URLs shared in Microsoft Teams messages, chats, or meetings that may represent potential security risks. It filters out internal domains, SharePoint URLs, placeholder links, and known system domains to focus specifically on unique external URLs being exchanged within the organization.\r\n// Tactics: Initial Access\r\n// Techniques: T1566.003\r\n// False Positive Sensitivity: Medium\r\n//- Rule-abiding organizations may share external links for legitimate business purposes.\r\n//- To reduce false positives, add known-good domains to the 'allowlist_domains' list.\r\nlet timeframe = 1d;\r\n// Define a list of domains to exclude from the detection.\r\nlet allowlist_domains = dynamic([\r\n    \"yourdomain.com\", // Add your primary domain here\r\n    \"sharepoint.com\",\r\n    \"statics.teams.cdn.office.net\"\r\n]);\r\nMessageEvents\r\n| where Timestamp > ago(timeframe)\r\n// Join message events with URL information.\r\n| join kind=inner (MessageUrlInfo) on TeamsMessageId\r\n| extend\r\n    Url = trim(\" \", tostring(Url)),\r\n    UrlDomain = tolower(tostring(UrlDomain)),\r\n    // Extract the primary recipient's email address.\r\n    RecipientSmtpAddress = tostring(parse_json(RecipientDetails)[0].RecipientSmtpAddress)\r\n| where isnotempty(Url)\r\n    // Filter out known-good and common domains to reduce noise.\r\n    and not(UrlDomain has_any (allowlist_domains))\r\n    and Url != \"http://dummy.jpg/\" // Example of a specific, noisy URL to filter.\r\n// Summarize unique URLs to reduce alert volume.\r\n| distinct Url, UrlDomain, ThreadName, ThreadType, GroupName, SenderDisplayName, RecipientSmtpAddress, Timestamp\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.003
+tags:
+    - kql
+author: Andre Zeemering
+version: "8"
+references:
+    - https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-messageevents-table

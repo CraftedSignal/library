@@ -1,0 +1,24 @@
+id: 019bf103-b364-77c9-9e6e-cec9db15acea
+name: EtherRAT Web Server Hijacking and Traffic Redirection
+description: This rule detects potential web server hijacking and traffic redirection activities, specifically focusing on techniques used by EtherRAT. It identifies scenarios where Nginx or Apache configurations are modified, often preceded by backup creation, and followed by a web server restart. Additionally, it looks for instances where configuration modifications are combined with attempts to exfiltrate data to webhook.site, suggesting a malicious redirection setup.
+query: "title: EtherRAT Web Server Hijacking and Traffic Redirection\nid: 0b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e\nstatus: experimental\ndescription: |\n    Detection of EtherRAT's web server hijacking module that modifies nginx/Apache \n    configurations to redirect traffic. Correlates config backup creation with \n    configuration modification and service restart.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2\ntags:\n    - attack.impact\n    - attack.persistence\n    - attack.t1565.002\n    - attack.t1505.003\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    nginx_config_backup:\n        CommandLine|re: '(?i)(cp|mv).*(/etc/nginx/sites-enabled/|/etc/nginx/conf\\.d/).*\\.bak'\n    nginx_config_modify:\n        CommandLine|re: '(?i)(echo|cat|tee|sed|awk).*(/etc/nginx/sites-enabled/|/etc/nginx/conf\\.d/)'\n    apache_config_disable:\n        CommandLine|re: '(?i)(mv|a2dissite).*(/etc/apache2/sites-available/).*\\.disabled'\n    apache_redirect_create:\n        CommandLine|re: '(?i)(echo|cat|tee).*(/etc/apache2/sites-available/|000-redirect\\.conf)'\n    webserver_restart:\n        CommandLine|re: '(?i)(systemctl\\s+reload|systemctl\\s+restart|nginx\\s+-s\\s+reload|apachectl\\s+restart)'\n    webserver_test:\n        CommandLine|re: '(?i)(nginx\\s+-t|apachectl\\s+-t)'\n    webhook_exfil:\n        CommandLine|re: '(?i)(curl|wget|fetch).*webhook\\.site'\n    condition: (nginx_config_backup and nginx_config_modify and webserver_restart) or (apache_config_disable and apache_redirect_create and webserver_restart) or ((nginx_config_modify or apache_redirect_create) and webhook_exfil)\nfalsepositives:\n    - Legitimate web server configuration management\n    - Automated deployment scripts\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0003
+techniques:
+    - T1565.002
+    - T1505.003
+tags:
+    - attack.impact
+    - attack.persistence
+    - attack.t1565.002
+    - attack.t1505.003
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

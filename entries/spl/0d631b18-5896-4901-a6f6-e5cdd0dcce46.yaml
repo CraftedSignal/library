@@ -1,0 +1,47 @@
+id: 0d631b18-5896-4901-a6f6-e5cdd0dcce46
+name: UNC3944 | VMware - Activity on Orphaned or Decommissioned VM
+description: Detects power-on or reconfiguration events for virtual machines located in vCenter folders designated for decommissioned or orphaned assets. Threat groups like UNC3944 are known to use such forgotten VMs as staging points for attacks, such as mounting disks from critical systems for offline data theft. Activity on these VMs is highly anomalous and warrants investigation.
+query: |
+    `comment("
+    name: VMware - Activity on Orphaned or Decommissioned VM
+    date: 2025-07-25
+    description: >
+      Detects power-on or reconfiguration events for virtual machines located in vCenter folders designated for decommissioned or orphaned assets. Threat groups like UNC3944 are known to use such forgotten VMs as staging points for attacks, such as mounting disks from critical systems for offline data theft. Activity on these VMs is highly anomalous and warrants investigation.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/
+    how_to_implement: >
+      This detection requires VMware vCenter logs (e.g., sourcetype=vmware:vclog) to be ingested. The detection relies on a field named `vm_folder` that contains the vCenter inventory folder for the virtual machine. If this field is not populated by default in your environment, you may need to extract it from other fields (e.g., `vm_path`, `FullFormattedMessage`). Crucially, you must customize the list of folder names in the `where` clause (e.g., 'decommissioned', 'orphaned') to match your organization's specific naming conventions for retired assets.
+    known_false_positives: >
+      Legitimate, though rare, administrative tasks such as data recovery or forensic analysis on a decommissioned VM may trigger this alert. These events should be correlated with change management records or verified with the user performing the action.
+    ")`
+
+    `comment("Search for VM power-on or reconfiguration events, which indicate activity.")`
+    `vmware` (event_type_id="vim.event.VmPoweredOnEvent" OR event_type_id="vim.event.VmReconfiguredEvent")
+
+    `comment("Filter for VMs in folders designated for decommissioned assets. This list must be customized for your environment's naming conventions.")`
+    | where match(vm_folder, "(?i)decommissioned|orphaned|retired|archive")
+
+    `comment("Note: Legitimate, though rare, administrative tasks on old VMs can trigger this alert. Correlate with change tickets.")`
+
+    `comment("Aggregate results to create a single alert per incident.")`
+    | stats count min(_time) as firstTime max(_time) as lastTime values(event_type_id) as event_types by user, vm_name, vm_folder, dest
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | rename dest as vcenter_server, user as user_performing_action
+    | fields - count
+    | `vmware_activity_on_orphaned_or_decommissioned_vm_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+    - T1070.004
+    - T1562
+    - T1070
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/

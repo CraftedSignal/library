@@ -1,0 +1,34 @@
+id: 019c5cab-2718-75f5-8457-aa94f31fbf6b
+name: OysterLoader C2 Activity Detection
+description: This rule detects network communication with known command and control (C2) infrastructure associated with the OysterLoader malware. It identifies C2 activity by looking for connections to specific domains and IP addresses, as well as requests to particular API paths within the RemoteUrl field.
+query: |-
+    // OysterLoader - C2 domains and endpoints
+    // Author: Daniel Jeremiah | Date: 2026/02/14
+    // Ref: https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+
+    let C2Domains = dynamic([
+        "grandideapay.com", "nucleusgate.com", "cardlowestgroup.com",
+        "socialcloudguru.com", "coretether.com", "registrywave.com"
+    ]);
+    let C2IPs = dynamic(["85.239.53.66", "51.222.96.108", "135.125.241.45"]);
+
+    union isfuzzy=true
+    (DeviceNetworkEvents
+    | where TimeGenerated > ago(30d)
+    | where RemoteUrl has_any (C2Domains) or RemoteIP has_any (C2IPs)
+    | project TimeGenerated, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine),
+    // C2 API paths (if URL logged)
+    (DeviceNetworkEvents
+    | where TimeGenerated > ago(30d)
+    | where RemoteUrl contains "/api/kcehc" or RemoteUrl contains "/api/v2/facade"
+        or RemoteUrl contains "/api/v2/init" or RemoteUrl contains "/api/jgfnsfnuefcnegfnehjbfncejfh"
+    | project TimeGenerated, DeviceName, RemoteUrl, InitiatingProcessFileName)
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/

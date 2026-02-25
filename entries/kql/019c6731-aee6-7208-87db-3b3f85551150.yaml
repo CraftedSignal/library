@@ -1,0 +1,16 @@
+id: 019c6731-aee6-7208-87db-3b3f85551150
+name: Unauthorized IIS Module Registration
+description: Detects modification of the IIS global configuration file (applicationHost.config) by a process outside of the standard inetsrv directory. This is the primary method BADIIS malware uses to register its malicious module and intercept web traffic.
+query: "// Name: Unauthorized IIS Module Registration\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-16\r\n// Description: Detects modification of the IIS global configuration file (applicationHost.config) by a process outside of the standard inetsrv directory. This is the primary method BADIIS malware uses to register its malicious module and intercept web traffic.\r\n// False Positives: Legitimate third-party IIS management tools or custom administrative scripts (e.g., PowerShell) may modify this file. These can be added to an exclusion list if necessary.\r\n// References: https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign\r\n// MITRE ATT&CK: T1505.004\r\nDeviceFileEvents\r\n// Look for file modification events.\r\n| where ActionType == \"FileModified\"\r\n// Target the specific IIS global configuration file.\r\n| where FileName =~ \"applicationHost.config\" and FolderPath endswith \"\\\\inetsrv\\\\config\\\\\"\r\n// Exclude modifications made by legitimate, built-in IIS management tools.\r\n// The BADIIS malware uses a process like svchost.exe to perform this modification, which would be caught here.\r\n| where not(InitiatingProcessFolderPath endswith \"\\\\inetsrv\\\\\")\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1505.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign

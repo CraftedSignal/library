@@ -1,0 +1,24 @@
+id: 019a9906-ed93-7502-80b3-7722cf9e9e0f
+name: Cryptocurrency Miner Execution from Web Server or Temp Directory
+description: Detects execution of cryptocurrency mining software often spawned by web server processes or executed from temporary directories. This behavior is common in post-exploitation scenarios, such as those involving vulnerabilities like XWiki CVE-2025-24893, where attackers deploy miners like XMRig. Sysmon For Linux EventID 1 is the best way to detect this behavior.
+query: "title: Cryptocurrency Miner Execution from Web Server or Temp Directory\r\nid: c4e5b377-8fe5-4a02-9a5d-16d8fcd2d165\r\nstatus: experimental\r\ndescription: >-\r\n  Detects execution of cryptocurrency mining software often spawned by web\r\n  server processes or executed from temporary directories. This behavior is\r\n  common in post-exploitation scenarios, such as those involving vulnerabilities\r\n  like XWiki CVE-2025-24893, where attackers deploy miners like XMRig.\r\n  Sysmon For Linux EventID 1 is the best way to detect this behavior.\r\nreferences:\r\n  - https://www.vulncheck.com/blog/xwiki-under-increased-attack\r\n  - https://www.vulncheck.com/blog/xwiki-cve-2025-24893-eitw\r\n  - https://www.securityweek.com/widespread-exploitation-of-xwiki-vulnerability-observed/\r\n  - https://github.com/bobby-tablez/FT-Sysmon-Config\r\nauthor: detections.ai\r\ndate: 2025-11-18\r\ntags:\r\n  - attack.resource_hijacking\r\n  - attack.t1496\r\n  - cve.2025.24893\r\nlogsource:\r\n  category: process_creation\r\n  product: linux\r\ndetection:\r\n  # Detects processes spawned by common web server applications\r\n  selection_parent:\r\n    ParentImage|endswith:\r\n      - '/java'\r\n      - '/java.bin'\r\n      - '/httpd'\r\n      - '/apache2'\r\n      - '/nginx'\r\n      - '/tomcat'\r\n  # Detects processes executing from common temporary or shared memory directories\r\n  selection_location:\r\n    Image|startswith:\r\n      - '/tmp/'\r\n      - '/var/tmp/'\r\n      - '/dev/shm/'\r\n  # Detects common cryptocurrency miner process names\r\n  selection_miner_img:\r\n    Image|endswith:\r\n      - 'xmrig'\r\n      - 'xmr-stak'\r\n      - 'minerd'\r\n      - 'cpuminer'\r\n  # Detects command-line arguments and patterns associated with miners\r\n  selection_miner_cli:\r\n    CommandLine|contains:\r\n      - '--donate-level'\r\n      - '--pool='\r\n      - '--wallet='\r\n      - '--coin=monero'\r\n      - 'stratum+tcp'\r\n      - 'stratum+ssl'\r\n      - '-o pool.'\r\n      - '--cpu-affinity'\r\n      - '--randomx'\r\n      - 'setup_runnv_miner'\r\n      - 'rondo.'\r\n      - 'mining'\r\n  condition: (selection_parent or selection_location) and (selection_miner_img or\r\n    selection_miner_cli)\r\nfalsepositives:\r\n  - Legitimate software or administrative scripts running from temporary\r\n    directories.\r\n  - Development or testing environments where mining software may be used for\r\n    legitimate purposes.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1496
+tags:
+    - attack.resource_hijacking
+    - attack.t1496
+    - cve.2025.24893
+author: detections.ai
+version: "6"
+references:
+    - https://www.vulncheck.com/blog/xwiki-under-increased-attack
+    - https://www.vulncheck.com/blog/xwiki-cve-2025-24893-eitw
+    - https://www.securityweek.com/widespread-exploitation-of-xwiki-vulnerability-observed/
+    - https://github.com/bobby-tablez/FT-Sysmon-Config
+data_sources:
+    - process_creation
+    - linux

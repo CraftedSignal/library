@@ -1,0 +1,17 @@
+id: 019a5f74-3b51-753b-8f97-3c1b5b9dd907
+name: 'Curly Comrades — Detect Enable + Disable Hyper-V Events '
+description: 'This query looks for DISM enable & disable events on the same device within a 15-minute window. '
+query: "// Name: Phishing Domains Detected 6 Nov 2025\n// Author: @dxmiller\n// Date: 2025-11-07\n// Tactic: Defense Evasion (TA0005)\n// Technique: Disable or Modify Tools (T1562.001), Run Virtual Instance (T1564.006)\n\n// Detect a DISM command enabling Hyper-V\nlet enables = DeviceProcessEvents\n| where Timestamp >= ago(30d)\n| where (FileName == \"dism.exe\" or ProcessCommandLine contains \"dism.exe\")\n| where tolower(ProcessCommandLine) has \"/online\"\n  and tolower(ProcessCommandLine) has \"enable-feature\"\n  and (tolower(ProcessCommandLine) has \"/all\" or tolower(ProcessCommandLine) has \" -all\")\n  and tolower(ProcessCommandLine) has \"/limitaccess\"\n  and tolower(ProcessCommandLine) has \"microsoft-hyper-v\"\n| project EnableTime = Timestamp, DeviceId, DeviceName, EnableCommand = ProcessCommandLine, EnableAccount = AccountName, EnableProcessParent = InitiatingProcessFileName, EnableReportId = ReportId;\n\n// Detect a DISM command disabling Hyper-V management clients\nlet disables = DeviceProcessEvents\n| where Timestamp >= ago(30d)\n| where (FileName == \"dism.exe\" or ProcessCommandLine contains \"dism.exe\")\n| where tolower(ProcessCommandLine) has \"/online\"\n  and tolower(ProcessCommandLine) has \"disable-feature\"\n  and tolower(ProcessCommandLine) has \"microsoft-hyper-v-management-clients\"\n| project DisableTime = Timestamp, DeviceId, DeviceName, DisableCommand = ProcessCommandLine, DisableAccount = AccountName, DisableProcessParent = InitiatingProcessFileName, DisableReportId = ReportId;\n\n// Correlated dection of the enabling and disabling DISM events. \nenables\n| join kind=inner (disables) on DeviceId\n| where abs(datetime_diff('minute', EnableTime, DisableTime)) <= 15\n| project DeviceName, DeviceId, EnableTime, EnableAccount, EnableCommand, EnableProcessParent, DisableTime, DisableAccount, DisableCommand, DisableProcessParent\n| order by EnableTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+    - T1564.006
+tags:
+    - kql
+author: Daniel Miller
+version: "2"
+references:
+    - https://www.darkreading.com/endpoint-security/pro-russian-hackers-linux-vms-hide-windows

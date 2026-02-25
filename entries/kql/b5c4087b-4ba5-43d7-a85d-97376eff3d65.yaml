@@ -1,0 +1,48 @@
+id: b5c4087b-4ba5-43d7-a85d-97376eff3d65
+name: Sun.ocx DLL Registration Detection
+description: This detection identifies the registration of a suspicious OCX file named "sun.ocx" using rundll32.exe with DllRegisterServer, a pattern often associated with malware installation and persistence. The rule is valid.
+query: |-
+    # Sun.ocx DLL Registration Detection
+
+    ## Description
+    This detection identifies the registration of a suspicious OCX file named "sun.ocx" using rundll32.exe with DllRegisterServer. This pattern is often associated with malware installation and persistence.
+
+    ## Detection Logic
+    The query looks for:
+    - Execution of `rundll32.exe`
+    - Command line containing `sun.ocx`
+    - Use of `DllRegisterServer` function
+    - This combination indicates OCX/ActiveX control registration
+
+    ## Query
+    ```kusto
+    DeviceProcessEvents
+    | where (ProcessCommandLine contains "sun.ocx"
+    and ProcessCommandLine contains "DllRegisterServer"
+    and (FolderPath endswith @"\rundll32.exe"))
+    ```
+
+    ## Technical Details
+    - **OCX Files**: ActiveX controls that can contain executable code
+    - **DllRegisterServer**: Registers COM components in Windows registry
+    - **Rundll32.exe**: Legitimate Windows utility often abused by malware
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Persistence, Defense Evasion
+    - **Technique**: T1218.011 - Signed Binary Proxy Execution: Rundll32
+    - **Technique**: T1546.015 - Event Triggered Execution: Component Object Model Hijacking
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Locate and analyze the sun.ocx file
+    2. Check registry for COM registration entries
+    3. Review what triggered the registration
+    4. Check for persistence via COM hijacking
+    5. Look for network connections from the OCX
+    6. Verify if sun.ocx is signed or known malware
+    7. Check for similar OCX registrations
+    8. Remove malicious registry entries if confirmed
+query_type: kql
+version: "1"

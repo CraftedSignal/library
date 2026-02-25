@@ -1,0 +1,45 @@
+id: 852b8b2e-b809-4e16-ae1e-ef2a7e0b13d6
+name: CVE-2022-26134 Malicious IP Detection
+description: This detection identifies connections to IP addresses associated with CVE-2022-26134, a critical remote code execution flaw in Atlassian Confluence.
+query: |-
+    # CVE-2022-26134 IP Detection
+
+    ## Description
+    This detection identifies connections to IP addresses associated with CVE-2022-26134 exploitation. This vulnerability is a critical unauthenticated remote code execution flaw in Atlassian Confluence Server and Data Center.
+
+    ## Detection Logic
+    The query:
+    1. Imports a list of known malicious IPs associated with CVE-2022-26134
+    2. Joins with network events looking for successful connections
+    3. Filters for specific connection types that indicate potential exploitation
+    4. Projects relevant fields for investigation
+
+    ## Query
+    ```kusto
+    let CVE202226134 = externaldata(ip:string)[@"https://gist.githubusercontent.com/Shivammalaviya/8529563a6d4dca8a3617b79272d87d68/raw/47eafc8d2038b32a641022ed3dbe8b290dfd24cf/CVE-2022-26134%2520IPs"]
+    | distinct ip;
+    CVE202226134
+    | join (DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess","InboundConnectionAccepted","ConnectionFound")
+    )
+    on $left.ip == $right.RemoteIP
+    | project Timestamp,LocalIP,RemoteIP,DeviceName,RemoteUrl,InitiatingProcessFileName,ActionType
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Initial Access, Execution
+    - **Technique**: T1190 - Exploit Public-Facing Application
+    - **Technique**: T1210 - Exploitation of Remote Services
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Identify all Confluence servers in the environment
+    2. Check Confluence version and patch status
+    3. Review web server logs for OGNL injection attempts
+    4. Look for webshells or suspicious processes on Confluence servers
+    5. Check for unauthorized changes to Confluence configuration
+    6. Apply patches immediately if not already done
+query_type: kql
+version: "1"

@@ -1,0 +1,77 @@
+id: ab9976c1-47ed-4eae-b442-c8e6758520aa
+name: Entra Connect Sync Application Credential Added Or Updated
+description: |
+    Detects the addition or update of key or password credentials specifically on the Microsoft Entra Connect Sync application registration (Service Principal) within Azure AD Audit Logs. This activity is highly suspicious as the normal update process for Entra Connect Sync typically replaces existing keys, and attackers may add credentials for persistence while leaving existing ones for legitimate operations.
+query: |-
+    title: Entra Connect Sync Application Credential Added Or Updated
+    id: 8d2f4c3a-1b2e-4f5d-8a7c-6b9e0d1f2a3b
+    version: 1.0
+    date: 2025-06-19
+    author: Detections.ai
+    description: >
+        Detects the addition or update of key or password credentials specifically on the Microsoft Entra Connect Sync
+        application registration (Service Principal) within Azure AD Audit Logs. This activity is highly suspicious
+        as the normal update process for Entra Connect Sync typically replaces existing keys, and attackers may
+        add credentials for persistence while leaving existing ones for legitimate operations.
+    references:
+        - https://posts.specterops.io/update-dumping-entra-connect-sync-credentials-4a9114734f71
+    logsource:
+        product: azure
+        service: auditlogs
+        category: azureactivity
+    detection:
+        selection_activity:
+            properties.activityDisplayName|contains:
+                - 'Add service principal credentials'
+                - 'Update application'
+                - 'Add key credential'
+        selection_target_type:
+            properties.targetResources[*].type: 'Application'
+        selection_target_name:
+            properties.targetResources[*].displayName: 'Microsoft Entra Connect Sync' # Exact name might vary slightly depending on installation
+        selection_properties:
+            properties.targetResources[*].modifiedProperties[*].displayName|contains:
+                - 'keyCredentials'
+                - 'passwordCredentials'
+        condition: all of selection_*
+    fields:
+        - properties.activityDisplayName
+        - properties.targetResources[*].displayName
+        - properties.targetResources[*].type
+        - properties.targetResources[*].modifiedProperties[*].displayName
+        - properties.initiatedBy.user.userPrincipalName
+        - properties.initiatedBy.user.displayName
+        - properties.initiatedBy.app.displayName
+        - properties.initiatedBy.app.servicePrincipalId
+        - time
+    tags:
+        - attack.persistence
+        - attack.t1098.001
+        - cloud.azure
+        - cloud.azuread
+        - detection.credential_access
+    level: high
+    falsepositives:
+        - Legitimate Entra Connect Sync updates (as documented, these typically replace existing keys/passwords, not add new ones)
+        - Manual administrative actions on the Entra Connect Sync application that specifically add new credentials without replacement (should be rare)
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.001
+tags:
+    - attack.persistence
+    - attack.t1098.001
+    - cloud.azure
+    - cloud.azuread
+    - detection.credential_access
+author: Detections.ai
+version: "1"
+references:
+    - https://posts.specterops.io/update-dumping-entra-connect-sync-credentials-4a9114734f71
+data_sources:
+    - azureactivity
+    - azure
+    - auditlogs

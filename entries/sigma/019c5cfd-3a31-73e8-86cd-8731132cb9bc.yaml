@@ -1,0 +1,68 @@
+id: 019c5cfd-3a31-73e8-86cd-8731132cb9bc
+name: KongTuke Malware - Scheduled Task Remove-NetNatStaticMapping
+description: This rule detects the execution of a specific command-line pattern associated with the KongTuke second-stage loader. It looks for 'conhost.exe' being run with '--headless', 'powershell', '-ep bypass', 'AzureRemove-NetNatStaticMapping.ps1', and 'AppActions' all present in the command line. This combination suggests the execution of a malicious PowerShell script, likely initiated via a scheduled task, as part of the KongTuke malware's persistence or execution mechanism.
+query: |
+    title: KongTuke Malware - Scheduled Task Remove-NetNatStaticMapping
+    id: b2c3d4e5-f6a7-5b6c-9d0e-1f2a3b4c5d6e
+    status: experimental
+    description: >-
+      This rule detects the execution of a specific command-line pattern associated
+      with the KongTuke second-stage loader. It looks for 'conhost.exe' being run
+      with '--headless', 'powershell', '-ep bypass',
+      'AzureRemove-NetNatStaticMapping.ps1', and 'AppActions' all present in the
+      command line. This combination suggests the execution of a malicious
+      PowerShell script, likely initiated via a scheduled task, as part of the
+      KongTuke malware's persistence or execution mechanism.
+    references:
+      - https://malpedia.caad.fkie.fraunhofer.de/details/js.kongtuke
+      - https://isc.sans.edu/diary/32498
+      - https://www.recordedfuture.com/research/tag-124-multi-layered-tds-infrastructure-extensive-user-base
+      - https://trustwave.com/en-us/resources/blogs/spiderlabs-blog/yet-another-nodejs-backdoor-yanb-a-modern-challenge
+    author: Daniel Jeremiah
+    date: 2026/02/14
+    modified: 2026/02/14
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection:
+        - Image|endswith: \conhost.exe
+        - CommandLine|contains: '--headless'
+        - CommandLine|contains: powershell
+        - CommandLine|contains: '-ep bypass'
+        - CommandLine|contains: AzureRemove-NetNatStaticMapping.ps1
+        - CommandLine|contains: AppActions
+      condition: selection
+    level: high
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.persistence
+      - attack.t1053.005
+      - malware.kongtuke
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059.001
+    - T1053.005
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.persistence
+    - attack.t1053.005
+    - malware.kongtuke
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://malpedia.caad.fkie.fraunhofer.de/details/js.kongtuke
+    - https://isc.sans.edu/diary/32498
+    - https://www.recordedfuture.com/research/tag-124-multi-layered-tds-infrastructure-extensive-user-base
+    - https://trustwave.com/en-us/resources/blogs/spiderlabs-blog/yet-another-nodejs-backdoor-yanb-a-modern-challenge
+data_sources:
+    - process_creation
+    - windows

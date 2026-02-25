@@ -1,0 +1,15 @@
+id: 019c8a44-f512-77cd-9ca3-355e88c30bf8
+name: Medusa Ransomware File Artifacts
+description: This rule detects the creation or renaming of files that are strong indicators of a Medusa ransomware infection. It looks for the specific ransom note name, a known ransomware binary, and the file extension appended to encrypted files.
+query: "// Name: Medusa Ransomware File Artifacts\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects the creation or renaming of files that are strong indicators of a Medusa ransomware infection. It looks for the specific ransom note name, a known ransomware binary, and the file extension appended to encrypted files.\r\n// Tactics: Impact\r\n// Techniques: T1486\r\n// False Positive Sensitivity: Low. The file names and extension are highly specific to this ransomware family. Any match should be investigated as a high-priority incident.\r\n// References: https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns\r\n// Define known Medusa file indicators\r\nlet MedusaFileNames = dynamic([\"!!!READ_ME_MEDUSA!!!.txt\", \"gaze.exe\"]);\r\nlet MedusaFileExtension = \".MEDUSA\";\r\nDeviceFileEvents\r\n// Focus on file creation and rename events which are indicative of ransomware activity\r\n| where ActionType in (\"FileCreated\", \"FileRenamed\")\r\n// Check for the specific ransom note, ransomware binary, or the unique file extension\r\n| where FileName in (MedusaFileNames) or FileName endswith MedusaFileExtension\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Host = DeviceName,\r\n    Account = InitiatingProcessAccountName\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    SHA1,\r\n    MD5\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns

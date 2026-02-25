@@ -1,0 +1,44 @@
+id: 019c8ec3-63ac-718c-86e6-3097a5a94c69
+name: Suspicious Windows Admin Center Logon from External Tenant
+description: This rule detects logon events from Windows Admin Center (WAC) virtual accounts where the account's domain is external to the organization's tenant. This pattern is a key indicator for the exploitation of CVE-2026-20965, where an attacker uses a forged token from an external tenant to gain unauthorized access.
+query: |-
+    // Name: Suspicious Windows Admin Center Logon from External Tenant
+    // Author: adarsh pandey
+    // Date: 2026-02-24
+    // Description: This rule detects logon events from Windows Admin Center (WAC) virtual accounts where the account's domain is external to the organization's tenant. This pattern is a key indicator for the exploitation of CVE-2026-20965, where an attacker uses a forged token from an external tenant to gain unauthorized access.
+    // MITRE ATT&CK: Lateral Movement (TA0008), Privilege Escalation (TA0004)
+    // References: https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/
+    // False Positive Sensitivity: Medium
+    // Add your organization's tenant domains here to exclude legitimate logons.
+    // Example: let tenantDomains = dynamic(["contoso.com", "contoso.onmicrosoft.com"]);
+    let tenantDomains = dynamic(["<your_tenant_address>"]);
+    DeviceLogonEvents
+    // Filter for logon events from Windows Admin Center (WAC) virtual accounts, which use a 'WAC_' prefix and UPN format.
+    | where AccountName startswith "WAC_" and AccountName contains "@"
+    // Extract the domain from the UPN for accurate matching.
+    | extend AccountDomain = tostring(split(AccountName, '@')[1])
+    // Exclude logons from known internal domains.
+    | where not(AccountDomain in~ (tenantDomains))
+    // Potential for False Positives: This detection may trigger on legitimate administrative activity from guest users or third-party administrators.
+    // To reduce noise, add any approved external partner domains to the 'tenantDomains' list above.
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        AccountDomain,
+        ActionType,
+        LogonType,
+        ReportId,
+        AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0004
+techniques:
+    - T1068
+tags:
+    - kql
+version: "2"
+references:
+    - https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/

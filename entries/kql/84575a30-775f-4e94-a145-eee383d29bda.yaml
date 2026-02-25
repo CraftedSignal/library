@@ -1,0 +1,15 @@
+id: 84575a30-775f-4e94-a145-eee383d29bda
+name: Detected Potential SSH Tunnel Persistence via Task Scheduler
+description: Detects the creation of new scheduled tasks through Schtasks.exe, specifically those invoking OpenSSH, which could indicate an attempt to establish a reverse SSH tunnel to a remote attacker's server.
+query: "DeviceProcessEvents\r\n| where FileName =~ \"schtasks.exe\" // Look for schtasks.exe process execution\r\n| where ProcessCommandLine has \"/create\"// Detects command lines that create tasks to run ssh or sshd for tunneling or persistence\r\n| where (ProcessCommandLine has \"sshd.exe\" and ProcessCommandLine has \"-f\") or (ProcessCommandLine has \"ssh.exe\" and ProcessCommandLine has \"-i\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    AdditionalFields"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+tags:
+    - KQL
+author: Rory Duncan
+version: "1"
+references:
+    - https://thedfirreport.com/2023/10/30/netsupport-intrusion-results-in-domain-compromise/
+    - https://www.kroll.com/en/insights/publications/cyber/cactus-ransomware-prickly-new-variant-evades-detection

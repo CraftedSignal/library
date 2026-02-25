@@ -1,0 +1,24 @@
+id: 6837dfcb-19d5-4644-a5c4-67a82a05c93d
+name: NPM Package Supply Chain Compromise Detection
+description: Detects indicators associated with a supply chain attack compromising popular NPM packages like 'chalk' and 'debug'. The rule identifies network connections to known malicious domains and command-line activity related to the installation of compromised packages.
+query: "// Description: Detects indicators associated with the September 2025 supply chain attack that compromised popular NPM packages like 'chalk' and 'debug'. The malware intercepts and redirects cryptocurrency transactions.\r\n// References:\r\n// - https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised\r\n// - https://www.endorlabs.com/learn/major-supply-chain-attack-compromises-popular-npm-packages-including-chalk-and-debug\r\n// - https://www.bleepingcomputer.com/news/security/hackers-hijack-npm-packages-with-2-billion-weekly-downloads-in-supply-chain-attack/\r\n// False Positive Sensitivity: Medium\r\n// Define known indicators of compromise from the threat intelligence\r\nlet maliciousDomains = dynamic([\r\n    \"npmjs.help\",\r\n    \"websocket-api2.publicvm.com\"\r\n]);\r\nlet compromisedPackages = dynamic([\r\n    \"backslash\", \"chalk-template\", \"supports-hyperlinks\", \"has-ansi\", \"simple-swizzle\",\r\n    \"color-string\", \"error-ex\", \"color-name\", \"is-arrayish\", \"slice-ansi\", \"color-convert\",\r\n    \"wrap-ansi\", \"ansi-regex\", \"supports-color\", \"strip-ansi\", \"chalk\", \"debug\", \"ansi-styles\",\r\n    \"color\", \"proto-tinker-wc\"\r\n]);\r\n(\r\n    // Look for network connections to the phishing or credential exfiltration domains\r\n    DeviceNetworkEvents\r\n    | where RemoteUrl has_any (maliciousDomains) or RemoteIP has_any (maliciousDomains) // RemoteIP check is for cases where URL isn't parsed\r\n    | extend\r\n        Activity = \"NetworkConnectionToMaliciousDomain\",\r\n        Tactic = \"Command and Control\",\r\n        Technique = \"T1102\", // Web Service\r\n        RuleName = \"NPM_Compromise_NetworkIOC\"\r\n    | project-reorder Timestamp, DeviceName, Activity, Tactic, Technique, RuleName, RemoteUrl, RemoteIP, InitiatingProcessCommandLine, InitiatingProcessParentFileName\r\n)\r\n| union (\r\n    // Look for command line activity that may indicate an attempt to install the compromised packages\r\n    DeviceProcessEvents\r\n    | where FileName in~ (\"npm.cmd\", \"npm\", \"yarn.cmd\", \"yarn\")\r\n    | where ProcessCommandLine has_any (\"install\", \"add\", \"i\")\r\n    | where ProcessCommandLine has_any (compromisedPackages)\r\n    // Potential for FPs if developers are running scripts or commands that coincidentally match this pattern (e.g., npm search).\r\n    // Review the full command line for context to confirm an installation attempt.\r\n    | project-reorder Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName\r\n)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0001
+    - TA0008
+techniques:
+    - T1102
+    - T1195.001
+    - T1195
+    - T1072
+tags:
+    - kql
+author: Varshil
+version: "1"
+references:
+    - https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised
+    - https://www.endorlabs.com/learn/major-supply-chain-attack-compromises-popular-npm-packages-including-chalk-and-debug
+    - https://www.bleepingcomputer.com/news/security/hackers-hijack-npm-packages-with-2-billion-weekly-downloads-in-supply-chain-attack/

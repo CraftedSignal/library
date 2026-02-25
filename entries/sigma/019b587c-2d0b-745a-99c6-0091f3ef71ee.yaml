@@ -1,0 +1,65 @@
+id: 019b587c-2d0b-745a-99c6-0091f3ef71ee
+name: Process Contacting Multiple Unique Domains
+description: |
+    Detects processes contacting multiple different domains (potential network enumeration OR C2 rotation)
+    This requires correlation engine of some kind.
+
+    Logic: Same user/host contacts 5+ different domains in 10 minute span
+query: |
+    title: Process Contacting Multiple Unique Domains
+    id: 95f1bd41-6916-4733-a7d4-79f0b1b010ce
+    status: experimental
+    description: |
+      Detects processes contacting multiple different domains (potential network enumeration OR C2 rotation)
+      This requires correlation engine of some kind.
+
+      Logic: Same user/host contacts 5+ different domains in 10 minute span
+    references:
+      - https://attack.mitre.org/tactics/TA0007/
+      - https://attack.mitre.org/techniques/T1071/
+
+    author: zendanny
+    date: 2025/12/16
+    tags:
+      - attack.command_and_control
+      - attack.TA0007
+      - attack.t1071
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        CommandLine|contains:
+          - 'curl'
+          - 'wget'
+          - 'python'
+      timeframe: 10m
+      condition: selection | count(domain) by User, Computer > 5
+    falsepositives:
+      - Package managers
+      - Services that reach out to multiple APIs
+    level: medium
+    fields:
+      - User
+      - Computer
+      - CommandLine
+      - DestinationHostname
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.TA0007
+    - attack.t1071
+author: zendanny
+version: "1"
+references:
+    - https://attack.mitre.org/tactics/TA0007/
+    - https://attack.mitre.org/techniques/T1071/
+data_sources:
+    - process_creation
+    - linux

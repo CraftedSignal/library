@@ -1,0 +1,20 @@
+id: 019c433b-6f16-7268-a612-599fa01e7061
+name: QEMU Virtualized SSH Backdoor via TPMProfiler Scheduled Task
+description: Detects a specific persistence mechanism where a scheduled task named 'TPMProfiler' is used to run QEMU, establishing an SSH backdoor. This technique was identified by Huntress in post-exploitation activity related to SolarWinds WHD exploitation. The rule identifies both the execution of QEMU with SSH port forwarding command-line arguments and the creation of the malicious scheduled task.
+query: "// Name: QEMU Virtualized SSH Backdoor\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-09\r\n// Description: Detects a specific persistence mechanism where a scheduled task named 'TPMProfiler' is used to run QEMU, establishing an SSH backdoor. This technique was identified by Huntress in post-exploitation activity related to SolarWinds WHD exploitation.\r\n// Tactics: Persistence, Command and Control\r\n// Techniques: T1053.005, T1133, T1572\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399\r\n(union isfuzzy=true\r\n    (\r\n        // Detects the execution of QEMU with command-line arguments for SSH port forwarding\r\n        DeviceProcessEvents\r\n        | where FileName =~ \"qemu-system-x86_64.exe\"\r\n        | where ProcessCommandLine has \"hostfwd=tcp::\" and ProcessCommandLine contains \"-:22\"\r\n        | extend Activity = \"QEMU SSH Tunneling\", Tactic = \"Command and Control\", Technique = \"T1572\"\r\n        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, FileName, ProcessCommandLine, InitiatingProcessCommandLine, AccountName\r\n    ),\r\n    (\r\n        // Detects the creation of the malicious scheduled task used for persistence\r\n        // This may require joining with DeviceProcessEvents that created the task file if ActionType is not available\r\n        DeviceEvents\r\n        | where ActionType == \"ScheduledTaskCreated\" and AdditionalFields has \"TPMProfiler\"\r\n        | extend Activity = \"TPMProfiler Scheduled Task\", Tactic = \"Persistence\", Technique = \"T1053.005\"\r\n        | project-reorder TimeGenerated, DeviceName, Activity, Tactic, Technique, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName, AdditionalFields\r\n    )\r\n)\r\n// FP Tuning: The task name 'TPMProfiler' is highly specific to this threat actor. Legitimate use of QEMU for port forwarding is possible in developer or lab environments but is rare on production servers.\r\n// Filter out known developer machines if necessary.\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1053.005
+    - T1572
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399

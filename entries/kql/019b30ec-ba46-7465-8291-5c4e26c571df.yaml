@@ -1,0 +1,51 @@
+id: 019b30ec-ba46-7465-8291-5c4e26c571df
+name: 01flip Ransomware File Encryption Detection
+description: Detects the mass renaming or creation of files with the '.01flip' extension, which is characteristic of the 01flip ransomware. A high count of these files on a single host is a strong indicator of an active ransomware infection.
+query: |
+    // Name: 01flip Encrypted File Pattern
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the mass renaming or creation of files with the '.01flip' extension, which is characteristic of the 01flip ransomware. A high count of these files on a single host is a strong indicator of an active ransomware infection.
+    // Tactic: Impact
+    // Technique: T1486 - Data Encrypted for Impact
+    // References: https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/
+
+    let TimeFrame = 1h;
+    let FileExtension = ".01flip";
+    // FP Tuning: Adjust this threshold based on your environment. A higher number reduces FPs but might miss early-stage encryption.
+    let Threshold = 10;
+
+    DeviceFileEvents
+    | where Timestamp > ago(TimeFrame)
+    // Filter for file creation or rename events where the file has the .01flip extension.
+    | where ActionType in ("FileCreated", "FileRenamed") and FileName endswith FileExtension
+    // Summarize activity per host to count encrypted files.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        EncryptedFileCount = count(),
+        // Collect a sample of affected file paths and the processes responsible.
+        FilePaths = make_set(FolderPath, 100),
+        InitiatingProcesses = make_set(InitiatingProcessCommandLine, 10)
+        by DeviceId, DeviceName
+    // Alert if the number of encrypted files exceeds the threshold.
+    | where EncryptedFileCount > Threshold
+    | project
+        StartTime,
+        EndTime,
+        DeviceId,
+        DeviceName,
+        EncryptedFileCount,
+        InitiatingProcesses,
+        FilePaths
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/

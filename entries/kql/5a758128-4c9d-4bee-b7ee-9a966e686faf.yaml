@@ -1,0 +1,53 @@
+id: 5a758128-4c9d-4bee-b7ee-9a966e686faf
+name: Potential Data Exfiltration via Malicious Spotlight Indexing (Sploitlight)
+description: Detects the use of the 'mdimport' command to index sensitive user directories. This is a key step in the Sploitlight TCC bypass technique (CVE-2025-31199), where a malicious Spotlight importer is triggered to run within the 'mdworker' process and exfiltrate data from TCC-protected locations by writing it to the system log.
+query: |
+    // Name: Potential Data Exfiltration via Malicious Spotlight Indexing (Sploitlight)
+    // Author: detections.ai
+    // Date: 2025-08-01
+    // Description: Detects the use of the 'mdimport' command to index sensitive user directories. This is a key step in the Sploitlight TCC bypass technique (CVE-2025-31199), where a malicious Spotlight importer is triggered to run within the 'mdworker' process and exfiltrate data from TCC-protected locations by writing it to the system log.
+    // False Positives: Medium. Legitimate administrative or backup scripts might perform this action. Review the initiating process and user context to assess legitimacy.
+    // References: https://www.microsoft.com/en-us/security/blog/2025/07/28/sploitlight-analyzing-a-spotlight-based-macos-tcc-vulnerability/
+    // MITRE TTPs: T1566.001, TA0003
+    let sensitivePaths = dynamic([
+        "/Pictures",
+        "/Downloads",
+        "/Desktop",
+        "/Documents",
+        "Photos Library.photoslibrary" // Specific target mentioned in the article for Apple Intelligence data
+    ]);
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    // Look for the mdimport utility, used to manage Spotlight's metadata.
+    | where FileName == "mdimport"
+    // The '-i' flag forces indexing of a specific file or directory, triggering the malicious importer.
+    | where ProcessCommandLine has "-i"
+    // Check if the target path is a sensitive, TCC-protected directory.
+    | where ProcessCommandLine has_any (sensitivePaths)
+    // The attack is often launched from a shell or script. Filtering for these parent processes
+    // helps reduce noise from legitimate system or application activity.
+    // FP-TUNING: You may need to add or remove parent processes based on your environment.
+    | where InitiatingProcessFileName in~ ("sh", "bash", "zsh", "fish", "tcsh", "python", "python3", "perl", "osascript", "Terminal.app")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        ProcessCommandLine
+query_type: kql
+tactics:
+    - TA0002
+    - TA0010
+techniques:
+    - T1059
+    - T1059.004
+    - T1059.006
+    - T1059.007
+    - T1059.005
+    - T1567
+    - T1567.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/28/sploitlight-analyzing-a-spotlight-based-macos-tcc-vulnerability/

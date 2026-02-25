@@ -1,0 +1,50 @@
+id: 019c53df-c426-72fd-93de-91ec337b76cf
+name: Defender Exclusion Added via WMI
+description: This rule detects attempts to add a file or path exclusion to Microsoft Defender using the WMI command-line tool (wmic.exe/wmice.exe). This is a known defense evasion technique used by malware like MKDOOR to prevent detection.
+query: |-
+    // Name: Defender Exclusion Added via WMI
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-12
+    // Description: This rule detects attempts to add a file or path exclusion to Microsoft Defender using the WMI command-line tool (wmic.exe/wmice.exe). This is a known defense evasion technique used by malware like MKDOOR to prevent detection.
+    // Tactic: Defense Evasion
+    // Technique: T1562.001, T1047
+    // References: https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for process creation events involving WMI command-line tools
+    | where FileName in~ ("wmic.exe", "wmice.exe")
+    // Detect command lines targeting the Defender WMI namespace to add an exclusion.
+    // This is a specific pattern used by the MKDOOR backdoor.
+    | where ProcessCommandLine has_all (
+        "\\\\root\\microsoft\\windows\\defender",
+        "msft_mppreference",
+        "add",
+        "exclusionpath"
+        )
+    // Potential for False Positives: Legitimate system administration scripts or tools (e.g., SCCM, Intune) might perform this action.
+    // If this is noisy, consider filtering by parent process or user context.
+    // Example: | where not(InitiatingProcessFileName in~ ("CcmExec.exe", "IntuneManagementExtension.exe"))
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName = InitiatingProcessAccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1047
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html

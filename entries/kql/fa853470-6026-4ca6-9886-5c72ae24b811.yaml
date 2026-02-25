@@ -1,0 +1,23 @@
+id: fa853470-6026-4ca6-9886-5c72ae24b811
+name: UAC Bombing Detection – Repeated Denied UAC Prompts by Initiator
+description: |
+    Detects repeated denied UAC elevation attempts (UAC "prompt storms") initiated by the same process within a short time frame.
+
+    This detection is based entirely on Microsoft Defender for Endpoint (MDE) telemetry from DeviceProcessEvents and is useful in environments where traditional SecurityEvent logs (e.g. Event ID 4688) are unavailable or not ingested.
+
+    It identifies patterns where a process consistently triggers `consent.exe` (the UAC prompt), but no elevated child process follows — indicating the prompt was denied or ignored.
+
+    This is particularly useful for detecting UAC bombing attacks, where a malicious process tries to overwhelm the user with repeated elevation prompts to bypass security friction.
+query: "// ===== Parameters =====\r\nlet lookback = 30d;          // Time range to look back\r\nlet minDenies = 3;           // Threshold for number of denied prompts\r\nlet window = 10m;            // Time window for grouping prompt attempts\r\n// ===== Step 1: All consent.exe prompts with attribution to the initiating process =====\r\nlet Prompts =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"ProcessCreated\"\r\n| where FileName =~ \"consent.exe\"\r\n| project DeviceId, DeviceName, AccountName,\r\n          ConsentTime = Timestamp,\r\n          InitiatorFile = tostring(InitiatingProcessFileName),\r\n          InitiatorSHA1 = tostring(InitiatingProcessSHA1),\r\n          InitiatorCmd = tostring(InitiatingProcessCommandLine),\r\n          InitiatorAccount = tostring(InitiatingProcessAccountName);\r\n// ===== Step 2: All successful elevated processes with the same InitiatorSHA1 =====\r\nlet Elevated =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"ProcessCreated\"\r\n| where ProcessIntegrityLevel in (\"High\", \"System\") or ProcessTokenElevation == \"TokenElevationTypeFull\"\r\n| project ElevatedTime = Timestamp,\r\n          DeviceId,\r\n          ElevatedSHA1 = tostring(SHA1),\r\n          InitiatorSHA1 = tostring(InitiatingProcessSHA1);\r\n// ===== Step 3: Find all prompts where NO elevated child with the same InitiatorSHA1 exists =====\r\nPrompts\r\n| join kind=leftanti (\r\n    Elevated\r\n    | project DeviceId, InitiatorSHA1, ElevatedTime\r\n) on DeviceId, InitiatorSHA1\r\n// Optional: Only consider prompts that are at least 2 minutes old (to rule out delayed elevation)\r\n| where ConsentTime < ago(2m)\r\n// ===== Step 4: Group by initiator and count denied attempts =====\r\n| summarize Denied = count(), Examples = make_set(InitiatorCmd, 5)\r\n          by DeviceName, InitiatorAccount, InitiatorFile, InitiatorSHA1, bin(ConsentTime, window)\r\n| where Denied >= minDenies\r\n| order by ConsentTime desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1548.002
+    - T1548
+tags:
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1548/002/
+    - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4688

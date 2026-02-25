@@ -1,0 +1,66 @@
+id: 8e8230b9-bd16-4519-92de-e35c95a5fc6a
+name: Spool process spawned a CMD shell (PrintNightmare vulnerability - CVE-2021-36958)
+description: Detects scenarios where an attacker exploits the PrintNightmare vulnerability and obtained a CMD shell.
+query: |-
+    title: Spool process spawned a CMD shell (PrintNightmare vulnerability - CVE-2021-36958)
+    description: Detects scenarios where an attacker exploits the PrintNightmare vulnerability and obtained a CMD shell.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0004-Privilege%20Escalation/T1574-DLL%20side-loading
+    - https://github.com/GossiTheDog/SystemNightmare
+    - https://github.com/outflanknl/PrintNightmare
+    - https://github.com/cube0x0/CVE-2021-1675
+    - https://github.com/xbufu/Mimispool
+    - https://github.com/gentilkiwi/mimikatz/tree/master/mimispool
+    - https://www.theregister.com/2021/09/21/microsoft_printnightmare/
+    - https://www.exabeam.com/information-security/detecting-the-printnightmre-cve-2021-1675-34527-vulnerability-using-exabeam/
+    - https://tdm.socprime.com/tdm/info/JCBHD21ATmuT/#sigma
+    tags:
+    - attack.privilege_escalation
+    - attack.t1574.002
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_native:
+        EventID: 4688
+        Version: 2  # parent process name is available starting Windows 10 / Server 2016 and higher
+        ParentProcessName|endswith: \spoolsv.exe
+        NewProcessName|endswith: \cmd.exe
+
+      selection_sysmon:
+        EventID: 1
+        ParentImage|endswith: \spoolsv.exe
+        Image|endswith: \cmd.exe
+      condition: selection_native or selection_sysmon
+    falsepositives:
+    - none
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0003
+    - TA0005
+techniques:
+    - T1574.002
+    - T1574
+tags:
+    - attack.privilege_escalation
+    - attack.t1574.002
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0004-Privilege%20Escalation/T1574-DLL%20side-loading
+    - https://github.com/GossiTheDog/SystemNightmare
+    - https://github.com/outflanknl/PrintNightmare
+    - https://github.com/cube0x0/CVE-2021-1675
+    - https://github.com/xbufu/Mimispool
+    - https://github.com/gentilkiwi/mimikatz/tree/master/mimispool
+    - https://www.theregister.com/2021/09/21/microsoft_printnightmare/
+    - https://www.exabeam.com/information-security/detecting-the-printnightmre-cve-2021-1675-34527-vulnerability-using-exabeam/
+    - https://tdm.socprime.com/tdm/info/JCBHD21ATmuT/#sigma
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,47 @@
+id: 6540a9ce-7692-4c9c-99a6-d2421e2ee4c4
+name: PowerShell Web Requests for RAR Files or Archiver Tools
+description: "Vidar is a sophisticated infostealer operating as Malware-as-a-Service (MaaS). Written in C++, it’s designed to harvest a wide range of sensitive data from infected systems and exfiltrate it to attacker controlled infrastructure.\n\n\U0001F9EC Script Inception: PowerShell scripts nested within PowerShell scripts, layered with 2–3 rounds of Base64 encoding.\n\n\U0001F4E6 RAR Payloads: Password protected RAR files downloaded via direct-to-IP HTTP requests over TCP port 80. Passwords are embedded in encoded scripts and passed via command line to a downloaded copy of \"unrar.exe\"."
+query: |-
+    // Filter for network events where HTTP connections were inspected
+    DeviceNetworkEvents
+    // Narrow down to events where PowerShell is used or archive-related indicators are present
+    | where ActionType has "HttpConnectionInspected"
+    // Match AdditionalFields containing PowerShell or archive-related strings
+    | where AdditionalFields has_all (@"WindowsPowerShell/") or AdditionalFields has_any (".rar", "unrar.exe", "rar.exe")
+    // Parse AdditionalFields JSON for Zeek-enhanced telemetry
+    | extend json = todynamic(AdditionalFields)
+    // Extract connection direction from parsed JSON
+    | extend direction = tostring(json.direction)
+    // Extract user agent string from parsed JSON
+    | extend user_agent = tostring(json.user_agent)
+    // Extract host from parsed JSON
+    | extend host = tostring(json.host)
+    // Extract URI from parsed JSON
+    | extend uri = tostring(json.uri)
+    // Focus on outbound connections
+    | where direction has "Out"
+    // Filter for PowerShell-based user agents
+    | where user_agent has @"WindowsPowerShell/"
+    // Look for archive-related indicators in the URI
+    | where uri has_any (".rar", "unrar.exe", "rar.exe")
+    // Optional: extract IP from host and filter out private IPs
+    //| extend hostip = split(host, ":")[0]
+    //| where not(ipv4_is_private(tostring(hostip))) or not(host matches regex @"^(\d{1,3}\.){3}\d{1,3}$")
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1071.001
+    - T1105
+    - T1059.001
+tags:
+    - '#vidar'
+    - kql
+author: '@AdairJCollins @ajc'
+version: "1"
+references:
+    - https://www.linkedin.com/pulse/windows-defender-vidar-infostealer-detection-adair-collins-2o3ie/
+    - https://tria.ge/250801-wxxvraep6z/behavioral1
+    - https://tria.ge/250801-xvdvjatrw7/behavioral1

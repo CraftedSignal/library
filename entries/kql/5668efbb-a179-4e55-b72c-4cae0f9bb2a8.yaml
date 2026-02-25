@@ -1,0 +1,17 @@
+id: 5668efbb-a179-4e55-b72c-4cae0f9bb2a8
+name: 'Threat Hunt: Tracking suspicious driver inventory to unearth rootkits'
+description: Detects suspicious driver loads indicative of rootkits or BYOVD attacks. Flags unsigned/non-Microsoft drivers loaded from temp paths or by unusual processes. Targets random-named drivers (e.g., 'a1b2c3.sys'), known vulnerable drivers, and system driver impersonators.
+query: "// Driver inventory monitoring with available Defender fields\r\nDeviceImageLoadEvents\r\n| where Timestamp > ago(30d)\r\n// Join with DeviceFileEvents to get signing info\r\n| join kind=inner (\r\n    DeviceFileEvents\r\n    | where ActionType == \"FileCreated\"\r\n    | where FileName endswith \".sys\"\r\n    | project FileName, FolderPath, InitiatingProcessVersionInfoCompanyName, SHA256, DeviceId\r\n) on $left.FileName == $right.FileName, $left.DeviceId == $right.DeviceId\r\n// Detection logic\r\n| where isempty(InitiatingProcessVersionInfoCompanyName) or InitiatingProcessVersionInfoCompanyName !has \"Microsoft\"  // Unsigned/non-Microsoft\r\n| where FolderPath1 startswith @\"C:\\Windows\\Temp\\\" \r\n    or FolderPath1 contains @\"AppData\\\"\r\n    or FolderPath1 contains @\"Temp\\\" \r\n// Suspicious name patterns\r\n| where FileName matches regex @\"[a-f0-9]{32}\\.sys$\"  // Random names\r\n    or FileName in~ (\"gdrv.sys\", \"winio.sys\", \"procmon.sys\")  // Known bad\r\n    or FileName matches regex @\"^(ntos|ntio|win32k|dxgkrnl)\"  // Mimicking system\r\n// Anomalous loading processes\r\n| where InitiatingProcessFileName !in~ (\"services.exe\", \"svchost.exe\", \"System\")\r\n| project Timestamp, DeviceName, DriverName = FileName,\r\n    DriverPath = strcat(FolderPath1, FileName),\r\n    LoaderProcess = InitiatingProcessFileName,\r\n    InitiatingProcessVersionInfoCompanyName,\r\n    IsTempLoad = iff(FolderPath1 contains @\"Temp\\\", true, false),\r\n    SHA256"
+query_type: kql
+severity: medium
+techniques:
+    - T1548
+    - T1547
+    - T1547.006
+    - T1553.006
+tags:
+    - kql
+author: AwaisM
+version: "1"
+references:
+    - https://redcanary.com/blog/threat-detection/tracking-driver-inventory-to-expose-rootkits/

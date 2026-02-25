@@ -1,0 +1,18 @@
+id: 019c8aff-508d-725a-a5cf-72f89050db57
+name: Rundll32 Execution without Command Line Arguments
+description: Detects the execution of rundll32.exe without any command-line arguments. This is a high-confidence indicator of process hollowing or reflective injection, as observed in campaigns distributing the Winos4.0 framework and ValleyRAT.
+query: "// Name: Rundll32 Execution without Command Line Arguments\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects the execution of rundll32.exe without any command-line arguments. This is a high-confidence indicator of process hollowing or reflective injection, as observed in campaigns distributing the Winos4.0 framework and ValleyRAT.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1218.011\r\n// References: https://www.malwarebytes.com/blog/scams/2026/02/huorong\r\nDeviceProcessEvents\r\n// Looks for rundll32.exe process execution events.\r\n| where FileName =~ \"rundll32.exe\"\r\n// Filters for instances where the command line does not contain a space.\r\n// A legitimate rundll32.exe execution requires arguments (e.g., a DLL path), which would introduce a space.\r\n// The absence of a space indicates the process was launched without arguments, a technique used for process hollowing.\r\n| where ProcessCommandLine !has \" \"\r\n// FP Tuning: This is a high-confidence indicator. However, if legitimate but poorly-coded applications trigger this,\r\n// consider excluding specific parent processes or file paths associated with that software.\r\n| project AccountName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine, ProcessId, InitiatingProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1218.011
+    - T1055.012
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong

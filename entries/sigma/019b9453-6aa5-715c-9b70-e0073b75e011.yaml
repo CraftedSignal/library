@@ -1,0 +1,71 @@
+id: 019b9453-6aa5-715c-9b70-e0073b75e011
+name: ToddyCat PowerShell SMB Credential Theft
+description: Detects the ToddyCat APT group's technique of using PowerShell to connect to remote hosts via SMB admin shares (C$) and steal web browser credentials. This is associated with a variant of the TomBerBil tool and is particularly significant when observed originating from a domain controller.
+query: |
+    title: ToddyCat PowerShell SMB Credential Theft
+    id: ff3525c4-8b49-4ac7-9821-73149eb50447
+    status: experimental
+    description: Detects the ToddyCat APT group's technique of using PowerShell to
+      connect to remote hosts via SMB admin shares (C$) and steal web browser
+      credentials. This is associated with a variant of the TomBerBil tool and is
+      particularly significant when observed originating from a domain controller.
+    references:
+      - https://www.picussecurity.com/resource/blog/dissecting-toddycat-cyber-espionage-and-mitre-ttps
+    author: tim@detections.ai
+    date: 2026-01-06
+    tags:
+      - attack.credential_access
+      - attack.lateral_movement
+      - attack.execution
+      - attack.t1555.003
+      - attack.t1021.002
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_base:
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains|all:
+          - 'copy-item' # PowerShell command used to copy files
+          - '\c$\users\' # Accessing user directories via the C$ admin share
+      selection_files:
+        CommandLine|contains:
+          - 'Login Data' # Chrome/Edge credential database
+          - 'key4.db' # Firefox credential database
+          - 'logins.json' # Firefox credential database
+          - 'signons.sqlite' # Older Firefox credential database
+      condition: selection_base and selection_files
+    falsepositives:
+      - Legitimate administrative or backup scripts could potentially perform
+        similar actions, although copying these specific files is highly suspicious.
+      - This activity is most indicative of malicious behavior when originating from
+        a Domain Controller. If possible, tune the rule to only alert when the
+        source hostname is a DC.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0008
+    - TA0006
+    - TA0002
+techniques:
+    - T1555.003
+    - T1021.002
+    - T1059.001
+tags:
+    - attack.credential_access
+    - attack.lateral_movement
+    - attack.execution
+    - attack.t1555.003
+    - attack.t1021.002
+    - attack.t1059.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.picussecurity.com/resource/blog/dissecting-toddycat-cyber-espionage-and-mitre-ttps
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

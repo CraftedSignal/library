@@ -1,0 +1,57 @@
+id: 019c00e4-dacc-74fd-a842-63c1bbdb19cb
+name: Amatera C2 Communication via Host Spoofing
+description: Detects network connections to a known Amatera Stealer C2 IP address where the HTTP Host header is spoofed. This technique is used by the malware to masquerade its C2 traffic, often by using a legitimate-looking or unrelated domain in the Host header, while communicating directly with the malicious IP address.
+query: |
+    title: Amatera C2 Communication via Host Spoofing
+    id: 9cfe48b4-e57e-4c9f-b911-f1a91a7aec5f
+    status: experimental
+    description: >-
+      Detects network connections to a known Amatera Stealer C2 IP address where the
+      HTTP Host header is spoofed. This technique is used by the malware to
+      masquerade its C2 traffic, often by using a legitimate-looking or unrelated
+      domain in the Host header, while communicating directly with the malicious IP
+      address.
+    references:
+      - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+    author: detections.ai
+    date: 2026-01-27
+    tags:
+      - attack.command_and_control
+      - attack.defense_evasion
+      - attack.t1071.001
+      - attack.t1036.003
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # Known Amatera Stealer C2 IP address from the campaign
+        destination.ip: '212.34.138.4'
+        # The HTTP host header must exist for this detection to be valid
+        http.host|exists: true
+      filter:
+        # Filter out cases where the host header correctly matches the destination IP, which is not spoofing.
+        http.host: '212.34.138.4'
+      condition: selection and not filter
+    falsepositives:
+      - This IP address could be re-allocated to a benign service in the future,
+        leading to potential false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.defense_evasion
+    - attack.t1071.001
+    - attack.t1036.003
+author: detections.ai
+version: "2"
+references:
+    - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/
+data_sources:
+    - network_connection
+    - windows

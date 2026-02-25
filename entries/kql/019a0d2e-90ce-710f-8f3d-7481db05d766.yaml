@@ -1,0 +1,68 @@
+id: 019a0d2e-90ce-710f-8f3d-7481db05d766
+name: Jingle Thief - SharePoint/OneDrive Reconnaissance
+description: Detects access or search activity in SharePoint or OneDrive involving keywords related to gift cards, IT workflows, and remote access. This is a reconnaissance technique used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to find sensitive internal documentation.
+query: |
+    // Name: Jingle Thief - SharePoint/OneDrive Reconnaissance
+    // Description: Detects access or search activity in SharePoint or OneDrive involving keywords related to gift cards, IT workflows, and remote access. This is a reconnaissance technique used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) to find sensitive internal documentation.
+    //
+    // MITRE ATT&CK: T1530
+    // Reference: https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    //
+    // False Positives: Legitimate access by IT, finance, or security personnel to these types of documents. Consider excluding known administrative or service accounts that perform these actions as part of their normal duties.
+    //
+    // Data Source: CloudAppEvents
+    //
+    // Version: 1.0
+    // Author: detections.ai
+    // Date: 2025-10-22
+
+    let sensitive_keywords = dynamic([
+        "gift card",
+        "giftcard",
+        "ticketing",
+        "vpn config",
+        "vpn access",
+        "citrix",
+        "servicenow", // Mentioned in the intel as a lure, likely a search term as well
+        "workflow",
+        "issuance",
+        "export",
+        "guides"
+    ]);
+    CloudAppEvents
+    // Key detection component: Focus on SharePoint and OneDrive applications.
+    | where AppName in ("Microsoft SharePoint Online", "Microsoft OneDrive for Business")
+    // Key detection component: Filter for file access, download, and search query events.
+    | where ActivityType in ("FileDownloaded", "FileAccessed", "FilePreviewed", "SearchQueryInitiated")
+    | extend
+        SearchQuery = tostring(RawEventData.SearchQuery),
+        ObjectName = tostring(RawEventData.ObjectId)
+    // Key detection component: Look for sensitive keywords in the file/folder name or the search query text.
+    | where ObjectName has_any (sensitive_keywords) or SearchQuery has_any (sensitive_keywords)
+    // False Positive Tuning: Exclude known service accounts or IT/Finance personnel who might legitimately access these files.
+    // For example: | where AccountDisplayName !in ("known_admin_user", "finance_team_member")
+    | extend
+        Account = tostring(RawEventData.UserId),
+        UserAgent = tostring(RawEventData.UserAgent),
+        Activity = ActivityType,
+        Application = AppName
+    | project-reorder
+        TimeGenerated,
+        Account,
+        IPAddress,
+        Activity,
+        Application,
+        ObjectName,
+        SearchQuery,
+        UserAgent
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1530
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/

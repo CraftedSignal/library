@@ -1,0 +1,20 @@
+id: 019c2f16-c295-729e-9a25-ad179886d9fd
+name: Mimikatz - LSASS Process Access
+description: Detects tools like Mimikatz, NanoDump, Procdump, or Invoke-Mimikatz accessing the LSASS process with specific memory read permissions (PROCESS_VM_READ). This detection relies on Sysmon Event ID 10 and filters out legitimate svchost.exe access to LSASS.
+query: "title: Mimikatz - LSASS Process Access\nid: b2c3d4e5-f6a7-4890-b123-mimikatz003\nstatus: experimental\ndescription: |\n    Detects credential dumping tools (Mimikatz, NanoDump, Procdump, Invoke-Mimikatz)\n    accessing LSASS with PROCESS_VM_READ. Requires Sysmon Event ID 10.\nreferences:\n    - https://blog.nviso.eu/2021/11/15/detecting-dcsync-and-dcshadow-network-traffic/\nauthor: Daniel Jeremiah\ndate: 2026/02/05\ntags:\n    - attack.credential-access\n    - attack.t1003.001\nlogsource:\n    category: process_access\n    product: windows\ndetection:\n    selection:\n        EventID: 10\n        TargetImage|endswith: '\\lsass.exe'\n        GrantedAccess|contains|any:\n            - '0x1410'\n            - '0x1010'\n            - '0x1438'\n            - '0x143a'\n    filter_svchost:\n        SourceImage|endswith: '\\svchost.exe'\n    condition: selection and not filter_svchost\nfalsepositives:\n    - Procdump for legitimate troubleshooting; \n    - Authorized red team\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1003.001
+tags:
+    - attack.credential-access
+    - attack.t1003.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.nviso.eu/2021/11/15/detecting-dcsync-and-dcshadow-network-traffic/
+data_sources:
+    - process_access
+    - windows

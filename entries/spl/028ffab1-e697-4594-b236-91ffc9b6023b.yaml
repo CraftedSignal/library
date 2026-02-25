@@ -1,0 +1,21 @@
+id: 028ffab1-e697-4594-b236-91ffc9b6023b
+name: Illicit Consent Grant
+description: This rule detects when an application consent operation occurs in Azure Active Directory, specifically looking for broad consent types such as 'AllPrincipals' or when an administrator has granted consent. This can indicate a malicious application gaining wide permissions within the Azure AD tenant.
+query: "index=\"o365\" sourcetype=\"audit\" Operation=\"Consent to application.\" app=\"AzureActiveDirectory\"\r\n| where mvfind('modified_properties', \"ConsentType.*AllPrincipals\") >= 0 OR mvfind('modified_properties', \"IsAdminConsent.*True\") = 0\r\n| rex field=modified_properties \"Scope:\\s*(?<scope_list>[^\\]]+)\"\r\n| eval scope_array = split(scope_list, \", \")\r\n| mvexpand scope_array\r\n| eval Timestamp=strftime(_time,\"%Y-%m-%d %H:%M:%S:%Q\")\r\n| stats values(Timestamp) as timestamp values(AppId) as AppId values(user) as user values(user_agent) as user_agent values(scope_array) as scope_array values(modified_properties) as modified_properties values(result) as result count by object, ObjectId"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1078.004
+    - DS0015
+    - T1528
+tags:
+    - azure
+    - spl
+author: Salten Fisk
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/defender-office-365/detect-and-remediate-illicit-consent-grants#what-is-the-illicit-consent-grant-attack-in-microsoft-365
+    - https://www.alteredsecurity.com/post/initial-access-attack-in-azure-understanding-and-executing-the-illicit-consent-grant-attack-in-202

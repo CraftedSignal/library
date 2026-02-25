@@ -1,0 +1,14 @@
+id: 32a10b7e-96fd-4c94-91a1-17fe57309a91
+name: MSC EvilTwin Vulnerability Abused Detection (EncryptHub Campaign)
+description: KQL Query
+query: "// MSC EvilTwin Vulnerability Abused Detection\r\n// *** EncryptHub Campaign ***\r\nlet QueryPeriod = 1h;\r\nlet EvilTwin =\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".msc\"\r\n| summarize Count=count() by FileName, DeviceName\r\n| where Count == 2\r\n| project FileName;\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where ActionType == \"FileCreated\"\r\n| where FileName has_any (EvilTwin)\r\n| where InitiatingProcessFileName == \"powershell.exe\""
+query_type: kql
+severity: medium
+techniques:
+    - T1218.014
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/when-hackers-call-social-engineering-abusing-brave-support-and-encrypthubs-expanding-arsenal/

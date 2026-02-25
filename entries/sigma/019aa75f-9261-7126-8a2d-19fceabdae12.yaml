@@ -1,0 +1,31 @@
+id: 019aa75f-9261-7126-8a2d-19fceabdae12
+name: AWS Network Firewall SSH Protocol Enforcement
+description: This rule is a valid AWS Network Firewall configuration enforcing standard port/protocol usage for SSH traffic to maintain network hygiene and detect anomalies.
+query: "title: AWS Network Firewall - SSH Port/Protocol Enforcement\nid: 202501060-202501061-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that enforces port/protocol alignment for SSH traffic.\n  It blocks both scenarios: TCP port 22 traffic that is not SSH, and SSH traffic that is not using port 22. While SSH\n  can technically operate on any port for security through obscurity, enforcing standard port usage helps detect protocol\n  tunneling, evasion techniques, and misconfigured applications. This is a typical security control that customers\n  configure to enforce proper protocol usage and detect anomalous behavior. AWS Network Firewall uses Suricata as its\n  underlying engine with deep packet inspection capabilities. This is not a specific threat detection but rather a\n  protocol enforcement rule to maintain network hygiene.\n  \n  Suricata Rules:\n  reject tcp $HOME_NET any -> any 22 (msg:\"Egress Port TCP/22 but not SSH\"; app-layer-protocol:!ssh; flow:to_server; sid:202501060;)\n  reject ssh $HOME_NET any -> any !22 (msg:\"Egress SSH but not port TCP/22\"; flow:to_server; sid:202501061;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1571/\n  - https://attack.mitre.org/techniques/T1021/004/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1571\n  - attack.defense_evasion\n  - attack.t1090\n  - attack.lateral_movement\n  - attack.t1021.004\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_port22_not_ssh:\n    protocol: tcp\n    destination_port: 22\n    direction: outbound\n    source_network: internal\n  filter_port22:\n    app_protocol: ssh\n  selection_ssh_not_port22:\n    app_protocol: ssh\n    direction: outbound\n    source_network: internal\n  filter_ssh:\n    destination_port: 22\n  condition: (selection_port22_not_ssh and not filter_port22) or (selection_ssh_not_port22 and not filter_ssh)\nfalsepositives:\n  - SSH servers configured on alternate ports for security\n  - Git over SSH on custom ports\n  - SFTP on non-standard ports\n  - Misconfigured applications\n  - Custom protocols using port 22\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0008
+techniques:
+    - T1571
+    - T1090
+    - T1021.004
+    - T1021
+tags:
+    - attack.command_and_control
+    - attack.t1571
+    - attack.defense_evasion
+    - attack.t1090
+    - attack.lateral_movement
+    - attack.t1021.004
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1571/
+    - https://attack.mitre.org/techniques/T1021/004/
+data_sources:
+    - firewall
+    - aws_network_firewall

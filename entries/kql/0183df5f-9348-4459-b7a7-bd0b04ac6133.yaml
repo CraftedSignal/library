@@ -1,0 +1,15 @@
+id: 0183df5f-9348-4459-b7a7-bd0b04ac6133
+name: Suspicious File Execution from Public and Downloads Folder
+description: This rule detects suspicious activity where a file is first downloaded to the 'Downloads' folder and subsequently executed from the 'Public' folder on the same device within a 24-hour timeframe. This behavior can indicate an attempt to bypass security controls or stage malicious payloads in a commonly accessible location.
+query: "let Timeframe = ago(1d);\r\nlet ExcludedHashes = dynamic([\"\"]);\r\nlet Downloads = DeviceProcessEvents\r\n| where Timestamp > Timeframe\r\n| where FolderPath matches regex @\"C\\:\\\\Users\\\\.+\\\\Downloads\"\r\n| summarize DownloadStartTime = min(Timestamp) by DownloadedFileName = FileName,DownloadDeviceName = DeviceName;\r\nlet PublicFolder = DeviceProcessEvents\r\n| where Timestamp > Timeframe\r\n| where FolderPath matches regex @\"C\\:\\\\Users\\\\Public\\\\\"\r\n| where not(SHA256 in (ExcludedHashes))\r\n| summarize DeviceId = max(DeviceId), ReportId = max(ReportId), Timestamp = max(Timestamp) by PublicFileName = FileName,PublicDeviceName = DeviceName;\r\nDownloads\r\n| join kind=fullouter PublicFolder on $left.DownloadDeviceName == $right.PublicDeviceName\r\n| where DownloadDeviceName == PublicDeviceName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0005
+techniques:
+    - T1074
+    - T1036
+tags:
+    - kql
+version: "1"

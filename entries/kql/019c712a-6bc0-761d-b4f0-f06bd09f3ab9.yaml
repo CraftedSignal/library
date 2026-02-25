@@ -1,0 +1,18 @@
+id: 019c712a-6bc0-761d-b4f0-f06bd09f3ab9
+name: UNC6201 iptables Single Packet Authorization
+description: This detection identifies the execution of iptables commands used to implement Single Packet Authorization (SPA). This technique was observed being used by UNC6201 on compromised VMware appliances to create stealthy, conditional network proxies for C2 traffic. The rule looks for specific command-line arguments indicative of SPA setup, including rules for 'magic packet' detection, dynamic IP list management using the 'recent' module, and traffic redirection.
+query: "// Name: UNC6201 iptables Single Packet Authorization\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: This detection identifies the execution of iptables commands used to implement Single Packet Authorization (SPA). This technique was observed being used by UNC6201 on compromised VMware appliances to create stealthy, conditional network proxies for C2 traffic.\r\n// Reference: https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day\r\n// Tactic: Defense Evasion, Command and Control\r\n// Technique: T1562.004, T1090.001\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// The iptables utility is used to configure the IP packet filter rules in the Linux kernel.\r\n| where FileName =~ \"iptables\"\r\n// The following logic looks for command-line arguments used to set up the SPA proxy.\r\n| where\r\n    // Condition 1: Detects the rule that watches for a specific \"magic packet\" or hex string on a common port like 443.\r\n    (ProcessCommandLine has_all (\"-m\", \"string\", \"--hex-string\") and ProcessCommandLine contains \"443\") or\r\n    // Condition 2: Detects rules that check against a dynamically managed list of IP addresses (e.g., named 'ipt'), a core component of SPA.\r\n    (ProcessCommandLine has_all (\"-m\", \"recent\", \"--rcheck\", \"--name\")) or\r\n    // Condition 3: Detects the final redirection rule that forwards traffic from an allowed IP to a different port.\r\n    (ProcessCommandLine has_all (\"-t\", \"nat\", \"REDIRECT\", \"--to-ports\"))\r\n// False Positive Tuning: The 'recent' module can be used legitimately for tasks like SSH brute-force prevention.\r\n// To improve fidelity, consider looking for multiple of these commands from the same host in a short time window (e.g., summarize by DeviceId, bin(Timestamp, 5m)).\r\n// You can also scope this rule to run only against known VMware or other critical Linux appliances where this activity would be anomalous.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    DeviceId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1562.004
+    - T1090.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day

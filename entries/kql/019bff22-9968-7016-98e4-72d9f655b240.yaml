@@ -1,0 +1,15 @@
+id: 019bff22-9968-7016-98e4-72d9f655b240
+name: HoneyMyte (CoolClient) Script-Based Exfiltration
+description: Detects the execution of rar.exe to create a password-protected archive with a known password, or the use of curl.exe to exfiltrate data to known HoneyMyte infrastructure. This TTP is associated with the group's script-based data collection and exfiltration activities.
+query: "DeviceProcessEvents\r\n| where\r\n        (FileName =~ \"rar.exe\" and ProcessCommandLine has \"-hpPIXELDRAIN\")\r\n    or\r\n    // Detects curl.exe exfiltrating data to known malicious domains or IPs.\r\n    (FileName =~ \"curl.exe\" and ProcessCommandLine has_any (\"pixeldrain.com\", \"113.23.212.15\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA1,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1560.001
+    - T1048.002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/

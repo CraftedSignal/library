@@ -1,0 +1,60 @@
+id: 8fe45054-0a6c-4709-abf1-904e27e2b329
+name: NightshadeC2 C2 Communication Detection
+description: This rule detects potential C2 communication patterns associated with the NightshadeC2 botnet. It looks for outbound TCP connections from non-browser processes to specific ports used by the malware, or connections to Steam community pages which are used to host C2 addresses. It also identifies initial geo-IP lookups from non-browser processes.
+query: |
+    // Name: NightshadeC2 C2 Communication
+    // Author: detections.ai
+    // Date: 2025-09-05
+    // Tactic: Command and Control
+    // Technique: T1071.001
+    // Description: This rule detects potential C2 communication patterns associated with the NightshadeC2 botnet. It looks for outbound TCP connections from non-browser processes to specific ports used by the malware, or connections to Steam community pages which are used to host C2 addresses.
+    // References: https://www.esentire.com/blog/new-botnet-emerges-from-the-shadows-nightshadec2
+    // False Positive Sensitivity: Medium. Connections over ports 80 and 443 can be legitimate. The rule attempts to reduce noise by looking for specific URLs like ip-api.com or by identifying non-standard processes connecting to Steam. Further tuning may be required based on environment specifics.
+
+    let browserProcesses = dynamic(["msedge.exe", "chrome.exe", "firefox.exe", "iexplore.exe", "opera.exe", "brave.exe"]);
+    let nightshadePorts = dynamic([7777, 33336, 33337]);
+    let ipLookupServices = dynamic(["ip-api.com", "ipinfo.io", "ip-info.io", "api.ipify.org", "ifconfig.me", "icanhazip.com", "whatismyipaddress.com", "checkip.amazonaws.com", "ip.sb", "myexternalip.com"]);
+
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(1d)
+    // Focus on successful outbound TCP connections
+    | where ActionType == "ConnectionSuccess" and Protocol == "Tcp"
+    // Exclude common web browsers to focus on other processes making network connections
+    | where InitiatingProcessFileName !in (browserProcesses)
+    | where
+        // Condition 1: Detects C variant C2 communication over high-confidence, non-standard ports.
+        RemotePort in (nightshadePorts)
+        or
+        // Condition 2: Detects the initial geo-IP lookup to common IP lookup services over HTTP/HTTPS.
+        // This is a strong indicator when coming from a non-browser process.
+        (RemotePort in (80, 443) and RemoteUrl has_any (ipLookupServices))
+        or
+        // Condition 3: Detects the TTP of retrieving a C2 address from a Steam profile page.
+        (RemoteUrl has "steamcommunity.com/id/" and InitiatingProcessFileName !~ "steam.exe")
+    | extend
+        timestamp = TimeGenerated,
+        DeviceName,
+        ProcessName = InitiatingProcessFileName,
+        CommandLine = InitiatingProcessCommandLine,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl
+    | project-reorder
+        timestamp,
+        DeviceName,
+        ProcessName,
+        CommandLine,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1071
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.esentire.com/blog/new-botnet-emerges-from-the-shadows-nightshadec2

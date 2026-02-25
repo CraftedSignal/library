@@ -1,0 +1,17 @@
+id: 019c7b7f-3346-71ef-9b9e-a69d50ff3e3e
+name: DNS Tunneling via OAST Domains with Long Subdomains
+description: Detects DNS queries to known OAST (Out-of-Band Application Security Testing) domains like oastify.com, oast.pro, and oast.fun where the subdomain is unusually long (over 50 characters). Long subdomains may indicate encoded data exfiltration, a technique observed in the exploitation of vulnerabilities like CVE-2026-1731 to bypass egress filtering.
+query: "// Name: DNS Tunneling via OAST Domains\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Detects DNS queries to known OAST (Out-of-Band Application Security Testing) domains like oastify.com, oast.pro, and oast.fun. Long subdomains may indicate encoded data exfiltration, a technique observed in the exploitation of vulnerabilities like CVE-2026-1731 to bypass egress filtering.\r\n// MITRE ATT&CK: T1071.004, T1132.001\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// False Positive Sensitivity: Medium\r\n// Tags: DNS Tunneling, OAST, CVE-2026-1731\r\nlet oast_domains = dynamic([\r\n    \"oastify.com\",\r\n    \"oast.pro\",\r\n    \"oast.fun\"\r\n]);\r\nlet length_threshold = 50;\r\nDnsEvents\r\n// Look for DNS query events from the last day\r\n| where TimeGenerated > ago(1d)\r\n// Filter for queries to known OAST domains\r\n| where Name has_any (oast_domains)\r\n// Extract the subdomain part of the queried name\r\n| extend Subdomain = extract(@\"^(.*)\\.(oastify\\.com|oast\\.pro|oast\\.fun)$\", 1, Name)\r\n// Filter for long subdomains, which are indicative of data encoding/tunneling\r\n| where isnotempty(Subdomain) and strlen(Subdomain) > length_threshold\r\n// FP Tuning: Legitimate security research or penetration testing may use OAST services.\r\n// Exclude known security team IP addresses or devices if this generates noise.\r\n| project\r\n    TimeGenerated,\r\n    Computer,\r\n    ClientIP,\r\n    Name,\r\n    Subdomain,\r\n    QueryType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+    - T1132.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

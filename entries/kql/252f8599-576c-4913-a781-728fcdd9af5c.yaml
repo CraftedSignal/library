@@ -1,0 +1,12 @@
+id: 252f8599-576c-4913-a781-728fcdd9af5c
+name: Ingress Tool Transfer Detection
+description: 'Identifies Ingress Tool Transfer''s. '
+query: "// Detects ingress tool transfers\n// Threat Hunting rule\n// Remove DeviceName and Timestamp filters to convert from a hunting/investigation query to a detection rule\nDeviceProcessEvents\n| where DeviceName =~ \"DEVICE_NAME\"\n| where Timestamp > ago(2h)\n| where ProcessCommandLine has_any (\n    \"powershell\", \"certutil\", \"bitsadmin\", \"curl\", \"wget\", \n    \"invoke-webrequest\", \"downloadfile\", \"downloadstring\"\n) and ProcessCommandLine has_any (\"http://\", \"https://\", \"ftp://\")\n| extend ToolType = case(\n    ProcessCommandLine has \"certutil\", \"Certutil Download\",\n    ProcessCommandLine has \"bitsadmin\", \"BITS Download\", \n    ProcessCommandLine has \"powershell\" and ProcessCommandLine has \"download\", \"PowerShell Download\",\n    ProcessCommandLine has_any (\"curl\", \"wget\"), \"Command Line Download\",\n    \"Other Download\"\n)\n| project Timestamp, ToolType, ProcessCommandLine, AccountName\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1105
+tags:
+    - kql
+author: Chad Hardcastle
+version: "1"

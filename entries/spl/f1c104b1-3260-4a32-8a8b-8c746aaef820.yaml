@@ -1,0 +1,63 @@
+id: f1c104b1-3260-4a32-8a8b-8c746aaef820
+name: UAT-7237 All-in-One IOC Detection
+description: Detects various Indicators of Compromise (IOCs) associated with UAT-7237 activity, including file hashes, IP addresses, domains, and URLs. This rule identifies suspicious process executions based on known malicious file hashes and network connections to malicious IP addresses or URLs.
+query: |
+    [comment]: <> (Name: UAT-7237 All-in-One IOC Detection)
+    [comment]: <> (Author: detections.ai)
+    [comment]: <> (Date: 2025-08-15)
+    [comment]: <> (Description: Detects various Indicators of Compromise (IOCs) associated with UAT-7237 activity, including file hashes, IP addresses, domains, and URLs.)
+    [comment]: <> (False Positive Sensitivity: Medium)
+    [comment]: <> (References: https://blog.talosintelligence.com/uat-7237-targets-web-hosting-infra/)
+    [comment]: <> (MITRE TTPs: T1105, T1071.001, T1204.002)
+
+    [comment]: <> (This query leverages the Splunk Common Information Model (CIM) for broader compatibility. It requires the Endpoint and Network_Traffic data models to be populated, typically by EDR and network data sources like Sysmon or Microsoft Defender for Endpoint.)
+
+    | tstats `comment("Search for process execution events matching the known malicious hashes.")` summariesonly=true count from datamodel=Endpoint.Processes where Processes.process_hash IN (
+        "df8497b9c37b780d6b6904a24133131faed8ea4cf3d75830b53c25d41c5ea386",
+        "0952e5409f39824b8a630881d585030a1d656db897adf228ce27dd9243db20b7",
+        "7a5f05da3739ad3e11414672d01b8bcf23503a9a8f1dd3f10ba2ead7745cdb1f",
+        "450fa9029c59af9edf2126df1d6a657ee6eb024d0341b32e6f6bdb8dc04bae5a",
+        "6a72e4b92d6a459fc2c6054e9ddb9819d04ed362bd847333492410b6d7bae5aa",
+        "e106716a660c751e37cfc4f4fbf2ea2f833e92c2a49a0b3f40fc36ad77e0a044",
+        "b52bf5a644ae96807e6d846b0ce203611d83cc8a782badc68ac46c9616649477",
+        "864e67f76ad0ce6d4cc83304af4347384c364ca6735df0797e4b1ff9519689c5"
+    ) by Processes.dest Processes.user Processes.process_name Processes.process Processes.process_hash _time
+    | `drop_dm_object_name("Processes")`
+    | rename dest as DeviceName, user as AccountName, process_name as FileName, process as ProcessCommandLine, process_hash as Indicator
+    | eval EventType="File/Process IOC", IndicatorType="FileHash", RemoteUrl="", RemoteIP=""
+    | fields _time, DeviceName, AccountName, EventType, Indicator, IndicatorType, FileName, ProcessCommandLine, RemoteUrl, RemoteIP
+
+    | append [
+        | tstats `comment("Search for network connections to the known malicious IP, domain, or URL.")` summariesonly=true count from datamodel=Endpoint.Network_Traffic where (Network_Traffic.dest_ip="141.164.50.141" OR Network_Traffic.url="*cvbbonwxtgvc3isfqfc52cwzja0kvuqd.lambda-url.ap-northeast-1.on.aws*" OR Network_Traffic.url="http://141.164.50.141/sdksdk608/win-x64.rar") by Network_Traffic.dest Network_Traffic.user Network_Traffic.process_name Network_Traffic.process Network_Traffic.dest_ip Network_Traffic.url _time
+        | `drop_dm_object_name("Network_Traffic")`
+        | rename dest as DeviceName, user as AccountName, process_name as FileName, process as ProcessCommandLine, dest_ip as RemoteIP, url as RemoteUrl
+        | `comment("Identify which network indicator triggered the alert.")`
+        | eval EventType="Network IOC",
+            Indicator=case(
+                RemoteIP=="141.164.50.141", "141.164.50.141",
+                like(RemoteUrl, "%cvbbonwxtgvc3isfqfc52cwzja0kvuqd.lambda-url.ap-northeast-1.on.aws%"), "cvbbonwxtgvc3isfqfc52cwzja0kvuqd.lambda-url.ap-northeast-1.on.aws",
+                RemoteUrl=="http://141.164.50.141/sdksdk608/win-x64.rar", "http://141.164.50.141/sdksdk608/win-x64.rar"
+            ),
+            IndicatorType=case(
+                isnotnull(Indicator) AND RemoteIP==Indicator, "IP Address",
+                isnotnull(Indicator) AND like(RemoteUrl, "%"+Indicator+"%"), "Domain",
+                isnotnull(Indicator) AND RemoteUrl==Indicator, "URL"
+            )
+        | `comment("Note: The IP address IOC is high-fidelity but may become a false positive if re-assigned by the provider.")`
+        | fields _time, DeviceName, AccountName, EventType, Indicator, IndicatorType, FileName, ProcessCommandLine, RemoteUrl, RemoteIP
+    ]
+    | fillnull value="-"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1071.001
+    - T1204.002
+tags:
+    - spl
+version: "1"
+references:
+    - https://blog.talosintelligence.com/uat-7237-targets-web-hosting-infra/

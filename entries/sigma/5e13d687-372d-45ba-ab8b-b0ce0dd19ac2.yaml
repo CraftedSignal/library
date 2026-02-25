@@ -1,0 +1,26 @@
+id: 5e13d687-372d-45ba-ab8b-b0ce0dd19ac2
+name: OpenSSH server firewall configuration on Windows (firewall)
+description: Detects scenarios where an attacker configure the Windows firewall to allow incoming connections to perform stealthy lateral movement.
+query: "title: OpenSSH server firewall configuration on Windows (firewall)\ndescription: Detects scenarios where an attacker configure the Windows firewall to allow incoming connections to perform stealthy lateral movement.\nreferences:\n - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0008-Lateral%20Movement/T1021.004-Remote%20Service%20SSH\n - https://winaero.com/enable-openssh-server-windows-10/\n - https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse\n - https://virtualizationreview.com/articles/2020/05/21/ssh-server-on-windows-10.aspx\n - https://www.microsoft.com/en-us/security/blog/2022/10/18/defenders-beware-a-case-for-post-ransomware-investigations/\ntags:\n- attack.defense_evasion\n- attack.t1562.004\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  service: firewall-as\ndetection:\n  selection_event:\n    EventID: 2004\n\n  selection_process: # New firewall rule creation (process focus)\n    ApplicationPath|endswith: '\\sshd.exe' # full path 'C:\\Windows\\system32\\OpenSSH\\sshd.exe'\n\n  selection_port:  # New firewall rule creation (port focus)\n    LocalPorts: 22 # Attackers may change port \n\n  condition: selection_event and (selection_process or selection_port)\nfalsepositives:\n- Unknown\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0008
+    - TA0005
+techniques:
+    - T1562.004
+    - T1021.004
+tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0008-Lateral%20Movement/T1021.004-Remote%20Service%20SSH
+    - https://winaero.com/enable-openssh-server-windows-10/
+    - https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
+    - https://virtualizationreview.com/articles/2020/05/21/ssh-server-on-windows-10.aspx
+    - https://www.microsoft.com/en-us/security/blog/2022/10/18/defenders-beware-a-case-for-post-ransomware-investigations/
+data_sources:
+    - windows
+    - firewall-as

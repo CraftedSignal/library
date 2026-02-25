@@ -1,0 +1,45 @@
+id: 019c7787-2069-71a8-b78b-1de41342c844
+name: WinRAR CVE-2025-8088 Exploitation via Startup Folder Persistence
+description: Detects the exploitation of the WinRAR path traversal vulnerability (CVE-2025-8088) where a compression utility process creates script or shortcut files in the Windows Startup folder for persistence. This technique has been observed in use by the Amaranth-Dragon threat actor.
+query: |
+    // Name: Amaranth-Dragon CVE-2025-8088 Startup File Drop
+    // Author: Redon
+    // Date: 2026-02-19
+    // Description: Detects the exploitation of WinRAR path traversal vulnerability CVE-2025-8088, where a compression utility process creates a script or shortcut file in the Windows Startup folder for persistence. This technique was observed being used by the Amaranth-Dragon threat actor.
+    // References: https://research.checkpoint.com/2026/amaranth-dragon-weaponizes-cve-2025-8088-for-targeted-espionage/
+    DeviceFileEvents
+    // Filter for file creation events.
+    | where ActionType == "FileCreated"
+    // Filter for processes associated with RAR file extraction.
+    | where InitiatingProcessFileName in~ ("WinRAR.exe", "Rar.exe")
+    // The CVE allows writing to arbitrary locations; the actor uses the Startup folder for persistence.
+    // This checks for files being dropped in either the user-specific or all-users startup folders.
+    | where FolderPath has_all (@"Microsoft\Windows\Start Menu\Programs\Startup")
+    // Look for script or shortcut files that can be used for execution on logon.
+    | where FileName endswith ".bat" or FileName endswith ".cmd" or FileName endswith ".vbs" or FileName endswith ".lnk"
+    // FP Tuning: Some legitimate installers might perform similar actions.
+    // Consider excluding files signed by trusted publishers or known good software hashes to reduce noise.
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FolderPath,
+        FileName,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1547.001
+    - T1203
+tags:
+    - kql
+version: "4"
+references:
+    - https://research.checkpoint.com/2026/amaranth-dragon-weaponizes-cve-2025-8088-for-targeted-espionage/

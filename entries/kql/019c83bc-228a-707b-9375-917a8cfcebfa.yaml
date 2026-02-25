@@ -1,0 +1,176 @@
+id: 019c83bc-228a-707b-9375-917a8cfcebfa
+name: Fake Windows 11 Malvertising Installer and TIP Persistence
+description: This rule detects the presence of a fake Windows 11 malvertising installer, specifically 'ms-update32.exe', which is known to be distributed via malicious advertisements. It correlates network connections to suspicious domains (including lookalike domains and GitHub hosting) with process execution from user-writeable paths or the presence of 'LunarApplication' artifacts, and registry modifications to the 'TIP\AggregateResults' key, indicating persistence. The rule requires at least two independent signals (registry write plus one or more supporting signals) within a 30-minute pivot window to reduce false positives.
+query: |-
+    // Title: Fake Windows 11 malvertising installer (ms-update32.exe) and TIP persistence hunting
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-22
+    // Reference: https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+    //
+    // Updates in this version
+    // 1) Requires at least two signals (TIP write plus one or more supporting signals)
+    // 2) Keeps the logic behavioural first, with reported artefacts used as pivots
+    // 3) Please fine-tune where needed, every environment is different
+
+    let TimeRange = 30d;
+    let PivotWindow = 30m;
+
+    // Reported lookalike domains (Malwarebytes)
+    let FakeWin11Domains = dynamic([
+      "ms-25h2-download.pro",
+      "ms-25h2-update.pro",
+      "ms25h2-download.pro",
+      "ms25h2-update.pro"
+    ]);
+
+    // Persistence key reported by Malwarebytes
+    let TipAggKey = @"\SYSTEM\Software\Microsoft\TIP\AggregateResults";
+
+    // Common payload name reported by Malwarebytes
+    let SuspInstallerNames = dynamic(["ms-update32.exe"]);
+
+    // Useful path heuristics
+    let rx_user_writeable = @"(?i)\\users\\[^\\]+\\(downloads|desktop|appdata\\local\\temp|appdata\\roaming|appdata\\local)\\";
+    let rx_github = @"(?i)(^|[^a-z0-9])(github\.com|raw\.githubusercontent\.com)([^a-z0-9]|$)";
+    let rx_lunar = @"(?i)LunarApplication";
+
+    // 1) Network indicators: lookalike domains and GitHub hosting behaviour
+    let NetSignals =
+      DeviceNetworkEvents
+      | where Timestamp >= ago(TimeRange)
+      | extend RemoteUrl = tostring(RemoteUrl)
+      | extend RemoteDomain = tostring(RemoteDomain)
+      | extend InitiatingProcess = tostring(InitiatingProcessFileName)
+      | extend InitiatingCmd = tostring(InitiatingProcessCommandLine)
+      | extend Hit_FakeDomain = iif(RemoteDomain in~ (FakeWin11Domains), true, false)
+      | extend Hit_GitHub = iif(RemoteUrl matches regex rx_github or RemoteDomain matches regex rx_github, true, false)
+      | where Hit_FakeDomain or Hit_GitHub
+      | project
+          NetTime = Timestamp,
+          DeviceId,
+          DeviceName,
+          RemoteDomain,
+          RemoteUrl,
+          Net_InitiatingProcess = InitiatingProcess,
+          Net_InitiatingCmd = InitiatingCmd,
+          Hit_FakeDomain,
+          Hit_GitHub;
+
+    // 2) Process execution signals: ms-update32.exe from user writeable paths, or LunarApplication artefact
+    let ProcSignals =
+      DeviceProcessEvents
+      | where Timestamp >= ago(TimeRange)
+      | extend FileName = tostring(FileName)
+      | extend FolderPath = tostring(FolderPath)
+      | extend ProcessCmd = tostring(ProcessCommandLine)
+      | extend ParentName = tostring(InitiatingProcessFileName)
+      | extend ParentCmd = tostring(InitiatingProcessCommandLine)
+      | extend Hit_Name = iif(FileName in~ (SuspInstallerNames), true, false)
+      | extend Hit_Path = iif(FolderPath matches regex rx_user_writeable, true, false)
+      | extend Hit_Lunar = iif(ProcessCmd matches regex rx_lunar or FolderPath matches regex rx_lunar, true, false)
+      | where (Hit_Name and Hit_Path) or Hit_Lunar
+      | project
+          ProcTime = Timestamp,
+          DeviceId,
+          DeviceName,
+          FileName,
+          FolderPath,
+          ProcessCmd,
+          ParentName,
+          ParentCmd,
+          Proc_Account = AccountName,
+          Proc_InitiatingAccount = InitiatingProcessAccountName,
+          Hit_Name,
+          Hit_Path,
+          Hit_Lunar;
+
+    // 3) Registry persistence signals: TIP AggregateResults writes
+    let RegSignals =
+      DeviceRegistryEvents
+      | where Timestamp >= ago(TimeRange)
+      | where ActionType == "RegistryValueSet"
+      | extend RegistryKey = tostring(RegistryKey)
+      | extend ValueName = tostring(RegistryValueName)
+      | extend ValueData = tostring(RegistryValueData)
+      | extend Hit_TIP = iif(RegistryKey has TipAggKey, true, false)
+      | extend ValueLen = strlen(ValueData)
+      | where Hit_TIP
+      | extend Reg_InitiatingProcess = tostring(InitiatingProcessFileName)
+      | extend Reg_InitiatingCmd = tostring(InitiatingProcessCommandLine)
+      | extend Reg_Account = tostring(InitiatingProcessAccountName)
+      | extend Reg_LogonId = tostring(InitiatingProcessLogonId)
+      | project
+          RegTime = Timestamp,
+          DeviceId,
+          DeviceName,
+          RegistryKey,
+          ValueName,
+          ValueLen,
+          Reg_InitiatingProcess,
+          Reg_InitiatingCmd,
+          Reg_Account,
+          Reg_LogonId,
+          Hit_TIP;
+
+    // Correlate within a time window and require at least two independent signals
+    RegSignals
+    | join kind=leftouter (ProcSignals) on DeviceId
+    | extend HasProc = iif(isnotempty(ProcTime) and ProcTime between (RegTime - PivotWindow .. RegTime + PivotWindow), true, false)
+    | join kind=leftouter (NetSignals) on DeviceId
+    | extend HasNet = iif(isnotempty(NetTime) and NetTime between (RegTime - PivotWindow .. RegTime + PivotWindow), true, false)
+    | extend
+        Signal_TIP = 1,
+        Signal_Proc = iif(HasProc and (Hit_Name or Hit_Lunar), 1, 0),
+        Signal_Net = iif(HasNet and (Hit_FakeDomain or Hit_GitHub), 1, 0),
+        SignalScore = Signal_TIP + Signal_Proc + Signal_Net
+    | where SignalScore >= 2
+    | project
+        DeviceName,
+        RegTime,
+        RegistryKey,
+        ValueName,
+        ValueLen,
+        Reg_InitiatingProcess,
+        Reg_InitiatingCmd,
+        Reg_Account,
+        ProcTime = iif(HasProc, ProcTime, datetime(null)),
+        FileName = iif(HasProc, FileName, ""),
+        FolderPath = iif(HasProc, FolderPath, ""),
+        ProcessCmd = iif(HasProc, ProcessCmd, ""),
+        ParentName = iif(HasProc, ParentName, ""),
+        ParentCmd = iif(HasProc, ParentCmd, ""),
+        Proc_Account = iif(HasProc, Proc_Account, ""),
+        Proc_InitiatingAccount = iif(HasProc, Proc_InitiatingAccount, ""),
+        NetTime = iif(HasNet, NetTime, datetime(null)),
+        RemoteDomain = iif(HasNet, RemoteDomain, ""),
+        RemoteUrl = iif(HasNet, RemoteUrl, ""),
+        Net_InitiatingProcess = iif(HasNet, Net_InitiatingProcess, ""),
+        Net_InitiatingCmd = iif(HasNet, Net_InitiatingCmd, ""),
+        Hit_Name,
+        Hit_Path,
+        Hit_Lunar,
+        Hit_FakeDomain,
+        Hit_GitHub,
+        SignalScore
+    | order by RegTime desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0042
+    - TA0001
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1583.008
+    - T1566.001
+    - T1204.001
+    - T1547.001
+    - T1071.001
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets

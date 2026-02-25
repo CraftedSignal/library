@@ -1,0 +1,67 @@
+id: 019ac703-5efc-716c-9fc2-5ae1a90b644a
+name: Bloody Wolf Malicious JAR Loader Download
+description: Detects the download of a Java Archive (JAR) file initiated by a document reader, browser, or email client. This behavior is consistent with the Bloody Wolf threat actor, which uses spear-phishing to trick users into downloading malicious JAR loaders for the NetSupport RAT.
+query: |
+    // Name: Bloody Wolf Malicious JAR Loader Download
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the download of a Java Archive (JAR) file initiated by a document reader, browser, or email client. This behavior is consistent with the Bloody Wolf threat actor, which uses spear-phishing to trick users into downloading malicious JAR loaders for the NetSupport RAT.
+    // References: https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html
+    // MITRE ATT&CK: T1566.001 (Spearphishing Attachment), T1204.002 (Malicious File)
+    // False Positive Sensitivity: Medium. Legitimate Java applications may be delivered as JAR files. This rule reduces false positives by focusing on downloads originating from user-oriented applications like document readers and email clients. Further tuning by excluding known software distribution domains may be required.
+
+    DeviceNetworkEvents
+    // Filter for network events indicating a file download.
+    | where isnotempty(RemoteUrl) and (ActionType == "NetworkConnection" or ActionType startswith "Url")
+    // The loader is a Java Archive (JAR) file.
+    | where RemoteUrl has ".jar" or FileName endswith ".jar"
+    // The attack chain involves a user opening a malicious document or clicking a link in an email.
+    // Look for downloads initiated by common document readers, browsers, or email clients.
+    | where InitiatingProcessFileName in~ (
+        "AcroRd32.exe", // Adobe Reader
+        "Acrobat.exe",
+        "WINWORD.EXE", // Microsoft Word
+        "EXCEL.EXE", // Microsoft Excel
+        "POWERPNT.EXE", // Microsoft PowerPoint
+        "OUTLOOK.EXE", // Microsoft Outlook
+        "msedge.exe", // Microsoft Edge
+        "chrome.exe", // Google Chrome
+        "firefox.exe" // Mozilla Firefox
+        )
+    // FP Tuning: Exclude downloads from known-safe, common software distribution sites.
+    // This list should be customized for your environment to reduce noise.
+    | where not(RemoteUrl has_any (
+        "oracle.com",
+        "java.com",
+        "github.com",
+        "atlassian.com"
+        // Add other known-good domains for your organization here.
+    ))
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        FileName,
+        SHA256
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = DeviceName,
+        Url = RemoteUrl,
+        IPAddress = RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1204.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/11/bloody-wolf-expands-java-based.html

@@ -1,0 +1,19 @@
+id: 019c94ba-26a4-7748-89bc-cb451287cf1d
+name: RenEngine Campaign with HijackLoader
+description: This rule detects indicators associated with the RenEngine campaign, which involves the deployment of HijackLoader, Lumma Stealer, and ACR Stealer. Detection is based on specific MD5 hashes of known malicious files, filenames used in the campaign, and command and control (C2) domains identified as part of the infrastructure.
+query: "/* \nRenEngine to HijackLoader to Lumma ACR hunts (Splunk SPL)\nAuthor: Daniel Jeremiah\nDate: 2026-02-24\nReference: https://securelist.com/renengine-campaign-with-hijackloader-lumma-and-acr-stealer/118891/\n*/\n\n\n(\n  (md5 IN (\"12ec3516889887e7bcf75d7345e3207a\",\"d3cf36c37402d05f1b7aa2c444dc211a\",\"1e0bf40895673fcd96a8ea3ddfab0ae2\",\"2e70eca2191c79ad15da2d4c25eb66b9\")\n   OR file_hash_md5 IN (\"12ec3516889887e7bcf75d7345e3207a\",\"d3cf36c37402d05f1b7aa2c444dc211a\",\"1e0bf40895673fcd96a8ea3ddfab0ae2\",\"2e70eca2191c79ad15da2d4c25eb66b9\")\n   OR process_hash IN (\"12ec3516889887e7bcf75d7345e3207a\",\"d3cf36c37402d05f1b7aa2c444dc211a\",\"1e0bf40895673fcd96a8ea3ddfab0ae2\",\"2e70eca2191c79ad15da2d4c25eb66b9\")\n   OR 'file.hash.md5' IN (\"12ec3516889887e7bcf75d7345e3207a\",\"d3cf36c37402d05f1b7aa2c444dc211a\",\"1e0bf40895673fcd96a8ea3ddfab0ae2\",\"2e70eca2191c79ad15da2d4c25eb66b9\"))\n  OR\n  (file_name IN (\"setup_game_8246.zip\",\"__init.py__\",\"cc32290mt.dll\")\n   OR filename IN (\"setup_game_8246.zip\",\"__init.py__\",\"cc32290mt.dll\")\n   OR process_name IN (\"setup_game_8246.zip\",\"__init.py__\",\"cc32290mt.dll\")\n   OR Image=\"*setup_game_8246.zip\" OR Image=\"*__init.py__\" OR Image=\"*cc32290mt.dll\")\n  OR\n  (dest_domain IN (\"hentakugames.com\",\"dodi-repacks.site\",\"artistapirata.fit\",\"artistapirata.vip\",\"awdescargas.pro\",\"fullprogramlarindir.me\",\"gamesleech.com\",\"parapcc.com\",\"saglamindir.vip\",\"zdescargas.pro\",\"filedownloads.store\",\"go.zovo.ink\",\"localfxement.live\",\"explorebieology.run\",\"agroecologyguide.digital\",\"moderzysics.top\",\"seedsxouts.shop\",\"codxefusion.top\",\"farfinable.top\",\"techspherxe.top\",\"cropcircleforum.today\")\n   OR domain IN (\"hentakugames.com\",\"dodi-repacks.site\",\"artistapirata.fit\",\"artistapirata.vip\",\"awdescargas.pro\",\"fullprogramlarindir.me\",\"gamesleech.com\",\"parapcc.com\",\"saglamindir.vip\",\"zdescargas.pro\",\"filedownloads.store\",\"go.zovo.ink\",\"localfxement.live\",\"explorebieology.run\",\"agroecologyguide.digital\",\"moderzysics.top\",\"seedsxouts.shop\",\"codxefusion.top\",\"farfinable.top\",\"techspherxe.top\",\"cropcircleforum.today\")\n   OR query IN (\"hentakugames.com\",\"dodi-repacks.site\",\"artistapirata.fit\",\"artistapirata.vip\",\"awdescargas.pro\",\"fullprogramlarindir.me\",\"gamesleech.com\",\"parapcc.com\",\"saglamindir.vip\",\"zdescargas.pro\",\"filedownloads.store\",\"go.zovo.ink\",\"localfxement.live\",\"explorebieology.run\",\"agroecologyguide.digital\",\"moderzysics.top\",\"seedsxouts.shop\",\"codxefusion.top\",\"farfinable.top\",\"techspherxe.top\",\"cropcircleforum.today\"))\n)\n| eval indicator_value=coalesce(md5,file_hash_md5,process_hash,'file.hash.md5',file_name,filename,process_name,Image,dest_domain,domain,query)\n| stats count min(_time) as firstSeen max(_time) as lastSeen values(host) as host values(user) as user values(process_name) as process_name values(parent_process_name) as parent_process_name values(Image) as Image values(CommandLine) as CommandLine values(url) as url values(sourcetype) as sourcetype by indicator_value\n| convert ctime(firstSeen) ctime(lastSeen)\n| sort - lastSeen"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1566
+    - T1204
+    - T1071
+tags:
+    - spl
+version: "4"
+references:
+    - https://securelist.com/renengine-campaign-with-hijackloader-lumma-and-acr-stealer/118891/

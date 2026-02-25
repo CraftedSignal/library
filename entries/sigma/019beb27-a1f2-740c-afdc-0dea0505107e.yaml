@@ -1,0 +1,61 @@
+id: 019beb27-a1f2-740c-afdc-0dea0505107e
+name: SmarterMail Admin Password Reset Attempt
+description: Detects attempts to exploit the SmarterMail authentication bypass vulnerability (WT-2026-0001) by sending a POST request to the /api/v1/auth/force-reset-password endpoint with 'IsSysAdmin' set to 'true'.
+query: |
+    title: SmarterMail Admin Password Reset Attempt
+    id: b5ec6c0f-6122-4cda-ac53-47cbfeade2b6
+    status: experimental
+    description: Detects attempts to exploit the SmarterMail authentication bypass
+      vulnerability (WT-2026-0001) by sending a POST request to the
+      /api/v1/auth/force-reset-password endpoint with 'IsSysAdmin' set to 'true'.
+    references:
+      - https://labs.watchtowr.com/attackers-with-decompilers-strike-again-smartertools-smartermail-wt-2026-0001-auth-bypass/
+    author: tim@detections.ai
+    date: 2026-01-23
+    tags:
+      - attack.t1556.002
+      - attack.t1078.001
+    logsource:
+      category: webserver
+      product: smartermail
+    detection:
+      selection:
+        # Detects the HTTP POST method used in the exploit
+        http.method: 'POST'
+        # The specific API endpoint targeted for the authentication bypass
+        uri_path|contains: '/api/v1/auth/force-reset-password'
+        # The key parameter in the request body indicating an attempt to reset an admin password.
+        # Note: The field name for the request body may vary (e.g., http.request.body.content, post_data).
+        http.request.body.content|contains:
+          - '"IsSysAdmin":"true"'
+          - '"IsSysAdmin": "true"'
+      condition: selection
+    falsepositives:
+      - This activity is highly suspicious as it targets an unauthenticated endpoint
+        to reset an administrator password. However, review any internal tools or
+        scripts that may perform similar administrative functions, though it is
+        unlikely they would use this specific method.
+    level: high
+    associated_cves:
+      - CVE-2025-52691
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078.001
+    - T1187
+tags:
+    - attack.t1556.002
+    - attack.t1078.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://labs.watchtowr.com/attackers-with-decompilers-strike-again-smartertools-smartermail-wt-2026-0001-auth-bypass/
+data_sources:
+    - webserver
+    - smartermail

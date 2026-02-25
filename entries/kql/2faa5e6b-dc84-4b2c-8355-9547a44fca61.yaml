@@ -1,0 +1,12 @@
+id: 2faa5e6b-dc84-4b2c-8355-9547a44fca61
+name: Google Workspace - Bulk Download Of Files
+description: A Google Workspace user is attempting to download, print or email as an attachment a suspicious amount of files over a short time period. This can indicate an attacker trying to exfiltrate data.
+query: "CloudAppEvents\r\n| where Application == \"Google Workspace\"\r\n| where ActionType has_any (\"print\", \"download\", \"email_as_Attachment\" )\r\n| extend jsondata = parse_json(RawEventData)\r\n| extend Email = tostring(jsondata.actor.email)\r\n| summarize Downloads = count() by Email, ActionType, bin(TimeGenerated, 1hr)\r\n| where Downloads > 10"
+query_type: kql
+severity: medium
+techniques:
+    - T1074
+    - T1567
+tags:
+    - kql
+version: "1"

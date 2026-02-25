@@ -1,0 +1,16 @@
+id: 0fdffd74-ac81-4f7f-b9d7-df0665d31e70
+name: File Dropped or Modified After USB Insertion
+description: This detection identifies when a file is created or modified on a host within a short time window after a USB storage device was inserted. This behavior can be indicative of malware spreading via removable media, where a payload is automatically dropped onto the system.
+query: "(\r\n  sourcetype=\"XmlWinEventLog:Microsoft-Windows-DriverFrameworks-UserMode/Operational\" EventCode=2003\r\n  OR\r\n  sourcetype=\"XmlWinEventLog:Microsoft-Windows-Sysmon/Operational\" (EventCode=11 OR EventCode=2)\r\n)\r\n| rename Computer as host\r\n| eval event_type = case(\r\n    EventCode=2003, \"usb_insert\",\r\n    EventCode=11 OR EventCode=2, \"file_activity\"\r\n  )\r\n| sort 0 host, _time\r\n| streamstats window=1 current=f last(_time) as prev_time, last(event_type) as prev_event_type by host\r\n| where event_type=\"file_activity\" AND prev_event_type=\"usb_insert\" AND (_time - prev_time) <= 120\r\n| where NOT (\r\n    match(Image, \"(?i)(explorer|svchost)\\\\.exe$\")\r\n    OR match(TargetFilename, \"(?i)(\\\\.tmp|\\\\.log|\\\\\\\\Prefetch\\\\\\\\|\\\\\\\\\\\\$Recycle\\\\.Bin\\\\\\\\)$\")\r\n  )\r\n| stats\r\n    count as file_event_count,\r\n    values(case(EventCode=2, \"Modified\", EventCode=11, \"Created\")) as file_actions,\r\n    list(TargetFilename) as files_changed,\r\n    list(Image) as processes,\r\n    min(_time) as first_file_time\r\n    by host, prev_time\r\n| eval usb_insert_time=strftime(prev_time, \"%Y-%m-%d %H:%M:%S\")\r\n| eval first_file_activity_time=strftime(first_file_time, \"%Y-%m-%d %H:%M:%S\")\r\n| eval seconds_to_first_file=first_file_time - prev_time\r\n| fields host, usb_insert_time, first_file_activity_time, seconds_to_first_file, file_event_count, file_actions, files_changed, processes\r\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0001
+techniques:
+    - T1091
+    - DS0022
+tags:
+    - spl
+author: AnoozillaHunterX
+version: "1"

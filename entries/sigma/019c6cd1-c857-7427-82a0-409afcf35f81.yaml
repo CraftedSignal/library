@@ -1,0 +1,64 @@
+id: 019c6cd1-c857-7427-82a0-409afcf35f81
+name: Bitwarden Fraudulent Organization Injection via Account Recovery Abuse
+description: Detects events that may indicate a user is being enrolled into a Bitwarden organization's account recovery policy under malicious circumstances. As described by researchers, a malicious or compromised server can silently add a user to an attacker-controlled organization and enable an account recovery policy. The victim's client will then encrypt the user's vault key with an attacker-provided public key and upload it, leading to a full vault compromise.
+query: |
+    title: Bitwarden Fraudulent Organization Injection via Account Recovery Abuse
+    description: >-
+      Detects events that may indicate a user is being enrolled into a Bitwarden
+      organization's account recovery policy under malicious circumstances. As
+      described by researchers, a malicious or compromised server can silently add a
+      user to an attacker-controlled organization and enable an account recovery
+      policy. The victim's client will then encrypt the user's vault key with an
+      attacker-provided public key and upload it, leading to a full vault
+      compromise.
+    references:
+      - https://eprint.iacr.org/2026/058.pdf
+      - https://www.theregister.com/2026/02/16/password_managers/
+    author: detections.ai
+    date: 2026-02-17
+    tags:
+      - attack.t1098.002
+      - attack.t1555.003
+      - attack.credential_access
+    logsource:
+      category: webserver
+      product: bitwarden
+    detection:
+      selection:
+        http.request.method: 'POST'
+        url.path|contains|all:
+          - '/api/organizations/'
+          - '/users/'
+          - '/reset-password-enroll'
+        http.response.status_code: 200
+      condition: selection
+    falsepositives:
+      - Legitimate enrollment by users into an enterprise organization's account
+        recovery policy.
+      - This rule is most effective for environments that do not use the account
+        recovery feature or where enrollments are rare and centrally managed.
+        Alerting can be suppressed for authorized administrators performing this
+        action.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+    - T1098.002
+    - T1555.003
+tags:
+    - attack.t1098.002
+    - attack.t1555.003
+    - attack.credential_access
+author: detections.ai
+version: "2"
+references:
+    - https://eprint.iacr.org/2026/058.pdf
+    - https://www.theregister.com/2026/02/16/password_managers/
+data_sources:
+    - webserver
+    - bitwarden

@@ -1,0 +1,48 @@
+id: 019ae8eb-ce2a-70ea-960f-12a06585964a
+name: Unauthorized FortiWeb Admin Account Creation
+description: Detects the creation of a new administrative account with 'prof_admin' privileges on a FortiWeb device from an unknown IP address. This activity is highly suspicious if not performed by a known administrator and could indicate post-exploitation activity, potentially related to CVE-2025-64446.
+query: |
+    // Name: Unauthorized FortiWeb Admin Creation
+    // Author: detections.ai
+    // Date: 2025-12-04
+    // Description: Detects the creation of a new administrative account on a FortiWeb device, which is a key post-exploitation step for CVE-2025-64446. This activity is highly suspicious if not performed by a known administrator.
+    // Tactic: Persistence
+    // Technique: T1136.001
+    // References: https://isc.sans.edu/diary/rss/32486
+    // False Positive Sensitivity: Medium
+    // ---
+    // Define the log source table for FortiWeb events. This may need to be adjusted to your environment's schema.
+    let LogSource = FortiWebLogs; // Example table name, could also be CommonSecurityLog, etc.
+    // FP Tuning: Populate this list with the IP addresses of legitimate administrators and management systems to reduce false positives.
+    let KnownAdminIPs = dynamic(["127.0.0.1", "::1"]);
+    LogSource
+    // Filter for events that correspond to user account creation.
+    // Note: Field names (e.g., EventType, EventId) and values are examples and must be validated against your specific FortiWeb log schema.
+    | where EventType has "user" and EventMessage has "added" // Example filter logic, adjust as needed.
+    // Filter for the creation of an account with the high-privilege 'prof_admin' profile.
+    // Note: The field name 'AccountProfile' is an example and may need to be adjusted.
+    | where AccountProfile == "prof_admin"
+    // Exclude actions originating from known, legitimate administrator IP addresses.
+    | where SourceIp !in (KnownAdminIPs)
+    | project
+        TimeGenerated,
+        DeviceName,
+        Activity = EventMessage,
+        SourceIp,
+        SourceUserName, // The user who performed the action
+        TargetUserName, // The new user that was created
+        AccountProfile
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136
+    - T1136.001
+    - T1098
+tags:
+    - kql
+version: "2"
+references:
+    - https://isc.sans.edu/diary/rss/32486

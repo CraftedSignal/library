@@ -1,0 +1,17 @@
+id: 019c5256-d17d-762f-b64d-73905805e72a
+name: Lazarus 'Graphalgo' Malicious Package Self-Cleanup
+description: Detects the modification or deletion of specific JavaScript or Python files shortly after a Node.js or Python interpreter starts. This behavior is characteristic of the 'self-patching' and 'evidence removal' techniques used by the Lazarus Group's Graphalgo malware.
+query: "// Name: Lazarus 'Graphalgo' Malicious Package Self-Cleanup\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Description: Detects the modification or deletion of specific JavaScript or Python files shortly after a Node.js or Python interpreter starts. This behavior is characteristic of the 'self-patching' and 'evidence removal' techniques used by the Lazarus Group's Graphalgo malware.\r\n// MITRE ATT&CK: T1070.004, T1562.001\r\n// References: https://www.reversinglabs.com/blog/inside-graphalgo\r\n// False Positive Sensitivity: Medium\r\n// Tags: Lazarus, Graphalgo, T1070.004, T1562.001\r\nlet timeframe = 10m;\r\n// Find recent Node.js or Python process creation events.\r\nlet interpreter_starts = DeviceProcessEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where FileName in~ (\"node.exe\", \"node\", \"python.exe\", \"python\")\r\n    | project ProcessStartTime = Timestamp, ProcessDeviceId = DeviceId, ProcessFileName = FileName, ProcessCommandLine;\r\n// Find recent file modification or deletion events for specific malicious filenames.\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType in (\"FileDeleted\", \"FileModified\")\r\n| where FileName in~ (\"graph-init.min.js\", \"graph-alg.min.js\", \"big.min.js\", \"graph-settings.min.js\", \"load_libraries.py\")\r\n// Join file events with process start events on the same device.\r\n| join kind=inner (\r\n    interpreter_starts\r\n) on $left.DeviceId == $right.ProcessDeviceId\r\n// Ensure the file cleanup event happened *after* the interpreter process started, but within the specified timeframe.\r\n| where Timestamp > ProcessStartTime and (Timestamp - ProcessStartTime) < timeframe\r\n// FP Mitigation: Legitimate package management or development activities could cause similar events.\r\n// However, the combination of these specific filenames and the short time window after process creation increases confidence.\r\n// If FPs occur, consider adding path exclusions for known development directories.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessStartTime,\r\n    ProcessFileName,\r\n    ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.004
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.reversinglabs.com/blog/inside-graphalgo

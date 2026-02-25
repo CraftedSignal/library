@@ -1,0 +1,18 @@
+id: 019c525c-dee4-7189-adec-31cde165d9c2
+name: OpenClaw SSH Command Injection via CVE-2026-25157
+description: Detects exploitation of CVE-2026-25157 where the OpenClaw AI agent is manipulated to execute arbitrary commands via a malicious SSH target string. The vulnerability allows an attacker to inject command-line options like '-oProxyCommand' into the SSH client, leading to local command execution.
+query: "// Name: CVE-2026-25157 OpenClaw SSH Command Injection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Tactic: Execution, Privilege Escalation\r\n// Technique: T1059.004, T1203.001\r\n// Description: Detects exploitation of CVE-2026-25157 where the OpenClaw AI agent is manipulated to execute arbitrary commands via a malicious SSH target string. The vulnerability allows an attacker to inject command-line options like '-oProxyCommand' into the SSH client, leading to local command execution.\r\n// False Positive Sensitivity: Medium\r\n// References: https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/\r\nDeviceProcessEvents\r\n// Look for the SSH client process being executed.\r\n| where FileName =~ \"ssh\"\r\n// The parent process should be a known OpenClaw agent executable.\r\n| where InitiatingProcessFileName in~ (\"openclaw\", \"clawdbot\", \"moltbot\")\r\n// The core of the detection looks for command-line options being injected.\r\n// The vulnerability stems from not sanitizing hostnames that start with a dash.\r\n| where ProcessCommandLine has \"-oProxyCommand\" or ProcessCommandLine has \" -o \"\r\n// FP Tuning: Legitimate, complex SSH commands initiated by a user through the agent might use '-o'.\r\n// However, this is less likely for automated tasks. If FPs occur, consider looking for more specific\r\n// ProxyCommand payloads or excluding known safe InitiatingProcessCommandLine values.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0004
+techniques:
+    - T1059.004
+    - T1068
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/

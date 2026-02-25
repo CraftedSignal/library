@@ -1,0 +1,56 @@
+id: 019ac6ee-455b-72ea-8a4e-fcfc3b376eac
+name: SERPENTINE#CLOUD Startup Folder Persistence
+description: Detects the creation of VBScript or Batch files in the Windows Startup folder. This is a common persistence technique used by various malware families, including the scripts (`pws1.vbs`, `PWS.vbs`, `startuppp.bat`) dropped by the SERPENTINE#CLOUD campaign.
+query: |
+    # Name: SERPENTINE#CLOUD Startup Folder Persistence
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # Detects the creation of VBScript or Batch files in the Windows Startup folder.
+    # This is a common persistence technique used by various malware families, including the scripts
+    # (`pws1.vbs`, `PWS.vbs`, `startuppp.bat`) dropped by the SERPENTINE#CLOUD campaign.
+    #
+    # Data Source:
+    # This search requires file creation logs, such as Sysmon (Event Code 11) or other EDR data.
+    # The macro `file_creation_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., file_name, file_path, process_name).
+    #
+    # References:
+    # - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Persistence
+    # - Technique: T1547.001 (Boot or Logon Autostart Execution: Startup Folder)
+    #
+    # False Positives:
+    # Legitimate software installers or custom logon scripts may create files in this location.
+    # Investigation should verify the process that created the file and the file's purpose.
+    # Tuning may be required to exclude known legitimate software installers or administrative scripts.
+
+    `file_creation_events`
+
+    # Filter for files created in the user's Startup folder.
+    | search file_path="*\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\*"
+
+    # Filter for suspicious script file types (.vbs, .bat).
+    # The SERPENTINE#CLOUD campaign was observed dropping "pws1.vbs", "PWS.vbs", and "startuppp.bat".
+    | search file_name IN ("*.vbs", "*.bat")
+
+    # Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, file_name, file_path, process_name, process_command_line
+    | `serpentine_cloud_startup_folder_persistence_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1547.001
+    - T1059.005
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/

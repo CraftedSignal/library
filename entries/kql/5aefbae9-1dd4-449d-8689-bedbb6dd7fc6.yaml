@@ -1,0 +1,40 @@
+id: 5aefbae9-1dd4-449d-8689-bedbb6dd7fc6
+name: Msiexec Executing a PDF File
+description: Detects msiexec.exe attempting to install a package with a .pdf extension. Adversaries may disguise malicious MSI installers as PDF files to evade detection and trick users.
+query: |
+    // Name: Msiexec Executing a PDF File
+    // Author: detections.ai
+    // Date: 2025-09-02
+    // Description: Detects msiexec.exe attempting to install a package with a .pdf extension. Adversaries may disguise malicious MSI installers as PDF files to evade detection and trick users, as seen with the delivery of MetaStealer.
+    // MITRE ATT&CK: T1218 (System Binary Proxy Execution)
+    // References: https://www.knowyouradversary.ru/2025/08/242-can-msiexec-install-pdf-file.html
+    DeviceProcessEvents
+    // Look for msiexec.exe process execution
+    | where FileName =~ "msiexec.exe"
+    // Filter for command lines containing an install flag and a .pdf file
+    | where (ProcessCommandLine has "/i" or ProcessCommandLine has "/qn") and ProcessCommandLine has ".pdf"
+    // False Positive Tuning: Legitimate installers should not use a .pdf extension.
+    // However, if false positives occur, consider excluding known legitimate parent processes or specific command lines.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        MD5,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218
+tags:
+    - kql
+author: shaf
+version: "1"
+references:
+    - https://www.knowyouradversary.ru/2025/08/242-can-msiexec-install-pdf-file.html

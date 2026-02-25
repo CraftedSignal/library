@@ -1,0 +1,61 @@
+id: 019c0aa2-facb-75a6-a20b-e7e7a4dc9d1e
+name: Malicious Browser Extension MAIN World Injection on ChatGPT
+description: Detects the creation or modification of a browser extension's manifest.json file configured to inject a script into the 'MAIN' world context of chatgpt.com. This technique allows the extension to bypass the isolated content script environment, hook native APIs like window.fetch, and steal session tokens, as seen in a campaign targeting ChatGPT users.
+query: |
+    title: Malicious Browser Extension MAIN World Injection on ChatGPT
+    id: ea6d98a1-690c-45dc-aabd-4cd3f031eb21
+    status: experimental
+    description: >-
+      Detects the creation or modification of a browser extension's manifest.json
+      file configured to inject a script into the 'MAIN' world context of
+      chatgpt.com. This technique allows the extension to bypass the isolated
+      content script environment, hook native APIs like window.fetch, and steal
+      session tokens, as seen in a campaign targeting ChatGPT users.
+    references:
+      - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt
+    author: detections.ai
+    date: 2026-01-29
+    tags:
+      - attack.credential_access
+      - attack.t1539
+      - attack.t1555.003
+      - attack.t1176
+    logsource:
+      category: file_event
+    detection:
+      # This rule requires a log source that can inspect the contents of created or modified files.
+      selection_file:
+        TargetFilename|endswith: '\manifest.json' # Catches manifest files for various browsers (Chrome, Edge, etc.)
+      selection_content:
+        FileContents|contains|all:
+          - '"world": "MAIN"' # Specifies script injection into the page's main execution context.
+          - '"run_at": "document_start"' # Ensures the script runs before the page's own scripts can load.
+          - '"https://chatgpt.com/*"' # Specifically targets the ChatGPT domain.
+      condition: all of selection_*
+    falsepositives:
+      - This combination of permissions and targeting is highly specific and
+        suspicious. However, some legitimate developer tools or highly specialized
+        extensions might use similar techniques. Baselining of approved extensions
+        may be required.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0003
+techniques:
+    - T1539
+    - T1555.003
+    - T1176
+    - T1176.001
+tags:
+    - attack.credential_access
+    - attack.t1539
+    - attack.t1555.003
+    - attack.t1176
+author: detections.ai
+version: "2"
+references:
+    - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt
+data_sources:
+    - file_event

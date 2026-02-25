@@ -1,0 +1,53 @@
+id: 019bdb15-a14d-730a-8cac-22a782bc1e2b
+name: New RDP Connection to Previously Unseen Machine
+description: |-
+    This rule detects an inbound RDP connection followed by a successful logon on a Windows system. It correlates inbound network traffic to the RDP port (3389) handled by svchost.exe with a successful remote interactive logon event (LogonType 10). The detection aims to identify potentially suspicious RDP access originating from external IP addresses, excluding private IP ranges, which may indicate unauthorized remote access or post-compromise activity.
+
+    Transalated it to sigma and added private ip range as a filter
+query: |
+    title: New RDP Connection to Previously Unseen Machine
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection_rdp_inbound:
+        EventID: 3
+        DestinationPort: 3389
+        Protocol: tcp
+        Image|endswith: \svchost.exe
+      selection_logon_success:
+        EventID: 4624
+        LogonType: 10
+      private_ip:
+        source.address|cidr:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+          - 198.19.0.0/24
+      condition: selection_rdp_inbound and selection_logon_success and not private_ip
+    level: high
+    falsepositives:
+      - Legitimate new RDP connections by administrators or users
+    tags:
+      - attack.lateral_movement
+      - attack.t1021.001
+    description: >-
+      This rule detects an inbound RDP connection followed by a successful logon on
+      a Windows system. It correlates inbound network traffic to the RDP port (3389)
+      handled by svchost.exe with a successful remote interactive logon event
+      (LogonType 10). The detection aims to identify potentially suspicious RDP
+      access originating from external IP addresses, excluding private IP ranges,
+      which may indicate unauthorized remote access or post-compromise activity.
+
+
+      Transalated it to sigma and added private ip range as a filter
+    author: Hub4ra
+query_type: sigma
+severity: medium
+tags:
+    - kql
+author: Hub4ra
+version: "5"
+data_sources:
+    - network_connection
+    - windows

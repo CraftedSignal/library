@@ -1,0 +1,21 @@
+id: d7b00cab-b8c2-426d-998e-6254dd371f61
+name: Hunting NonEuclid RAT
+description: 'KQL Query from file: Hunting NonEuclid RAT'
+query: "// \U0001D5E1\U0001D5FC\U0001D5FB\U0001D5D8\U0001D602\U0001D5F0\U0001D5F9\U0001D5F6\U0001D5F1 \U0001D5E5\U0001D5D4\U0001D5E7\n// https://www.cyfirma.com/research/noneuclid-rat/\n// NonEuclid Remote Access Trojan (RAT) is a powerful malware designed for unauthorized remote access and control of computers. Developed using C# for the .NET Framework 4.8, it employs advanced evasion techniques such as antivirus bypass, privilege escalation, anti-detection, and ransomware encryption. Its stealth, dynamic DLL loading, anti-VM checks, and AES encryption have made it popular among cybercriminals.\n\n// Currently, the IOC hash for NonEuclid.exe and Client.exe shows zero detections on VirusTotal and no global prevalence. Defenders should begin searching for the file hash and use KQL to detect file renames to the “.NonEuclid” extension. (Threat intelligence report in comment section)\n\n// You may need to do a one time exclusion of your corporate developed exe running as a task, after that you should catch the \U0001F400 \U0001F923\n\n// KQL Code:\n\nlet WhitelistExe = dynamic([\"Iamclean.exe\"]);\nlet MaliciousLPExe =\nDeviceFileEvents\n| where isnotempty(SHA1)\n| where ActionType == @\"FileCreated\" and FileName endswith \".exe\"\n| invoke FileProfile(\"SHA1\",1000)\n| where GlobalPrevalence < 50\n| distinct FileName;\nDeviceEvents\n| where ActionType == @\"ScheduledTaskCreated\"\n| where AdditionalFields has_any(MaliciousLPExe)\n| where not (AdditionalFields has_any(WhitelistExe))\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0011
+techniques:
+    - T1053
+    - T1053.005
+    - T1053.007
+    - T1070.004
+    - T1204.002
+    - T1105
+tags:
+    - kql
+version: "1"

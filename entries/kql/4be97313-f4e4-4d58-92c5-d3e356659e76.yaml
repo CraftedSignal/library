@@ -1,0 +1,25 @@
+id: 4be97313-f4e4-4d58-92c5-d3e356659e76
+name: FileFix - Suspicious Command Line Execution via Explorer
+description: 'This detection identifies suspicious command-line activity (e.g. powershell, cmd.exe, wsl.exe, etc.) that is initiated via explorer.exe, suggesting potential user-initiated execution (e.g., copy-paste into Run dialog or file association abuse). This technique is commonly used in social engineering campaigns or malware execution patterns, and is associated with the campaign tag: fileFix.'
+query: "// Load user and device exclusions from Watchlists\r\nlet ExcludedUsers = (_GetWatchlist('Exclusion-Users') | project UserName);\r\nlet ExcludedDevices = (_GetWatchlist('Exclusion-Devices') | project DeviceName);\r\nDeviceProcessEvents\r\n// Triggered via explorer.exe, indicating user interaction (\"Run\"-Copy&Paste Social Engineering)\r\n| where InitiatingProcessFileName == \"explorer.exe\"\r\n// Suspicious command-line tools\r\n| where ProcessCommandLine has_any (\"powershell\", \"pwsh\", \"cmd.exe\", \"wsl.exe\")\r\n// Exclude known service/system accounts \r\n| where not(AccountName has_any (ExcludedUsers))\r\n// Exclude known admin/test devices \r\n| where not(DeviceName in (ExcludedDevices))\r\n// Normalize for consistent keyword matching\r\n// Output relevant fields\r\n| project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, FileName, ProcessCommandLine, InitiatingProcessCommandLine\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1202
+tags:
+    - DefenseEvasion
+    - Execution
+    - LOLBAS
+    - explorer.exe abuse
+    - fileFix
+    - SocialEngineering
+    - RunPrompt
+    - CommandLineAbuse
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059/
+    - https://www.sentinelone.com/blog/how-clickfix-is-weaponizing-verification-fatigue-to-deliver-rats-infostealers/

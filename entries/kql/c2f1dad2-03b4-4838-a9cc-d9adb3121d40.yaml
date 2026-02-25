@@ -1,0 +1,16 @@
+id: c2f1dad2-03b4-4838-a9cc-d9adb3121d40
+name: Repeated Large File Transfers via Email
+description: "This detection identifies repeated outbound email events where large files are sent multiple times within a specific time window. It helps uncover potential data exfiltration attempts or misuse of corporate email for transferring large files externally. \nThresholds for file size, frequency, and time window can be adjusted to fit organizational context."
+query: "// Detect outbound emails with attachments\r\nEmailEvents\r\n| where TimeGenerated > ago(90d)\r\n| where EmailDirection == \"Outbound\"\r\n| where AttachmentCount >= 1\r\n// Join with attachment metadata to get file size and name\r\n| join kind=inner (\r\n    EmailAttachmentInfo\r\n    | extend FileSizeMB = toreal(FileSize) / 1024 / 1024  // Convert file size to MB\r\n    | summarize by SHA256, NetworkMessageId, FileName, FileSizeMB\r\n) on NetworkMessageId\r\n// Aggregate by sender, recipient, and time window (adjustable: currently 1 hour)\r\n| summarize \r\n    TransferCount = dcount(NetworkMessageId),  // Number of distinct emails\r\n    Files = make_set(FileName),                // List of file names\r\n    TotalSizeMB = sum(FileSizeMB)              // Total size of attachments\r\n    by SenderFromAddress, RecipientEmailAddress, bin(TimeGenerated, 1h)\r\n// Thresholds for suspicious behavior (adjustable)\r\n| where TotalSizeMB > <Threshold_MB>  // Replace <Threshold_MB> with appropriate value (e.g., 30MB) based on your environment\r\n| where TransferCount >= 2     // Minimum number of transfers (e.g., 2)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1048
+    - T1041
+    - T1071.001
+tags:
+    - kql
+author: Luis Meneses
+version: "1"

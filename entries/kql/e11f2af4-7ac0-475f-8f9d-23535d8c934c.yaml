@@ -1,0 +1,16 @@
+id: e11f2af4-7ac0-475f-8f9d-23535d8c934c
+name: Login from New IP after "A potentially malicious URL click was detected" Alert is fired
+description: This KQL query is designed to enrich "Malicious URL Click" alerts by correlating them with user sign-in activity. It finds the affected accounts and then checks if they had a successful login from a new IP address around the time of the alert. The final output flags high-risk events where a user's URL click activity is immediately followed or preceded by a login from an IP they've never used before. This helps prioritize investigation into potentially compromised accounts.
+query: "// Hunts for malicious URL clicks and evaluates IP risk for related logins.\r\nAlertEvidence\r\n| where Title == \"A potentially malicious URL click was detected\"\r\n| summarize make_set(RemoteUrl), make_set(AccountSid), make_set(AccountUpn) by AlertId, TimeGenerated\r\n| mv-expand set_RemoteUrl to typeof(string)\r\n| where isnotempty(set_RemoteUrl)\r\n| mv-expand set_AccountSid to typeof(string)\r\n| where isnotempty(set_AccountSid)\r\n| mv-expand set_AccountUpn to typeof(string)\r\n| where isnotempty(set_AccountUpn)\r\n| project AlertId, set_RemoteUrl, set_AccountSid, set_AccountUpn, TimeGenerated\r\n| distinct AlertId, set_RemoteUrl, set_AccountSid, set_AccountUpn, TimeGenerated\r\n// Joins with IdentityInfo for context on affected accounts.\r\n| join kind=leftsemi IdentityInfo on $left.set_AccountUpn == $right.EmailAddress\r\n// Finds successful sign-in events for the affected account.\r\n| join kind=inner (\r\n    AADSignInEventsBeta\r\n    | where ErrorCode == 0\r\n    | project Timestamp, TimeGenerated, AccountUpn, Country, IPAddress, Application, ReportId\r\n) on $left.set_AccountUpn == $right.AccountUpn\r\n// Filters for logins within a 2-hour window (1h before and 1h after the alert).\r\n| where Timestamp between (TimeGenerated - 1h .. TimeGenerated + 1h)\r\n// Checks if the login IP is a new IP for the account.\r\n| join kind=leftouter (\r\n    AADSignInEventsBeta\r\n    | where ErrorCode == 0\r\n    | where Timestamp >= ago(30d)\r\n    | summarize HistoricalIPs = make_set(IPAddress) by AccountUpn\r\n) on $left.set_AccountUpn == $right.AccountUpn\r\n// Determines if the IP has been seen before.\r\n| extend IPSeenBefore = iff(array_length(set_intersect(pack_array(IPAddress), HistoricalIPs)) > 0, true, false)\r\n// Assigns a risk level based on IP history.\r\n| extend IPRiskLevel = case(\r\n    IPSeenBefore == false, \"High Risk - New IP\",\r\n    IPSeenBefore == true, \"Lower Risk - Known IP\",\r\n    \"Unknown\"\r\n)\r\n| extend \r\n    AccountName = tostring(split(set_AccountUpn, \"@\")[0]),\r\n    AccountDomain = tostring(split(set_AccountUpn, \"@\")[1]),\r\n    AccountSid = set_AccountSid,\r\n    AccountUpn = set_AccountUpn,\r\n    RemoteUrl = set_RemoteUrl\r\n| project \r\n    Timestamp, AlertId, AccountName, AccountDomain, AccountSid, AccountUpn, RemoteUrl, Country, IPAddress, Application, IPSeenBefore, IPRiskLevel, TimeGenerated, ReportId\r\n// Final filter to show only results with new, high-risk IPs.\r\n| where IPSeenBefore == false\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566
+    - T1204.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

@@ -1,0 +1,18 @@
+id: 019a263d-fde7-718c-98f5-4b600390ed63
+name: CLSID override
+description: This rule detects modifications to the HKEY_CURRENT_USER\SOFTWARE\Classes\CLSID\{CLSID}\InProcServer32 registry key where the RegistryValueData ends with ".dll" and does not point to common system directories (%systemroot%, C:\Program Files (x86)\, C:\Program Files\). This behavior is indicative of CLSID hijacking, a technique used by adversaries to achieve persistence or privilege escalation by redirecting legitimate COM object calls to a malicious DLL.
+query: "DeviceRegistryEvents\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey startswith \"HKEY_CURRENT_USER\\\\\" and RegistryKey has \"SOFTWARE\\\\Classes\\\\CLSID\" and RegistryKey endswith \"InProcServer32\"\r\n| where not(RegistryValueData has_any (\"%systemroot%\", \"C:\\\\Program Files (x86)\\\\\", \"C:\\\\Program Files\\\\\"))\r\n| where RegistryValueData endswith \".dll\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://securelist.com/forumtroll-apt-hacking-team-dante-spyware/117851/

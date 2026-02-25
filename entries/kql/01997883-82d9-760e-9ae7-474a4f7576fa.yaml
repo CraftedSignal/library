@@ -1,0 +1,22 @@
+id: 01997883-82d9-760e-9ae7-474a4f7576fa
+name: EDR-Freeze/EDR-Sleep
+description: |
+    Detects potential abuse of LOLBAS techniques (e.g., WerFaultSecure.exe, rundll32.exe, comsvcs.dll) associated with EDR-Freeze attacks. These attacks suspend EDR or AV processes by exploiting Windows Error Reporting to create a race condition, leaving the system unmonitored.
+
+    The rule triggers when a known LOLBAS executable is run and the device stops reporting telemetry, with no legitimate shutdown or logoff activity recorded, suggesting the endpoint security agent may have been suspended.
+query: "// === Time Configuration ===\r\nlet LookbackWindow = 5m;         // Time window for detecting suspicious executions and last seen\r\nlet ShutdownLookback = 2h;       // Time window for checking legitimate shutdown/logoff events\r\n// === List of known LOLBAS or EDR-freeze related binaries ===\r\nlet SuspiciousBins = datatable(FileName:string)\r\n[\r\n    \"WerFaultSecure.exe\",\r\n    \"WerFault.exe\",\r\n    \"rundll32.exe\",\r\n    \"comsvcs.dll\",\r\n    \"msiexec.exe\",\r\n    \"regsvr32.exe\",\r\n    \"mshta.exe\",\r\n    \"powershell.exe\",\r\n    \"certutil.exe\",\r\n    \"wmic.exe\"\r\n];\r\n// === Find suspicious executions within the lookback window ===\r\nlet SuspiciousExec = DeviceProcessEvents\r\n| where TimeGenerated > ago(LookbackWindow)\r\n| where FileName in (SuspiciousBins)\r\n| summarize arg_max(TimeGenerated, *) by DeviceId\r\n| project DeviceId, DeviceName, SuspiciousTime = TimeGenerated;\r\n// === Find last seen activity within the same window ===\r\nlet LastSeen = DeviceProcessEvents\r\n| where TimeGenerated > ago(LookbackWindow)\r\n| summarize LastSeen = max(TimeGenerated) by DeviceId;\r\n// === Check for shutdown or logoff events over a wider lookback ===\r\nlet ShutdownEvents = DeviceEvents\r\n| where TimeGenerated > ago(ShutdownLookback)\r\n| where ActionType in~ (\"shutdownInitiated\", \"userInitiatedLogOff\", \"logoff\", \"userLoggedOff\")\r\n| summarize ShutdownTime = max(TimeGenerated) by DeviceId;\r\n// === Correlate suspicious execution with device last seen and shutdown activity ===\r\nSuspiciousExec\r\n| join kind=inner LastSeen on DeviceId\r\n| join kind=leftouter ShutdownEvents on DeviceId\r\n| extend TimeSinceLastSeen = now() - LastSeen\r\n| where LastSeen < SuspiciousTime\r\n| where isnull(ShutdownTime) or ShutdownTime < SuspiciousTime\r\n| project DeviceName, DeviceId, SuspiciousTime, LastSeen, TimeSinceLastSeen, ShutdownTime\r\n| sort by TimeSinceLastSeen desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+    - T1218
+tags:
+    - kql
+author: Michael Fajkus
+version: "2"
+references:
+    - https://github.com/TwoSevenOneT/EDR-Freeze
+    - https://www.bleepingcomputer.com/news/security/new-edr-freeze-tool-uses-windows-wer-to-suspend-security-software/
+    - https://binarydefense.com/resources/blog/dont-freeze-me-out-bro-arc-labs-technical-analysis-of-edr-freeze

@@ -1,0 +1,19 @@
+id: 019c1b91-248d-7046-bf42-cef17520a6b5
+name: Multi-Stage Threat Correlation for APT/Malware Detection
+description: This rule correlates multiple indicators of compromise (IOCs) across file, network, and process events to detect potential advanced persistent threats (APTs) or sophisticated malware. It looks for specific file paths associated with tools like Lightshot, ScreenConnect, or suspicious VS Code extensions, combined with network connections to known malicious domains/IPs or unusual ports, and the execution of suspicious processes like 'Code.exe' outside of its legitimate VS Code path or 'ScreenConnect' related executables. A high threat score is assigned if multiple types of these indicators are observed on the same device and account within a 30-day window.
+query: "// Correlate multiple IOCs for high-confidence detection\r\nlet FileIndicators = DeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where FolderPath has_any (@\"\\Temp\\Lightshot\\\", @\"ScreenConnect Client\", @\".vscode\\extensions\\clawdbot\")\r\n| summarize FileEvents = count() by DeviceName, AccountName;\r\nlet NetworkIndicators = DeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where RemoteUrl has_any (\"meeting.bulletmailer.net\", \"clawdbot.getintwopc.site\", \"darkgptprivate.com\")\r\n    or RemoteIP in (\"179.43.176.32\", \"178.16.54.253\")\r\n    or RemotePort == 8041\r\n| summarize NetworkEvents = count() by DeviceName, AccountName;\r\nlet ProcessIndicators = DeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where (FileName =~ \"Code.exe\" and FolderPath !has \"Microsoft VS Code\")\r\n    or FileName has \"ScreenConnect\"\r\n| summarize ProcessEvents = count() by DeviceName, AccountName;\r\nFileIndicators\r\n| join kind=inner NetworkIndicators on DeviceName, AccountName\r\n| join kind=inner ProcessIndicators on DeviceName, AccountName\r\n| extend TotalIndicators = FileEvents + NetworkEvents + ProcessEvents\r\n| extend ThreatScore = case(\r\n    TotalIndicators >= 10, \"Critical\",\r\n    TotalIndicators >= 5, \"High\",\r\n    TotalIndicators >= 3, \"Medium\",\r\n    \"Low\"\r\n)\r\n| where ThreatScore in (\"Critical\", \"High\")\r\n| project \r\n    DeviceName,\r\n    AccountName,\r\n    FileEvents,\r\n    NetworkEvents,\r\n    ProcessEvents,\r\n    TotalIndicators,\r\n    ThreatScore\r\n| order by TotalIndicators desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1219.002
+    - T1071
+    - T1090
+    - T1059
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "8"

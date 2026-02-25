@@ -1,0 +1,43 @@
+id: 019c432b-8eaf-76c5-9db2-1f181ba49b0d
+name: Masqueraded SoftwareProtection Scheduled Task for CrashFix RAT
+description: Detects the creation of a scheduled task named 'SoftwareProtection' that executes a Python script. This technique is used by the CrashFix variant to establish persistence for its Python-based RAT, mimicking a legitimate Windows service to blend in. The malware drops its components into a subfolder of AppData to masquerade as a legitimate platform component.
+query: |
+    // Name: Masqueraded SoftwareProtection Scheduled Task for CrashFix RAT
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-09
+    // Description: Detects the creation of a scheduled task named 'SoftwareProtection' that executes a Python script. This technique is used by the CrashFix variant to establish persistence for its Python-based RAT, mimicking a legitimate Windows service to blend in.
+    // MITRE ATT&CK: T1053.005 (Scheduled Task/Job: Scheduled Task), T1036.004 (Masquerading: Masquerade Task or Service)
+    // References: https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/
+    // False Positive Sensitivity: Medium
+    DeviceEvents
+    | where ActionType == "ScheduledTaskCreated"
+    // This specific task name is used by the CrashFix variant to blend in with legitimate system activity.
+    | where AdditionalFields.TaskName == "SoftwareProtection"
+    // The command executed by the task runs a python script, often using a renamed interpreter like 'run.exe'.
+    | where AdditionalFields.TaskCommand has_any ("python.exe", "pythonw.exe", "run.exe") and AdditionalFields.TaskCommand has "udp.pyw"
+    // The malware drops its components into a subfolder of AppData to masquerade as a legitimate platform component.
+    | where AdditionalFields.TaskCommand has @"\windows\SoftwareProtectionPlatform\"
+    // Potential False Positives: While the combination of task name, command, and path is specific, a legitimate admin script could trigger this.
+    // Review the full command line and the creating process to validate legitimacy.
+    // Map key fields to entities for incident context and investigation.
+    | extend
+        HostCustomEntity = DeviceName,
+        AccountCustomEntity = InitiatingProcessAccountName,
+        CommandLineCustomEntity = AdditionalFields.TaskCommand,
+        FileCustomEntity = AdditionalFields.TaskName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.005
+    - T1036.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/

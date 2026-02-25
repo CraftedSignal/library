@@ -1,0 +1,53 @@
+id: 019c056a-d9cc-7767-b837-14ef3e5e6196
+name: Tar.exe Sensitive Data Archiving
+description: Detects the execution of the native Windows tar.exe utility to create archives of sensitive files or directories. This behavior is often associated with data staging for exfiltration.
+query: |
+    // Name: Tar.exe Sensitive Data Archiving
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects the execution of the native Windows tar.exe utility to create archives of sensitive files or directories. This behavior is often associated with data staging for exfiltration.
+    // MITRE ATT&CK: T1560.001
+    // References: https://ss64.com/nt/tar.html
+    DeviceProcessEvents
+    // medium: Look for tar.exe process execution.
+    | where FileName =~ "tar.exe"
+    // medium: Filter for command lines using the create flags (-c or -a). The regex handles flags combined with other options (e.g., -cvf).
+    | where ProcessCommandLine matches regex @"\s-[^\s]*[ca][^\s]*"
+    // medium: Look for archiving of common sensitive file types or from sensitive directories.
+    | where ProcessCommandLine has_any (
+            "*.docx",
+            "*.xlsx",
+            "*.pptx",
+            "*.pdf",
+            "*.kdbx",
+            "*.sql",
+            "*.bak",
+            "*.pst",
+            "*.ost",
+            "C:\\Users\\",
+            "C:\\Windows\\System32\\config\\",
+            "C:\\Windows\\ntds\\"
+        )
+    // medium: This activity could be indicative of an adversary staging data for exfiltration.
+    // medium: FP Tuning: Legitimate backup scripts or administrative tasks might use tar to archive user data or system files. If false positives occur, consider excluding known good parent processes, specific script paths, or command lines associated with legitimate backup jobs.
+    | project-reorder
+        Timestamp,
+        DeviceName,
+        AccountName,
+        ProcessCommandLine,
+        ParentProcessFileName,
+        ParentProcessCommandLine,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1560.001
+    - T1074
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://ss64.com/nt/tar.html

@@ -1,0 +1,14 @@
+id: 019c6b5f-ee1c-72a4-b3ae-71740d0895f8
+name: Pass-the-Hash (PtH) or NTLM Relay
+description: This rule detects an unusually high number of NTLM logon attempts (more than 3 within a 10-minute window) from a single IP address to various accounts or workstations. This behavior is indicative of a brute-force attack or password guessing attempt against network services, particularly when the logon type is network (3) or remote interactive (10) and not from localhost.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(3h)\r\n| where EventID == 4624  \r\n| where LogonType in (3, 10)  \r\n| where not (Account == \"NT AUTHORITY\\\\ANONYMOUS LOGON\" and LogonType == 3)\r\n| where AuthenticationPackageName == \"NTLM\"  \r\n| where IpAddress !in~ (\"127.0.0.1\", \"::1\", \"LOCAL\")  \r\n| summarize LogonCount = count() by IpAddress, Account, WorkstationName, bin(TimeGenerated, 10m)\r\n| where LogonCount > 3 \r\n| project TimeGenerated, IpAddress, Account, WorkstationName, LogonCount\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - kql
+version: "2"

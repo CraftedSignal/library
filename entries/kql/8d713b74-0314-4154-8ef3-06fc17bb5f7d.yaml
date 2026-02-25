@@ -1,0 +1,16 @@
+id: 8d713b74-0314-4154-8ef3-06fc17bb5f7d
+name: Storm 1811 SE Attack Detection
+description: 'KQL Query from file: Storm 1811 SE Attack Detection'
+query: "let QueryPeriod = 1h;\r\nlet QuickAssistHost = dynamic([\"remoteassistance.support.services.microsoft.com\"]);\r\nlet MailBombVictim =\r\nEmailEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where isnotempty(DetectionMethods)\r\n| where parse_json(tostring(parse_json(DetectionMethods).Spam))[0] == \"Mail bombing\"\r\n| distinct RecipientEmailAddress;\r\nMessageUrlInfo\r\n| where Timestamp > ago(QueryPeriod) \r\n| join MessageEvents on TeamsMessageId\r\n| where IsExternalThread == \"1\"\r\n| where ThreadType == \"chat\"\r\n| where DeliveryLocation == \"Teams\"\r\n| where tostring(parse_json(RecipientDetails)[0][\"RecipientSmtpAddress\"]) has_any(MailBombVictim)\r\n| where Url has_any(QuickAssistHost)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1667
+    - T1656
+tags:
+    - kql
+author: Steven Lim
+version: "1"

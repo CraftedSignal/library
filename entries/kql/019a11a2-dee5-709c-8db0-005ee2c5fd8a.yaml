@@ -1,0 +1,20 @@
+id: 019a11a2-dee5-709c-8db0-005ee2c5fd8a
+name: macOS ClickFix Attack with Base64 encrypted curl Command
+description: This rule detects a sequence of events indicative of a potential macOS ClickFix attack. It looks for a base64 encoded command executed by 'bash' or 'zsh', immediately followed (within 10 seconds) by a 'curl' command that initiates a network connection to a URL. The rule specifically excludes a whitelisted curl command to reduce false positives. The correlation of base64 execution, a subsequent curl command, and a successful network connection to the domain extracted from the curl command suggests an attempt to download and execute malicious content, possibly after decoding it.
+query: "let WhitelistedCurlCLI = \"curl -fI https://download.mozilla.org/\";\r\nlet base64_events = DeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n| where InitiatingProcessParentFileName in (\"bash\",\"zsh\")\r\n| where ProcessCommandLine contains \"base64\"\r\n| project Timestamp_base64 = Timestamp, DeviceName, AccountName, CommandLine_base64 = ProcessCommandLine;\r\nlet curl_events = DeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n| where ProcessCommandLine contains \"curl\"\r\n| where not(ProcessCommandLine has_any (WhitelistedCurlCLI)) \r\n| project Timestamp_curl = Timestamp, DeviceName, AccountName, CommandLine_curl = ProcessCommandLine;\r\nbase64_events\r\n| join kind=inner (curl_events) on DeviceName, AccountName\r\n| where Timestamp_curl > Timestamp_base64 and Timestamp_curl <= Timestamp_base64 + 10s\r\n| project Timestamp_base64, Timestamp_curl, TimeDiff = Timestamp_curl - Timestamp_base64, DeviceName, AccountName, CommandLine_base64, CommandLine_curl\r\n| extend Domain = extract(@\"https?://([^/]+)\", 1, CommandLine_curl)\r\n| extend CurlUrl = extract(@\"https?://[^\\s]+\", 0, CommandLine_curl)\r\n| sort by Timestamp_base64 desc\r\n| join kind=inner (\r\n    DeviceNetworkEvents\r\n    | where Timestamp > ago(1d)\r\n    | where ActionType == \"ConnectionSuccess\"\r\n    | project Timestamp = Timestamp, DeviceName, RemoteUrl, RemoteIP, RemotePort, ActionType, ReportId, DeviceId\r\n    ) on DeviceName\r\n| where RemoteUrl contains Domain\r\n| where Timestamp >= Timestamp_curl\r\n| where Timestamp_curl > Timestamp_base64\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0002
+    - TA0005
+techniques:
+    - T1059
+    - T1059.004
+    - T1027
+    - T1105
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "3"

@@ -1,0 +1,14 @@
+id: 019aeb87-eb74-776c-ae82-e58ab85ef2a7
+name: React Deserialization/Gadget Chain
+description: 'Detects attempts to exploit CVE-2025-55182 (React) and CVE-2025-66478 (Next.js) utilizing data from the Imperva WAF leveraging vm#, child_process#, util_#, & fs_# indicators. '
+query: "// KQL detection for CVE-2025-55182 utlizing Imperva WAF data\r\n// Define the suspicious gadget patterns associated with the React exploit\r\nlet SuspiciousGadgets = dynamic([\"vm#\", \"child_process#\", \"util#\", \"fs#\"]);\r\nImpervaWAFCloud_CL\r\n| where TimeGenerated > ago(24h) // Change to \"Timestamp\" if running in Advanced hunting\r\n// Filter for POST requests as identified in the exploit methodology\r\n| where requestMethod_s =~ \"POST\" \r\n// Search for indicators in the POST Body, URL, or Query Strings\r\n| where (isnotempty(postbody_s) and (postbody_s contains \"vm#\" or postbody_s contains \"child_process#\" or postbody_s contains \"util#\" or postbody_s contains \"fs#\"))\r\n     or (isnotempty(request_s) and (request_s contains \"vm#\" or request_s contains \"child_process#\" or request_s contains \"util#\" or request_s contains \"fs#\"))\r\n     or (isnotempty(qstr_s) and (qstr_s contains \"vm#\" or qstr_s contains \"child_process#\" or qstr_s contains \"util#\" or qstr_s contains \"fs#\"))\r\n// Enrich with a specific column identifying which gadget was triggered for easier triage\r\n| extend DetectedGadget = case(\r\n    postbody_s contains \"vm#\" or request_s contains \"vm#\", \"vm# (Virtual Machine)\",\r\n    postbody_s contains \"child_process#\" or request_s contains \"child_process#\", \"child_process# (RCE)\",\r\n    postbody_s contains \"util#\" or request_s contains \"util#\", \"util# (Utility)\",\r\n    postbody_s contains \"fs#\" or request_s contains \"fs#\", \"fs# (FileSystem)\",\r\n    \"Unknown Variant\"\r\n)\r\n| project\r\n    TimeGenerated, // Change to \"Timestamp\" if running in Advanced hunting\r\n    DetectedGadget,\r\n    src_s, \r\n    requestMethod_s,\r\n    request_s,\r\n    postbody_s,    // The payload content\r\n    requestClientApplication_s,\r\n    act_s,      // Did Imperva Block or Alert?\r\n    cs9_s\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: Daniel Miller
+version: "2"

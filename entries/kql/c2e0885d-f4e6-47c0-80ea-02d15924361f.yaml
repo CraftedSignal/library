@@ -1,0 +1,32 @@
+id: c2e0885d-f4e6-47c0-80ea-02d15924361f
+name: Monitor Copilot Agent for SharePoint
+description: 'KQL Query from file: Monitor Copilot Agent for SharePoint'
+query: |
+    // https://www.pentestpartners.com/security-blog/exploiting-copilot-ai-for-sharepoint/
+
+    // Monitoring excessive prompts, a potential sign of prompt testing.
+
+    let MonitorThreshold = 8;
+    CloudAppEvents
+    | where Timestamp > ago(1d)
+    | where ActionType == @"CopilotInteraction"
+    | extend UserID = tostring(RawEventData.UserId)
+    | extend CopilotData = todynamic(RawEventData.CopilotEventData)
+    | extend CopilotPlugin = tostring(CopilotData.AISystemPlugin[0].Id)
+    | where CopilotPlugin == "EnterpriseSearch"
+    | where parse_json(CopilotData)["Messages"][0]["isPrompt"] == 'true'
+    | extend AccountUPN = UserID
+    | summarize PromptCount=count() by AccountUPN
+    | where PromptCount > MonitorThreshold
+query_type: kql
+tactics:
+    - TA0006
+    - TA0003
+    - TA0004
+techniques:
+    - T1141
+    - T1668
+    - T1514
+tags:
+    - kql
+version: "1"

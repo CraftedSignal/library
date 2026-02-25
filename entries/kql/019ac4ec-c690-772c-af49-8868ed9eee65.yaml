@@ -1,0 +1,35 @@
+id: 019ac4ec-c690-772c-af49-8868ed9eee65
+name: LANDFALL Spyware Suspicious File Permissions (777)
+description: Detects the creation or modification of files, particularly shared objects (.so), on Android devices with overly permissive '777' (rwxrwxrwx) permissions. This behavior is a known tactic of the LANDFALL spyware, which sets these permissions on its staged components like 'dec_a.so' to ensure they are executable.
+query: |
+    // Name: LANDFALL Spyware Suspicious File Permissions (777)
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects the creation or modification of files, particularly shared objects (.so), on Android devices with overly permissive '777' (rwxrwxrwx) permissions. This behavior is a known tactic of the LANDFALL spyware, which sets these permissions on its staged components like 'dec_a.so' to ensure they are executable.
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    // MITRE TTPs: T1036.004
+    // Data Source: DeviceEvents (Microsoft Defender for Endpoint for Android)
+    let Timeframe = 7d;
+    DeviceEvents
+    | where Timestamp > ago(Timeframe)
+    // Focus on Android devices where LANDFALL operates.
+    | where OSPlatform == "Android"
+    // Look for file creation or permission change events.
+    | where ActionType in ("FileCreated", "FilePermissionsSet")
+    // The core indicator is setting permissions to 777 (read, write, execute for all).
+    | where FilePermissions == "rwxrwxrwx"
+    | where
+        // High-fidelity match for the specific LANDFALL component mentioned in the intel.
+        FileName == "dec_a.so"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1222
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/

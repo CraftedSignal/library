@@ -1,0 +1,14 @@
+id: 019c8a09-0490-76ff-828d-1d9eccd8299d
+name: 'Office Apps Contacting Telegram API_MuddyWater  Operation Olalampo Campaign '
+description: Detects network connections from Microsoft Office applications to the Telegram API. This behavior is a strong indicator of compromise, as threat actors like MuddyWater (in campaigns such as Operation Olalampo) use Telegram bots for command-and-control (C2) initiated by malicious macros in documents.
+query: "let office_apps = dynamic([\r\n    \"winword.exe\",\r\n    \"excel.exe\",\r\n    \"powerpnt.exe\",\r\n    \"outlook.exe\"\r\n]);\r\nlet telegram_api = \"api.telegram.org\";\r\nDeviceNetworkEvents\r\n| where RemoteUrl has telegram_api or RemoteDomain has telegram_api\r\n| where InitiatingProcessFileName in~ (office_apps)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessAccountName"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://www.group-ib.com/blog/muddywater-operation-olalampo/

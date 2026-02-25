@@ -1,0 +1,16 @@
+id: df276d0c-9aa6-4675-af1e-1fd7feaec467
+name: Detecting Phishing Emails with Cloudflare R2 URLs
+description: 'KQL Query from file: Detecting Phishing Emails with Cloudflare R2 URLs'
+query: "// Detecting Phishing Emails with Cloudflare R2 URLs ☁️\U0001F9E8\n// https://medium.com/trac-labs/aitm-phishing-hold-the-gabagool-analyzing-the-gabagool-phishing-kit-531f5bbaf0e4\n// The TRAC Labs team has uncovered a phishing campaign called \"Gabagool\" that targets corporate and government employees. This campaign leverages Cloudflare R2 buckets to host malicious content and uses compromised email accounts to distribute phishing emails. These emails contain links that lead to credential harvesting pages. The phishing kit employs various evasion techniques, including bot detection and obfuscated JavaScript. (TRAC Labs Case Study link can be found at the comment section)\n\n//I have created two threat hunting KQLs to identify the following:\n\n// Micrososft Defender for Office KQL - Malicious Cloudflare R2 URLs not blocked\n\nlet MaliciousDomainTable=externaldata(RawData:string)\n[h'https://raw.githubusercontent.com/romainmarcoux/malicious-domains/main/full-domains-aa.txt']\n| parse RawData with MaliciousDomain:string;\nEmailUrlInfo\n| where TimeGenerated > ago(90d)\n| where Url matches regex \"pub-[0-9a-fA-F]{32}\\\\.r2\\\\.dev\\\\/[a-zA-Z0-9_-]+\\\\.html\"\n| join MaliciousDomainTable on $left.UrlDomain == $right.MaliciousDomain\n| join EmailEvents on NetworkMessageId\n| where DeliveryAction != \"Blocked\"\n\n// Microsoft Defender for Endpoint KQL - Malicious Cloudflare R2 Outbound Connection\n\nlet MaliciousDomainTable=externaldata(RawData:string)\n[h'https://raw.githubusercontent.com/romainmarcoux/malicious-domains/main/full-domains-aa.txt']\n| parse RawData with MaliciousDomain:string;\nDeviceNetworkEvents\n| where TimeGenerated > ago(90d)\n| where ActionType == @\"HttpConnectionInspected\"\n| extend Host = parse_json(AdditionalFields)[\"host\"]\n| parse Host with R2Host \":\" Port\n| extend Direction = parse_json(AdditionalFields)[\"direction\"]\n| where Direction == \"Out\" and Host has \".r2.dev\"\n| join MaliciousDomainTable on $left.R2Host == $right.MaliciousDomain\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1598
+    - T1566.002
+    - T1189
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,49 @@
+id: 1101f4fe-00b9-4c47-b05f-369882d9b69d
+name: Certipy ESC4 Privilege Escalation with Default Configuration of Certipy
+description: Detect possible ADCS ESC4 privilege escalation using Certipy's default template hijacking. This detects a change of the security descriptor on a certificate template granting full control to the Authenticated Users group. Event ID 4886 and 4898 will typically also be generated at the same time. Afterwards, Event ID 4886 and 4887 may appear to indicate a certificate request as a high-privilege user in the UPN field.
+query: |
+    title: "Certipy ESC4 Privilege Escalation with Default Configuration of Certipy"
+    status: experimental
+    description: >-
+      Detect possible ADCS ESC4 privilege escalation using Certipy's default
+      template hijacking. This detects a change of the security descriptor on a
+      certificate template granting full control to the Authenticated Users group.
+      Event ID 4886 and 4898 will typically also be generated at the same time.
+      Afterwards, Event ID 4886 and 4887 may appear to indicate a certificate
+      request as a high-privilege user in the UPN field.
+    references:
+      - https://www.beyondtrust.com/blog/entry/esc4-attacks
+      - https://github.com/ly4k/Certipy/wiki/06-%E2%80%90-Privilege-Escalation#esc4-template-hijacking
+    author: Warawut Manosong
+    date: 2025-08-13
+    tags:
+      - attack.privilege_escalation
+    logsource:
+      product: windows
+      channel: Security
+    detection:
+      selection_esc4_descriptor:
+        EventID: 4900
+        TemplateSecurityDescriptor|contains|all:
+          - "O:LAG:S-1-5-21"
+          - "(A;;CCDCLCSWRPWPDTLOCRSDRCWDWO;;;AU)"
+      condition: selection_esc4_descriptor
+    level: medium
+    falsepositives:
+      - Legitimate administrative changes to certificate templates that match the
+        security descriptor pattern. This could occur during planned maintenance,
+        configuration updates, or the deployment of new certificate services.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+    - TA0006
+tags:
+    - attack.privilege_escalation
+author: Warawut Manosong
+version: "1"
+references:
+    - https://www.beyondtrust.com/blog/entry/esc4-attacks
+    - https://github.com/ly4k/Certipy/wiki/06-%E2%80%90-Privilege-Escalation#esc4-template-hijacking
+data_sources:
+    - windows

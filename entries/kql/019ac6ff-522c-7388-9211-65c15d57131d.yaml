@@ -1,0 +1,55 @@
+id: 019ac6ff-522c-7388-9211-65c15d57131d
+name: AK47/X2ANYLOCK Ransomware Activity Detection
+description: Detects host-based artifacts associated with AK47/X2ANYLOCK ransomware, such as the creation of specific ransom notes ('How to decrypt my data.txt', 'How to decrypt my data.log') or files being encrypted with the '.x2anylock' extension. This rule identifies both the creation of the ransom note and the encryption of files by monitoring file creation and renaming events.
+query: |
+    // Name: AK47/X2ANYLOCK Ransomware Activity
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects host-based artifacts associated with AK47/X2ANYLOCK ransomware, such as the creation of specific ransom notes or files being encrypted with the .x2anylock extension.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T1486 (Data Encrypted for Impact)
+    // False Positive Sensitivity: Low. The specific ransom note names and file extension are highly specific to this ransomware.
+
+    let ransomNoteNames = dynamic(["How to decrypt my data.txt", "How to decrypt my data.log"]);
+    let ransomExtension = ".x2anylock";
+
+    DeviceFileEvents
+    // Look for either the creation of a known ransom note or a file being created/renamed with the ransomware extension.
+    | where
+        (ActionType == "FileCreated" and FileName in (ransomNoteNames))
+        or
+        (ActionType in ("FileCreated", "FileRenamed") and FileName has_suffix ransomExtension)
+    // Add a field to describe which indicator was matched for easier analysis.
+    | extend Activity = case(
+        FileName in (ransomNoteNames), "RansomNoteCreated",
+        FileName has_suffix ransomExtension, "FileEncrypted",
+        "Unknown"
+    )
+    | project
+        TimeGenerated,
+        DeviceName,
+        Activity,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessSHA256
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = DeviceName,
+        Process = InitiatingProcessFileName,
+        File = FileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

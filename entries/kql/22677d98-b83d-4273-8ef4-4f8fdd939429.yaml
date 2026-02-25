@@ -1,0 +1,48 @@
+id: 22677d98-b83d-4273-8ef4-4f8fdd939429
+name: Detect Privilege Admin under AiTM attack
+description: 'KQL Query from file: Detect Privilege Admin under AiTM attack'
+query: |
+    // Detect Privilege Admin under AiTM attack
+    // https://www.linkedin.com/posts/0x534c_sentinel-privilegeadmin-aitm-activity-7227603649688952832--1Id/
+    //Sentinel rule trigger => Run Playbook "Disable User Account"
+    //A simple and effective offline detection and mitigation strategy.
+
+    let PrivilegeAdmin =
+    IdentityInfo
+    | where AssignedRoles != "[]" and isnotnull(AssignedRoles)
+    | distinct AccountUPN;
+    AADUserRiskEvents
+    | where RiskEventType == "attackerinTheMiddle"
+    | where UserPrincipalName has_any(PrivilegeAdmin)
+
+    // #Sentinel #PrivilegeAdmin #AiTM #IdentityProtection #Entra #PremiumDetection
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the operations and objectives of the KQL code, the following MITRE ATT&CK techniques are relevant:
+
+    // T1557 - Man-in-the-Middle:
+    // The RiskEventType == "attackerinTheMiddle" directly maps to the MITRE ATT&CK technique T1557, which involves adversaries positioning themselves between two or more networked devices to intercept or alter communications.
+    // T1078 - Valid Accounts:
+    // The query focuses on privileged accounts (PrivilegeAdmin), which aligns with T1078. Adversaries may use valid accounts to maintain access to systems and networks.
+query_type: kql
+tactics:
+    - TA0006
+    - TA0009
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0043
+techniques:
+    - T1557
+    - T1078
+    - T1556.007
+    - T1526
+    - T1098.005
+    - T1055.011
+    - T1591.004
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,46 @@
+id: 019ac6fc-2f63-733a-8b72-3b3726c8eff1
+name: AK47C2 Backdoor DNS C2 Communication
+description: This rule detects potential DNS command and control (C2) activity from the AK47C2 backdoor. The backdoor communicates by sending long, hex-encoded strings as subdomains to a C2 server, specifically targeting a typosquatted domain of 'updatemicfosoft.com'. The rule identifies these communications by checking for the specific C2 domain, a subdomain length greater than 40 characters, and the subdomain consisting of hex characters with optional prefixes 's', '1', '2', 'a'.
+query: |
+    // Name: AK47C2 Backdoor DNS Communication
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: This rule detects potential DNS command and control (C2) activity from the AK47C2 backdoor. The backdoor communicates by sending long, hex-encoded strings as subdomains to a C2 server.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T107 sending long, hex-encoded strings as subdomains to a C2 server.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T1071.004 (Application Layer Protocol: DNS)
+    // False Positive Sensitivity: Medium. Legitimate applications that use long subdomains for telemetry could trigger this rule if the C2 domain is not specific enough. The current rule is scoped to a known malicious domain to reduce noise.
+
+    DnsEvents
+    // Key indicator is the C2 domain observed in the threat report. This is a typosquat of microsoft.com.
+    | where Name has "update.updatemicfosoft.com"
+    | extend Subdomain = tostring(split(Name, '.')[0])
+    // The backdoor sends long hex-encoded strings as subdomains for C2.
+    // A length check helps reduce false positives from legitimate, shorter subdomains.
+    // This threshold can be adjusted based on environmental norms.
+    | where strlen(Subdomain) > 40
+    // The subdomain consists of hex characters. The report also notes prefixes 's', '1', '2', 'a' for different protocol versions and fragmentation.
+    | where Subdomain matches regex @"^[a-f0-9s12a]+$"
+    | project-reorder
+        TimeGenerated,
+        Name,
+        ClientIP,
+        Computer,
+        Subdomain
+    // Map entities for investigation and incident response.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = Computer,
+        IPAddress = ClientIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

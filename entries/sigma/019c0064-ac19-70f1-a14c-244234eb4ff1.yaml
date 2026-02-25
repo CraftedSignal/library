@@ -1,0 +1,67 @@
+id: 019c0064-ac19-70f1-a14c-244234eb4ff1
+name: INC Ransomware Group Activity
+description: Detects techniques used by the INC Ransomware Group, including the execution of their RainINC payload from C:\PerfLogs and the abuse of a renamed Restic binary for data exfiltration.
+query: |
+    title: INC Ransomware Group Activity
+    id: dbb69c53-7441-4480-b8fd-7d12f81d598b
+    status: experimental
+    description: Detects techniques used by the INC Ransomware Group, including the
+      execution of their RainINC payload from C:\PerfLogs and the abuse of a renamed
+      Restic binary for data exfiltration.
+    references:
+      - https://cybercentaurs.com/blog/when-ransomware-makes-a-mistake-inside-inc-ransomwares-backup-infrastructure/
+    author: detections.ai
+    date: 2026-01-27
+    tags:
+      - attack.exfiltration
+      - attack.t1567.002
+      - attack.impact
+      - attack.t1486
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects the RainINC ransomware payload execution
+      ransomware_payload:
+        - Image: 'C:\PerfLogs\win.exe'
+        - Hashes|contains: 'SHA1=7248cc71fd248c05da3ca73d814a620835a13e71' # win.exe
+        # Detects the behavioral use of the renamed Restic exfiltration tool
+      exfil_tool:
+        Image|endswith: '\winupdate.exe'
+        CommandLine|contains:
+          - 'backup'
+          - '--files-from'
+          - 'snapshots'
+          - 'RESTIC_REPOSITORY' # This may be set as an environment variable but is included for coverage
+        # Detects the exfiltration tool by its hash
+      exfil_hash:
+        Hashes|contains: 'SHA1=f2c9da10351ef1223bdeb7c6c87ed3da29be98ec' # winupdate.exe
+      condition: 1 of ransomware_payload or exfil_hash or (all of exfil_tool)
+    falsepositives:
+      - The ransomware payload detection is high fidelity and unlikely to cause
+        false positives.
+      - The Restic abuse detection relies on the file name `winupdate.exe` and
+        Restic-specific command-line arguments. A legitimate, but poorly named,
+        backup or update tool could trigger this. Tuning may be required to exclude
+        legitimate tools if they match this behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+    - TA0040
+techniques:
+    - T1567.002
+    - T1486
+tags:
+    - attack.exfiltration
+    - attack.t1567.002
+    - attack.impact
+    - attack.t1486
+author: detections.ai
+version: "2"
+references:
+    - https://cybercentaurs.com/blog/when-ransomware-makes-a-mistake-inside-inc-ransomwares-backup-infrastructure/
+data_sources:
+    - process_creation
+    - windows

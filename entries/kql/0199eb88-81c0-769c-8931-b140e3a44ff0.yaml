@@ -1,0 +1,13 @@
+id: 0199eb88-81c0-769c-8931-b140e3a44ff0
+name: 'Detecting Threat Actor Storm-2657 '
+description: 'KQL Query from file: Detecting Threat Actor Storm-2657 '
+query: "let Lookback = 1h;\r\nlet PayrollPirates =\r\nCloudAppEvents\r\n| where TimeGenerated > ago(Lookback)\r\n| where Application == \"Microsoft Exchange Online\"\r\n| where ActionType == \"Set-InboxRule\" or ActionType == \"New-InboxRule\"\r\n| where tostring(RawEventData.Parameters) has \"@myworkday.com\"\r\n| where tostring(RawEventData.Parameters) has \"DeleteMessage\" or \r\ntostring(RawEventData.Parameters) has \"MoveToFolder\"\r\n| project AccountObjectId;\r\nSigninLogs\r\n| where TimeGenerated > ago(Lookback)\r\n| where AppDisplayName has \"workday\" and UserId has_any(PayrollPirates)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1114.003
+tags:
+    - kql
+version: "2"

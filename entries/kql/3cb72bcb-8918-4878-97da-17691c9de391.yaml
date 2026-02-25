@@ -1,0 +1,17 @@
+id: 3cb72bcb-8918-4878-97da-17691c9de391
+name: '[IC] - Detect Windows Versions reaching end of service on October/November 2025'
+description: |-
+    This query helps you quickly see the number of affected devices or get a detailed list of machines still running versions that are approaching end of support:
+
+    Windows 10 & 11 version 22H2 → end of support on October 14, 2025
+    Windows 11 version 23H2 (Home & Pro) → end of support on November 11, 2025
+query: "DeviceInfo\n| where Timestamp > ago(1d)\n| extend OSaffected = strcat(OSDistribution, \" \", OSVersionInfo)\n // filter by the affected OS distributions\n| where OSaffected has \"22H2\" or OSaffected has \"23h2\"\n| extend Windows10_22H2 = iff(OSaffected has \"Windows10 22h2\", \"\U0001F6A8 October 14,2025\",\"\")\n| extend Windows11_22H2 = iff(OSaffected has \"Windows11 22h2\", \"\U0001F6A8 October 14,2025\",\"\")\n| extend Windows11_23H2 = iff( OSaffected has \"Windows11 23h2\" and OSBuild == 22631,\"November 11,2025 (⚠️ If are Home or Pro versions,if not 2026-11-10)\",\"\")\n| summarize Total_Devices= dcount(DeviceId) by OSPlatform,OSaffected, Windows10_22H2,Windows11_22H2,Windows11_23H2\n//| summarize by DeviceName, DeviceId, OSaffected, Windows10_22H2,Windows11_22H2,Windows11_23H2\n| order by OSaffected"
+query_type: kql
+severity: medium
+tags:
+    - KQL
+    - Windows
+    - Sergio_Albea
+    - kql
+author: Sergio Albea
+version: "1"

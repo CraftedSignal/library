@@ -1,0 +1,67 @@
+id: 019a5dec-a456-74c9-9c61-1dcfd0a4325f
+name: Glassworm Compromised VSCode Extension Detection
+description: |
+    This query detects execution of processes related to Visual Studio Code extension signing or caching that involve known Glassworm-compromised extensions. Based on indicators published by KOI (October 20, 2025), it identifies suspicious .vsix package operations potentially associated with self-propagating malicious VSCode extensions observed in OpenVSX and Microsoft VSCode marketplaces.
+
+    To extract vscode extension version I used this the https://detections.ai/rules/924f7b5f-d8df-4eed-ba06-08c657f65891.
+query: |-
+    // Glassworm Compromised VSCode Extension Detection
+    // This detection identifies execution of processes referencing known malicious or trojanized VSCode extensions.
+    // Source: https://www.koi.ai/incident/live-updates-glassworm-first-self-propagating-worm-using-invisible-code-hits-openvsx-and-vscode-marketplaces#heading-3
+    // Define list of compromised VSCode extensions and their versions.
+    // Each row represents a confirmed malicious package version from OpenVSX or VSCode marketplace.
+    // You can easly replace this with watchlist
+    let CompromisedExtensions = datatable(CompromisedExtensionName:string, CompromisedVersion:string, Source:string)
+    [
+        //"oracle.mysql-shell-for-vs-code", "1.19.19", "Test Extension", // Uncomment for validation/testing only
+        "codejoy.codejoy-vscode-extension", "1.8.3", "OpenVSX Extensions",
+        "codejoy.codejoy-vscode-extension", "1.8.4", "OpenVSX Extensions",
+        "l-igh-t.vscode-theme-seti-folder", "1.2.3", "OpenVSX Extensions",
+        "kleinesfilmroellchen.serenity-dsl-syntaxhighlight", "0.3.2", "OpenVSX Extensions",
+        "JScearcy.rust-doc-viewer", "4.2.1", "OpenVSX Extensions",
+        "SIRILMP.dark-theme-sm", "3.11.4", "OpenVSX Extensions",
+        "CodeInKlingon.git-worktree-menu", "1.0.9", "OpenVSX Extensions",
+        "CodeInKlingon.git-worktree-menu", "1.0.91", "OpenVSX Extensions",
+        "ginfuru.better-nunjucks", "0.3.2", "OpenVSX Extensions",
+        "ellacrity.recoil", "0.7.4", "OpenVSX Extensions",
+        "grrrck.positron-plus-1-e", "0.0.71", "OpenVSX Extensions",
+        "jeronimoekerdt.color-picker-universal", "2.8.91", "OpenVSX Extensions",
+        "srcery-colors.srcery-colors", "0.3.9", "OpenVSX Extensions",
+        "sissel.shopify-liquid", "4.0.1", "OpenVSX Extensions",
+        "TretinV3.forts-api-extention", "0.3.1", "OpenVSX Extensions",
+        "cline-ai-main.cline-ai-agent", "3.1.3", "Microsoft VSCode Extensions"
+    ];
+    // Search for relevant process events where suspicious extension signing or caching occurs
+    DeviceProcessEvents
+      // Filter processes associated with VSCode signing or VSIX caching
+      | where ProcessCommandLine contains "VSIxs" or ProcessCommandLine has "vsce-sign"
+      | extend RawExtension = case(
+            // removed .exe and added slash to catch MacOS as well
+            ProcessCommandLine has "vsce-sign", extract(@'CachedExtensionVSIXs[/\\]([^\s"]+)', 1, ProcessCommandLine),
+            ProcessCommandLine contains "VSIxs", extract('CachedExtensionVSIXs/([^"]+)', 1, ProcessCommandLine),
+            ""
+        )
+        // Handle empty extraction results to avoid null errors
+        | extend RawExtension = iif(isempty(RawExtension), "", RawExtension)
+        // Extract the extension name from the filename (everything before version)
+        | extend ExtensionName = extract(@"^(.+)-\d+(?:\.\d+)*-?", 1, RawExtension)
+        // Extract the version number from the filename
+        | extend Version = extract(@"-(\d+(?:\.\d+)*)-?", 1, RawExtension)
+        // Join with list of known compromised extensions
+        | join kind=leftouter CompromisedExtensions on $left.ExtensionName == $right.CompromisedExtensionName
+        // Compare the detected version to the known compromised version threshold
+        | where parse_version(Version) <= parse_version(CompromisedVersion)
+        // Aggregate results by device and account for context
+        | summarize CompromisedExtensionName = make_set(RawExtension), count() by DeviceName, AccountName, Source
+query_type: kql
+severity: medium
+techniques:
+    - T1059
+    - T1195.002
+    - T1204.002
+    - T1105
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.koi.ai/incident/live-updates-glassworm-first-self-propagating-worm-using-invisible-code-hits-openvsx-and-vscode-marketplaces#heading-3

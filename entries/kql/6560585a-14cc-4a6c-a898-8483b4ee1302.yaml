@@ -1,0 +1,60 @@
+id: 6560585a-14cc-4a6c-a898-8483b4ee1302
+name: Detect Remote Thread Creation in Sensitive Processes
+description: Detects the creation of a remote thread in sensitive processes indicative of code injection techniques, such as APC or thread injection.
+query: |-
+    SysmonEvent
+    | where EventID == 8 // Sysmon Event ID 8: CreateRemoteThread
+    // Filter for common target processes of injection
+    | where TargetImage endswith @'\explorer.exe'
+       or TargetImage endswith @'\svchost.exe'
+       or TargetImage endswith @'\lsass.exe'
+       or TargetImage endswith @'\winlogon.exe'
+       or TargetImage endswith @'\runtimebroker.exe' // Often targeted by UAC bypasses
+       or TargetImage endswith @'\powershell.exe' // Common target for injection
+       or TargetImage endswith @'\pwsh.exe' // Common target for injection
+       or TargetImage endswith @'\cmd.exe' // Common target for injection
+       or TargetImage endswith @'\wscript.exe' // Common target for injection
+       or TargetImage endswith @'\cscript.exe' // Common target for injection
+       or TargetImage endswith @'\mshta.exe' // Common target for injection
+       or TargetImage endswith @'\dllhost.exe' // Common target for injection
+       or TargetImage endswith @'\spoolsv.exe' // Print spooler, sometimes targeted
+       or TargetImage endswith @'\firefox.exe' // Browsers can be targets
+       or TargetImage endswith @'\chrome.exe' // Browsers can be targets
+    // --- Add filters below to exclude known legitimate remote thread creation patterns in your environment ---
+    // Exclude security tools creating threads (replace with your vendor's path)
+    | where SourceImage !startswith 'C:\\Program Files\\YourSecurityVendor\\'
+    | where SourceImage !startswith 'C:\\ProgramData\\YourSecurityVendor\\'
+    // Exclude legitimate Windows services creating threads in svchost
+    | where not (SourceImage endswith @'\System32\services.exe' and TargetImage endswith @'\System32\svchost.exe')
+    // Exclude specific legitimate processes creating threads in explorer (e.g., some legitimate shell extensions)
+    // | where not (SourceImage endswith @'\SomeLegitApp.exe' and TargetImage endswith @'\explorer.exe')
+    // Exclude specific legitimate processes creating threads in runtimebroker (e.g., some UWP apps)
+    // | where not (SourceImage endswith @'\SomeLegitUWPApp.exe' and TargetImage endswith @'\runtimebroker.exe')
+    // Exclude specific legitimate processes creating threads in spoolsv (e.g., print drivers)
+    // | where not (SourceImage endswith @'\SomePrintDriver.exe' and TargetImage endswith @'\spoolsv.exe')
+    // --- End of Exclusions ---
+    | project // Select relevant fields for investigation
+        TimeGenerated,
+        Computer,
+        SourceProcessGuid,
+        SourceProcessId,
+        SourceImage,
+        SourceCommandLine,
+        TargetProcessGuid,
+        TargetProcessId,
+        TargetImage,
+        TargetCommandLine,
+        StartAddress,
+        StartModule,
+        StartFunction,
+        RuleName = "Potential Remote Thread Creation in Sensitive Process",
+        Description = "Detects the creation of a remote thread in sensitive processes (explorer.exe, svchost.exe, lsass.exe, etc.) which can be indicative of code injection techniques like APC injection or thread injection.",
+        Technique = "T1055", // Process Injection (covers various sub-techniques involving remote threads)
+        Author = "Detections.ai",
+        Date = "2025-05-27",
+        References = "https://medium.com/@siddhantalokmishra/leveraging-sysmon-to-complement-edr-and-address-evasion-techniques-deb8c96fb7f7"
+query_type: kql
+severity: medium
+techniques:
+    - T1055
+version: "1"

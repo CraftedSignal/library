@@ -1,0 +1,60 @@
+id: 019c8a96-4ddc-709a-bbf2-b77e6563102e
+name: Transient Admin Account Takeover via Rapid Password Hash Manipulation
+description: Detects a pattern of rapid administrative account manipulation where a password hash is modified and then restored within a very short timeframe (approximately 60 seconds). This behavior matches a custom Python script used for temporary account takeover as seen in CVE-2026-1731 exploitation, specifically targeting a primary administrator account. The rule looks for two or more password hash update events for the same target user within a 2-minute window.
+query: |
+    // Name: Transient Admin Account Takeover
+    // Author: adarsh pandey
+    // Date: 2026-02-23
+    // Description: Detects a pattern of rapid administrative account manipulation where a password hash is modified and then restored within a very short timeframe (~60 seconds). This behavior matches a custom Python script used for temporary account takeover as seen in CVE-2026-1731 exploitation.
+    // False Positive Sensitivity: Medium
+    // Tactic: Defense Evasion, Privilege Escalation
+    // Technique: T1556.004, T1078.001
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    let timeframe = 1d;
+    let time_window = 2m; // The time window to detect the modification and restoration.
+    let target_user_id = "1"; // The primary administrator account targeted by the tool.
+    // This rule requires BeyondTrust appliance audit logs to be ingested, likely into a custom log table.
+    // The table name 'BeyondTrust_Appliance_CL' and field names like 'EventAction_s' are placeholders.
+    // Please adjust them to match your specific log schema.
+    let PasswordChangeEvents = view () {
+        // Using a placeholder table for BeyondTrust audit logs.
+        // Replace 'BeyondTrust_Appliance_CL' with your actual table name.
+        // Replace field names with your actual schema fields (e.g., EventAction_s, TargetObject_s, etc.).
+        BeyondTrust_Appliance_CL
+        | where TimeGenerated > ago(timeframe)
+        // Filter for events indicating a user's password hash was updated.
+        | where EventAction_s == "DatabaseUpdate" and TargetObject_s == "users" and TargetField_s == "password_hash" and TargetUserID_s == target_user_id
+    };
+    PasswordChangeEvents
+    // Group events by the targeted user and device within the specified time window.
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        ChangeTimestamps = make_set(TimeGenerated),
+        ChangeCount = count()
+        by TargetUserID_s, HostCustomEntity = DeviceName, bin(TimeGenerated, time_window)
+    // A count of 2 or more indicates the password was changed and then likely changed back.
+    | where ChangeCount >= 2
+    // FP Tuning: If legitimate, rapid password resets for this user occur, consider increasing the ChangeCount threshold
+    // or excluding changes initiated by known administrative accounts/IPs.
+    | extend
+        timestamp = StartTime,
+        AccountCustomEntity = TargetUserID_s
+    // For investigation: Correlate the timeframe of this alert with process execution events on the host.
+    // Look for 'python' execution around the 'StartTime' and 'EndTime' to increase confidence.
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1556.004
+    - T1078.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

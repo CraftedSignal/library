@@ -1,0 +1,28 @@
+id: 019a4a61-1154-77e1-b780-16b81695895b
+name: Detect Microsoft Teams cookies theft (Windows)
+description: 'KQL Query from file: Detect Microsoft Teams cookies theft'
+query: |-
+    // Find reads of Teams WebView2 Cookies while a Teams/WebView2 process is alive
+    let lookback = 7d;
+    let cookiePathHint = @"\MSTeams\EBWebView\";
+    let cookieNames = dynamic(["Cookies"]);
+    let p = DeviceProcessEvents
+            | where Timestamp > ago(lookback)
+            | where FileName in~ ("ms-teams.exe","teams.exe","msedgewebview2.exe")
+            | summarize TeamsAliveStart=min(Timestamp), TeamsAliveEnd=max(Timestamp) by DeviceId;
+    DeviceFileEvents
+    | where Timestamp > ago(lookback)
+    | where FileName in~ (cookieNames)
+    | where FolderPath has cookiePathHint
+    | join kind=inner p on DeviceId
+    | where Timestamp between (TeamsAliveStart .. TeamsAliveEnd)
+    | where InitiatingProcessFileName !in~ ("msedgewebview2.exe","ms-teams.exe","teams.exe")
+    | project Timestamp, DeviceName, FolderPath, FileName, InitiatingProcessFileName, InitiatingProcessCommandLine
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "3"
+references:
+    - https://tierzerosecurity.co.nz/2025/11/03/teams-cookies-bof.html

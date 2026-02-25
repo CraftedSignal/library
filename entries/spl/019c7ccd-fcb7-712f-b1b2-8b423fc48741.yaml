@@ -1,0 +1,26 @@
+id: 019c7ccd-fcb7-712f-b1b2-8b423fc48741
+name: DLL Side-Loading via Security Software Binaries
+description: |
+    Detects DLL side-loading attacks using legitimate security software binaries (but often targeted)
+    to execute malicious DLL payloads, covering various security vendors commonly abused.
+query: "``` Detects DLL side-loading attacks using legitimate security software binaries (but often targeted)\nto execute malicious DLL payloads, covering various security vendors commonly abused in the wild. ```\n\nindex=\"sysmon\" source=\"WinEventLog:Microsoft-Windows-Sysmon/Operational\" \nImage IN (\"*mcafee*\", \"*norton*\", \"*symantec*\", \"*avast*\", \"*avg*\", \"*kaspersky*\", \"*eset*\", \"*norman*\") \nImage=\"*.exe\" (ImageLoaded IN (\"*.mui\", \"*.dll\") ImageLoaded IN (\"*\\\\AppData\\\\*\", \"*\\\\Temp\\\\*\", \"*\\\\ProgramData\\\\*\", \"*\\\\Desktop\\\\*\", \"*\\\\Users\\\\Public\\\\*\")) OR Image IN (\"*\\\\AppData\\\\*\", \"*\\\\Temp\\\\*\", \"*\\\\ProgramData\\\\*\", \"*\\\\Users\\\\Public\\\\*\")\n NOT (ImageLoaded IN (\"C:\\\\Windows\\\\System32\\\\*\", \"C:\\\\Windows\\\\SysWOW64\\\\*\", \"C:\\\\Program Files\\\\McAfee\\\\*\", \"C:\\\\Program Files (x86)\\\\*\", \"C:\\\\Program Files\\\\*\", \"C:\\\\Program Files (x86)\\\\*\"))\n | table _time User Image ImageLoaded "
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.001
+    - attack.s0000
+author: zendannyy
+version: "3"
+references:
+    - https://www.proofpoint.com/us/threat-insight/post/apt-targets-financial-analysts
+    - https://attack.mitre.org/techniques/T1574/001/
+data_sources:
+    - image_load
+    - windows
+    - sysmon

@@ -1,0 +1,43 @@
+id: 825f7363-9ae8-4ffe-99cc-6b64b996a3a6
+name: Linux CUPS Vulnerabilities CVE-2025-58364 and CVE-2025-58060
+description: This query identifies Linux devices with vulnerable versions of the Common Unix Printing System (CUPS) installed, which are susceptible to remote denial-of-service and authentication bypass attacks as described in CVE-2025-58364 and CVE-2025-58060. The rule filters for CUPS software packages on Linux systems and compares the installed version against a known vulnerable version cutoff. This cutoff is a placeholder and must be updated with specific version information from official vendor advisories.
+query: |
+    // Name: Linux CUPS Vulnerabilities CVE-2025-58364 and CVE-2025-58060
+    // Author: detections.ai
+    // Date: 2025-09-16
+    // Description: This query identifies Linux devices with vulnerable versions of the Common Unix Printing System (CUPS) installed, which are susceptible to remote denial-of-service and authentication bypass attacks as described in CVE-2025-58364 and CVE-2025-58060.
+    // Tactic: Vulnerability Management
+    // Relevant CVEs: CVE-2025-58364, CVE-2025-58060
+    // False Positive Sensitivity: Medium
+    // Note: The vulnerable version(s) used in this query are placeholders.
+    // You MUST update the 'vulnerableVersionCutoff' variable with the specific version information provided by official vendor advisories for these CVEs.
+    let vulnerableVersionCutoff = "2.4.12"; // Placeholder: Update with the first patched version. Versions below this are considered vulnerable.
+    DeviceTvmSoftwareInventory
+    // Filter for the CUPS software package on Linux systems.
+    // The software name can vary (e.g., 'cups', 'cups-client', 'cups-daemon'). Using 'startswith' provides broader coverage.
+    // You can make this more specific (e.g., `SoftwareName == 'cups'`) to reduce potential noise if needed.
+    | where OSPlatform == "Linux" and SoftwareName startswith "cups"
+    // Compare the installed version against the known vulnerable version cutoff.
+    | where isnotempty(SoftwareVersion) and parse_version(SoftwareVersion) < parse_version(vulnerableVersionCutoff)
+    // Select the most recent inventory record for each device to ensure data is current.
+    // Project relevant fields for analysis and remediation.
+    | project
+        DeviceName,
+        DeviceId,
+        OSPlatform,
+        OSVersion,
+        SoftwareName,
+        SoftwareVersion,
+        Vulnerability = "CUPS Remote Denial-of-Service and Auth Bypass",
+        CVEs = "CVE-2025-58364, CVE-2025-58060"
+query_type: kql
+tactics:
+    - TA0043
+techniques:
+    - T1595.002
+tags:
+    - kql
+version: "1"
+references:
+    - CVE-2025-58364
+    - CVE-2025-58060

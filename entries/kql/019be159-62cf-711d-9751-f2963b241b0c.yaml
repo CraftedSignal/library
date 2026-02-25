@@ -1,0 +1,42 @@
+id: 019be159-62cf-711d-9751-f2963b241b0c
+name: Suspicious Windows Admin Center Virtual Account Logon from External Tenant
+description: This rule detects logon events from Windows Admin Center (WAC) virtual accounts where the associated user principal name (UPN) belongs to an external or unknown tenant. This activity is a key indicator of compromise for CVE-2026-20965, where an attacker uses a forged token from an external tenant to gain unauthorized access.
+query: |
+    // Name: Suspicious Windows Admin Center Virtual Account Logon
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // Description: This rule detects logon events from Windows Admin Center (WAC) virtual accounts where the associated user principal name (UPN) belongs to an external or unknown tenant. This activity is a key indicator of compromise for CVE-2026-20965, where an attacker uses a forged token from an external tenant to gain unauthorized access.
+    // Tactics: Lateral Movement, Privilege Escalation
+    // Relevant Techniques: T1078
+    // References: https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/
+    DeviceLogonEvents
+    // Look for logon events over the last 30 days.
+    | where Timestamp > ago(30d)
+    // Filter for account names that follow the WAC virtual account format (WAC_<UPN>).
+    | where AccountName startswith "WAC_" and AccountName has "@"
+    // Exclude logons from your own tenant to reduce false positives.
+    // TODO: Replace the placeholder below with your tenant's domain (e.g., "contoso.onmicrosoft.com").
+    // You may need to add multiple 'and not' clauses for multiple domains if you have them.
+    | where not(AccountName has "<your tenant address>")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        ActionType,
+        LogonType
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/

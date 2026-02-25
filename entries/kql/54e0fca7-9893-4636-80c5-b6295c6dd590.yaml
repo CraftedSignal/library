@@ -1,0 +1,6 @@
+id: 54e0fca7-9893-4636-80c5-b6295c6dd590
+name: User Account Password Not Required Enabled Detection
+description: Identifies users created with the 'Account Password Not Required' setting changed from False to True, allowing authentication without a password.
+query: "#### This query identifies if any user is created by enabling Account Password Not Required changed. \n#### Which means if this is enabled i.e if it is changed form False to True that user does not have to enter the password for authentication.\n## Mitre Att&ck (Persistence)\n### T1098- Account Manipulation\n\n#### Query:\n```KQL\nIdentityDirectoryEvents\n| where ActionType == \"Account Password Not Required changed\"\n| extend PreviousState = tostring(parse_json(AdditionalFields)['FROM Account Password Not Required'])\n| extend CurrentState = tostring(parse_json(AdditionalFields)['TO Account Password Not Required'])\n| extend Actor = tostring(AdditionalFields.[\"ACTOR.ACCOUNT\"])\n| where PreviousState == \"False\" and CurrentState == \"True\"\n| project TimeGenerated, AccountName, TargetAccountUpn, Actor, PreviousState, CurrentState, AdditionalFields\n| order by TimeGenerated desc\n```\n"
+query_type: kql
+version: "1"

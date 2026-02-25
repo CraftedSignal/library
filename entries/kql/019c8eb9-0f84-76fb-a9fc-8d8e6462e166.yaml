@@ -1,0 +1,21 @@
+id: 019c8eb9-0f84-76fb-a9fc-8d8e6462e166
+name: Scheduled Task Creation with Suspicious Payload
+description: This rule detects the creation of scheduled tasks (`schtasks.exe /create`) where the command line arguments contain suspicious executables or paths commonly associated with malicious activity. This indicates a potential persistence mechanism being established by an adversary.
+query: "// Detection: Scheduled Task with Suspicious Payload (Persistence)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1053.005 - Scheduled Task\r\n\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n| where FileName =~ \"schtasks.exe\"\r\n| where ProcessCommandLine has \"/create\"\r\n| where ProcessCommandLine has_any (\r\n    \"powershell\",\"cmd.exe\",\"wscript\",\"cscript\",\r\n    \"mshta\",\"regsvr32\",\"rundll32\",\"certutil\",\r\n    \"bitsadmin\",\"\\\\AppData\\\\\",\"\\\\Temp\\\\\",\r\n    \"\\\\Users\\\\Public\\\\\",\"http://\",\"https://\"\r\n)\r\n| project TimeGenerated, DeviceName, ProcessCommandLine,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine,\r\n          AccountName, AccountDomain, SHA256\r\n| extend AlertDescription =\r\n    \"Scheduled task created with suspicious executable payload — potential persistence mechanism\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.005
+    - T1059.001
+    - T1218.005
+    - T1218.010
+    - T1218.011
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

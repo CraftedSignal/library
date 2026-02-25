@@ -1,0 +1,60 @@
+id: 0199e894-2e4a-72a4-8cf8-8a4f8b8dca80
+name: ClickFix PowerShell Execution
+description: Detects PowerShell execution with a command line indicative of a download cradle, initiated from the user's shell (explorer.exe). This behavior is characteristic of the "ClickFix" social engineering technique where a user is tricked into copying and running a malicious command from a webpage.
+query: |
+    title: ClickFix PowerShell Execution
+    id: 6797b038-737c-41b2-a198-2d1d026d95ea
+    status: experimental
+    description: Detects PowerShell execution with a command line indicative of a
+      download cradle, initiated from the user's shell (explorer.exe). This behavior
+      is characteristic of the "ClickFix" social engineering technique where a user
+      is tricked into copying and running a malicious command from a webpage.
+    references:
+      - https://www.proofpoint.com/us/blog/threat-insight/when-monster-bytes-tracking-ta585-and-its-arsenal
+    author: detections.ai
+    date: 2025-10-15
+    tags:
+      - attack.t1059.001
+      - attack.t1204.002
+      - attack.ta585
+      - malware.monsterv2
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection:
+        ParentImage|endswith: '\explorer.exe' # Indicates user-initiated execution from the shell or Run dialog.
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+          - 'Net.WebClient' # Component of a common download cradle.
+          - 'DownloadString' # Component of a common download cradle.
+      condition: selection
+    falsepositives:
+      - System administrators or power users might legitimately run PowerShell
+        download cradles from an interactive session. However, this is uncommon for
+        typical users and is a strong indicator of malicious activity when
+        unexpected.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1204.002
+    - T1105
+tags:
+    - attack.t1059.001
+    - attack.t1204.002
+    - attack.ta585
+    - malware.monsterv2
+author: detections.ai
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/when-monster-bytes-tracking-ta585-and-its-arsenal
+data_sources:
+    - process_creation
+    - windows

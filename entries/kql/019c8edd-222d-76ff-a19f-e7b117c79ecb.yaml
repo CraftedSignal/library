@@ -1,0 +1,16 @@
+id: 019c8edd-222d-76ff-a19f-e7b117c79ecb
+name: Suspicious Process Creation by WSUS or IIS Process
+description: This rule detects the creation of command-line interpreter processes (cmd.exe, powershell.exe) by the Windows Server Update Services (WSUS) service process or the IIS worker process. This behavior is a strong indicator of post-exploitation activity related to the WSUS RCE vulnerability CVE-2025-59287.
+query: "// Name: Suspicious Process Creation by WSUS or IIS Process\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: This rule detects the creation of command-line interpreter processes (cmd.exe, powershell.exe) by the Windows Server Update Services (WSUS) service process or the IIS worker process. This behavior is a strong indicator of post-exploitation activity related to the WSUS RCE vulnerability CVE-2025-59287.\r\n// False Positives: Medium. While uncommon, some administrative scripts or applications running under IIS might legitimately spawn shell processes. Review the command line arguments for context and consider excluding known legitimate activity.\r\n// References: https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability\r\n// MITRE TTPs: T1203, T1059.001, T1059.003\r\nDeviceProcessEvents\r\n// Look for process creation events from the last day\r\n| where Timestamp > ago(1d)\r\n// Parent process is the WSUS service or the IIS worker process, which are the targets for CVE-2025-59287 exploitation.\r\n| where InitiatingProcessFileName in~ (\"wsusservice.exe\", \"w3wp.exe\")\r\n// Child process is a command-line interpreter, often used for subsequent command execution.\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability

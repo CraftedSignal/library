@@ -1,0 +1,18 @@
+id: 70b39c7a-9512-4d52-95e1-09eb0988ab69
+name: Monitor Privilege User SSPR
+description: 'KQL Query from file: Monitor Privilege User SSPR'
+query: "// Monitor Privilege User SSPR\n\n// In today’s post by Merill, he explains how to use Maester to monitor SSPR settings for admin accounts. I agree that administrators with sensitive roles should exclusively use phishing-resistant authentication methods, which would prevent them from resetting their passwords. However, not all organizations have the cyber maturity to transition all admins to phishing-resistant authentication. Therefore, SecOps should continue to monitor SSPR for privileged users in the Entra tenant. The KQL below provides the necessary monitoring \n\nlet queryperiod = 30d;\nlet queryfrequency = 1h;\nlet PrivilegeUsers = (\n    IdentityInfo\n    | where TimeGenerated > ago(queryperiod)\n    | mv-expand AssignedRoles\n    | where AssignedRoles matches regex 'Admin'\n    | summarize by tolower(AccountUPN));\nAuditLogs\n| where TimeGenerated > ago(queryfrequency)\n| where ResultDescription == \"User started self-service password reset operation.\"\n| extend AccountUPN = tolower(InitiatedBy.user.userPrincipalName)\n| extend IPAdress = InitiatedBy.user.ipAddress\n| where AccountUPN in (PrivilegeUsers)\n\n// MITRE ATT&CK Mapping\n// Privilege Escalation (T1078.004 - Valid Accounts: Cloud Accounts):\n// The query identifies privileged users by checking for roles that match ‘Admin’. This is related to the use of valid accounts with elevated privileges.\n// Credential Access (T1110.001 - Brute Force):\n// Monitoring self-service password reset operations can help detect potential brute force attempts or misuse of password reset functionalities.\n// Defense Evasion (T1078 - Valid Accounts):\n// By focusing on privileged accounts, the query helps in identifying if legitimate accounts are being used to evade detection mechanisms.\n// Initial Access (T1078.004 - Valid Accounts: Cloud Accounts):\n// The detection of self-service password reset operations by privileged users can indicate an initial access attempt using valid credentials.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078.004
+    - T1110.001
+    - T1078
+tags:
+    - kql
+version: "1"

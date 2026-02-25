@@ -1,0 +1,43 @@
+id: 019c4d53-2a8e-70eb-bb9b-96c2a40084d5
+name: Muddled Libra - NTDS Decryption Artifacts Detected
+description: Detects the creation of specific files ('result', 'result.kerb') in common user folders. These filenames are known artifacts of tools like GoSecretsDump used to decrypt the NTDS.dit database, a technique observed in Muddled Libra's playbook after they exfiltrate the database from a Domain Controller.
+query: |
+    // Name: Muddled Libra - NTDS Decryption Artifacts Detected
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-11
+    // Tactic: Credential Access
+    // Technique: T1003.003 - OS Credential Dumping: NTDS
+    // Threat Actor: Muddled Libra (Scattered Spider)
+    // Description: Detects the creation of specific files ('result', 'result.kerb') in common user folders. These filenames are known artifacts of tools like GoSecretsDump used to decrypt the NTDS.dit database, a technique observed in Muddled Libra's playbook after they exfiltrate the database from a Domain Controller.
+    // False Positive Sensitivity: Medium. The filenames 'result' and 'result.kerb' are generic and could be created by legitimate scripts or user activity. This detection is most effective when correlated with other suspicious activities, such as the offline mounting of a DC's virtual disk or the presence of credential dumping tools.
+    // References: https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    let lookback = 1d;
+    // Define the specific filenames that are artifacts of NTDS.dit decryption tools.
+    let targetFiles = dynamic(["result", "result.kerb"]);
+    DeviceFileEvents
+    | where TimeGenerated > ago(lookback)
+    | where ActionType == "FileCreated"
+    | where FileName in~ (targetFiles)
+    // Focus on common user folders where attackers often stage files, as seen in the attack.
+    | where FolderPath endswith @"\Desktop" or FolderPath endswith @"\Downloads"
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        ThreatActor = "Muddled Libra"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/

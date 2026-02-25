@@ -1,0 +1,53 @@
+id: 019bd0df-c82f-70c5-a08d-5e6a4ec38d5b
+name: Turla Kazuar v3 WMI Reconnaissance
+description: Detects Windows Management Instrumentation (WMI) queries performed by wscript.exe that include specific reconnaissance-related keywords such as 'Win32_OperatingSystem', 'Win32_Process', 'LastBootUpTime', and 'PROCESSOR_ARCHITECTURE'. This activity is indicative of system reconnaissance, potentially by malware like Turla Kazuar v3 VBScript loader.
+query: |
+    title: Turla Kazuar v3 WMI Reconnaissance
+    id: 1a0fea8c-2803-4d25-84d5-25f513837cd6
+    status: experimental
+    description: |
+        Detects Windows Management Instrumentation (WMI) queries performed by the Kazuar v3 VBScript loader for system reconnaissance. The malware uses WMI to gather detailed information about the compromised system before exfiltrating it to the C2 server. The reconnaissance activities include querying Win32_OperatingSystem to obtain OS version, caption, and last boot time, querying Win32_Process to enumerate all running processes, reading PROCESSOR_ARCHITECTURE from registry to determine system architecture, collecting computer name, username, and domain information via WScript.Network object, and enumerating files in the HP printer driver directory. All collected information is then sent via HTTP POST to the requestor.php endpoint on the C2 server. This reconnaissance phase helps the attackers understand the target environment and tailor their attack accordingly. The rule detects wscript.exe processes executing WMI queries, which is the method used by the VBScript loader.
+    references:
+        - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+    author: Daniel Jeremiah
+    date: 2025/01/14
+    tags:
+        - attack.discovery
+        - attack.t1082
+        - attack.t1047
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\wscript.exe'
+            CommandLine|contains|all:
+                - 'winmgmts:'
+                - 'Win32_OperatingSystem'
+            CommandLine|contains|any:
+                - 'Win32_Process'
+                - 'LastBootUpTime'
+                - 'PROCESSOR_ARCHITECTURE'
+        condition: selection
+    falsepositives:
+        - Legitimate system administration scripts
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1082
+    - T1047
+tags:
+    - attack.discovery
+    - attack.t1082
+    - attack.t1047
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://r136a1.dev/2026/01/14/command-and-evade-turlas-kazuar-v3-loader/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,35 @@
+id: 019b30f7-4a09-755a-8e29-24ce6c4fe5a3
+name: RDP Configuration Registry Modification for Persistence
+description: Detects modifications to Windows Registry keys related to Remote Desktop Protocol (RDP) configuration. Malware like DarkGate is known to manipulate these settings to enable or modify RDP for persistence and remote access.
+query: |
+    // Name: RDP Configuration Registry Modification for Persistence
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects modifications to Windows Registry keys related to Remote Desktop Protocol (RDP) configuration. Malware like DarkGate is known to manipulate these settings to enable or modify RDP for persistence and remote access.
+    // MITRE ATT&CK: T1112
+    // References: https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4
+    // False Positive Sensitivity: Medium. Legitimate administrative activity, software installation (e.g., VPN clients, remote admin tools), or Group Policy updates can modify these keys. Consider excluding changes made by known system management processes (e.g., Gpupdate.exe, SCCM clients) or authorized administrators.
+
+    DeviceRegistryEvents
+    // Focus on registry events (key creation or value modification).
+    | where ActionType in ("RegistryValueSet", "RegistryKeyCreate")
+    // Filter for registry keys under the main Terminal Server configuration path.
+    | where RegistryKey startswith "HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server"
+    // FP Tuning: Exclude common system processes that may legitimately change these settings.
+    // | where not(InitiatingProcessFileName in~ ("svchost.exe", "services.exe", "gpupdate.exe", "mmc.exe"))
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0008
+    - TA0011
+techniques:
+    - T1112
+    - T1021.001
+    - T1219
+tags:
+    - kql
+version: "2"
+references:
+    - https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4

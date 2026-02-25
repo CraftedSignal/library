@@ -1,0 +1,19 @@
+id: 59a2751b-3e40-4d1d-94e8-f43c6ae9e5b4
+name: Potential DLL Sideloading via icardagt.exe or mfpmp.exe
+description: This rule detects potential DLL sideloading attempts by monitoring the loading of specific DLLs (version.dll and rtworkq.dll) from non-standard Windows system directories. It specifically looks for these DLLs being loaded by 'icardagt.exe' or 'mfpmp.exe' processes outside of 'C:\Windows\System32\' or 'C:\Windows\SysWOW64\'. This behavior is indicative of an adversary attempting to execute malicious code by tricking legitimate applications into loading their malicious DLLs instead of the legitimate ones.
+query: "//source: https://x.com/SecurityAura/status/1953290638016872680\r\n//https://hijacklibs.net/entries/microsoft/built-in/rtworkq.html\r\n//https://hijacklibs.net/entries/microsoft/built-in/version.html\r\n//https://www.bleepingcomputer.com/news/security/akira-ransomware-abuses-cpu-tuning-tool-to-disable-microsoft-defender/\r\n\r\n\r\n//A query with greater visibility ,however may generate more false positives.\r\nlet dll_sideloading = dynamic([\"version.dll\", \"rtworkq.dll\"]);\r\nDeviceImageLoadEvents\r\n| where FileName has_any (dll_sideloading)\r\n| where not (FolderPath startswith \"C:\\\\Windows\\\\System32\\\\\" or FolderPath startswith \"C:\\\\Windows\\\\SysWOW64\\\\\")\r\n\r\n\r\n//More accurate query\r\nlet icardagt =\r\n    DeviceImageLoadEvents\r\n    | where InitiatingProcessFileName contains \"icardagt.exe\"\r\n    | where FileName contains \"version.dll\"\r\n    | where not (FolderPath startswith \"C:\\\\Windows\\\\System32\\\\\" or FolderPath startswith \"C:\\\\Windows\\\\SysWOW64\\\\\");\r\nlet mfpmp =\r\n    DeviceImageLoadEvents\r\n    | where InitiatingProcessFileName contains  \"mfpmp.exe\"\r\n    | where FileName contains \"rtworkq.dl\"\r\n    | where not (FolderPath startswith \"C:\\\\Windows\\\\System32\\\\\" or FolderPath startswith \"C:\\\\Windows\\\\SysWOW64\\\\\");\r\nunion  icardagt, mfpmp"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://x.com/SecurityAura/status/1953290638016872680
+    - https://hijacklibs.net/entries/microsoft/built-in/rtworkq.html
+    - https://hijacklibs.net/entries/microsoft/built-in/version.html

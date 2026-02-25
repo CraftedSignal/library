@@ -1,0 +1,35 @@
+id: f09a65a4-3d76-4b71-9282-85d559870bd5
+name: M365 Copilot Chat SafeLink Monitoring
+description: 'KQL Query from file: M365 Copilot Chat SafeLink Monitoring'
+query: |+
+    // M365 Copilot Chat SafeLink Monitoring
+    // https://admin.microsoft.com/AdminPortal/home?#/MessageCenter/:/messages/MC1013453
+
+    let M365CopilotChatURL =
+    CloudAppEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == @"CopilotInteraction"
+    | extend UserID = tostring(RawEventData.UserId)
+    | extend CopilotData = todynamic(RawEventData.CopilotEventData)
+    | extend CopilotAccessResources = (CopilotData.AccessedResources)
+    | extend CopilotAppHost = tostring(CopilotData.AppHost)
+    | extend CopilotContexts = tostring(CopilotData.Contexts)
+    | extend CopilotType = tostring(CopilotData.Type)
+    | extend CopilotMessageIds = tostring(CopilotData.MessageIds)
+    | extend CopilotThreadId = tostring(CopilotData.ThreadId)
+    | mv-expand CopilotAccessResources
+    | where CopilotAppHost == "Bing" and isnotempty(CopilotAccessResources.SiteUrl)
+    | project CopilotAccessResources.SiteUrl;
+    UrlClickEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "ClickBlocked"
+    | where Url has_any(M365CopilotChatURL)
+
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1564.013
+tags:
+    - kql
+version: "1"

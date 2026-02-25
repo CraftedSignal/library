@@ -1,0 +1,97 @@
+id: 4903b137-4e1e-4dd4-99a8-83bf4edd03c4
+name: ClickFix Initial Access Activity
+description: Detects various initial access TTPs associated with the "ClickFix" attack vector, where users are tricked into running malicious commands. This includes behaviors observed in Lumma Stealer, Latrodectus, and NetSupport RAT campaigns.
+query: |-
+    title: ClickFix Initial Access Activity
+    id: e291a08e-c28c-43ff-9be4-e20815af8dac
+    status: experimental
+    description: Detects various initial access TTPs associated with the "ClickFix"
+      attack vector, where users are tricked into running malicious commands. This
+      includes behaviors observed in Lumma Stealer, Latrodectus, and NetSupport RAT
+      campaigns.
+    references:
+      - https://unit42.paloaltonetworks.com/preventing-clickfix-attack-vector/
+    author: Kaung Khant Ko
+    date: 2025-07-14T00:00:00.000Z
+    tags:
+      - attack.initial_access
+      - attack.t1204.002
+      - attack.t1059.001
+      - attack.t1059.005
+      - attack.t1218.005
+      - malware.lumma
+      - malware.latrodectus
+      - malware.netsupport_rat
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_lumma_build:
+        Image|endswith: \extrac32.exe
+        CommandLine|contains|all:
+          - .pst
+          - /E
+      selection_lumma_exec:
+        Image|endswith: \PartyContinued.exe
+      selection_latrodectus_exec:
+        ParentImage|endswith:
+          - \powershell.exe
+          - \cmd.exe
+        Image|endswith: \cscript.exe
+        CommandLine|contains:
+          - .js
+          - .txt
+      selection_netsupport_download:
+        ParentImage|endswith:
+          - \jp2launcher.exe
+          - \filezilla.exe
+        Image|endswith: \curl.exe
+      selection_mshta_exec:
+        Image|endswith: \mshta.exe
+        CommandLine|contains:
+          - http
+          - .co/
+      selection_powershell_run:
+        ParentImage|endswith: \explorer.exe
+        Image|endswith: \powershell.exe
+        CommandLine|contains:
+          - IEX
+          - DownloadString
+          - Invoke-WebRequest
+          - curl
+      condition: 1 of selection_*
+    falsepositives:
+      - The 'selection_latrodectus_exec' may trigger on legitimate administrative
+        scripts. Consider tuning by adding path exclusions for known good script
+        locations.
+      - The 'selection_mshta_exec' may be triggered by legitimate software
+        installers or updaters that use mshta.exe.
+      - The 'selection_powershell_run' could be triggered by power users or
+        administrators performing legitimate download tasks.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1059.001
+    - T1059.005
+    - T1218.005
+tags:
+    - attack.initial_access
+    - attack.t1204.002
+    - attack.t1059.001
+    - attack.t1059.005
+    - attack.t1218.005
+    - malware.lumma
+    - malware.latrodectus
+    - malware.netsupport_rat
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/preventing-clickfix-attack-vector/
+data_sources:
+    - process_creation
+    - windows

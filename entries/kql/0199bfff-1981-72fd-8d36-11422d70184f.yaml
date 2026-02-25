@@ -1,0 +1,15 @@
+id: 0199bfff-1981-72fd-8d36-11422d70184f
+name: UNC6395 Malicious User-Agent Activity - Defender KQL
+description: This rule detects HTTP requests containing User-Agent strings associated with the UNC6395 data theft campaign targeting Salesforce instances.
+query: "// Name: UNC6395 Malicious User-Agent Activity\r\n// Author: detections.ai\r\n// Date: 2025-10-07\r\n// Description: This rule detects HTTP requests containing User-Agent strings associated with the UNC6395 data theft campaign targeting Salesforce instances.\r\n// Tactic: Exfiltration\r\n// Technique: T1041, T1059.006\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift\r\n\r\n// Define the list of malicious User-Agent strings\r\nlet malicious_user_agents = dynamic([\r\n    \"Salesforce-Multi-Org-Fetcher/1.0\",\r\n    \"Salesforce-CLI/1.0\",\r\n    \"python-requests/2.32.4\",\r\n    \"Python/3.11 aiohttp/3.12.15\"\r\n]);\r\n// Search across common log tables that contain User-Agent information.\r\n// Add or remove tables depending on your environment's data sources.\r\nunion\r\n    AADSignInEventsBeta, // Common format for many network appliances\r\n    DeviceNetworkEvents, // Microsoft Defender for Endpoint network events\r\n    CloudAuditEvents // Azure AD Sign-in logs\r\n| where Timestamp > ago(30d)\r\n// The UserAgent field name can vary across tables. This handles several common variations.\r\n| extend UserAgentHeader = coalesce(column_ifexists(\"UserAgent\", \"\"), column_ifexists(\"HttpUserAgent\", \"\"), column_ifexists(\"UserAgentOriginal\", \"\"), tostring(column_ifexists(\"AdditionalDetails\", dynamic(null)).userAgent))\r\n| where isnotempty(UserAgentHeader) and UserAgentHeader has_any (malicious_user_agents)\r\n// FP Tuning: The python-based User-Agents can be common in many environments.\r\n// To reduce noise, consider adding filters for traffic to Salesforce domains or other sensitive applications.\r\n// Example: | where DestinationIP in (known_salesforce_ips) or column_ifexists(\"RequestURL\", \"\") has \".salesforce.com\"\r\n|project Timestamp, Application, AccountDisplayName,DeviceName, IPAddress, UserAgent, City\r\n|sort by Timestamp desc "
+query_type: kql
+severity: medium
+techniques:
+    - T1041
+    - T1059.006
+tags:
+    - kql
+author: detections.ai, Tony D'Agostino
+version: "3"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift

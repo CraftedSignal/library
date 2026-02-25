@@ -1,0 +1,18 @@
+id: f1c1bba5-5ec6-4de7-a9ed-b8e917fb426b
+name: Suspicious .txt File Association Modification
+description: Detects modifications to the default program associated with .txt files, specifically looking for changes to the 'open' command or 'UserChoice' registry keys. This can be indicative of an adversary attempting to establish persistence or execute malicious code when a user opens a text file.
+query: "  DeviceRegistryEvents\r\n  | where ActionType ==\"RegistryValueSet\"\r\n  | where ((RegistryKey has_any (@\"\\txtfile\\shell\\open\\command\",@\"\\FileExts\\.txt\\UserChoice\") or RegistryKey endswith @\"\\.txt\"))\r\n  | where RegistryValueData !has \"notepad.exe\" // add notepad++.exe if used within the organisation"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1546.001
+    - T1546
+tags:
+    - kql
+author: Vaasudev Kala
+version: "1"
+references:
+    - https://hunt.io/blog/tinyloader-malware-cryptocurrency-theft-infrastructure

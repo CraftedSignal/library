@@ -1,0 +1,13 @@
+id: e4d29b72-872b-4a8b-aa7a-cd21ffcec0fb
+name: Google Workspace - MFA Fatigue Followed By Successful Login
+description: An attacker knows a users login credentials for an account with MFA enabled. The attacker overloads the user with MFA requests hoping the user will accept one of them. This detection looks for a successful MFA completion that follows a stream of failed MFA requests within the past hour.
+query: "let Events = \r\nCloudAppEvents\r\n| where Application == \"Google Workspace\"\r\n| where ActionType contains \"login_verification\"\r\n| extend rawjson = parse_json(RawEventData)\r\n| extend event = rawjson.events[0]\r\n| extend parameters = event.parameters[2]\r\n| extend VerificationResult = tostring(parse_json(parameters.value))\r\n| extend Email = tostring(rawjson.actor.email)\r\n| where VerificationResult in (\"error\", \"passed\")\r\n| project TimeGenerated, Email, VerificationResult;\r\nEvents\r\n| where VerificationResult == \"passed\"\r\n| join kind=inner (\r\n    Events\r\n    | where VerificationResult == \"error\"\r\n) on Email\r\n| where TimeGenerated1 < TimeGenerated and TimeGenerated - TimeGenerated1 < 1h\r\n| summarize ErrorCount = count() by Email, PassedTime = TimeGenerated\r\n| where ErrorCount > 5"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1110
+tags:
+    - kql
+version: "1"

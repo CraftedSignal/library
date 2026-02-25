@@ -1,0 +1,15 @@
+id: 019b4f9e-830f-749a-a677-1da2c570e820
+name: Hunting suspicious Daemons on macOS
+description: This rule detects suspicious Launch Daemons on macOS by looking for files created or modified in the `/Library/LaunchDaemons/` directory. It filters out known legitimate binaries and then flags any remaining files that have low global prevalence (less than 2500 instances) and were first seen more than 90 days ago. Additionally, it checks if the certificate is invalid or not signed by Microsoft, indicating potential malicious activity. This rule is intended for hunting and not for direct alerting due to the need for whitelisting.
+query: "// Whitelisting\r\nlet WhitelistedBinaries = dynamic([\"com.jamf.\", \"com.microsoft.\", \"com.docker.\", \"com.monotype.\", \"com.wibu.\"]);\r\nlet WhitelistedInitiatingBinary = dynamic ([\"jamf\"]);\r\nDeviceEvents\r\n| where FolderPath endswith \"/Library/LaunchDaemons/\" \r\n| where not(FileName has_any (WhitelistedBinaries))\r\n| where InitiatingProcessFileName !in (WhitelistedInitiatingBinary)\r\n| invoke FileProfile(SHA1)\r\n| where GlobalPrevalence < 2500\r\n| where GlobalFirstSeen < ago(90d)\r\n| where IsCertificateValid != true or IsRootSignerMicrosoft != true\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.004
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

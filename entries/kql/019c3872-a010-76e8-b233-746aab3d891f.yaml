@@ -1,0 +1,17 @@
+id: 019c3872-a010-76e8-b233-746aab3d891f
+name: Unblocked Phishing Email Leading to Tycoon2FA Infrastructure Access
+description: This rule detects potential phishing activity by identifying inbound emails from specific sender addresses that were not blocked by Microsoft Defender for Office (MDO), followed by network connections to a known malicious infrastructure associated with 'Tycoon2FA'. The rule first looks for unblocked emails from 'donotreply@docmagic.com' and 'noreply@frigoarrobba.com.br'. If such emails are found, it then checks for network connections to 'listener.facraivo.sa.com' within a 7-day window, indicating a potential compromise or user interaction with the phishing attempt.
+query: "// KQL 1 - to check for any email not blocked by MDO\r\n\r\nEmailEvents\r\n| where Timestamp between (datetime(2026-02-04 00:00:00) .. datetime(2026-02-04 23:59:59))\r\n| where SenderDisplayName has \"donotreply@docmagic.com\"\r\n| where SenderFromAddress has \"noreply@frigoarrobba.com.br\"\r\n| where EmailDirection == \"Inbound\" and DeliveryAction != \"Blocked\"\r\n\r\n// KQL 2 - If KQL 1 return results check if user access Tycoon2FA infra\r\n\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(7d)\r\n| where RemoteUrl has \"listener.facraivo.sa.com\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566
+    - T1566.001
+    - T1071.001
+tags:
+    - kql
+author: Steven Lim
+version: "5"

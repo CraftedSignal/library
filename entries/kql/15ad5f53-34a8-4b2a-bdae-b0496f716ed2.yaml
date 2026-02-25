@@ -1,0 +1,65 @@
+id: 15ad5f53-34a8-4b2a-bdae-b0496f716ed2
+name: SVG File Creation Followed by Browser Network Activity
+description: This rule detects the creation of Scalable Vector Graphics (SVG) files on a system, particularly those initiated by common applications like Outlook, web browsers, or archive utilities. It then correlates this file creation with subsequent network activity from a browser process within a 5-minute window. The network activity is further scrutinized for suspicious URLs, specifically those using Cloudflare Workers domains with a specific pattern or URLs containing an '@' symbol, which can indicate obfuscation or malicious redirection attempts. This behavior is indicative of SVG smuggling techniques used to deliver malicious payloads or redirect users to phishing sites.
+query: |
+    // https://www.cloudflare.com/en-gb/threat-intelligence/research/report/svgs-the-hackers-canvas/
+    let maliciousDomains = dynamic([
+        "rhanksharborpartners.club",
+        "tyksh0fd4btyksh0fd4b.csnjoight.com",
+        "test.excellencesinfo.com"
+    ]);
+    let browserProcesses = dynamic([
+        "msedge.exe",
+        "chrome.exe",
+        "firefox.exe",
+        "iexplore.exe",
+        "brave.exe",
+        "opera.exe",
+        "safari.exe"
+    ]);
+    DeviceFileEvents
+    | where Timestamp > ago(1d)
+    | where ActionType == "FileCreated" and FileName endswith ".svg"
+    | where InitiatingProcessFileName in~ ("outlook.exe", "chrome.exe", "msedge.exe", "firefox.exe", "winzip.exe", "7z.exe", "explorer.exe")
+    | project FileTimestamp = Timestamp, DeviceName, SvgFileName = FileName, SvgFileCreator = InitiatingProcessFileName, ReportId_File = ReportId
+    | join kind=inner (
+        DeviceNetworkEvents
+        | where Timestamp > ago(1d)
+        | where InitiatingProcessFileName in~ (browserProcesses)
+        | where isnotempty(RemoteUrl)
+        | extend ParsedUrl = parse_url(RemoteUrl)
+        | extend Domain = tostring(ParsedUrl.Host)
+        | where
+            (Domain endswith ".workers.dev" and Domain matches regex @"^[a-f0-9]{8}\.[a-f0-9]{32}\.workers\.dev$")
+            or
+            (RemoteUrl matches regex @"https?:\/\/.*\/[^\s?#]*@[^\s?#]*" or RemoteUrl matches regex @"https?:\/\/.*#.*@.*")
+        | project NetworkTimestamp = Timestamp, DeviceName, BrowserProcess = InitiatingProcessFileName, RemoteUrl, Domain, ReportId_Network = ReportId
+    ) on DeviceName
+    | where NetworkTimestamp between (FileTimestamp .. (FileTimestamp + 5m))
+    | project
+        FileTimestamp,
+        NetworkTimestamp,
+        DeviceName,
+        SvgFileCreator,
+        SvgFileName,
+        BrowserProcess,
+        RemoteUrl,
+        Domain,
+        ReportId_File,
+        ReportId_Network
+query_type: kql
+tactics:
+    - TA0005
+    - TA0002
+    - TA0001
+    - TA0042
+techniques:
+    - T1027.017
+    - T1204.002
+    - T1566.001
+    - T1583.007
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cloudflare.com/en-gb/threat-intelligence/research/report/svgs-the-hackers-canvas/

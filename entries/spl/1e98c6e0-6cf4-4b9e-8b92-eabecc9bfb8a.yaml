@@ -1,0 +1,50 @@
+id: 1e98c6e0-6cf4-4b9e-8b92-eabecc9bfb8a
+name: UNC3944 | VMware - Suspicious Cross-VM Disk Attachment
+description: Detects when a virtual disk (.vmdk) from one virtual machine is attached to a different virtual machine. This is a key TTP used by threat groups like UNC3944 to perform offline credential theft (e.g., copying NTDS.dit from a domain controller) by mounting the disk to a separate, attacker-controlled staging VM.
+query: |
+    `comment("
+    name: VMware - Suspicious Cross-VM Disk Attachment
+    date: 2025-07-25
+    description: >
+      Detects when a virtual disk (.vmdk) from one virtual machine is attached to a different virtual machine. This is a key TTP used by threat groups like UNC3944 to perform offline credential theft (e.g., copying NTDS.dit from a domain controller) by mounting the disk to a separate, attacker-controlled staging VM.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/
+    how_to_implement: >
+      This detection requires VMware vCenter logs (e.g., sourcetype=vmware:vclog) to be ingested. The `event_type_id`, `change_details`, `vm_name`, and `user` fields are essential. For optimal performance and accuracy, you must configure the `vmware_critical_asset_list` macro with a list of your Tier 0/critical asset names (e.g., Domain Controllers, Certificate Authorities, etc.).
+    known_false_positives: >
+      Legitimate, though uncommon, administrative tasks such as certain disaster recovery tests, migrations, or manual data recovery efforts may trigger this alert. These events should be correlated with change management records. If this is a standard procedure, consider filtering by specific users or staging VM names.
+    ")`
+
+    `comment("Start by searching for VM reconfiguration events from VMware logs.")`
+    `vmware` event_type_id="vim.event.VmReconfiguredEvent"
+
+    `comment("Extract the name of the VM from the attached disk's file path. The VM name is assumed to be the parent directory of the .vmdk file.")`
+    | rex field=change_details "fileName\s*=\s*'.*?\/vmfs\/volumes\/.*?\/+(?<original_disk_vm_name>[^\/]+)\/[^\/]+\.vmdk'"
+
+    `comment("Filter for events where a disk was successfully identified and the disk's original VM is different from the VM it's being attached to.")`
+    | where isnotnull(original_disk_vm_name) AND vm_name != original_disk_vm_name
+
+    `comment("Focus on events where the disk belongs to a critical asset. This macro should be customized for your environment to reduce false positives.")`
+    | `vmware_critical_asset_list(original_disk_vm_name)`
+
+    `comment("Aggregate results to create a single alert per incident.")`
+    | stats count min(_time) as firstTime max(_time) as lastTime values(change_details) as change_details by user, vm_name, original_disk_vm_name, dest
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | rename vm_name as staging_vm, dest as vcenter_server, user as user_performing_action
+    | fields - count
+    | `vmware_suspicious_cross_vm_disk_attachment_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0006
+    - TA0040
+techniques:
+    - T1003.003
+    - T1565.001
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/

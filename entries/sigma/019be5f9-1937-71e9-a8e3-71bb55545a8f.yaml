@@ -1,0 +1,61 @@
+id: 019be5f9-1937-71e9-a8e3-71bb55545a8f
+name: Inetutils Telnetd Authentication Bypass Attempt
+description: Detects attempts to exploit an authentication bypass vulnerability in the Inetutils Telnet daemon. Attackers inject the '-f' flag into the 'USER' environment variable during Telnet negotiation to gain unauthorized shell access.
+query: |
+    title: Inetutils Telnetd Authentication Bypass Attempt
+    id: 3964eaf4-206b-498e-88b7-3fbc0323c46f
+    status: experimental
+    description: Detects attempts to exploit an authentication bypass vulnerability
+      in the Inetutils Telnet daemon. Attackers inject the '-f' flag into the 'USER'
+      environment variable during Telnet negotiation to gain unauthorized shell
+      access.
+    references:
+      - https://www.labs.greynoise.io/grimoire/2026-01-22-f-around-and-find-out-18-hours-of-unsolicited-houseguests/
+    author: tim@detections.ai
+    date: 2026-01-22
+    tags:
+      - attack.t1210
+      - attack.t1556
+      - attack.t1078.003
+      - detection.emerging-threats
+    logsource:
+      category: network_traffic # This detection is based on network traffic. Products like Zeek, Suricata, or other Network Intrusion Detection Systems (NIDS) are suitable.
+    detection:
+      selection:
+        destination.port: 23
+          # Standard Telnet port
+          # Detects the core exploit string in the Telnet negotiation payload.
+          # The field name for payload content may vary (e.g., 'payload', 'c-content').
+        payload|contains:
+          - 'USER.-f root'
+          - 'USER.-f nobody'
+          - 'USER.-f daemon'
+          - 'USER.-f nonexistent123'
+      condition: selection
+    falsepositives:
+      - The likelihood of false positives is considered low.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0008
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1210
+    - T1556
+    - T1078.003
+tags:
+    - attack.t1210
+    - attack.t1556
+    - attack.t1078.003
+    - detection.emerging-threats
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.labs.greynoise.io/grimoire/2026-01-22-f-around-and-find-out-18-hours-of-unsolicited-houseguests/
+data_sources:
+    - network_traffic

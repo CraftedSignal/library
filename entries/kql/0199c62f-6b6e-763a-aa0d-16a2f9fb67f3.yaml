@@ -1,0 +1,13 @@
+id: 0199c62f-6b6e-763a-aa0d-16a2f9fb67f3
+name: Browser Process Memory Read Attempt
+description: Detects attempts to read the memory of browser processes (Chrome, Edge, Firefox, Brave, Opera). This activity can be indicative of credential dumping or other forms of data exfiltration from web browsers.
+query: "let PROCESS_VM_READ=0x0010;\r\nDeviceEvents\r\n| where ActionType == \"OpenProcessApiCall\"\r\nand FileName in~ (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\", \"opera.exe\")\r\n| project FileName, InitiatingProcessFileName,\r\n   DesiredAccess=tolong(parse_json(AdditionalFields).DesiredAccess)\r\n| where binary_and(DesiredAccess, PROCESS_VM_READ) != 0"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003
+tags:
+    - kql
+version: "5"

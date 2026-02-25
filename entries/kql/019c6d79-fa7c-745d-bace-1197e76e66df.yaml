@@ -1,0 +1,50 @@
+id: 019c6d79-fa7c-745d-bace-1197e76e66df
+name: CrashFix Variant Initial Access and C2
+description: KQL Query
+query: |
+    // Name: CrashFix Variant Initial Access and C2
+    // Description: This query hunts for activity related to the CrashFix campaign. It identifies devices with the specific malicious browser extension ID and correlates this with network connections to known CrashFix C2 domains and IP addresses, using both endpoint (DeviceNetworkEvents) and network logs (CommonSecurityLog).
+    //Author: Subash Ghimire
+    // Reference: https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/
+
+    // Define IOCs from the CrashFix campaign
+    let MaliciousExtensionId = "cpcdkmjddocikjdkbbeiaafnpdbdafmi";
+    let C2Domain = "nexsnield.com";
+    let C2IPs = dynamic(["69.67.173.30", "144.31.221.197", "199.217.98.108", "158.247.252.178", "170.168.103.208"]);
+
+    // Step 1: Find devices with the malicious Chrome extension installed.
+    // Using the specific ID is higher fidelity than the extension name "uBlock Origin".
+    let DevicesWithExtension = materialize(DeviceTvmBrowserExtensions
+    | where ExtensionId == MaliciousExtensionId
+    | distinct DeviceId);
+
+    // Step 2: Find devices that have connected to the C2 infrastructure.
+    // This looks for connections from devices with the extension, or any device connecting to the C2 IPs.
+    let CompromisedDevices = materialize (
+        union (DeviceNetworkEvents | where DeviceId in (DevicesWithExtension) | where RemoteUrl has C2Domain | distinct DeviceId, DeviceName),
+              (DeviceNetworkEvents | where RemoteIP in (C2IPs) | distinct DeviceId, DeviceName)
+    );
+
+    // Step 3: Correlate findings with firewall/proxy logs for additional network context.
+    CommonSecurityLog
+    | where DeviceId in (CompromisedDevices) or DestinationIP in (C2IPs)
+    // Potential for False Positives: C2 IPs might be on shared infrastructure or get recycled over time.
+    // Consider correlating results with subsequent process events like `finger.exe` or `pythonw.exe` execution for higher confidence.
+    | where CommunicationDirection == "Outbound"
+    | where DestinationIP in (C2IPs) or RequestURL has C2Domain
+    | project
+        TimeGenerated,
+        DeviceName,
+        DeviceId,
+        SourceIP,
+        DestinationIP,
+        DestinationPort,
+        RequestURL,
+        AdditionalExtensions
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+version: "3"

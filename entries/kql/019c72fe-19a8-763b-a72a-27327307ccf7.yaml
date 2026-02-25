@@ -1,0 +1,16 @@
+id: 019c72fe-19a8-763b-a72a-27327307ccf7
+name: SmarterMail Web Shell Creation by Service Process
+description: Detects the creation of web shells (.aspx, .ashx) in the SmarterMail web root directory by the mail service process. This is a common persistence mechanism used by attackers after exploiting vulnerabilities like CVE-2026-24423 to maintain remote access.
+query: "// Name: SmarterMail Web Shell Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: Detects the creation of web shells (.aspx, .ashx) in the SmarterMail web root directory by the mail service process. This is a common persistence mechanism used by attackers after exploiting vulnerabilities like CVE-2026-24423 to maintain remote access.\r\n// MITRE ATT&CK: T1505.003 - Web Shell\r\n// References: https://www.bleepingcomputer.com/news/security/telegram-channels-expose-rapid-weaponization-of-smartermail-flaws/\r\n// False Positive Sensitivity: Medium\r\n// False Positives: Legitimate application updates or the installation of plugins could potentially write .aspx or .ashx files. It is recommended to baseline normal file creation activity in this directory and exclude known good updaters or administrative accounts if necessary.\r\n// Define the parent processes associated with SmarterMail. 'w3wp.exe' is the IIS worker process which may host the application.\r\nlet smartermail_processes = dynamic([\"MailService.exe\", \"w3wp.exe\"]);\r\nDeviceFileEvents\r\n// Focus on file creation events, a key indicator for web shell drops.\r\n| where ActionType == \"FileCreated\"\r\n// Filter for files created by a SmarterMail service process.\r\n| where InitiatingProcessFileName in~ (smartermail_processes)\r\n// Filter for files created in the SmarterMail web root directory. The path may vary by installation.\r\n| where FolderPath has @\"SmarterTools\\SmarterMail\\Service\\Settings\"\r\n// Check if the created file has a common web shell extension.\r\n| where FileName endswith \".aspx\" or FileName endswith \".ashx\"\r\n// Project relevant fields for investigation.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    RequestAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FolderPath,\r\n    FileName,\r\n    SHA1"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/telegram-channels-expose-rapid-weaponization-of-smartermail-flaws/

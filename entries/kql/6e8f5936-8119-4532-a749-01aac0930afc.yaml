@@ -1,0 +1,40 @@
+id: 6e8f5936-8119-4532-a749-01aac0930afc
+name: Custom DefenderXDR KQL detection for fake CrowdStrike email domain using Regex
+description: KQL Query
+query: |
+    // Custom DefenderXDR KQL detection for fake CrowdStrike email domain using Regex
+    // https://www.linkedin.com/posts/activity-7222081026011885568-giCs/
+
+    // Configure as Detect & Purge:
+
+    EmailEvents
+    | where Timestamp > ago(1h)
+    | where EmailDirection == "Inbound"
+    | where LatestDeliveryAction == "Delivered"
+    | where SenderFromDomain matches regex "^{a-z0-9\\-]{0,}cr[0oO]wdstr[i1l]ke[a-z0-9\\-]{0,}\\.[a-z]{1,}$"
+    | where SenderFromDomain !endswith "crowdstrike.com" and
+    SenderFromDomain !endswith "litmos.com" and
+    SenderFromDomain !endswith "zoom.us"
+
+    // MITRE ATT&CK Mapping
+
+    // The query primarily focuses on detecting phishing attempts, which can be mapped to the following MITRE ATT&CK techniques:
+
+    // Phishing (T1566):
+    // The query aims to identify phishing emails by detecting domains that mimic legitimate ones1.
+    // Spearphishing Link (T1566.002):
+    // By focusing on inbound emails with specific domain patterns, the query helps detect spearphishing attempts where attackers use lookalike domains1.
+    // Spearphishing Attachment (T1566.001):
+    // Although the query doesn’t explicitly check for attachments, it can be extended to do so, thereby detecting spearphishing emails with malicious attachments1.
+query_type: kql
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1566
+    - T1566.002
+    - T1566.001
+    - T1036.005
+tags:
+    - kql
+version: "1"

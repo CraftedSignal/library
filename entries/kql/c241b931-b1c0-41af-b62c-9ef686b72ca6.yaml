@@ -1,0 +1,17 @@
+id: c241b931-b1c0-41af-b62c-9ef686b72ca6
+name: Phishing Hidden in Google Redirect Links
+description: This rule detects phishing attempts that leverage Google redirect links. It identifies emails where the URL contains 'google.' and '/url?' and the URL domain is 'google', but the extracted domain is not 'com'. This indicates a potential malicious redirect through Google's services, often used to obscure the final malicious destination. The rule then joins this URL information with email event data to provide context such as sender, recipient, subject, and delivery location, focusing on emails delivered to the Inbox or Junk folder but not quarantined.
+query: "EmailUrlInfo \r\n| where TimeGenerated >= ago(14d) \r\n| where Url has \"google.\" and Url has \"/url?\" and UrlDomain has \"google\" \r\n| extend Domain = extract(\"google\\\\.([^/]+)\", 1, Url) \r\n| where Domain !in (\"com\") \r\n| summarize Urls = make_list(Url) by NetworkMessageId \r\n| join kind=inner (EmailEvents) on NetworkMessageId \r\n| where DeliveryLocation has \"Inbox\" or DeliveryLocation has \"Junk\" and LatestDeliveryLocation != \"Quarantine\" \r\n| project NetworkMessageId, TimeGenerated, Urls, SenderFromAddress, RecipientEmailAddress, Subject, DeliveryLocation, DeliveryAction, LatestDeliveryLocation"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: LindenSec
+version: "1"
+references:
+    - https://www.lindensec.com/post/google-s-open-redirect-phishing

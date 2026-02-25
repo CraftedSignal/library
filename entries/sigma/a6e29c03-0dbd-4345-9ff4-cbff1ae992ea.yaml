@@ -1,0 +1,73 @@
+id: a6e29c03-0dbd-4345-9ff4-cbff1ae992ea
+name: Discord Invite Loop Hole - Network IOCs
+description: Detects network connections to known malicious domains and IPs associated with the Discord Invite Loop Hole campaign, including payload hosting, C2, and data exfiltration via Discord webhooks.
+query: |-
+    title: Discord Invite Loop Hole - Network IOCs
+    id: 4d5e6f78-9012-3456-7890-abcdef1a2b3c
+    status: experimental
+    description: Detects network connections to known malicious domains and IPs associated with the Discord Invite Loop Hole campaign, including payload hosting, C2, and data exfiltration via Discord webhooks.
+    references:
+        - https://research.checkpoint.com/2025/from-trust-to-threat-hijacked-discord-invites-used-for-multi-stage-malware-delivery/
+    author: Detections.ai
+    date: 2025-06-19
+    logsource:
+        category: network_connection
+        product: windows # Or firewall/proxy logs depending on source
+    detection:
+        selection:
+            Initiated: 'true' # Assuming network connection logs capture initiation
+            DestinationHostname|contains: # Domains used for phishing, payload hosting, C2, and webhooks
+                - 'captchaguard.me'
+                - 'pastebin.com'
+                - 'github.com'
+                - 'codeberg.org'
+                - 'bitbucket.org'
+                - 'discord.com' # Covers Discord webhooks and potentially other Discord-related C2/exfil
+                - 'microads.top'
+            DestinationIp|Ip: # Specific C2 IP addresses
+                - '101.99.76.120'
+                - '87.120.127.37'
+                - '185.234.247.8'
+        condition: selection
+    fields:
+        - Image
+        - User
+        - DestinationHostname
+        - DestinationIp
+        - DestinationPort
+        - Protocol
+    tags:
+        - attack.command_and_control
+        - attack.exfiltration
+        - attack.ingress_tool_transfer
+        - attack.t1071.001 # Web Protocols
+        - attack.t1105 # Ingress Tool Transfer
+        - attack.t1567.002 # Exfiltration to Cloud Storage (Discord Webhooks)
+        - detection.emerging_threats
+    falsepositives:
+        - Connections to legitimate parts of pastebin.com, github.com, bitbucket.org, discord.com. This rule is broad and will require tuning or correlation with other activity. More specific rules could target paths (e.g., `/raw/`, `/downloads/`, `/api/webhooks/`) or specific user agents (`Dynamic WinHTTP Client/1.0`), but `contains` is used for simplicity based on the provided IOCs.
+    level: medium # Can be high if correlated with other activity or if the environment has strict egress policies
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1071.001
+    - T1105
+    - T1567.002
+tags:
+    - attack.command_and_control
+    - attack.exfiltration
+    - attack.ingress_tool_transfer
+    - attack.t1071.001
+    - attack.t1105
+    - attack.t1567.002
+    - detection.emerging_threats
+author: Detections.ai
+version: "1"
+references:
+    - https://research.checkpoint.com/2025/from-trust-to-threat-hijacked-discord-invites-used-for-multi-stage-malware-delivery/
+data_sources:
+    - network_connection
+    - windows

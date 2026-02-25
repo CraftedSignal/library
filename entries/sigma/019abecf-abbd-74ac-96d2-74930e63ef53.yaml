@@ -1,0 +1,61 @@
+id: 019abecf-abbd-74ac-96d2-74930e63ef53
+name: FlexibleFerret Chrome Profile Access Detection
+description: Detects access to Chrome profile data and Login Data database associated with credential theft activities linked to FlexibleFerret malware on macOS.
+query: |+
+    ---
+    title: FlexibleFerret Chrome Credential Theft Indicators
+    id: a1b2c3d4-cccc-4e5f-8a9b-0c1d2e3f4a5b
+    status: experimental
+    description: Detects access to Chrome profile data and Login Data database, targeted by FlexibleFerret for credential theft
+    author: Claude Opus 4.5
+    date: 2025/11/26
+    references:
+        - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    tags:
+        - attack.credential_access
+        - attack.t1555.003
+        - attack.collection
+        - attack.t1005
+    logsource:
+        category: file_access
+        product: macos
+    detection:
+        selection_chrome:
+            TargetFilename|contains:
+                - 'Chrome/Default/Login Data'
+                - 'Chrome/Default/Local Extension Settings'
+                - 'Google/Chrome/Default'
+        selection_process_suspicious:
+            Image|endswith:
+                - '/go'
+                - '.app/Contents/MacOS/'
+            Image|contains:
+                - '/var/tmp/'
+                - 'CDrivers'
+                - 'MediaPatcher'
+        condition: selection_chrome and selection_process_suspicious
+    falsepositives:
+        - Legitimate browser management tools
+        - Password managers accessing Chrome data
+    level: high
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1555.003
+    - T1005
+tags:
+    - attack.credential_access
+    - attack.t1555.003
+    - attack.collection
+    - attack.t1005
+author: Claude Opus 4.5
+version: "1"
+references:
+    - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+data_sources:
+    - file_access
+    - macos

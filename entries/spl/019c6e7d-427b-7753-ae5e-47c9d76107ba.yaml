@@ -1,0 +1,22 @@
+id: 019c6e7d-427b-7753-ae5e-47c9d76107ba
+name: Agent Command Injection Attempts
+description: Detects command injection related attacks with AI agents through  suspicious prompt patterns or system command execution by AI processes.
+query: |4-
+       ``` Detects command injection related attacks with AI agents through
+        suspicious prompt patterns or system command execution by AI processes. ```
+
+    Processes.parent_process_path IN ("*langchain*", "*openai*", "*anthropic*", "*claude*", "*deepseek*", "*llama*", "*ollama*", "*openclaw*", "*clawdbot*") Processes.process IN ("*&& curl*", "*| bash*", "*; wget*", "*`cat*", "*$(cat*", "*; nc*")
+    | rename Processes.parent_process_path as ParentProcessPath Processes.process as ProcessPath Processes.user as UserName
+    | table _time UserName ParentProcessPath ProcessPath
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - DS0009
+    - DS0017
+tags:
+    - spl
+author: zendannyy
+version: "1"

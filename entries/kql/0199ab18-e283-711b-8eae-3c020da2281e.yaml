@@ -1,0 +1,123 @@
+id: 0199ab18-e283-711b-8eae-3c020da2281e
+name: InterLock Ransomware (UNC5774) Detection
+description: This rule detects various activities associated with the InterLock Ransomware (UNC5774). It identifies anti-VM checks performed via PowerShell, specifically looking for commands that query for QEMU, memory less than 4GB or 1.5GB, or specific desktop naming conventions. It also detects local group and Service Principal Name (SPN) enumeration using PowerShell cmdlets like 'Get-LocalGroupMember', 'Get-LocalGroup', or ADSI queries for 'samAccountName' and 'servicePrincipalName'. Persistence mechanisms are covered by monitoring registry Run/RunOnce keys for entries that launch 'node' or 'php' executables. Furthermore, the rule looks for suspicious staging of 'node.exe' or 'php.exe' within the AppData\Roaming directory when initiated by PowerShell processes. The rule leverages 'DeviceProcessEvents', 'DeviceRegistryEvents', and 'DeviceEvents' (specifically PowerShellCommand action type) to capture these activities.
+query: |
+    // ============================================================================
+    // InterLock Ransomware / InterLock RAT (UNC5774) Detection
+    // Author: KillBillKill98
+    // Last Updated: 2025-10-03
+    // ============================================================================
+    // Background:
+    //  - UNC5774 (InterLock) uses ClickFix/PPI initial lures and a JS/PHP RAT (InterLock/Cornflake/NodeSnake).
+    //  - Capabilities: persistence via Run registry, remote code execution (exe/dll/js/cmd/php), PowerShell (PHP only),
+    //    TXT/Log writes, XOR'ed HTTP(s) C2, and anti-VM checks in loader PowerShell.
+    //  - Hunting below targets anti-VM PowerShell, local group & SPN enumeration, Run-key persistence, AppData node/php staging,
+    //    suspicious execution patterns, and known C2 / paths.
+    // ============================================================================
+    // MITRE ATT&CK Techniques (consolidated):
+    //  - T1497.001 — Virtualization/Sandbox Evasion: System Checks
+    //  - T1082 — System Information Discovery
+    //  - T1059 / T1059.001 — Command and Scripting Interpreter: PowerShell
+    //  - T1087 — Account Discovery
+    //  - T1558.003 — Kerberoasting (SPN enumeration / ADSI use) (supporting)
+    //  - T1547.001 — Registry Run Keys / Startup Folder
+    //  - T1543.003 — Create or Modify System Process: Windows Service
+    //  - T1574.001 — DLL Search Order Hijacking (DLL Side-Loading) (supporting)
+    //  - T1102 — Web Service (C2)
+    //  - T1083 — File and Directory Discovery
+    //  - T1566 — Phishing (Initial Access)
+    //  - T1490 / T1486 — Ransomware impact/context
+    // ============================================================================
+    // Suggested severity mapping & response guidance (per-detection):
+    //  - High: persistence (Run keys invoking php/node), AppData staging with PowerShell parent, service creation, confirmed C2.
+    //  - Medium: ADSI/SPN enumeration, local group enumeration, anti-VM checks in isolation (hunt context).
+    //  - Recommended baseline response: Collect Investigation Package -> Initiate Automated Investigation.
+    //  - Escalate (Isolate / AV Scan / Mark Compromised) when multiple TTPs observed or detection maps to High/Critical.
+    // ============================================================================
+
+    DeviceProcessEvents
+    | where (FileName in~ ("powershell.exe" , "powershell_ise.exe" , "pwsh.exe") and (
+    ProcessCommandLine has_all ("eq", "QEMU")
+    or (ProcessCommandLine contains "Memory" and ProcessCommandLine has "lt" and
+    ProcessCommandLine has_any ("4", "1.5"))
+    or ProcessCommandLine has_all("match", "DESKTOP-S*")
+    ))
+    | project-reorder Timestamp, ActionType, ReportId, DeviceId, DeviceName,
+    InitiatingProcessParentFileName, InitiatingProcessFileName, FileName,
+    InitiatingProcessCommandLine, ProcessCommandLine, SHA256, InitiatingProcessSHA256
+
+    DeviceProcessEvents
+    | where FileName in~ ("powershell.exe", "powershell_ise.exe", "pwsh.exe")
+    | where ProcessCommandLine has_any ("Get-LocalGroupMember", "Get-LocalGroup")
+    | project-reorder Timestamp, ReportId, DeviceId, DeviceName, InitiatingProcessParentFileName,
+    InitiatingProcessFileName, FileName, InitiatingProcessCommandLine, ProcessCommandLine,
+    SHA256, InitiatingProcessSHA256
+
+    DeviceProcessEvents
+    | where (FileName =~ "setspn.exe" and ProcessCommandLine matches regex @"(?i)(-|\/)T.*(-|\/)Q.*\*\/\*")
+    or (FileName in~ ("powershell.exe", "powershell_ise.exe", "pwsh.exe") and
+    ProcessCommandLine has_any ("[adsi]", "[adsisearcher]") and ProcessCommandLine has_any
+    ("samAccountName", "servicePrincipalName") and ProcessCommandLine has "FindAll()")
+    | project-reorder Timestamp, ReportId, DeviceId, DeviceName, InitiatingProcessParentFileName,
+    InitiatingProcessFileName, FileName, InitiatingProcessCommandLine, ProcessCommandLine,
+    SHA256, InitiatingProcessSHA256
+
+    DeviceRegistryEvents
+    | where (RegistryKey has_any (@"Software\Microsoft\Windows\CurrentVersion\Run",
+    @"Software\Microsoft\Windows\CurrentVersion\RunOnce") and RegistryValueData has_any
+    ("node", "php"))
+    | project-reorder Timestamp, ReportId, DeviceId, DeviceName, InitiatingProcessAccountName,
+    ActionType, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName,
+    InitiatingProcessCommandLine, InitiatingProcessSHA256
+
+    DeviceProcessEvents
+    | where InitiatingProcessParentFileName in~ ("powershell.exe", "powershell_ise.exe",
+    "pwsh.exe")
+    | where InitiatingProcessFolderPath has @"\AppData\Roaming" and InitiatingProcessFileName
+    in~ ("node.exe", "php.exe")
+    | project-reorder Timestamp, ReportId, DeviceId, DeviceName, InitiatingProcessParentFileName,
+    InitiatingProcessFileName, FileName, InitiatingProcessCommandLine, ProcessCommandLine,
+    SHA256, InitiatingProcessSHA256
+
+    DeviceEvents
+    | where ActionType == "PowerShellCommand"
+    | where AdditionalFields has_all ("eq", "QEMU")
+    or (AdditionalFields contains "Memory" and AdditionalFields has "lt" and AdditionalFields
+    has_any ("4", "1.5"))
+    or AdditionalFields has_all("match", "DESKTOP-S*")
+    or AdditionalFields has_any ("Get-LocalGroupMember", "Get-LocalGroup")
+    or (AdditionalFields has_any ("[adsi]", "[adsisearcher]") and AdditionalFields has_any
+    ("samAccountName", "servicePrincipalName") and AdditionalFields has "FindAll()")
+    | project-reorder Timestamp, ReportId, DeviceId, DeviceName, InitiatingProcessParentFileName,
+    InitiatingProcessFileName, FileName, InitiatingProcessCommandLine, AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+    - TA0002
+    - TA0006
+    - TA0003
+    - TA0004
+    - TA0011
+    - TA0001
+    - TA0040
+techniques:
+    - T1497.001
+    - T1082
+    - T1059
+    - T1059.001
+    - T1087
+    - T1558.003
+    - T1547.001
+    - T1543.003
+    - T1574.001
+    - T1102
+    - T1083
+    - T1566
+    - T1490
+    - T1486
+tags:
+    - kql
+author: KillBillKill98
+version: "4"

@@ -1,0 +1,52 @@
+id: 5df35302-4707-40eb-b501-95b12ded19c9
+name: SpyVPN Malicious Chrome Extension Network Activity
+description: KQL Query
+query: |
+    // Name: SpyVPN Malicious Chrome Extension Network Activity
+    // Author: detections.ai
+    // Date: 2025-08-20
+    // Severity: High
+    // Description: Detects network traffic associated with the SpyVPN (also known as FreeVPN.One) malicious Chrome extension, or the installation of the extension itself. This extension is known to capture screenshots and exfiltrate user data to command and control servers.
+    // False Positive Sensitivity: Medium
+    // References: https://www.koi.security/blog/spyvpn-the-vpn-that-secretly-captures-your-screen
+
+    // Define the list of known malicious domains associated with SpyVPN.
+    let malicious_domains = dynamic([
+        "aitd.one",
+        "scan.aitd.one",
+        "extrahefty.com",
+        "freevpn.one"
+    ]);
+    // Define the malicious extension ID.
+    let malicious_extension_id = "jcbiifklmgnkppebelchllpdbnibihel";
+    union isfuzzy=true
+    (
+        // Look for network connections to the malicious domains from endpoint network logs.
+        DeviceNetworkEvents
+        | where RemoteUrl has_any (malicious_domains) or RemoteIP has_any (malicious_domains) // Using has_any on RemoteIP is a fallback, domain check is preferred.
+        // FP Tuning: The domain 'freevpn.one' may have been used for legitimate purposes before the malicious updates.
+        // Investigate the InitiatingProcess to confirm it's a browser process.
+        | extend Url = RemoteUrl, Domain = tostring(parse_url(RemoteUrl).Host)
+        | project-reorder TimeGenerated, DeviceName, InitiatingProcessCommandLine, Url, Domain, RemoteIP, ActionType
+    ),
+    (
+        // Look for DNS queries for the malicious domains.
+        DnsEvents
+        | where Name has_any (malicious_domains)
+        | extend Domain = Name
+        | project-reorder TimeGenerated, DeviceName, Domain, ClientIP
+    ),
+    (
+        // Look for the installation of the malicious Chrome extension via registry keys.
+        DeviceRegistryEvents
+        | where RegistryKey contains malicious_extension_id
+        | where RegistryKey contains @"\SOFTWARE\Google\Chrome\Extensions\" or RegistryKey contains @"\SOFTWARE\Microsoft\Edge\Extensions\"
+        | project-reorder TimeGenerated, DeviceName, RegistryKey, InitiatingProcessCommandLine
+    )
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.koi.security/blog/spyvpn-the-vpn-that-secretly-captures-your-screen

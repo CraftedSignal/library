@@ -1,0 +1,59 @@
+id: 019c139d-0716-70ca-bf40-0e66210d98e0
+name: VIMC UNITY Trojan File Activity
+description: 'Detects file activity associated with the VIMC UNITY trojan. The rule identifies two main behaviors: (1) a process running from common temporary or user data directories (Temp, AppData, ProgramData, Downloads) creating or writing to a file named ''logs.txt''; and (2) the creation of ''XClient.exe'' or ''shost.exe'' within Temp, AppData, or ProgramData directories. This rule can serve as a supporting indicator and should ideally be correlated with other VIMC UNITY detection rules for higher confidence.'
+query: |
+    title: VIMC UNITY Trojan File Behavior
+    id: a2b3c4d5-e6f7-8901-2345-67890abcdef1
+    status: experimental
+    description: |
+        Detects file activity associated with the VIMC UNITY trojan. The sample writes
+        logs.txt and may drop or reference XClient.exe/shost.exe. Alerts on: (1) a process
+        running from Temp/AppData/ProgramData/Downloads creating or writing to logs.txt;
+        (2) creation of XClient.exe or shost.exe under Temp, AppData, or ProgramData.
+        Use as a supporting indicator; correlate with VIMC UNITY execution rule on the
+        same host for higher confidence.
+    references:
+        - https://app.any.run/tasks/829e49d8-266a-4e5f-9cab-353c268a4943
+        - VIMC UNITY analysis/deep_dive_report.md
+    author: Daniel Jeremiah
+    date: 2026/01/31
+    hashes:
+        - '3541b846fb46d75c6d400b6a0584b3a49ef62613624f49837e1f779a0957e9cb'
+    tags:
+        - attack.collection
+        - attack.t1005
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_logs_created:
+            TargetFilename|endswith: '\logs.txt'
+            Image|re: '.*\\(Temp|TEMP|AppData|ProgramData|Downloads)\\.*\.exe'
+        selection_known_hash:
+            SHA256|contains: '3541b846fb46d75c6d400b6a0584b3a49ef62613624f49837e1f779a0957e9cb'
+        selection_xclient_drop:
+            TargetFilename|endswith:
+                - '\XClient.exe'
+                - '\shost.exe'
+            TargetFilename|re: '.*\\(Temp|AppData|ProgramData)\\.*'
+        condition: selection_logs_created or selection_xclient_drop
+    falsepositives:
+        - Legitimate security testing (e.g. POC, authorized testing) using the C2 as testing
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1005
+tags:
+    - attack.collection
+    - attack.t1005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://app.any.run/tasks/829e49d8-266a-4e5f-9cab-353c268a4943
+    - VIMC UNITY analysis/deep_dive_report.md
+data_sources:
+    - file_event
+    - windows

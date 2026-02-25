@@ -1,0 +1,74 @@
+id: 019c48f4-0eb4-730f-9f47-28cad49290db
+name: Scheduled Task Creation Executing from Startup Folder
+description: Detects scheduled task creation where the task action executes files from Windows Startup folders. This layered persistence combines scheduled tasks (flexible triggers, potential privilege escalation) with startup folder execution for redundancy and resilience.
+query: |
+    title: Scheduled Task Creation Executing from Startup Folder
+    id: d6dfeb40-4791-46a9-9828-e69099af96cc
+    status: experimental
+    description: Detects scheduled task creation where the task action executes
+      files from Windows Startup folders. This layered persistence combines
+      scheduled tasks (flexible triggers, potential privilege escalation) with
+      startup folder execution for redundancy and resilience.
+    references:
+      - https://attack.mitre.org/techniques/T1053.005/
+      - https://attack.mitre.org/techniques/T1547.001/
+    author: SimSpace
+    date: 2026-01-19
+    tags:
+      - attack.persistence
+      - attack.privilege-escalation
+      - attack.t1053.005
+      - attack.t1547.001
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_schtasks:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create'
+          - '/tr'
+      selection_powershell:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+          - 'Register-ScheduledTask'
+          - '-Action'
+      selection_startup_path:
+        CommandLine|contains:
+          - '\Start Menu\Programs\Startup\'
+          - '\Start Menu\Programs\StartUp\'
+          - '\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp\'
+          - '%APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup'
+      condition: (selection_schtasks or selection_powershell) and selection_startup_path
+    fields:
+      - CommandLine
+      - User
+      - Image
+    falsepositives:
+      - IT deployment tools configuring startup automation
+      - System management software
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1053.005
+    - T1547.001
+tags:
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.t1053.005
+    - attack.t1547.001
+author: SimSpace
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1053.005/
+    - https://attack.mitre.org/techniques/T1547.001/
+data_sources:
+    - process_creation
+    - windows

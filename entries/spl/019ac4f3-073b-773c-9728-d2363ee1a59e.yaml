@@ -1,0 +1,17 @@
+id: 019ac4f3-073b-773c-9728-d2363ee1a59e
+name: File Transfer or Remote Access Protocol on Non-Standard Port
+description: This rule detects the use of common file transfer and remote access protocols (SSH, FTP, SMB, TELNET, FTPS, SMB.v3) communicating over non-standard ports. Adversaries often use non-standard ports to bypass firewall rules, evade detection, or obscure their command and control (C2) traffic. The rule specifically excludes the standard ports for these protocols to focus on anomalous behavior.
+query: "| tstats summariesonly=true allow_old_summaries=true count min(_time) as firstTime max(_time) as lastTime values(all_firewall.policyname) as policy_name \r\nfrom \r\ndatamodel=firewall\r\nWHERE all_firewall.app IN (\"SSH\", \"FTP\", \"SMB\", \"TELNET\", \"FTPS\", \"SMB.v3\") AND NOT dest_port IN (20, 21, 22, 23, 69, 115, 989, 990, 445) ``` Filter for specific file transfer/remote access protocols on any port except their standard ones. ```\r\nBY all_firewall.action all_firewall.dvc all_firewall.dest_ip all_firewall.rule all_firewall.vendor_action all_firewall.type all_firewall.src_ip all_firewall.vendor_product all_firewall.vd all_firewall.rule_id all_firewall.dest_port all_firewall.srcreputation all_firewall.app\r\n| rename all_firewall.* as * \r\n| convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(lastTime) \r\n| convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(firstTime)\r\n| table firstTime lastTime src_ip dest_ip dest_port app policy_name rule_id vd vendor_product dvc action count"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0008
+techniques:
+    - T1571
+    - T1021.004
+    - T1021.002
+tags:
+    - spl
+author: Rajuaravindx
+version: "2"

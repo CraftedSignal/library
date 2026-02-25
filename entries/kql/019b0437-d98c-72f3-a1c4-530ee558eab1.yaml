@@ -1,0 +1,50 @@
+id: 019b0437-d98c-72f3-a1c4-530ee558eab1
+name: 'RCE: Anomalous RSC Request Payload'
+description: Detects multiple large POST requests to Next.js or React Server Component (RSC) endpoints from the same source IP. This pattern can indicate attempts to exploit unsafe deserialization vulnerabilities like React2Shell (CVE-2025-55182) by sending a crafted, oversized payload.
+query: |
+    // Name: RCE: Anomalous RSC Request Payload
+    // Description: Detects multiple large POST requests to Next.js or React Server Component (RSC) endpoints from the same source IP. This pattern can indicate attempts to exploit unsafe deserialization vulnerabilities like React2Shell (CVE-2025-55182) by sending a crafted, oversized payload.
+    // Author: detections.ai
+    // Date: 2025-12-09
+    // Mitre ATT&CK: T1190 (Exploit Public-Facing Application)
+    // References: https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/
+    // False Positive Sensitivity: Medium. The request size threshold may need tuning based on normal application traffic. Legitimate application functions might involve large POST requests.
+
+    // --- Tuning Parameters ---
+    let sizeThreshold = 10240; // Suspicious request body size in bytes. Adjust based on baseline traffic.
+    let countThreshold = 1; // Number of large requests from a single IP to trigger an alert.
+    let timeWindow = 1h; // Time window to look for repeated attempts.
+    let targetPaths = dynamic(["/_next/data/", "/api/"]); // Common paths for Next.js and RSC endpoints.
+
+    // --- Query ---
+    // Note: This query uses CommonSecurityLog, common for WAFs. Adjust table and field names (e.g., RequestURL, SentBytes, RequestMethod, SourceIP) for your specific log source.
+    CommonSecurityLog
+    | where TimeGenerated > ago(timeWindow)
+    // Filter for POST requests which are used to send the exploit payload.
+    | where RequestMethod == "POST"
+    // Focus on requests to known Next.js or RSC API paths.
+    | where RequestURL has_any (targetPaths)
+    // Identify requests with an unusually large body, which may contain a deserialization payload.
+    | where SentBytes > sizeThreshold
+    // Summarize activity to detect scanning or repeated exploit attempts from a single source.
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), RequestCount = count(), TargetURLs = make_set(RequestURL, 5) by SourceIP, DeviceVendor, DeviceProduct
+    | where RequestCount > countThreshold
+    | project
+        StartTime,
+        EndTime,
+        SourceIP,
+        RequestCount,
+        TargetURLs,
+        DeviceVendor,
+        DeviceProduct
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/

@@ -1,0 +1,26 @@
+id: 6ae21e91-946b-4be4-8bd7-0771dfae7aff
+name: Remote local admin group enumeration via SharpHound
+description: Detects scenarios where an attacker enumerates local administratos group on multiple hosts via SharpHound.
+query: "title: Remote local admin group enumeration via SharpHound\ndescription: Detects scenarios where an attacker enumerates local administratos group on multiple hosts via SharpHound.\ncorrelation: correlate SubjectLogonId from ID 4799 with TargetLogonId from ID 4624 to identify the source of the enumeration.\nrequirements: Windows 10 / Server 2016 and higher\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0007-Discovery/T1069-Permission%20Groups%20Discovery\n- https://docs.google.com/presentation/d/1OdufXKGYPgoV1d5jDrMYSe-SYKZ7lcA4w2MFn8AkUWE/edit\n- https://www.youtube.com/watch?v=_GJDkbUTSLY\n- https://community.rsa.com/t5/rsa-netwitness-platform-blog/keeping-an-eye-on-your-hounds/ba-p/519889\n- https://bloodhound.readthedocs.io/en/latest/data-collection/sharphound.html\n- https://twitter.com/SBousseaden/status/1617856006255673345\ntags:\n- attack.discovery\n- attack.t1069.001 # Permission Groups Discovery: Local Groups \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  service: security\ndetection:\n  selection:\n    EventID: 4799 # Local group membership enumeration\n    SubjectUserSid|startswith: 'S-1-5-21-' # Exclude false positives like local system accounts (eg: S-1-5-19 for Local Service)\n    TargetSid:\n      - 'S-1-5-32-544' # Administrators\n      - 'S-1-5-32-555' # Remote Desktop Users\n      - 'S-1-5-32-580' # Remote Management Users\n    CallerProcessName: '-'  # Process is empty when call is done remotely. Process ID can also be used for the same purpose when it equals to '0x0'.\n  filter:\n    SubjectUserName|endswith: '$'\n  condition: selection and not filter | count(Computer) by SubjectUserSid > 20 # Count on how many hosts this event was produced.\nfalsepositives:\n- Administrators\n- Azure Advanced Threat Protection (ATP) sensor\nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1069.001
+    - T1069
+tags:
+    - attack.discovery
+    - attack.t1069.001
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0007-Discovery/T1069-Permission%20Groups%20Discovery
+    - https://docs.google.com/presentation/d/1OdufXKGYPgoV1d5jDrMYSe-SYKZ7lcA4w2MFn8AkUWE/edit
+    - https://www.youtube.com/watch?v=_GJDkbUTSLY
+    - https://community.rsa.com/t5/rsa-netwitness-platform-blog/keeping-an-eye-on-your-hounds/ba-p/519889
+    - https://bloodhound.readthedocs.io/en/latest/data-collection/sharphound.html
+    - https://twitter.com/SBousseaden/status/1617856006255673345
+data_sources:
+    - windows
+    - security

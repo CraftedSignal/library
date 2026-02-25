@@ -1,0 +1,45 @@
+id: 019c9193-46e2-7608-913f-451367cda0d0
+name: CastleLoader Malware Activity Detection
+description: This rule detects various stages of the CastleLoader malware activity, including C2 communication, process hollowing using AutoIt and jsc.exe, and known malware hashes. It correlates network traffic to a specific C2 server, identifies suspicious process creation patterns where AutoIt launches jsc.exe, and sweeps for known SHA256 hashes associated with CastleLoader.
+query: |+
+    ## CastleLoader (ANY.RUN) — Inno Setup -> AutoIt -> hollow into jsc.exe + C2
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://any.run/cybersecurity-blog/castleloader-malware-analysis/
+
+    ### Proxy/Netflow: C2 server
+    (index=proxy OR index=netflow OR index=firewall) (dest_ip=94.159.113.32 OR url="*94.159.113.32/service*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as uas by src, dest_ip
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Endpoint: AutoIt launching jsc.exe
+    (index=endpoint OR index=wineventlog) (EventCode=4688 OR EventCode=1)
+    | eval ParentImage=coalesce(ParentImage, parent_process_path, ParentProcessName)
+    | eval Image=coalesce(Image, NewProcessName, process_path, ProcessName)
+    | eval CommandLine=coalesce(CommandLine, process_command_line, cmdline)
+    | where match(lower(ParentImage), "\\\\autoit3\\.exe$") AND match(lower(Image), "\\\\jsc\\.exe$")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines by Computer, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Hash sweep (published SHA256)
+    (index=edr OR index=endpoint) (sha256="8b7c1657f4d5cf0cc82d68c1f1a385adf0de27d46fc544bba249698e6b427856" OR sha256="fddc186f3e5e14b2b8e68ddbd18b2bda41d38a70417a38e67281eb7995e24bac" OR sha256="dfaf277d54c1b1cf5a3af80783ed878cac152ff2c52dbf17fb05a7795fe29e79")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(file_name) as names values(file_path) as paths by host, user, sha256
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+    - TA0010
+techniques:
+    - T1059.010
+    - T1055.012
+    - T1041
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/castleloader-malware-analysis/

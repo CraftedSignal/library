@@ -1,0 +1,67 @@
+id: 019ac6f9-615f-7151-a36b-7ec789381061
+name: SharePoint ToolShell Exploitation (CL-CRI-1040/Storm-2603)
+description: This rule detects web requests targeting SharePoint endpoints associated with the ToolShell exploit chain (CVE-2025-49704, CVE-2025-49706, CVE-2025-53770, CVE-2025-53771). This activity is linked to the threat actor CL-CRI-1040 (also known as Storm-2603). The rule specifically looks for requests to "/_layouts/15/ToolPane.aspx" or "/_layouts/15/SignOut.aspx" that also contain suspicious strings indicative of command execution or file manipulation attempts, such as "cmd.exe", "powershell", "whoami", "ipconfig", "systeminfo", "&cmd=", or "&file=".
+query: |
+    # Name: SharePoint ToolShell Exploitation (CL-CRI-1040/Storm-2603)
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This rule detects web requests targeting SharePoint endpoints associated with the ToolShell exploit chain (CVE-2025-49704, CVE-2025-49706, CVE-2025-53770, CVE-2025-53771).
+    # This activity is linked to the threat actor CL-CRI-1040 (also known as Storm-2603).
+    #
+    # Data Source:
+    # This search requires web server logs (e.g., IIS) or network proxy/firewall logs.
+    # The macro `web_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., RequestURL, RequestBody, SourceIP, DestinationHost, HttpUserAgent).
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Initial Access (TA0001)
+    # - Technique: T1190 (Exploit Public-Facing Application)
+    #
+    # False Positives:
+    # Legitimate administrative or application activities might access these pages. However, the presence of
+    # suspicious parameters or commands significantly increases the likelihood of malicious intent.
+    # The list of suspicious strings may need to be tuned to your environment to reduce noise.
+
+    // Define the SharePoint pages targeted by the ToolShell exploit chain.
+    let target_pages = dynamic([
+        "/_layouts/15/ToolPane.aspx",
+        "/_layouts/15/SignOut.aspx"
+    ]);
+
+    // Define suspicious strings often seen in web shell and RCE attempts.
+    // This list can be tuned to reduce potential false positives.
+    let suspicious_strings = dynamic([
+        "cmd.exe",
+        "powershell",
+        "whoami",
+        "ipconfig",
+        "systeminfo",
+        "&cmd=",
+        "&file="
+    ]);
+
+    `web_events`
+    // Filter for requests to the specific vulnerable SharePoint pages.
+    | where RequestURL has_any (target_pages)
+    // Further filter for requests that contain suspicious strings in the URL or request body,
+    // which are indicative of command execution or file manipulation attempts.
+    | where RequestURL has_any (suspicious_strings) or RequestBody has_any (suspicious_strings)
+    // Group results for analysis and investigation.
+    | stats count() min(TimeGenerated) as firstTime, max(TimeGenerated) as lastTime by SourceIP, DestinationHost, RequestURL, RequestBody, HttpUserAgent
+    | `sharepoint_toolshell_exploitation_cl-cri-1040_storm-2603_filter`
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

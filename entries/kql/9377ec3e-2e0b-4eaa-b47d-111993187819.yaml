@@ -1,0 +1,19 @@
+id: 9377ec3e-2e0b-4eaa-b47d-111993187819
+name: DefenderXDR - New External Recipient within Teams (HUNTING)
+description: KQL Query
+query: "let LookbackPeriod = 7d; //define the period to check for known external senders\r\nlet RecentPeriod = 1d; //define the period to check for new external senders\r\nlet internalDomains = IdentityInfo\r\n| distinct Domain = tostring(split(AccountUpn, \"@\")[1]); //define internal user domains\r\nlet ExternalRecipientsLastWeek = \r\nMessageEvents\r\n| where Timestamp between (ago(LookbackPeriod + RecentPeriod) .. ago(RecentPeriod))\r\n| mv-expand RecipientDetails\r\n| extend Recipient = parse_json(RecipientDetails)\r\n| extend RecipientSmtpAddress = tostring(Recipient.RecipientSmtpAddress)\r\n| where not(SenderEmailAddress has_any (internalDomains)) //only return check messages where the sender of the message is external\r\n| summarize by RecipientSmtpAddress;\r\nlet ExternalRecipientsToday = \r\nMessageEvents\r\n| where Timestamp >= ago(RecentPeriod)\r\n| mv-expand RecipientDetails\r\n| extend Recipient = parse_json(RecipientDetails)\r\n| extend RecipientSmtpAddress = tostring(Recipient.RecipientSmtpAddress)\r\n| where not(RecipientSmtpAddress has_any (internalDomains))\r\n| where SenderEmailAddress has_any (internalDomains)\r\n| where ThreadType == \"chat\" //only check chat messages, remove this line to check all teams events\r\n| project Timestamp, Subject, ThreadName, SenderEmailAddress, RecipientSmtpAddress;\r\nExternalRecipientsToday\r\n| join kind=anti (ExternalRecipientsLastWeek) on RecipientSmtpAddress\r\n| project Timestamp, Subject, ThreadName, SenderEmailAddress, NewExternalRecipient = RecipientSmtpAddress;"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0001
+techniques:
+    - T1213.005
+    - T1552.008
+    - T1566
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://github.com/dylanevans-cybersec/KQL-Queries/blob/main/DefenderXDR/teams-NewExternalSender.kql

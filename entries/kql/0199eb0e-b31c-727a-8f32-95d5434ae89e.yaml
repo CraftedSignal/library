@@ -1,0 +1,69 @@
+id: 0199eb0e-b31c-727a-8f32-95d5434ae89e
+name: 7-Zip Directory Traversal File Creation to Sensitive System Locations
+description: Detects when a 7-Zip process, potentially running from a user directory, writes a file to a sensitive system location. This could indicate a directory traversal attack (e.g., CVE-2025-11001, CVE-2025-11002) where a malicious archive writes a file outside of the intended extraction path. The rule specifically looks for 7-Zip processes initiated from common user-land folders (like Downloads, Desktop, Documents, Temp) creating files in sensitive system directories (like C:\Windows, C:\Windows\System32, C:\ProgramData, or Startup folders), while excluding legitimate installations to Program Files.
+query: |
+    // Name: 7-Zip Directory Traversal File Creation
+    // Author: @malwarejutsu
+    // Date: 2025-10-16
+    // Description: Detects when a 7-Zip process, potentially running from a user directory, writes a file to a sensitive system location. This could indicate a directory traversal attack (e.g., CVE-2025-11001, CVE-2025-11002) where a malicious archive writes a file outside of the intended extraction path.
+    // MITRE TTPs: T1083, T1559
+    // References: https://github.com/pacbypass/CVE-2025-11001/blob/main/exploit.py
+    // False Positive Sensitivity: Medium
+
+    // Define known 7-Zip process names
+    let sevenZipProcesses = dynamic(["7z.exe", "7zG.exe", "7zFM.exe"]);
+
+    // Define sensitive directories often targeted by traversal attacks
+    let sensitiveFolders = dynamic([
+        @"C:\Windows\",
+        @"C:\Windows\System32\",
+        @"C:\Windows\SysWOW64\",
+        @"C:\ProgramData\",
+        @"\Microsoft\Windows\Start Menu\Programs\Startup\", // User startup folder
+        @"\Start Menu\Programs\Startup\" // All Users startup folder
+    ]);
+
+    // Define common user-land folders where archives are typically opened from
+    let userLandFolders = dynamic([
+        @"\Downloads\",
+        @"\Desktop\",
+        @"\Documents\",
+        @"\AppData\Local\Temp\"
+    ]);
+
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    // Filter for file creation by a 7-Zip process
+    | where InitiatingProcessFileName in~ (sevenZipProcesses)
+    // The file is written to a sensitive system location
+    | where FolderPath has_any (sensitiveFolders)
+    // The 7-Zip process is running from a common user-land location
+    | where InitiatingProcessFolderPath has_any (userLandFolders)
+    // FP Tuning: Legitimate installers run from a user's Downloads folder might extract files to Program Files.
+    // Exclude these common installation paths to reduce noise. Consider adding other approved software paths.
+    | where not (FolderPath startswith @"C:\Program Files" or FolderPath startswith @"C:\Program Files (x86)")
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA1,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        InitiatingProcessAccountDomain
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1083
+    - T1559
+tags:
+    - kql
+version: "2"
+references:
+    - https://github.com/pacbypass/CVE-2025-11001/blob/main/exploit.py

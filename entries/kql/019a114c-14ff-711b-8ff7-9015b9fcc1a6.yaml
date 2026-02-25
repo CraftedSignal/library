@@ -1,0 +1,17 @@
+id: 019a114c-14ff-711b-8ff7-9015b9fcc1a6
+name: Detect Unsigned or DevSigned Appx Package Installation
+description: This rule detects the installation of AppX or MSIX packages, specifically looking for installations initiated by PowerShell that are either developer-signed (EventID 855) or unsigned (EventID 603 with specific flags). It filters out known legitimate Microsoft packages to reduce false positives. The rule correlates PowerShell process events with device events related to AppX/MSIX installations within a 30-seconds window.
+query: "let SuspiciousAppxInstalls = \r\n    DeviceProcessEvents \r\n    | where FileName in~ (\"powershell.exe\", \"pwsh.exe\") \r\n    | where ProcessCommandLine has_any (\"Add-AppxPackage\", \"Add-AppPackage\", \".appx\", \".msix\") \r\n    | where ProcessCommandLine !contains \"8wekyb3d8bbwe\" \r\n    | where ProcessCommandLine !contains \"cw5n1h2txyewy\"\r\n    | project ProcessTimestamp = Timestamp, DeviceId, DeviceName, ProcessAccountName = AccountName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine;\r\nlet DevSignedAppxPackageInstallation = DeviceEvents\r\n| where AdditionalFields has \"EventID=855\"\r\n| join kind=inner (\r\n    SuspiciousAppxInstalls\r\n) on DeviceId\r\n| where abs(datetime_diff('second', Timestamp, ProcessTimestamp)) <= 30\r\n| project Timestamp, ProcessTimestamp, DeviceName, ActionType, ProcessAccountName, ProcessCommandLine, FileName, FolderPath, AdditionalFields\r\n| sort by Timestamp desc;\r\nlet AppXUnsignedInstallation = DeviceEvents\r\n| where AdditionalFields has \"EventID=603\"\r\n| extend Flags = parse_json(AdditionalFields).Flags\r\n| where Flags == \"8388608\";\r\nDevSignedAppxPackageInstallation\r\n| union (AppXUnsignedInstallation)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"
+references:
+    - https://www.splunk.com/en_us/blog/security/msix-weaponization-threat-detection-splunk.html

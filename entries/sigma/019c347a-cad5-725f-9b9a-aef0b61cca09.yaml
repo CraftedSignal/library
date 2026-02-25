@@ -1,0 +1,56 @@
+id: 019c347a-cad5-725f-9b9a-aef0b61cca09
+name: APT28 Phantom Net Voxel - Steganography Image Drop from Office
+description: This rule detects the creation of specific image files (windows.png, koala.png, or Default.png) in common application data directories (AppData\Local\ or ProgramData\). The creation event must be initiated by Microsoft Office applications (WINWORD.EXE, EXCEL.EXE) or prnfldr.dll. This activity is indicative of APT28's Phantom Net Voxel operation, which uses steganography to embed shellcode within these image files.
+query: |
+    title: APT28 Phantom Net Voxel - Steganography windows.png Drop
+    id: a1b2c3d4-e5f6-4a5b-8c9d-apt28steg001
+    status: experimental
+    description: |
+        APT28 drops windows.png (or koala.png) with LSB-embedded shellcode.
+        Office macro drops to %LocalAppData%; DLL extracts AES payload.
+        File creation in Local\Temp or Local from Office = stego loader.
+    references:
+        - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.defense-evasion
+        - attack.t1027
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_file:
+            TargetFilename|endswith|any:
+                - '\windows.png'
+                - '\koala.png'
+                - '\Default.png'
+        selection_path:
+            TargetFilename|contains|any:
+                - '\AppData\Local\'
+                - '\ProgramData\'
+        selection_parent:
+            ParentImage|endswith|any:
+                - '\WINWORD.EXE'
+                - '\EXCEL.EXE'
+                - '\prnfldr.dll'
+        condition: selection_file and selection_path and selection_parent
+    falsepositives:
+        - Legitimate image save from Office
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/
+data_sources:
+    - file_event
+    - windows

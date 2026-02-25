@@ -1,0 +1,82 @@
+id: 0199eaf5-75b3-74ce-960c-7a302a9357ef
+name: F5 BIG-IP Suspicious Administrative Activity
+description: Detects suspicious administrative activities on F5 BIG-IP devices, such as failed logins or configuration changes. This is based on recommendations from F5 in response to a security incident disclosed in October 2025 where a threat actor gained access to BIG-IP development environments. F5 advised customers to enhance monitoring for admin logins, failed authentications, and privilege and configuration changes.
+query: |
+    title: F5 BIG-IP Suspicious Administrative Activity
+    id: 242271b2-67df-4d98-b0b5-b483c059fbf8
+    status: experimental
+    description: >-
+      Detects suspicious administrative activities on F5 BIG-IP devices, such as
+      failed logins or configuration changes. This is based on recommendations from
+      F5 in response to a security incident disclosed in October 2025 where a threat
+      actor gained access to BIG-IP development environments. F5 advised customers
+      to enhance monitoring for admin logins, failed authentications, and privilege
+      and configuration changes.
+    references:
+      - https://my.f5.com/manage/s/article/K000154696
+    author: detections.ai
+    date: 2025-10-16
+    tags:
+      - attack.initial_access
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1078
+      - vendor.f5
+      - product.big-ip
+    logsource:
+      product: bigip
+      category: auditing
+    detection:
+      # Selection for failed administrative logins, as recommended by F5.
+      failed_login:
+        message|contains:
+          - 'authentication failure' # Common in pam logs for sshd
+          - 'Login failed for user'
+          - 'result=FAIL' # Specific to some F5 log formats (e.g., httpd)
+      # Selection for configuration changes via the audit log system (tacplus).
+      config_change_audit:
+        message|contains|all:
+          - 'audisp-tacplus:'
+          - 'cmd='
+      # Keywords for commands that create, modify, or delete configuration.
+      config_change_keywords:
+        message|contains:
+          - ' create '
+          - ' modify '
+          - ' delete '
+          - ' install '
+          - ' edit '
+          - ' load '
+          - ' run '
+      condition: failed_login or (config_change_audit and config_change_keywords)
+    falsepositives:
+      - Legitimate administrators performing configuration changes will trigger the
+        'config_change' portion of this rule. This is expected and should be
+        correlated with change management tickets or known administrative activity.
+      - A high volume of failed logins may occur if an administrator forgets their
+        password or if a misconfigured automated system attempts to log in. Consider
+        applying a threshold to the 'failed_login' selection if noise is high.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0005
+techniques:
+    - T1078
+tags:
+    - attack.initial_access
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1078
+    - vendor.f5
+    - product.big-ip
+author: detections.ai
+version: "3"
+references:
+    - https://my.f5.com/manage/s/article/K000154696
+data_sources:
+    - auditing
+    - bigip

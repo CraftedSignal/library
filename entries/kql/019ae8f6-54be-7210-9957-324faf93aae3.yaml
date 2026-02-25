@@ -1,0 +1,50 @@
+id: 019ae8f6-54be-7210-9957-324faf93aae3
+name: Device Registration after ROPC Authentication
+description: |-
+    This detection identifies cases where a successful device registration event in Azure AD occurs shortly after a successful Resource Owner Password Credentials (ROPC) authentication to Microsoft Intune Enrollment via the Microsoft Authentication Broker.
+
+    Microsoft allows specific application and resource combinations access without a previously registered device.
+
+    An access token issued for the Microsoft Authentication Broker application and the Intune Enrollment resource can be used to authenticate and initiate the device join process.
+
+    An attacker can leverage the token to bypass CA, register device, and establish persistence. Once registered, attacker gets a Primary Refresh Token (PRT), valid for 90 days.
+
+    The following query joins ROPC successful sign-ins, to successful device registrations. Registrations that occur soon after a ROPC event (2 days in this instance) could be an indicator of abuse.
+query: |-
+    let ropc_success = union AADNonInteractiveUserSignInLogs, SigninLogs
+      | extend StatusJson = parse_json(Status_dynamic)
+      | extend errorCode = tostring(StatusJson.errorCode)
+      | where isnotempty(UserId)
+      | where AuthenticationProtocol == "ropc"
+          and errorCode == "0"
+          and AppId == "29d9ed98-a469-4536-ade2-f981bc1d605e" // Microsoft Authentication Broker
+          and ResourceId == "d4ebce55-015a-49b5-a083-c84d1797ae8c" // Microsoft Intune Enrollment
+      | project userId = UserId, ropcTime = CreatedDateTime;
+    AuditLogs
+      | where ActivityDisplayName == "Register device"
+          and Result == "success"
+          and isnotempty( InitiatedBy.user.id)
+      | extend userId = tostring(InitiatedBy.user.id)
+      | join kind=inner ropc_success on userId
+      | extend daysDiff = datetime_diff("day", TimeGenerated, ropcTime)
+      | where daysDiff between (0 .. 2)
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1078
+    - T1556
+    - T1550
+    - T1556.004
+    - T1110
+    - T1078.004
+tags:
+    - kql
+author: Will Shaw
+version: "1"
+references:
+    - https://www.wiz.io/blog/recent-oauth-attacks-detection-strategies

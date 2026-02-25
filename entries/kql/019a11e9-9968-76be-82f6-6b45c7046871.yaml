@@ -1,0 +1,14 @@
+id: 019a11e9-9968-76be-82f6-6b45c7046871
+name: Tykit Phishing detection
+description: Detected endpoints that processed an SVG file and subsequently connected to a known malicious domain.
+query: "//Reference:https://any.run/cybersecurity-blog/tykit-technical-analysis/?utm_source=analysis&utm_medium=email&utm_campaign=tykit20251021gml&utm_content=tykit-technical-analysis\r\n//Reference:https://www.linkedin.com/posts/0x534c_cybersecurity-svg-phishing-activity-7386759210782449664-ranN?utm_source=share&utm_medium=member_desktop&rcm=ACoAAEYX3c8BF6S_KSWAPxjK-nkdEwC5_W8r2uk\r\nlet Tykit=externaldata(Domain:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/TyKit.csv']\r\nwith (format='csv', ignoreFirstRecord=true);\r\nlet svg =\r\nDeviceFileEvents\r\n| where ActionType == @\"FileCreated\"\r\n| where FileName endswith \".svg\"\r\n|project SVGTime=Timestamp,DeviceId,InitiatingProcessAccountName,DeviceName,ActionType,FileName,SHA256,InitiatingProcessFileName; \r\nlet ioc =\r\nDeviceNetworkEvents \r\n| where RemoteUrl has \"segy\" or RemoteUrl has_any (Tykit) or RemoteUrl matches regex \"^loginmicr(o|0)sft.*?\\\\.([a-z0-9]+)?[a-zA-Z0-9]+\\\\.cc$\"\r\n| project IOCTime=Timestamp,DeviceId,InitiatingProcessAccountName,DeviceName,ActionType,RemoteUrl;\r\nsvg\r\n| join kind=inner (\r\n    ioc\r\n) on DeviceId\r\n| project DeviceId,InitiatingProcessAccountName,DeviceName,RemoteUrl\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+author: Enzima45
+version: "3"

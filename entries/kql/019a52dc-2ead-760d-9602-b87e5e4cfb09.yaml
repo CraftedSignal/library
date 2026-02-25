@@ -1,0 +1,19 @@
+id: 019a52dc-2ead-760d-9602-b87e5e4cfb09
+name: 'SesameOp: Novel backdoor using OpenAI Assistants API for command and control'
+description: SesameOP Uses OpenAI Assistants API as a mechanism for command-and-control (C2) communications. Instead of relying on more traditional methods, the threat actor behind this backdoor abuses OpenAI as a C2 channel as a way to stealthily communicate and orchestrate malicious activities within the compromised environment. To do this, a component of the backdoor uses the OpenAI Assistants API as a storage or relay mechanism to fetch commands, which the malware then runs.
+query: "DeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"  // Only successful connections\r\n| where RemoteUrl endswith \"api.openai.com\"\r\n// Sesameop-specific behavioral indicators\r\n| where (\r\n    (InitiatingProcessFileName =~ \"Runtime.dll\" and InitiatingProcessCommandLine has \"openai\") or\r\n    (InitiatingProcessFileName has \"OpenAI\" and InitiatingProcessCommandLine has \"assistants\") or\r\n    (InitiatingProcessFileName =~ \"Microsoft.Win32.TaskScheduler.dll\" and InitiatingProcessParentFileName =~ \"Runtime.dll\") or\r\n    (InitiatingProcessFileName =~ \"System.Management.Automation.dll\" and InitiatingProcessCommandLine has \"openai\" and InitiatingProcessCommandLine has \"assistant\")\r\n    )\r\n// Focus on Assistants API endpoints used by Sesameop\r\n| where RemoteUrl contains \"assistants\" or RemoteUrl contains \"threads\"\r\n// Additional filtering for known Sesameop patterns\r\n| where InitiatingProcessCommandLine has_any(\"api-key\", \"assistant\", \"thread\", \"message\") \r\nor InitiatingProcessFolderPath has \"Runtime\"\r\n| extend \r\n    SesameopDetection = case(\r\n        InitiatingProcessFileName =~ \"Runtime.dll\", \"Trojan:MSIL/Sesameop.A (loader)\",\r\n        InitiatingProcessFileName has \"OpenAI\" and InitiatingProcessCommandLine has \"assistants\", \"Backdoor:MSIL/Sesameop.A (backdoor)\",\r\n        \"Confirmed Sesameop C2 Connection\"\r\n    ),\r\n    ConfidenceLevel = case(\r\n        InitiatingProcessFileName =~ \"Runtime.dll\" and InitiatingProcessCommandLine has \"openai\", \"High\",\r\n        RemoteUrl contains \"assistants\" and InitiatingProcessCommandLine has \"thread\", \"High\", \r\n        \"Medium\"\r\n    )\r\n| where ConfidenceLevel == \"High\"  // Only high confidence matches\r\n| summarize Connections = count() by DayOfConnection = bin(TimeGenerated, 1d), DeviceName, InitiatingProcessFileName, RemoteUrl, SesameopDetection\r\n| summarize \r\n    TotalConnections = sum(Connections),\r\n    DaysWithConnections = dcount(DayOfConnection),\r\n    DistinctDevices = dcount(DeviceName),\r\n    DeviceDetails = make_list(\r\n        pack(\r\n            \"DeviceName\", DeviceName,\r\n            \"DailyConnections\", Connections,\r\n            \"ConnectionDate\", DayOfConnection,\r\n            \"Detection\", SesameopDetection\r\n        )\r\n    ),\r\n    ThreatIndicators = make_set(SesameopDetection)\r\nby InitiatingProcessFileName, RemoteUrl\r\n| where TotalConnections >= 1  // Ensure we only get actual connections"
+query_type: kql
+severity: medium
+techniques:
+    - T1573.001
+    - T1027
+    - T1055
+    - T1059.007
+    - T1071.001
+    - T1555
+    - T1588.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/

@@ -1,0 +1,59 @@
+id: ade89f76-79dd-4371-9771-3b5ab904b13d
+name: Suspicious Network Connection to TryCloudflare Tunnel
+description: Detects network connections to Cloudflare's trycloudflare.com domain by processes commonly abused by threat actors for payload delivery or command and control (C2), indicating potential misuse of Cloudflare Tunnels.
+query: |-
+    title: Suspicious Network Connection to TryCloudflare Tunnel
+    id: f8e7d6c5-b4a3-2c1d-0e9f-8a7b6c5d4e3f
+    status: experimental
+    description: Detects network connections to Cloudflare's trycloudflare.com domain by processes commonly abused by threat actors for payload delivery or command and control (C2), indicating potential misuse of Cloudflare Tunnels.
+    author: Detections.ai
+    date: 2025-07-08
+    logsource:
+      product: windows
+      category: network_connection
+    detection:
+      selection_trycloudflare:
+        DestinationHostname|endswith: '.trycloudflare.com'
+      selection_suspicious_process:
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\robocopy.exe'
+          - '\cscript.exe'
+          - '\wscript.exe'
+          - '\python.exe'
+      condition: selection_trycloudflare and selection_suspicious_process
+    falsepositives:
+      - Legitimate developer or testing activities using Cloudflare Tunnels.
+      - Custom scripts or automation that legitimately use these processes to interact with trycloudflare.com.
+    level: medium
+    references:
+      - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    tags:
+      - attack.command_and_control
+      - attack.t1572 # Protocol Tunneling
+      - attack.t1071.001 # Web Protocols
+      - attack.execution
+      - attack.t1059 # Command and Scripting Interpreter
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1572
+    - T1071.001
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.t1572
+    - attack.t1071.001
+    - attack.execution
+    - attack.t1059
+author: Detections.ai
+version: "1"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+data_sources:
+    - network_connection
+    - windows

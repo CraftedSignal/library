@@ -1,0 +1,27 @@
+id: 0199d3f1-3e70-75db-94db-05a7ae06c77b
+name: '[IA] - Rating Email Type based on ISP'
+description: "This KQL is focus on gather statistics related to hackers activities over our tenants, such as the number of emails sent tagged as threats. Below, I’ve provided KQL queries to help identify the risky ASNs mentioned at the beggining.\nYou can adjust the filtering criteria by modifying the line: “| where SuspiciousPercentage > 95 and Total_different_IPs > 10” based on your specific requirements. "
+query: |
+    //Sergio Albea
+    let CIDRASN = (externaldata (CIDR:string, CIDRASN:int, CIDRASNName:string)
+    ['https://firewalliplists.gypthecat.com/lists/kusto/kusto-cidr-asn.csv.zip']
+    with (ignoreFirstRecord=true));
+    EmailEvents
+    | evaluate ipv4_lookup(CIDRASN, SenderIPv4, CIDR, return_unmatched=true)
+    | extend GeoIPData = tostring(geo_info_from_ip_address(SenderIPv4).country)
+    | summarize Different_IPs=make_set(SenderIPv4), Countries= make_set(GeoIPData), make_set(CIDR), make_set(SenderFromDomain), Total_different_IPs=dcount(SenderIPv4) ,Total_emails = count(),make_set(ThreatTypes),Delivered_on_Inbox= countif(DeliveryLocation has "Inbox/folder"), Email_Threat= count(isnotempty(ThreatTypes)),
+    Email_Valid = count( isempty(ThreatTypes)) by GeoIPData, CIDR, CIDRASNName
+    | extend SuspiciousRatio = Email_Threat * 1.0 / Total_emails, ValidRatio = Email_Valid * 1.0 / Total_emails
+    | extend SuspiciousPercentage = SuspiciousRatio * 100, ValidPercentage = ValidRatio * 100
+    | where SuspiciousPercentage > 95 and Total_different_IPs > 10
+    | order by Email_Threat
+    | project CIDRASNName,set_SenderFromDomain, set_CIDR, Different_IPs, Countries,Total_different_IPs, set_ThreatTypes,Total_emails, Delivered_on_Inbox, Email_Threat, Email_Valid, SuspiciousPercentage, ValidPercentage
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://firewalliplists.gypthecat.com/lists/kusto/kusto-cidr-asn.csv.zip
+    - https://medium.com/detect-fyi/threat-hunting-via-autonomous-system-numbers-asn-99e038df235a

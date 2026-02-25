@@ -1,0 +1,43 @@
+id: a8bcad14-6f08-4668-b191-891ca9a07224
+name: ToolShell Malicious SharePoint Domains
+description: This detection identifies network traffic to domains known to be used as command and control (C2) infrastructure in recent SharePoint exploitation campaigns. Communication with these domains is a strong indicator of compromise.
+query: |
+    `comment("
+    date: 2025-07-23
+    description: This detection identifies network traffic to domains known to be used as command and control (C2) infrastructure in recent SharePoint exploitation campaigns. Communication with these domains is a strong indicator of compromise.
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+    ")`
+
+    `comment("Search across DNS and Web data models for connections to known malicious domains using tstats for performance.")`
+    | tstats summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Network_Resolution where DNS.query IN ("c34718cbb4c6.ngrok-free.app", "msupdate.updatemicfosoft.com") by DNS.src, DNS.query
+    | rename DNS.src as src, DNS.query as domain
+    | append [
+        | tstats summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where (Web.url="*c34718cbb4c6.ngrok-free.app*" OR Web.url="*msupdate.updatemicfosoft.com*") by Web.src, Web.url
+        | rename Web.src as src, Web.url as domain
+    ]
+
+    `comment("Aggregate the combined results from both data sources.")`
+    | stats min(firstTime) as firstTime, max(lastTime) as lastTime, sum(count) as event_count by src, domain
+
+    `comment("Convert epoch timestamps to human-readable format.")`
+    | convert ctime(firstTime) ctime(lastTime)
+
+    `comment("FP Note: The domain 'msupdate.updatemicfosoft.com' is a typosquat and highly suspicious. While ngrok can be used for legitimate purposes, the specific subdomain is tied to this threat. A match is a strong indicator of compromise. Investigate the source host for other signs of malicious activity.")`
+    | fields firstTime, lastTime, src, domain, event_count
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0042
+techniques:
+    - T1071.001
+    - T1583.001
+    - T1608.004
+    - T1608.005
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

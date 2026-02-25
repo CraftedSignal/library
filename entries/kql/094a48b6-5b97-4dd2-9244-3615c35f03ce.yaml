@@ -1,0 +1,29 @@
+id: 094a48b6-5b97-4dd2-9244-3615c35f03ce
+name: CVE-2024-3393 DDOS Detection
+description: 'KQL Query from file: CVE-2024-3393 DDOS Detection'
+query: |+
+    // CVE-2024-3393 DDOS Detection
+
+    // https://securityadvisories.paloaltonetworks.com/CVE-2024-3393
+    // https://thehackernews.com/2024/12/palo-alto-releases-patch-for-pan-os-dos.html
+
+    let FixedVersion = dynamic(["11.2.3","11.1.5","10.2.8","10.2.10-h12","10.2.13-h2","10.1.14","10.1.14-h8"]);
+    CommonSecurityLog
+    | where DeviceVendor == "Palo Alto Networks"
+    | where Computer != ""
+    | where TimeGenerated > ago(1h)
+    | summarize LastLogReceived=max(TimeGenerated) by Computer, DeviceVendor, DeviceVersion
+    | project LastLogReceived, Computer, DeviceVendor, DeviceVersion
+    | where LastLogReceived < ago(15m)
+    | where not (tostring(DeviceVersion) has_any(FixedVersion))
+
+query_type: kql
+tactics:
+    - TA0040
+techniques:
+    - T1498
+    - T1499
+    - T1498.001
+tags:
+    - kql
+version: "1"

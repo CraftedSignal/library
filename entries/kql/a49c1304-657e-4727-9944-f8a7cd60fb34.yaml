@@ -1,0 +1,26 @@
+id: a49c1304-657e-4727-9944-f8a7cd60fb34
+name: Insecure Service Binary ACL
+description: |-
+    This detection identifies Windows service installations (Event ID 4697) where potentially dangerous permissions like Everyone:Full Control or Authenticated Users:Full Control may be assigned to the service executable.
+    Such configurations can lead to privilege escalation via service binary hijacking.
+
+    Note:
+    Field index positions in EventData.Data[] may vary depending on the system and must be manually verified using parse_xml(EventData).
+    This detection requires the following audit subcategory to be enabled:
+
+    Audit Policy: Audit Kernel Object (under Object Access)
+query: "SecurityEvent\r\n| where EventID == 4697\r\n| extend parsed = parse_xml(EventData)\r\n| extend ServiceName = tostring(parsed.EventData.Data[4][\"#text\"]),\r\n         ServicePath = tostring(parsed.EventData.Data[5][\"#text\"]),\r\n         SecurityDescriptor = tostring(parsed.EventData.Data[8][\"#text\"])\r\n| where SecurityDescriptor has_any (\"WD\", \"AU\", \"S-1-1-0\", \"S-1-5-11\")  // WD=Everyone, AU=Authenticated Users\r\n       and SecurityDescriptor has \"FA\"  // Full Access\r\n| project TimeGenerated, Computer, SubjectUserName, ServiceName, ServicePath, SecurityDescriptor\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1548.002
+tags:
+    - service-permissions
+    - insecure-acl
+    - privilege-escalation
+    - event4697
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1548/002/

@@ -1,0 +1,16 @@
+id: 019c8ebc-1730-7107-b257-8bb11c8f2341
+name: High Volume DNS Queries with Long Subdomains (DNS Tunneling)
+description: This rule detects potential DNS tunneling or data exfiltration by identifying high volumes of DNS queries with unusually long subdomains from a single process on a device. It aggregates DNS connection inspection events, extracts the subdomain length, and then summarizes the count of queries, unique domains, and average subdomain length within a 10-minute window. An alert is triggered if the query count exceeds 100 or if more than 50 unique domains are observed, combined with subdomain lengths greater than 30 characters.
+query: "// Detection: DNS Tunneling - High Volume + Long Subdomains\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1048.003 - Exfiltration Over Unencrypted Protocol\r\n\r\nlet timeWindow        = 10m;\r\nlet queryCountThreshold = 100;\r\nlet subdomainLenThreshold = 30;\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(1h)\r\n| where ActionType == \"DnsConnectionInspected\"\r\n| where isnotempty(RemoteUrl)\r\n| extend DomainParts    = split(RemoteUrl, \".\")\r\n| extend SubdomainLength = strlen(tostring(DomainParts[0]))\r\n| where SubdomainLength > subdomainLenThreshold\r\n| summarize\r\n    QueryCount     = count(),\r\n    UniqueDomains  = dcount(RemoteUrl),\r\n    SampleDomains  = make_set(RemoteUrl, 10),\r\n    AvgSubdomainLen = avg(SubdomainLength)\r\n    by DeviceName, InitiatingProcessFileName, bin(TimeGenerated, timeWindow)\r\n| where QueryCount >= queryCountThreshold or UniqueDomains > 50\r\n| extend AlertDescription = strcat(\r\n    \"High-volume DNS queries with long subdomains from '\",\r\n    InitiatingProcessFileName, \"' on \", DeviceName,\r\n    \" — potential DNS tunneling/exfil\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.004
+    - T1048.003
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

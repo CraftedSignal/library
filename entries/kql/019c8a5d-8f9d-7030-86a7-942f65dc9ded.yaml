@@ -1,0 +1,15 @@
+id: 019c8a5d-8f9d-7030-86a7-942f65dc9ded
+name: IDE Extension Host Malicious Connection
+description: Detects network connections originating from IDE processes (Visual Studio Code, Cursor) to known malicious or suspicious domains associated with malicious extensions or workspace configurations. This rule specifically targets outbound network connections from 'Code.exe', 'Cursor.exe', or 'code-oss' processes to a predefined list of malicious domains.
+query: "// Name: IDE Extension Host Malicious Connection\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects network connections originating from IDE processes (Visual Studio Code, Cursor) to known malicious or suspicious domains associated with malicious extensions or workspace configurations.\r\n// False Positive Sensitivity: Medium\r\n// References: https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/\r\n// Tactics: Command and Control\r\n// Techniques: T1071.001\r\n// Define the IDE processes to monitor.\r\nlet ideProcesses = dynamic([\"Code.exe\", \"Cursor.exe\", \"code-oss\"]);\r\n// Define the list of known malicious domains from recent campaigns.\r\n// FP Note: This list is based on specific campaigns. It should be updated as new threats emerge.\r\nlet maliciousDomains = dynamic([\"niggboo.com\", \"vscode-setup.vercel.app\", \"JuanFBlanco.awswhh\", \"VitalikButerin-EthFoundation.blan-co\", \"ShowSnowcrypto.SnowShoNo\"]);\r\nDeviceNetworkEvents\r\n// Look for network events initiated by the specified IDE processes.\r\n| where InitiatingProcessFileName in~ (ideProcesses)\r\n// Check if the remote URL or domain contains any of the known malicious indicators.\r\n| where RemoteUrl has_any (maliciousDomains) or RemoteDomain has_any (maliciousDomains)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/ide-shepherd-release-article/

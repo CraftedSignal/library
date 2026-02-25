@@ -1,0 +1,22 @@
+id: 019bbcf4-6cba-708a-998e-d853420560b5
+name: MuddyWater/RustyWater Office Macro Launching LOLBins in Suspicious Paths
+description: This rule detects suspicious process creation patterns indicative of the MuddyWater (also known as RustyWater) APT group. Specifically, it looks for Microsoft Office applications (Word, Excel, PowerPoint) launching scripting or Living Off The Land Binaries (LOLBins) such as cmd.exe, powershell.exe, mshta.exe, rundll32.exe, wscript.exe, or cscript.exe. The detection is further narrowed down by checking if these processes are created in suspicious writable paths like ProgramData, Users\Public, AppData\Roaming, or AppData\Local\Temp. Additionally, the rule includes optional enrichment for known MuddyWater/RustyWater payload names (reddit.exe, art.exe, cloud.exe, nginx.exe), persistence via the Run registry key, and the dropping of a specific staging artifact named 'CertificationKit.ini'.
+query: "// Intel: https://www.cloudsek.com/blog/reborn-in-rust-muddywater-evolves-tooling-with-rustywater-implant\r\nlet Lookback = 1d;\r\n// Writable paths abused by MuddyWater/RustyWater\r\nlet SuspiciousPaths = dynamic([\r\n    @\"\\ProgramData\\\",\r\n    @\"\\Users\\Public\\\",\r\n    @\"\\AppData\\Roaming\\\",\r\n    @\"\\AppData\\Local\\Temp\\\"\r\n]);\r\n// Office macro launch points\r\nlet OfficeProcs = dynamic([\r\n    \"winword.exe\",\r\n    \"excel.exe\",\r\n    \"powerpnt.exe\"\r\n]);\r\n// Script + LOLBins used post-macro\r\nlet LOLBins = dynamic([\r\n    \"cmd.exe\",\r\n    \"powershell.exe\",\r\n    \"mshta.exe\",\r\n    \"rundll32.exe\",\r\n    \"wscript.exe\",\r\n    \"cscript.exe\"\r\n]);\r\n// Known MuddyWater/RustyWater style payload names\r\nlet SuspiciousPayloadNames = dynamic([\r\n    \"reddit.exe\",\r\n    \"art.exe\",\r\n    \"cloud.exe\",\r\n    \"nginx.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where Timestamp >= ago(Lookback)\r\n| where\r\n    (\r\n    InitiatingProcessFileName in~ (OfficeProcs)\r\n    and FileName in~ (LOLBins)\r\n    )\r\n| where FolderPath has_any (SuspiciousPaths)\r\n// Optional: payload name enrichment - Intel Based [1]\r\n| extend KnownPayloadName = iff(FileName in~ (SuspiciousPayloadNames), true, false)\r\n// Optional: persistence via Run key - Intel Based [2]\r\n| join kind=leftouter (\r\n    DeviceRegistryEvents\r\n    | where Timestamp >= ago(Lookback)\r\n    | where RegistryKey has @\"\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\"\r\n) on DeviceId\r\n// Optional: dropped staging artifacts - Intel Based [3]\r\n| join kind=leftouter (\r\n    DeviceFileEvents\r\n    | where Timestamp >= ago(Lookback)\r\n    | where FileName == \"CertificationKit.ini\"\r\n) on DeviceId\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    KnownPayloadName,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    RegistryValueData,\r\n    FileName1 = FileName1,\r\n    FolderPath1 = FolderPath1\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+    - TA0003
+    - TA0004
+techniques:
+    - T1059
+    - T1204
+    - T1566
+    - T1547.001
+tags:
+    - kql
+author: AwaisM
+version: "5"
+references:
+    - https://www.cloudsek.com/blog/reborn-in-rust-muddywater-evolves-tooling-with-rustywater-implant

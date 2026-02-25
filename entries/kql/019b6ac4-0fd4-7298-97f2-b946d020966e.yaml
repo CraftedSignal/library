@@ -1,0 +1,21 @@
+id: 019b6ac4-0fd4-7298-97f2-b946d020966e
+name: Off-Hours Successful Device Logons (Weekends & After Hours)
+description: |-
+    This rule identifies successful device logons that meet all of the following criteria:
+
+    Logon was successful
+    Logon was performed by a non-machine account
+    Logon type is not a service or scheduled task
+    Logon occurred:
+    - Before 06:00 local time, or
+    - After 20:00 local time, or
+    - On Saturday or Sunday
+
+    The configuration details can be modified (timezone, start and end hours...) as needed.
+query: "// ---------------------------------------------------------------------------------------------------\n// MS Defender HUNT: Off-Hours Successful Device Logons (Weekends & After Hours)\n// --------------------------------------------------------------------------------------------------\n// --- CONFIGURATION: Modify these values ---\nlet UTC_Offset = -5h;            // e.g., -5h for EST, -8h for PST, +1h for CET\nlet StartHour = 6;               // 6 AM\nlet EndHour = 21;                // 9 PM\nlet IncludeWeekends = true;      // Set to true to flag all weekend logons\n// ----------------------------------------------------\n// --- DayOfWeek reference mapping) ---\n// Sunday     = 0d\n// Monday     = 1d\n// Tuesday    = 2d\n// Wednesday  = 3d\n// Thursday   = 4d\n// Friday     = 5d\n// Saturday   = 6d\n// ----------------------------------------------------\nDeviceLogonEvents\n| extend LocalTimestamp = Timestamp + UTC_Offset\n| extend LogonHour = datetime_part(\"hour\", LocalTimestamp)\n| extend DayOfWeek = dayofweek(LocalTimestamp)\n| where ActionType == \"LogonSuccess\"\n| where not(AccountName endswith \"$\")\n| where LogonType !in (\"Service\", \"Batch\")\n| where \n    // Logic: Flag if outside hours OR if it's a weekend (if enabled)\n    (LogonHour < StartHour or LogonHour >= EndHour)\n    or (IncludeWeekends == true and (DayOfWeek == 6d or DayOfWeek == 0d))\n| project LocalTimestamp, DeviceName, AccountName, LogonType, RemoteIP, DayOfWeek\n| order by LocalTimestamp desc"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: IronBranded
+version: "6"

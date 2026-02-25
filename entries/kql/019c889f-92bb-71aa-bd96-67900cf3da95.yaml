@@ -1,0 +1,15 @@
+id: 019c889f-92bb-71aa-bd96-67900cf3da95
+name: New Application Consent Grant
+description: Detects when a user grants consent to an application that has not been seen in the environment before. This rule baselines known applications over a 30-day period and alerts on any new application consent grants or service principal additions within the last day that are not part of the baseline or an explicit allow list.
+query: "// Name: New Application Consent Grant\r\n// Author: MFA meex\r\n// Date: 2026-02-22\r\n// References: https://learn.microsoft.com/en-us/microsoft-365/security/office-365-security/detect-and-remediate-illicit-consent-grants\r\n// Description: Detects when a user grants consent to an application that has not been seen in the environment before.\r\n// Note: You will need to add new apps to trusted_app_ids to reduce false positives\r\n\r\nlet baseline_period = 30d;\r\nlet detection_window = 1d;\r\n// Placeholder for allow list of trusted application IDs.\r\nlet trusted_app_ids = dynamic([]);\r\n\r\n// Find all application IDs that have been consented to or added in the baseline period.\r\nlet known_app_ids = AuditLogs\r\n| where TimeGenerated between (ago(baseline_period) .. ago(detection_window))\r\n| where Category == \"ApplicationManagement\" and OperationName in (\"Consent to application\", \"Add service principal\")\r\n| where Result == \"success\"\r\n| mv-expand TargetResources\r\n| where isnotempty(TargetResources.id)\r\n| summarize make_set(tostring(TargetResources.id));\r\n// Look for recent consent grants or service principal additions.\r\nAuditLogs\r\n| where TimeGenerated > ago(detection_window)\r\n| where Category == \"ApplicationManagement\" and OperationName in (\"Consent to application\", \"Add service principal\")\r\n| where Result == \"success\"\r\n// Parse the user and application details from the log entry.\r\n| extend InitiatingUser = tostring(InitiatedBy.user.userPrincipalName)\r\n| extend InitiatingIpAddress = tostring(InitiatedBy.ip.address)\r\n| mv-expand TargetResources\r\n| extend AppName = tostring(TargetResources.displayName)\r\n| extend AppId = tostring(TargetResources.id)\r\n| where isnotempty(AppId)\r\n// If the AppId is from a recent event and not in the baseline, fire off.\r\n| where AppId !in (known_app_ids) and AppId !in (trusted_app_ids)\r\n// Summarize alerts to reduce noise, grouping by the new application and the user who granted consent.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    OperationNames = make_set(OperationName),\r\n    InitiatingIpAddresses = make_set(InitiatingIpAddress)\r\n    by AppName, AppId, InitiatingUser, TenantId\r\n| extend\r\n    timestamp = StartTime,\r\n    AccountCustomEntity = InitiatingUser,\r\n    IpCustomEntity = InitiatingIpAddresses,\r\n    AppCustomEntity = AppName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1528
+tags:
+    - kql
+version: "3"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365/security/office-365-security/detect-and-remediate-illicit-consent-grants

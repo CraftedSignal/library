@@ -1,0 +1,71 @@
+id: 019a6f06-aad1-7287-a4f5-2fd9d39dc074
+name: LANDFALL Spyware DNG Image File Creation
+description: Detects the creation of potential LANDFALL spyware delivery files. These are malformed DNG image files, often with filenames suggesting delivery via WhatsApp, used to exploit CVE-2025-21042.
+query: |
+    title: LANDFALL Spyware DNG Image File Creation
+    id: c680ee8b-ce60-4db0-9b41-7286c59c1147
+    status: experimental
+    description: Detects the creation of potential LANDFALL spyware delivery files.
+      These are malformed DNG image files, often with filenames suggesting delivery
+      via WhatsApp, used to exploit CVE-2025-21042.
+    references:
+      - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    author: detections.ai
+    date: 2025-11-10
+    tags:
+      - attack.initial_access
+      - attack.t1566.001
+      - cve.2025.21042
+      - detection.emerging_threats
+    logsource:
+      category: file_event
+      product: windows # This rule can be adapted for other operating systems by changing the logsource and field names.
+    detection:
+      selection_hash:
+        # Known SHA256 hashes of the malicious DNG files
+        - hash.sha256:
+            - '9297888746158e38d320b05b27b0032b2cc29231be8990d87bc46f1e06456f93'
+            - 'b06dec10e8ad0005ebb9da24204c96cb2e297bd8d418bc1c8983d066c0997756'
+            - 'c0f30c2a2d6f95b57128e78dc0b7180e69315057e62809de1926b75f86516b2e'
+            - 'b975b499baa3119ac5c2b3379306d4e50b9610e9bba3e56de7dfd3927a96032d'
+            - '29882a3c426273a7302e852aa77662e168b6d44dcebfca53757e29a9cdf02483'
+            - 'b45817ffb0355badcc89f2d7d48eecf00ebdf2b966ac986514f9d971f6c57d18'
+      selection_filename_whatsapp_jpeg:
+        # Detects standard WhatsApp image naming convention
+        TargetFilename|startswith: 'WhatsApp Image '
+        TargetFilename|endswith: '.jpeg'
+      selection_filename_whatsapp_jpg:
+        # Detects another common WhatsApp image naming convention
+        TargetFilename|startswith: 'IMG-'
+        TargetFilename|contains: '-WA'
+        TargetFilename|endswith: '.jpg'
+      selection_filename_photo:
+        # Detects a generic photo naming convention also seen in the report
+        TargetFilename|startswith: 'PHOTO-'
+        TargetFilename|endswith: '.jpg'
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate images saved from WhatsApp or other messaging applications may
+        match the filename patterns, particularly 'selection_filename_photo'.
+      - This detection is best used for threat hunting or in environments where such
+        file naming is unusual. Further correlation with network activity or process
+        behavior is recommended to reduce false positives.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.001
+tags:
+    - attack.initial_access
+    - attack.t1566.001
+    - cve.2025.21042
+    - detection.emerging_threats
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+data_sources:
+    - file_event
+    - windows

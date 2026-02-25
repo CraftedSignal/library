@@ -1,0 +1,12 @@
+id: 019a0610-ff6b-742b-a393-5d9e114ed5c5
+name: MSHTA.exe HTA File Execution
+description: Detects the execution of mshta.exe, specifically when initiated by explorer.exe and processing an HTA file. This behavior is often associated with malicious activity, as mshta.exe can be abused to execute arbitrary code.
+query: "\r\n// KQL to detect hta execution\r\nDeviceProcessEvents\r\n| where FileName == \"mshta.exe\"\r\n  and InitiatingProcessFileName == \"explorer.exe\"\r\n  and ProcessCommandLine has \".hta\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    AccountDomain,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine,\r\n    FolderPath = tostring(split(ProcessCommandLine, \"\\\"\")[0])\r\n| extend HTAFile = extract(@\"\\S+\\.hta\", 0, ProcessCommandLine)\r\n| where isnotempty(HTAFile)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    User = strcat(AccountDomain, \"\\\\\", AccountName),\r\n    HTAFile,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine\r\n| order by Timestamp desc\r\n"
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1218.005
+tags:
+    - kql
+version: "19"

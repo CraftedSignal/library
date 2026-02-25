@@ -1,0 +1,60 @@
+id: 019b98b9-1c95-72b2-bd5f-045063ca396f
+name: Browser Spawned in Headless and Suspended State
+description: Detects the creation of a browser process in headless mode and in a suspended state. This technique is used by infostealers like AuraStealer to inject code into the browser process to bypass Application-Bound Encryption (ABE) and steal credentials.
+query: |
+    title: Browser Spawned in Headless and Suspended State
+    id: c7d9beb6-a86d-49a2-b072-75bcb06578ee
+    status: experimental
+    description: Detects the creation of a browser process in headless mode and in a
+      suspended state. This technique is used by infostealers like AuraStealer to
+      inject code into the browser process to bypass Application-Bound Encryption
+      (ABE) and steal credentials.
+    references:
+      - https://www.gendigital.com/blog/insights/research/defeating-aurastealer-obfuscation
+    author: tim@detections.ai
+    date: 2026-01-07
+    tags:
+      - attack.credential_access
+      - attack.t1555.003
+      - attack.defense_evasion
+      - attack.t1055
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith:
+          # Detects common Chromium-based browsers
+          - '\chrome.exe'
+          - '\msedge.exe'
+          - '\brave.exe'
+          - '\vivaldi.exe'
+          - '\opera.exe'
+        CommandLine|contains: '--headless' # Browser is launched without a GUI, a common feature for automation and malware.
+        State: 'Suspended' # This is a key indicator for subsequent process injection. Note: This field is not standard. Check your logging tool for fields representing process creation flags (e.g., CreationFlags containing '0x4').
+      condition: selection
+    falsepositives:
+      - Legitimate software development and testing scenarios.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+    - TA0004
+techniques:
+    - T1555.003
+    - T1055
+tags:
+    - attack.credential_access
+    - attack.t1555.003
+    - attack.defense_evasion
+    - attack.t1055
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.gendigital.com/blog/insights/research/defeating-aurastealer-obfuscation
+data_sources:
+    - process_creation
+    - windows

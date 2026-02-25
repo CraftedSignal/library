@@ -1,0 +1,14 @@
+id: fb3598b4-6a69-4a2f-a1ec-31f2ce850c8a
+name: CVE-2025-32705 Out-of-bounds Read Detection
+description: 'KQL Query from file: CVE-2025-32705 Out-of-bounds Read Detection'
+query: "// CVE-2025-32705 Out-of-bounds Read Detection\n\nlet InboundMailAttachment =\nEmailAttachmentInfo\n| where Timestamp > ago(1h)\n| join EmailEvents on NetworkMessageId\n| where EmailDirection == \"Inbound\" and LatestDeliveryAction != \"Blocked\"\n| distinct FileName;\nlet VulnerableEP =\nDeviceTvmSoftwareVulnerabilities \n| where CveId == \"CVE-2025-32705\"\n| distinct DeviceName;\nlet MailAttachmentOpen =\nDeviceFileEvents\n| where Timestamp > ago(1h) \n| where ActionType == \"FileCreated\"\n| where InitiatingProcessFileName == \"outlook.exe\"\n| where FileName has_any(InboundMailAttachment) and DeviceName has_any(VulnerableEP)\n| distinct DeviceName;\nDeviceEvents\n| where Timestamp > ago(1h)\n| where ActionType == \"ReadProcessMemoryApiCall\"\n| where DeviceName has_any(MailAttachmentOpen) \n\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0009
+techniques:
+    - T1566.001
+    - T1114
+tags:
+    - kql
+version: "1"

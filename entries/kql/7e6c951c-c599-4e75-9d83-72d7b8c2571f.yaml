@@ -1,0 +1,21 @@
+id: 7e6c951c-c599-4e75-9d83-72d7b8c2571f
+name: Search Common Event IDs for Suspicious Behavior Defender/Sentinel
+description: Search Common EventCodes (EventID’s) for Suspicious Behavior
+query: "SecurityEvent\r\n| where Account !startswith \"DWM-\"\r\n    and Account !startswith \"UMFD-\"\r\n    and Account != \"SYSTEM\"\r\n    and Account != \"LOCAL SERVICE\"\r\n    and Account != \"NETWORK SERVICE\"\r\n    and Account !endswith \"$\"\r\n    and Account != \"ANONYMOUS LOGON\"\r\n    and Account != \"IUSR\"\r\n| extend Trigger = case(\r\n    EventID in (516,517,612,623,806,807,1101,1102,4612,4621,4694,4695,4715,4719,4817,4885,4902,4906,4907,4912), \"Audit Logs Modified\",\r\n    EventID in (642,646,685,4738,4742,4781), \"Account Modification\",\r\n    EventID in (1102,517), \"Audit Logs Cleared/Deleted\",\r\n    EventID in (628,627,4723,4724), \"Passwords Changed\",\r\n    EventID in (528,540,4624), \"Successful Logons\",\r\n    EventID in (4625,529,530,531,532,533,534,535,536,537,539), \"Failed Logons\",\r\n    EventID in (576,4672,577,4673,578,4674), \"Escalation of Privileges\",\r\n    \"Other\"\r\n)\r\n| summarize Initial_Occurrence = min(TimeGenerated), Latest_Occurrence = max(TimeGenerated), Users = make_set(Account), Hosts = make_set(Computer), Count = count() by Trigger\r\n| order by Count desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+techniques:
+    - T1003
+    - T1078
+    - T1059.001
+    - T1055
+tags:
+    - kql
+version: "1"

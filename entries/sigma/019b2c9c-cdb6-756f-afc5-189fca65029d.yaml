@@ -1,0 +1,59 @@
+id: 019b2c9c-cdb6-756f-afc5-189fca65029d
+name: RansomHouse ESXi Firewall Disablement
+description: Detects the disabling of the VMware ESXi firewall using 'esxcli', a technique used by the RansomHouse 'MrAgent' tool as a defense evasion tactic before encryption.
+query: |
+    title: RansomHouse ESXi Firewall Disablement
+    id: 33685505-b47c-45f4-9fd4-291abacedf6d
+    status: experimental
+    description: >-
+      Detects the disabling of the VMware ESXi firewall using 'esxcli', a technique
+      used by the RansomHouse 'MrAgent' tool as a defense evasion tactic before
+      encryption.
+    references:
+      - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+    author: tim@detections.ai
+    date: 2025-12-17T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.004
+      - attack.g0151
+      - attack.s1082
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        Image|endswith:
+          - esxcli
+        CommandLine|contains|all:
+          - network
+          - firewall
+          - set
+          - ' --enabled'
+          - 'false'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative activity may involve disabling the firewall for
+        troubleshooting or maintenance. However, this is typically a rare and
+        scheduled event. Correlate with other suspicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.004
+    - T1059.012
+tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+    - attack.g0151
+    - attack.s1082
+author: tim@detections.ai
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/ransomhouse-encryption-upgrade/
+data_sources:
+    - process_creation
+    - linux

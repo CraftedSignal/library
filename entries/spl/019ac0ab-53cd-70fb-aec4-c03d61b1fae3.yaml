@@ -1,0 +1,16 @@
+id: 019ac0ab-53cd-70fb-aec4-c03d61b1fae3
+name: Insecure Or Cleartext Authentication Detected Rule
+description: This rule detects a high number of failed authentication attempts followed by a successful authentication from the same source IP address and user. It specifically looks for events categorized as 'Insecure_Authentication' within the 'Authentication' datamodel. The rule aggregates authentication events by source IP, user, destination, application, caller user name, target user name, logon type, event code, signature, tag, action, authentication method, authentication service, vendor product, and user priority. It then filters for scenarios where there are more than 5 failures and more than 1 success for the same aggregated criteria.
+query: "| tstats summariesonly=true allow_old_summaries=true fillnull_value=NA count min(_time) as firstTime max(_time) as lastTime  \r\nfrom datamodel=\"Authentication\".\"Authentication\" WHERE nodename=Authentication.Insecure_Authentication  \r\nBY  \r\nAuthentication.Caller_User_Name Authentication.EventCode Authentication.vendor_product Authentication.user_priority Authentication.user Authentication.status Authentication.tag Authentication.src Authentication.signature Authentication.response_time Authentication.reason Authentication.duration Authentication.dest Authentication.authentication_service Authentication.authentication_method Authentication.app Authentication.action Authentication.TargetUserName Authentication.Logon_Type _time span=1h\r\n| rename Authentication.* as *\r\n| convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(firstTime) \r\n| convert timeformat=\"%Y-%m-%dT%H:%M:%S\" ctime(lastTime)\r\n| eval success=if(action=\"success\",count,0),failure=if(action=\"failure\",count,0)\r\n| stats min(firstTime) as firstTime max(lastTime) as lastTime sum(failure) as failure sum(success) as success by src user dest app Caller_User_Name TargetUserName Logon_Type EventCode signature tag action authentication_method authentication_service vendor_product user_priority\r\n| table firstTime lastTime user user_priority src dest app Caller_User_Name TargetUserName Logon_Type EventCode signature tag action authentication_method authentication_service vendor_product success failure\r\n| where  failure >5 AND success >1"
+query_type: spl
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1187
+tags:
+    - spl
+author: 'Rajuaravind '
+version: "1"
+references:
+    - https://splunk.my.site.com/customer/s/article/ES-Alert-Insecure-or-Cleartext-Authentication

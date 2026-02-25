@@ -1,0 +1,22 @@
+id: 019a0b01-bd18-72c9-b687-385fa7d36822
+name: Detecting OAuth Persistence After AiTM Attacks
+description: https://www.proofpoint.com/us/blog/threat-insight/beyond-credentials-weaponizing-oauth-applications-persistent-cloud-access
+query: "let Lookback = 1h;\r\nlet RiskyUser =\r\nIdentityInfo\r\n| where Timestamp > ago(Lookback)\r\n| where RiskStatus == \"AtRisk\" and ChangeSource == \"AzureActiveDirectory\"\r\n| where RiskLevel == \"Medium\" or RiskLevel == \"High\"\r\n| distinct AccountUpn;\r\nOAuthAppInfo\r\n| where AddedOnTime > ago(Lookback)\r\n| where VerifiedPublisher == \"{}\"\r\n| distinct AddedOnTime, AppName, OAuthAppId\r\n| join CloudAppEvents on $left.OAuthAppId == $right.ObjectId\r\n| where ActionType == \"Consent to application.\"\r\n| extend UPN = tostring(RawEventData.UserId)\r\n| where UPN has_any (RiskyUser)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0006
+    - TA0001
+techniques:
+    - T1528
+    - T1566.002
+    - T1671
+    - DS0015
+    - DS0026
+tags:
+    - kql
+author: Steven Lim
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/beyond-credentials-weaponizing-oauth-applications-persistent-cloud-access

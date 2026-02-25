@@ -1,0 +1,35 @@
+id: b16472e2-f2b5-4a46-9703-7ddf1a90f485
+name: Ottercookie Detection
+description: 'KQL Query from file: Ottercookie Detection'
+query: |
+    // https://any.run/cybersecurity-blog/ottercookie-malware-analysis/
+
+    let QueryLookup = 1h;
+    let CompressData =
+    DeviceFileEvents
+    | where Timestamp > ago(QueryLookup)
+    | where ActionType == "FileCreated"
+    | where InitiatingProcessFileName has "tar"
+    | distinct DeviceName;
+    DeviceNetworkEvents
+    | where Timestamp > ago(QueryLookup)
+    | where ActionType == "HttpConnectionInspected"
+    | where parse_json(AdditionalFields)["direction"] == 'Out'
+    | where parse_json(AdditionalFields)["status_code"] == '200'
+    | extend GeoCtry = tostring(geo_info_from_ip_address(RemoteIP).country)
+    | where GeoCtry == "United States"
+    | where RemotePort == "1224"
+    | where DeviceName has_any(CompressData)
+query_type: kql
+tactics:
+    - TA0010
+techniques:
+    - T1020
+    - T1567.004
+    - T1041
+    - T1048.003
+    - T1048.001
+    - T1567
+tags:
+    - kql
+version: "1"

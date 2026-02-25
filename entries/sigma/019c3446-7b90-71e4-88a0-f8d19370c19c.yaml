@@ -1,0 +1,73 @@
+id: 019c3446-7b90-71e4-88a0-f8d19370c19c
+name: VS Code Auto-Run Task Execution
+description: |
+    Detects the creation or modification of a `.vscode/tasks.json` file that is configured to automatically run a task when a folder is opened.
+    Adversaries can abuse this feature in VS Code and GitHub Codespaces to achieve remote code execution by tricking a user into opening a malicious repository or pull request.
+query: |
+    title: VS Code Auto-Run Task Execution
+    id: abf851e4-52a0-4b5d-b29e-c81405ba1a71
+    status: experimental
+    description: |
+      Detects the creation or modification of a `.vscode/tasks.json` file that is configured to automatically run a task when a folder is opened.
+      Adversaries can abuse this feature in VS Code and GitHub Codespaces to achieve remote code execution by tricking a user into opening a malicious repository or pull request.
+    references:
+      - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.t1204.002
+      - attack.t1059.004
+      - attack.execution
+    logsource:
+      category: file_event
+      product: osquery # This is an example, any file monitoring tool that can inspect content is suitable.
+    detection:
+      selection:
+        # Detects a VS Code tasks.json file being created or modified.
+        file.path|endswith: '/.vscode/tasks.json'
+          # The file content must contain the auto-run setting and a command definition.
+          # This is the core of the malicious configuration.
+        file.content|contains|all:
+          - '"runOn": "folderOpen"'
+          - '"command":'
+      filter_suspicious_commands:
+        # Filters for common commands used for exfiltration, reverse shells, or second-stage execution.
+        file.content|contains:
+          - 'curl '
+          - 'wget '
+          - 'bash -c'
+          - 'sh -c'
+          - 'env' # Often used to dump environment variables for token theft.
+          - 'python'
+          - 'perl'
+          - 'php'
+          - 'nc '
+          - 'netcat '
+      condition: selection and filter_suspicious_commands
+    falsepositives:
+      - Legitimate development projects may use the 'folderOpen' run option to
+        initialize an environment.
+      - The list of suspicious commands may need to be tuned to your environment to
+        avoid flagging benign setup scripts. Consider excluding known-good
+        repositories or script paths.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059.004
+    - T1204
+    - T1059
+tags:
+    - attack.t1204.002
+    - attack.t1059.004
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+data_sources:
+    - file_event
+    - osquery

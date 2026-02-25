@@ -1,0 +1,18 @@
+id: 0199ed75-f425-75e8-8bb8-c1dab173d4e5
+name: F5 BIG-IP Suspicious Administrative Activity
+description: |-
+    This is a KQL adaption of submission by @topik
+    Detects suspicious administrative activities on F5 BIG-IP devices, such as
+      failed logins or configuration changes. This is based on recommendations from
+      F5 in response to a security incident disclosed in October 2025 where a threat
+      actor gained access to BIG-IP development environments. F5 advised customers
+      to enhance monitoring for admin logins, failed authentications, and privilege
+      and configuration changes.
+query: "// Selection for failed administrative logins, as recommended by F5.\r\nlet failed_login = dynamic(['authentication failure', 'Login failed for user', 'result=FAIL']);\r\n// Selection for configuration changes via the audit log system (tacplus).\r\nlet config_change_audit = dynamic(['audisp-tacplus:', 'cmd=']);\r\n// Keywords for commands that create, modify, or delete configuration.\r\nlet config_change_keywords = dynamic([' create ', ' modify ', ' delete ', ' install ', ' edit ', ' load ', ' run ']);\r\nVPNLogTable\r\n// failed_login or (config_change_audit and config_change_keywords)\r\n| where Message has_any (failed_login) or (Message has_all (config_change_audit) and Message has_any (config_change_keywords))\r\n// Add column to determine detection\r\n| extend Detection = iff(Message has_any (failed_login),'Failed Login',\r\n    iff(Message has_all (config_change_audit), 'Config Change', ''))"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://my.f5.com/manage/s/article/K000154696

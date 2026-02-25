@@ -1,0 +1,16 @@
+id: 019ac4f1-d11c-711f-bccd-19aee069fc43
+name: FormBook RAT C2 Communication via Known IP and Dynamic DNS on Non-Standard Port
+description: This detection identifies Command and Control (C2) communication associated with the FormBook RAT, specifically targeting connections to a known malicious IP address and dynamic DNS domain on an unusual port. Detecting C2 activity is crucial for identifying active compromises and preventing data exfiltration or further malicious commands.
+query: "// Name: FormBook RAT C2 Communication\r\n// Author: MS detections.ai\r\n// Date: 2025-11-27\r\n// Description: This detection identifies Command and Control (C2) communication associated with the FormBook RAT, specifically targeting connections to a known malicious IP address and dynamic DNS domain on an unusual port. Detecting C2 activity is crucial for identifying active compromises and preventing data exfiltration or further malicious commands.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/\r\n// MITRE TTPs: T1571, T1568.002\r\n// Data Source: DeviceNetworkEvents\r\nlet Timeframe = 7d;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(Timeframe)\r\n// Look for successful outbound connections.\r\n| where ActionType == \"ConnectionSuccess\"\r\n// Match the specific IP or the DDNS domain combined with the specific non-standard port.\r\n| where (RemoteIP == \"51.79.62.89\" or RemoteUrl has \"duckdns.org\") and RemotePort == 57652\r\n// Potential for False Positives: While the IP is a strong indicator, duckdns.org is a legitimate service.\r\n// However, the combination with a specific high port (57652) significantly reduces the chance of a false positive.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl,\r\n    InitiatingProcessFileName,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1571
+    - T1568.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/

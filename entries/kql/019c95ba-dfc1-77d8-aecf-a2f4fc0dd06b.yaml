@@ -1,0 +1,16 @@
+id: 019c95ba-dfc1-77d8-aecf-a2f4fc0dd06b
+name: GRIDTIDE Config File Staging in Sensitive Linux Directories
+description: Detects the creation of configuration files (.cfg) in sensitive or temporary Linux directories. This behavior is associated with the GRIDTIDE backdoor, which stages a configuration file containing a key to decrypt its C2 settings.
+query: "// Name: GRIDTIDE Config File Staging\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects the creation of configuration files (.cfg) in sensitive or temporary Linux directories. This behavior is associated with the GRIDTIDE backdoor, which stages a configuration file containing a key to decrypt its C2 settings.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1027\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/\r\n// False Positive Sensitivity: Medium\r\nDeviceFileEvents\r\n// Look for file creation events, which indicate a new artifact being staged.\r\n| where ActionType == \"FileCreated\"\r\n// Filter for files ending with the .cfg extension, as seen with GRIDTIDE.\r\n| where FileName endswith \".cfg\"\r\n// Focus on specific directories used by GRIDTIDE for staging artifacts.\r\n| where FolderPath in (\"/usr/sbin/\", \"/sbin/\", \"/var/tmp/\")\r\n// False Positives: Legitimate administration scripts or software installers may create configuration files in these locations.\r\n// Tuning: If legitimate activity is flagged, consider excluding specific file names (FileName) or the processes that create them (InitiatingProcessFileName).\r\n| project-reorder\r\n    TimeGenerated,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/

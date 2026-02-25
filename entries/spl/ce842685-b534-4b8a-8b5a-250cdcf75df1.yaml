@@ -1,0 +1,52 @@
+id: ce842685-b534-4b8a-8b5a-250cdcf75df1
+name: Katz Stealer CMSTP.exe UAC Bypass
+description: Detects the execution of the Microsoft Connection Manager Profile Installer (cmstp.exe) with command-line arguments that are commonly used to bypass User Account Control (UAC) and execute malicious INF files. This technique is leveraged by malware like Katz Stealer.
+query: |
+    --
+    -- Name: CMSTP.exe UAC Bypass for Code Execution
+    --
+    -- Date: 2025-07-23
+    --
+    -- References:
+    -- - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/
+    --
+    -- Description:
+    -- Detects the execution of the Microsoft Connection Manager Profile Installer (cmstp.exe) with command-line arguments that are commonly used to bypass User Account Control (UAC) and execute malicious INF files. This technique is leveraged by malware like Katz Stealer.
+    --
+    -- False Positive Sensitivity: Medium
+    --
+    -- Tags:
+    -- - Tactic: Privilege Escalation
+    -- - Tactic: Defense Evasion
+    -- - Technique: T1218.003
+    -- - Malware: Katz Stealer
+    --
+    -- Recommended Scoping:
+    -- Update the initial search line with the appropriate index and sourcetypes for your environment's
+    -- endpoint process execution data (e.g., Sysmon EventCode 1, CrowdStrike Falcon, etc.).
+    --
+    (index=*) (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1) OR (sourcetype=crowdstrike:falcon:event:detailed event_simpleName=ProcessRollup2)
+    -- key: normalize common field names for process execution events
+    | eval process_name = coalesce(process_name, ProcessName), process_command_line = coalesce(CommandLine, process_command_line), parent_process_name = coalesce(ParentImage, parent_process_name), host = coalesce(Computer, host), user = coalesce(User, user)
+    -- key: filter for cmstp.exe execution with command-line arguments indicative of UAC bypass
+    | where (process_name = "cmstp.exe" AND (process_command_line LIKE "% /au %" OR process_command_line LIKE "% /s %") AND process_command_line LIKE "%.inf%")
+    -- comment: Legitimate use of cmstp.exe with these flags is uncommon on standard workstations. To reduce potential false positives, consider filtering for INF files in non-standard locations (e.g., AppData, Temp) or for suspicious parent processes (e.g., wscript.exe, powershell.exe).
+    -- key: aggregate results to create a single alert per host and command
+    | stats count min(_time) as firstTime max(_time) as lastTime values(parent_process_name) as parent_processes by host, user, process_command_line
+    -- key: convert epoch time to a human-readable format
+    | convert ctime(firstTime) ctime(lastTime)
+    -- key: rename fields for better readability in alerts
+    | rename host as source_host, process_command_line as command_line
+query_type: spl
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1218.003
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/

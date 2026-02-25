@@ -1,0 +1,33 @@
+id: 8074a7f3-33b4-401d-a848-97809e2fc771
+name: Terminal Used for RAR File Manipulation (DeviceFileEvents)
+description: "Vidar is a sophisticated infostealer operating as Malware-as-a-Service (MaaS). Written in C++, it’s designed to harvest a wide range of sensitive data from infected systems and exfiltrate it to attacker controlled infrastructure.\n\n\U0001F9EC Script Inception: PowerShell scripts nested within PowerShell scripts, layered with 2–3 rounds of Base64 encoding.\n\n\U0001F4E6 RAR Payloads: Password protected RAR files downloaded via direct-to-IP HTTP requests over TCP port 80. Passwords are embedded in encoded scripts and passed via command line to a downloaded copy of \"unrar.exe\"."
+query: |-
+    DeviceFileEvents
+    // Focus on events where the action type indicates a file was created
+    | where ActionType has "FileCreated"
+    // Limit to processes running with medium integrity level (typical for user-level execution)
+    | where InitiatingProcessIntegrityLevel has "Medium"
+    // Match file creation initiated by PowerShell or terminal-related processes
+    | where InitiatingProcessFileName has_any("cmd.exe", "powershell.exe", "powershell_ise.exe", "pwsh.exe", "wt.exe", "WindowsTerminal.exe")
+    // Look for creation of archive-related executables
+    | where FileName has_any ("unrar.exe", "rar.exe") or SHA1 has "2546912941591b13e929b19c91a0f9c4d3982848"
+    // Target user-specific paths, especially within AppData
+    | where FolderPath has_all (@"\Users\", @"\AppData\") or FolderPath has_any (@"\ProgramData\", @"\Users\Public")
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0009
+techniques:
+    - T1059.001
+    - T1074
+    - T1059
+tags:
+    - '#vidar'
+    - kql
+author: '@AdairJCollins @ajc'
+version: "1"
+references:
+    - https://www.linkedin.com/pulse/windows-defender-vidar-infostealer-detection-adair-collins-2o3ie/
+    - https://tria.ge/250801-wxxvraep6z/behavioral1
+    - https://tria.ge/250801-xvdvjatrw7/behavioral1

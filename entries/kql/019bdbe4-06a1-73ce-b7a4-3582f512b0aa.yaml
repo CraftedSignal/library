@@ -1,0 +1,17 @@
+id: 019bdbe4-06a1-73ce-b7a4-3582f512b0aa
+name: 'Detecting Kerberos Authentication Relay Via CNAME Abuse '
+description: |-
+    Detect a type of Kerberos coercion attack often facilitated by DNS manipulation.
+    It looks for a device that asks for a specific server (DNS Query), gets redirected via a CNAME record to a different server, and immediately tries to authenticate to that new server using Kerberos.
+query: "//Correlate suspicious DNS CNAME resolution with immediate Kerberos ticket requests\r\nlet lookback = 24h;\r\nunion isfuzzy=true DeviceEvents, DeviceNetworkEvents\r\n| where TimeGenerated > ago(lookback)\r\n// Look for DNS queries that returned a CNAME record\r\n| where ActionType == \"DnsQueryResponse\"\r\n// Parse AdditionalFields from string to dynamic JSON\r\n| extend ParsedFields = parse_json(AdditionalFields)\r\n| where isnotempty(tostring(ParsedFields.DnsQueryResponseCname))\r\n// Join with Kerberos TGS requests\r\n| join kind=inner (\r\n    DeviceEvents\r\n    | where TimeGenerated > ago(lookback)\r\n    | where ActionType == \"TgsRequest\"\r\n    | extend TgsFields = parse_json(AdditionalFields)\r\n    | extend TgsServerName = tostring(TgsFields.TgsServerName)\r\n) on DeviceId\r\n// Ensure the Kerberos request happens shortly after the suspicious DNS query\r\n| where (TimeGenerated1 - TimeGenerated) between (0min .. 2min)\r\n// Extract and compare DNS and Kerberos details\r\n| extend OriginalQuery = tostring(ParsedFields.DnsQuery)\r\n| extend CnameTarget = tostring(ParsedFields.DnsQueryResponseCname)\r\n// Flag if TGS request is for the CNAME target, not originally queried name\r\n| where TgsServerName == CnameTarget and TgsServerName != OriginalQuery\r\n| project-rename\r\n    DnsRequestTime = TimeGenerated,\r\n    KerberosRequestTime = TimeGenerated1\r\n| project DnsRequestTime, KerberosRequestTime, DeviceName, DeviceId, AccountName,\r\n    OriginalQuery, CnameTarget, TgsServerName, RemoteIP, RemotePort"
+query_type: kql
+severity: medium
+techniques:
+    - T1187
+    - T1558
+    - T1557
+tags:
+    - kql
+version: "2"
+references:
+    - https://cymulate.com/blog/kerberos-authentication-relay-via-cname-abuse/

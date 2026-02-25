@@ -1,0 +1,55 @@
+id: 019be26d-7f96-7777-b11f-f50aa655677b
+name: Interactive AKS Administration in Sensitive Namespace
+description: Detects interactive administration commands (exec, attach, port-forward) within a sensitive Kubernetes namespace. Such activity can be legitimate but warrants scrutiny in high-value environments as it allows direct interaction with containerized applications and data.
+query: |
+    // Name: Interactive AKS Administration in Sensitive Namespace
+    // Author: detections.ai
+    // Date: 2026-01-21
+    // Tactic: Execution
+    // Technique: T1609, Container Administration Command
+    // Description: Detects interactive administration commands (exec, attach, port-forward) within a sensitive Kubernetes namespace. Such activity can be legitimate but warrants scrutiny in high-value environments as it allows direct interaction with containerized applications and data.
+    // False Positive Sensitivity: Medium
+    // Relevant Log Sources: AzureDiagnostics (AKS Audit Logs)
+    AzureDiagnostics
+    | where Category == "kube-audit-admin" // Focus on AKS audit logs. This category may also be "kube-audit".
+    // Parse the JSON formatted log entry
+    | extend ParsedLog = parse_json(log_s)
+    | extend
+        // Extract key fields for detection logic
+        RequestURI = tostring(ParsedLog.requestURI),
+        Verb = tostring(ParsedLog.verb),
+        User = tostring(ParsedLog.user.username),
+        SourceIP = tostring(ParsedLog.sourceIPs[0])
+    | where
+        // Filter for the specific interactive commands
+        (RequestURI has "/exec" or RequestURI has "/attach" or RequestURI has "/portforward")
+        // These commands are registered as a 'create' verb on the pod's subresource
+        and Verb == "create"
+        // Target the specific sensitive namespace
+        and RequestURI has "/namespaces/genetic-data/"
+        // Exclude common system and AKS service accounts to reduce noise
+        and not (User startswith "system:")
+    // To reduce potential false positives from legitimate administrators, consider excluding authorized user accounts.
+    // For example: and User !in ("admin_user1", "authorized_service_account")
+    | project
+        TimeGenerated,
+        OperationName,
+        User,
+        SourceIP,
+        Verb,
+        RequestURI,
+        PodName = extract(@"/pods/([^/]+)/", 1, RequestURI),
+        Namespace = extract(@"/namespaces/([^/]+)/", 1, RequestURI)
+    | extend
+        timestamp = TimeGenerated,
+        AccountCustomEntity = User,
+        IPCustomEntity = SourceIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1609
+tags:
+    - kql
+version: "4"

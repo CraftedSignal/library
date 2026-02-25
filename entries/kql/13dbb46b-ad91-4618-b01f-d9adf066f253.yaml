@@ -1,0 +1,45 @@
+id: 13dbb46b-ad91-4618-b01f-d9adf066f253
+name: Entra Passkey Addition Threat Detection
+description: 'KQL Query from file: Entra Passkey Addition Threat Detection'
+query: |
+    // Entra Passkey Addition Threat Detection
+    // https://www.linkedin.com/posts/activity-7184406157707390977-6N3C/
+
+    //Entra Passkey Addition Threat Detection KQL:
+
+    AuditLogs
+    | where ActivityDisplayName == "Add Passkey (device-bound) security key"
+    | where Result == "success"
+    | extend AccountUPN = TargetResources[0].userPrincipalName
+    | extend AAGUID = AdditionalDetails[1].value
+    | extend WebAuthnInfo = AdditionalDetails[0].value
+    | project TimeGenerated, AccountUPN, ActivityDisplayName, AAGUID, WebAuthnInfo
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the operations and objectives of the KQL code, the following MITRE ATT&CK techniques are relevant:
+
+    // T1078 - Valid Accounts:
+    // Description: Adversaries may use valid accounts to maintain access to victim systems.
+    // Relevance: Adding a passkey could be part of an adversary’s attempt to maintain access using legitimate credentials.
+    // T1556.004 - Unsecured Credentials: Web Session Cookie:
+    // Description: Adversaries may steal or forge web session cookies to gain access to web applications.
+    // Relevance: The extraction of WebAuthn information could be related to securing or exploiting web session credentials.
+    // T1556 - Modify Authentication Process:
+    // Description: Adversaries may modify authentication mechanisms to bypass security controls.
+    // Relevance: Adding a new passkey could be an attempt to modify the authentication process.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1556.004
+    - T1556
+    - T1098.005
+tags:
+    - kql
+version: "1"

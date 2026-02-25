@@ -1,0 +1,16 @@
+id: afd94750-eb39-4b1c-be08-d4797544cff8
+name: Chaos Ransomware - GoodSync Data Exfiltration
+description: Detects the use of GoodSync command-line tools for data exfiltration, a TTP associated with the Chaos ransomware group. The rule looks for suspicious command-line patterns, including masquerading as wininit.exe.
+query: "// Name: Chaos Ransomware - GoodSync Data Exfiltration\n// Author: detections.ai\n// Date: 2025-08-01\n// Tactic: Exfiltration\n// Technique: T1567.002 - Exfiltration Over Web Service\n// References: https://blog.talosintelligence.com/new-chaos-ransomware/\n// Description: Detects the use of GoodSync command-line tools for data exfiltration, a TTP associated with the Chaos ransomware group. The rule looks for suspicious command-line patterns, including masquerading as wininit.exe.\n\nlet suspiciousArgs = dynamic([\n    \"--multi-thread-streams\", \n    \"--transfers\", \n    \"--exclude\", \n    \"--max-age\", \n    \"--auto-confirm\", \n    \"--b2-disable-checksum\"\n]);\n\nDeviceProcessEvents\n// Look for GoodSync command-line tools or the masqueraded process name\n| where FileName in~ (\"gsync.exe\", \"gscp.exe\", \"wininit.exe\")\n| where \n    // Scenario 1: Detects GoodSync masquerading as the legitimate 'wininit.exe' process.\n    // 'wininit.exe' running from a non-standard path or with arguments associated with GoodSync is highly suspicious.\n    (\n        FileName =~ \"wininit.exe\" and\n        (\n            FolderPath notcontains @\"C:\\Windows\\System32\" or\n            ProcessCommandLine has \"copy\" or\n            ProcessCommandLine has_any (suspiciousArgs)\n        )\n    )\n    or\n    // Scenario 2: Detects suspicious usage of legitimate GoodSync tools.\n    // This may be triggered by legitimate backup activities.\n    // Consider excluding known backup service accounts or parent processes (e.g., taskeng.exe) to reduce false positives.\n    (\n        FileName in~ (\"gsync.exe\", \"gscp.exe\") and\n        ProcessCommandLine has \"copy\" and\n        // The combination of multiple specific arguments and a cloud destination is a stronger indicator of malicious activity.\n        (ProcessCommandLine has_all (dynamic([\"--exclude\", \"--max-age\"])) or ProcessCommandLine has_any (dynamic([\"--multi-thread-streams\", \"--transfers\"]))) and\n        ProcessCommandLine matches regex @\"(s3|b2|gs|azure|onedrive|gdrive|box|dropbox|cloud[0-9]+):\" // Regex for various cloud storage prefixes\n    )\n| project\n    TimeGenerated,\n    DeviceName,\n    AccountName,\n    FileName,\n    FolderPath,\n    ProcessCommandLine,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0010
+techniques:
+    - T1036.003
+    - T1567.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://blog.talosintelligence.com/new-chaos-ransomware/

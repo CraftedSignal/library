@@ -1,0 +1,14 @@
+id: 019995d1-5007-77fe-8fb9-59438e4b3e5f
+name: 'Threat Hunt: EDR Silencer and Interpreter-Based Bypass'
+description: 'This specialized KQL query is designed to hunt for a particularly dangerous class of malicious activity: the deliberate disabling of Endpoint Detection and Response (EDR) security controls. It specifically targets the use of tools like EDR Silencer, which attackers deploy to "blind" security tools and operate stealthily on a compromised host. The logic focuses on high-confidence indicators, searching for the tool''s executable itself or its distinctive command-line flags (blockedr, unblockall, etc.) when launched by common system interpreters like PowerShell or CMD. By filtering out noisy, legitimate activity related to document processing, this query provides security analysts with a prioritized list of potential EDR tampering incidents, enabling rapid investigation and response to this critical threat.'
+query: "// Define suspicious command-line flags that indicate EDR silencing activity\r\nlet suspect_flags_regex = @\"(?i)\\b(blockedr|block|unblockall|unblock)\\b\";\r\n// List of common interpreter/script host processes that attackers use to launch tools\r\nlet interpreters = dynamic([\"cmd.exe\",\"powershell.exe\",\"pwsh.exe\",\"wscript.exe\",\"cscript.exe\",\"rundll32.exe\",\"mshta.exe\",\"explorer.exe\",\"regsvr32.exe\"]);\r\n// Exclude command lines containing these to filter out legitimate document processing\r\nlet ReadersDocs = dynamic([\".pdf\", \".xlsx\", \".doc\", \"docx\", \"xls\", \"ods\", \".msg\", \".png\", \"jpg\", \".odt\", \".txt\", \".xlsb\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where not (ProcessCommandLine has_any (ReadersDocs))\r\n| where \r\n    tolower(FileName) == \"edrsilencer.exe\" or  // Direct EDR Silencer executable\r\n    tolower(InitiatingProcessFileName) in (interpreters)  // Launched by common interpreters\r\n| extend cmdline = tostring(ProcessCommandLine)\r\n| where cmdline matches regex suspect_flags_regex\r\n| project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName, ReportId, ProcessId\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: AwaisM
+version: "3"
+references:
+    - https://github.com/netero1010/EDRSilencer

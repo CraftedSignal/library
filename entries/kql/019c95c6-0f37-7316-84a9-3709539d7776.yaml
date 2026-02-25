@@ -1,0 +1,17 @@
+id: 019c95c6-0f37-7316-84a9-3709539d7776
+name: Malicious Node.js C2 Connections to Developer-Targeting Infrastructure
+description: Detects a Node.js process making outbound network connections to known malicious infrastructure associated with a developer-targeting campaign. The campaign used Vercel for staging and specific IPs for C2.
+query: "// Name: Malicious Node.js C2 Connections\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects a Node.js process making outbound network connections to known malicious infrastructure associated with a developer-targeting campaign. The campaign used Vercel for staging and specific IPs for C2.\r\n// False Positives: Medium. Legitimate applications may connect to vercel.app domains. The specific IPs are higher fidelity. Consider excluding legitimate project URLs if false positives occur.\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/\r\n// MITRE TTPs: T1071.001, T1105\r\nDeviceNetworkEvents\r\n// Look for network events from a Node.js process\r\n| where InitiatingProcessFileName in~ (\"node\", \"node.exe\")\r\n// Filter for connections to known malicious domains or IPs from the campaign\r\n| where RemoteUrl has_any (\r\n    \"api-web3-auth.vercel.app\",\r\n    \"oracle-v1-beta.vercel.app\",\r\n    \"monobyte-code.vercel.app\",\r\n    \"ip-checking-notification-kgm.vercel.app\",\r\n    \"vscodesettingtask.vercel.app\",\r\n    \"price-oracle-v2.vercel.app\",\r\n    \"coredeal2.vercel.app\",\r\n    \"ip-check-notification-03.vercel.app\",\r\n    \"ip-check-wh.vercel.app\",\r\n    \"ip-check-notification-rkb.vercel.app\",\r\n    \"ip-check-notification-firebase.vercel.app\",\r\n    \"ip-checking-notification-firebase111.vercel.app\",\r\n    \"ip-check-notification-firebase03.vercel.app\"\r\n) or RemoteIP in (\r\n    \"87.236.177.9\",\r\n    \"147.124.202.208\",\r\n    \"163.245.194.216\",\r\n    \"66.235.168.136\"\r\n)\r\n// Project relevant fields for investigation\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/

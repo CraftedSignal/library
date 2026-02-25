@@ -1,0 +1,71 @@
+id: 019bb272-d016-73f7-a4fc-1425238ef93c
+name: Unusual Python Execution Location
+description: |
+    Detects the execution of a Python interpreter (python.exe or pythonw.exe), potentially renamed, from a non-standard, user-writable location.
+    This can be an indicator of a threat actor dropping a portable Python environment to execute malicious scripts, as seen in campaigns like AsyncRAT.
+query: |
+    title: Unusual Python Execution Location
+    id: 2fdaa7f9-ff91-4f87-b948-6906f6a20ca4
+    status: experimental
+    description: |
+      Detects the execution of a Python interpreter (python.exe or pythonw.exe), potentially renamed, from a non-standard, user-writable location.
+      This can be an indicator of a threat actor dropping a portable Python environment to execute malicious scripts, as seen in campaigns like AsyncRAT.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+    author: tim@detections.ai
+    date: 2026-01-12
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1059.006
+      - attack.t1036.003
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        OriginalFileName:
+          # Detects python even if renamed, requires Sysmon or similar
+          - 'python.exe'
+          - 'pythonw.exe'
+        Image|contains:
+          # Python running from common user-writable directories commonly used for malware staging
+          - '\AppData\Local\'
+          - '\AppData\Roaming\'
+          - '\Users\Public\'
+          - '\Windows\Temp\'
+          - '\ProgramData\'
+          - '\Temp\'
+      filter_legit_path:
+        Image|contains:
+          # Excludes the default user-level installation path for Python
+          - '\AppData\Local\Programs\Python\'
+      condition: selection and not filter_legit_path
+    falsepositives:
+      - Legitimate portable Python environments used for development, data science,
+        or included with third-party software.
+      - Some administrative or security tools may also use embedded Python
+        interpreters in these locations.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.006
+    - T1036.003
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1059.006
+    - attack.t1036.003
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

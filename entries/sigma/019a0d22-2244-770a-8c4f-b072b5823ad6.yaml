@@ -1,0 +1,68 @@
+id: 019a0d22-2244-770a-8c4f-b072b5823ad6
+name: Jingle Thief Rogue Device or MFA Registration from Morocco
+description: Detects the registration of a new device or MFA authentication method in Microsoft Entra ID from an IP address geolocated to Morocco or associated with specific Moroccan ASNs. This is a persistence tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539).
+query: |
+    title: Jingle Thief Rogue Device or MFA Registration from Morocco
+    id: ddd9de5c-04b8-46b1-98c7-59d724fa1d26
+    status: experimental
+    description: >-
+      Detects the registration of a new device or MFA authentication method in
+      Microsoft Entra ID from an IP address geolocated to Morocco or associated with
+      specific Moroccan ASNs. This is a persistence tactic used by the Jingle Thief
+      group (also tracked as Atlas Lion and STORM-0539).
+    references:
+      - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.persistence
+      - attack.t1078.004
+      - attack.t1098.005
+    logsource:
+      category: audit
+      product: azure
+    detection:
+      selection_registration:
+        # Key detection component: Filter for successful device or MFA method registration events.
+        category: 'UserManagement'
+        operationName:
+          - 'User registered security info' # Covers MFA method registration (e.g., Authenticator app)
+          - 'Register device' # Covers device enrollment in Entra ID
+        result: 'success'
+      selection_location:
+        # Key detection component: Focus on activity originating from Morocco, a key indicator for the Jingle Thief group.
+        properties.location.countryOrRegion: 'MA'
+      selection_asn:
+        # For higher fidelity, this filters for ASNs specifically mentioned in the threat intelligence.
+        properties.location.asnDisplayName|contains:
+          - 'MT-MPLS'
+          - 'ASMedi'
+          - 'MAROCCONNECT'
+      condition: selection_registration and (selection_location or selection_asn)
+    falsepositives:
+      - Legitimate users who reside in or are traveling to Morocco may trigger this
+        alert when registering a new device or MFA method. It is recommended to
+        investigate the context of the user's activity and baseline their typical
+        locations. Exclusions for known travelers or residents may be necessary.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1098.005
+tags:
+    - attack.persistence
+    - attack.t1078.004
+    - attack.t1098.005
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+data_sources:
+    - audit
+    - azure

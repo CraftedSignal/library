@@ -1,0 +1,14 @@
+id: 3e106af2-c165-4d35-800b-ed3c2b7c21d8
+name: Startup Folder Item Creation
+description: "This KQL query identifies file creation events within common Windows startup directories and enriches them with Windows Shell Link (shortcut) creation activity. \n\nStartup folders are frequently abused by adversaries for persistence since files or shortcuts placed here automatically execute at user login. The query covers both system-wide and user-specific startup paths and can exclude known legitimate items via an exclusion list to reduce false positives.\n"
+query: "// Set the full paths for startup items\r\nlet startupFullPaths = dynamic([ \r\n    \"C:\\\\ProgramData\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\StartUp\",\r\n    \"C:\\\\Documents And Settings\\\\All Users\\\\Start Menu\\\\Programs\\\\StartUp\",\r\n    \"C:\\\\Windows\\\\Tasks\"\r\n]);\r\n// Set an exclusion list for items that are expected (reduce noise by adding known-good startup items here)\r\nlet exclusionList = dynamic([\r\n    \"EXCLUSION_ITEM\"\r\n]);\r\n// Search for FileCreated events in startup directories, excluding known items and enrich with Shell Link creation activity\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where not (FileName has_any (exclusionList))\r\n| where\r\n    FolderPath has_any(startupFullPaths)\r\n    or FolderPath matches regex @\"C:\\\\Users\\\\.*?\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\"\r\n    or FolderPath matches regex @\"C:\\\\Documents and Settings\\\\.*?\\\\Start Menu\\\\Programs\\\\Startup\"\r\n| join kind=leftouter (\r\n    DeviceEvents\r\n    | where ActionType == \"ShellLinkCreateFileEvent\"\r\n    | where\r\n        FolderPath has_any(startupFullPaths)\r\n        or FolderPath matches regex @\"C:\\\\Users\\\\.*?\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\"\r\n        or FolderPath matches regex @\"C:\\\\Documents and Settings\\\\.*?\\\\Start Menu\\\\Programs\\\\Startup\"\r\n) on DeviceId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: Sleuthifer
+version: "2"

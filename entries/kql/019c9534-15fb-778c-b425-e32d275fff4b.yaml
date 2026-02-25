@@ -1,0 +1,58 @@
+id: 019c9534-15fb-778c-b425-e32d275fff4b
+name: OAST DNS Tunneling via PowerShell
+description: This rule detects PowerShell commands used to encode data (like hostnames) into hexadecimal strings and exfiltrate it via DNS queries to known Out-of-Band Application Security Testing (OAST) domains. This technique is used by attackers to bypass egress filtering and confirm system compromise, as seen in the exploitation of CVE-2026-1731.
+query: |
+    // Name: OAST DNS Tunneling via PowerShell
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: This rule detects PowerShell commands used to encode data (like hostnames) into hexadecimal strings and exfiltrate it via DNS queries to known Out-of-Band Application Security Testing (OAST) domains. This technique is used by attackers to bypass egress filtering and confirm system compromise, as seen in the exploitation of CVE-2026-1731.
+    // Tags: CVE-2026-1731, OAST, DNS Tunneling, PowerShell
+    // Tactics: Exfiltration, Command and Control
+    // Techniques: T1071.004, T1041, T1132.001
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    // False Positive Sensitivity: Medium
+    let lookback = 7d;
+    // Define known OAST domains used for DNS exfiltration as observed in the threat intel
+    let oastDomains = dynamic([
+        "oastify.com",
+        "oast.pro",
+        "oast.fun"
+    ]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Focus on PowerShell processes which are used to perform the encoding and exfiltration
+    | where FileName =~ "powershell.exe"
+    // Detect the specific encoding technique ([BitConverter]::ToString) used by the attacker to convert data to hex
+    | where ProcessCommandLine has "BitConverter" and ProcessCommandLine has "ToString"
+    // Check for the use of nslookup to send the DNS query, which is a common method for this technique
+    | where ProcessCommandLine has "nslookup"
+    // Correlate with the presence of a known OAST domain in the command line
+    | where ProcessCommandLine has_any (oastDomains)
+    // FP-TUNING: Legitimate security testing or development activities might use OAST services.
+    // Exclude known safe scripts, users, or devices if they generate noise in your environment.
+    // | where AccountName !in ("pentest_user", "dev_account")
+    | project
+        timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0002
+techniques:
+    - T1071.004
+    - T1041
+    - T1132.001
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

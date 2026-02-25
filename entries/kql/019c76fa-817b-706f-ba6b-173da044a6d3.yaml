@@ -1,0 +1,61 @@
+id: 019c76fa-817b-706f-ba6b-173da044a6d3
+name: Anomalous Entra ID Device Code Flow Location
+description: Identifies successful Entra ID sign-ins using the Device Code Flow from a geographic location not seen for that user in the last 30 days. The device code flow involves two separate interactions (the attacker's device and the victim's browser), so a mismatch between the sign-in location and the user's established locations is a strong indicator of a session hijacking attempt.
+query: |-
+    // Name: Anomalous Entra ID Device Code Flow Location
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-19
+    // Description: Identifies successful Entra ID sign-ins using the Device Code Flow from a geographic location not seen for that user in the last 30 days. The device code flow involves two separate interactions (the attacker's device and the victim's browser), so a mismatch between the sign-in location and the user's established locations is a strong indicator of a session hijacking attempt.
+    // False Positives: Legitimate use by a traveling user, first-time use of a VPN, or first-time use of the device code flow feature from a new location.
+    // Tuning: Adjust the 'lookback' period to better suit your organization's user travel patterns. Exclude users who are known to travel frequently or use a wide range of IP locations.
+    // References: https://www.bleepingcomputer.com/news/security/hackers-target-microsoft-entra-accounts-in-device-code-vishing-attacks/
+    // MITRE TTPs: T1566.004, T1078.004
+    let lookback = 30d;
+    // Create a baseline of normal user locations from successful sign-ins.
+    let historical_locations =
+        SigninLogs
+        | where TimeGenerated between (ago(lookback) .. ago(1h))
+        | where ResultType == 0
+        | where isnotempty(UserPrincipalName) and isnotempty(Location)
+        | summarize KnownLocations = make_set(Location) by UserPrincipalName;
+    // Detect recent device code sign-ins from a new location.
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    // Filter for successful sign-ins using the device code protocol.
+    | where ResultType == 0
+    | where AuthenticationProtocol == "deviceCode"
+    | where isnotempty(UserPrincipalName) and isnotempty(Location)
+    // Join with the user's historical locations.
+    | join kind=inner historical_locations on UserPrincipalName
+    // Alert if the current sign-in location is not in the user's known locations set.
+    | where KnownLocations !has Location
+    // Project and rename fields for clarity and entity mapping.
+    | project
+        TimeGenerated,
+        AccountUPN = UserPrincipalName,
+        AccountDisplayName = UserDisplayName,
+        Application = AppDisplayName,
+        ApplicationId = AppId,
+        AnomalousLocation = Location,
+        KnownLocations,
+        IPAddress,
+        UserAgent,
+        AADTenantId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0008
+techniques:
+    - T1566.004
+    - T1078.004
+    - T1563
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/hackers-target-microsoft-entra-accounts-in-device-code-vishing-attacks/

@@ -1,0 +1,16 @@
+id: 019a089f-cd66-718a-b334-f1de5f77300b
+name: Obfuscated PowerShell Persistence (COLDRIVER / MAYBEROBOT)
+description: This rule detects suspicious execution of 'RUNDLL32.EXE' with specific command-line arguments. It looks for instances where 'RUNDLL32.EXE' is executed with both a backslash and a comma in the command line, combined with specific DLL names or keywords like 'iamnotarobot.dll', 'checkme.dll', 'machinerie.dll', 'humanCheck', or 'verifyme'. This pattern is often indicative of malicious DLL loading or persistence mechanisms.
+query: "DeviceProcessEvents\r\n| where ProcessVersionInfoOriginalFileName =~ \"RUNDLL32.EXE\"\r\n| where ProcessCommandLine has_all (@\"\\\", \",\")\r\n| where ProcessCommandLine has_any (\r\n    \"iamnotarobot.dll\",\r\n    \"checkme.dll\",\r\n    \"machinerie.dll\",\r\n    \"humanCheck\",\r\n    \"verifyme\"\r\n)\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    AccountCustomEntity = AccountName,\r\n    HostCustomEntity = DeviceName,\r\n    ProcessCustomEntity = FileName,\r\n    CommandLineCustomEntity = ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1218.011
+    - T1574.001
+tags:
+    - kql
+version: "1"

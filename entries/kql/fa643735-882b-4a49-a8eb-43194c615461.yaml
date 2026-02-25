@@ -1,0 +1,50 @@
+id: fa643735-882b-4a49-a8eb-43194c615461
+name: Compromised npm package (eslint-config-prettier) malicious DLL activity
+description: Detects Windows systems invoking rundll32.exe to execute DLLs associated with compromised npm package versions of eslint-config-prettier (10.1.6–10.1.9). These versions were published without corresponding GitHub commits and may initiate callbacks to FirebaseDotSu, indicating potential command-and-control activity.
+query: |-
+    let SHA1List = datatable(Value:string)["a2f7e5a15daffa05bdda01bbf2e71736bdc79763"]; // SHA1 hash of suspected malicious file
+    let FileList = datatable(Value:string)["node-gyp.dll", "10.1.7_eslint"]; // Known suspicious filenames linked to npm compromise
+    let IPList = datatable(Value:string)["172.67.151.249"]; // Known C2 IP flagged by threat intel
+    let DomainList = datatable(Value:string)["firebase.su", "smartscreen-api.com", "dieorsuffer.com"]; // C2 domains seen in malware telemetry
+    let CombinedNet = union IPList, DomainList; // Combine indicators for broader detection scope
+    //CombinedNet
+    union
+    (
+        DeviceProcessEvents
+        | where SHA1 has_any (SHA1List) or FileName has_any (FileList) or FolderPath has_any (FileList) // Detect processes involving known hashes or filenames
+    ),
+    (
+        DeviceFileEvents
+        | where SHA1 has_any (SHA1List) or FileName has_any (FileList) or FolderPath has_any (FileList) or FileOriginReferrerUrl has_any (DomainList) or FileOriginReferrerUrl has_any (DomainList) or FileOriginIP has_any (IPList) // Capture file events tied to IOCs across origin and location
+    ),
+    (
+        DeviceImageLoadEvents
+        | where SHA1 has_any (SHA1List) or FileName has_any (FileList) or FolderPath has_any (FileList) // Image load tracking for suspicious DLLs
+    ),
+    (   DeviceNetworkEvents
+        | where RemoteIP has_any (IPList) or RemoteUrl has_any (DomainList) or AdditionalFields has_any (CombinedNet) // Network events with matching C2 domains/IPs
+    )
+    | sort by Timestamp desc // Prioritize newest activity
+    //References:
+    //https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise
+    //Malware:
+    //FileName: node-gyp.dll
+    //SHA256: c68e42f416f482d43653f36cd14384270b54b68d6496a8e34ce887687de5b441 //Popular threat label: trojan.pycoon
+    //Threat categories: trojan
+    //Family labels: pycoon //https://www.virustotal.com/gui/file/c68e42f416f482d43653f36cd14384270b54b68d6496a8e34ce887687de5b441/detection //https://tip.neiki.dev/file/c68e42f416f482d43653f36cd14384270b54b68d6496a8e34ce887687de5b441/video
+    //C2 Domains (https://www.joesandbox.com/analysis/1739752/0/html#domains): //firebase[.]su (Former Soviet Union TLD, Creation Date: 2 months ago , Kaspersky: Malware, Redirects to "https://firebase.google.com/") //https://www.virustotal.com/gui/domain/firebase.su/detection //smartscreen-api[.]com (Creation Date: 1 month ago, Fortigate: Spam)
+    //https://www.virustotal.com/gui/domain/smartscreen-api.com/detection
+    //dieorsuffer[.]com (Creation Date: 1 month ago) //https://www.virustotal.com/gui/domain/dieorsuffer.com/detection //C2 IP:
+    //172[.]67[.]151[.]249 (ArcSight Threat Intelligence: Suspicious) //https://www.virustotal.com/gui/ip-address/172.67.151.249 //https://www.virustotal.com/gui/ip-address/172.67.151.249/relations
+query_type: kql
+severity: medium
+techniques:
+    - T1195.001
+    - T1218
+tags:
+    - kql
+author: '@AdairJCollins'
+version: "1"
+references:
+    - https://www.linkedin.com/pulse/microsoft-defender-nodejs-supply-chain-security-alert-adair-collins-jwlce/
+    - https://www.stepsecurity.io/blog/supply-chain-security-alert-eslint-config-prettier-package-shows-signs-of-compromise

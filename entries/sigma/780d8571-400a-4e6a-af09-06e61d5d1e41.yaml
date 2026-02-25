@@ -1,0 +1,54 @@
+id: 780d8571-400a-4e6a-af09-06e61d5d1e41
+name: Termncolor Sideloading via Vcpktsvr.exe in Non-Standard Path
+description: Detects the loading of `libcef.dll` by `vcpktsvr.exe` from non-standard directories. This specific DLL Sideloading behavior is a key tactic of the malware associated with the Termncolor/Colorinal malicious Python packages, where a legitimate executable is dropped into an unusual location to load a malicious DLL.
+query: |
+    title: Termncolor Sideloading via Vcpktsvr.exe in Non-Standard Path
+    id: a7c71bbc-95f8-411a-b07a-66dfb291d698
+    status: experimental
+    description: Detects the loading of `libcef.dll` by `vcpktsvr.exe` from non-standard directories. This specific DLL Sideloading behavior is a key tactic of the malware associated with the Termncolor/Colorinal malicious Python packages, where a legitimate executable is dropped into an unusual location to load a malicious DLL.
+    references:
+      - https://www.zscaler.com/blogs/security-research/supply-chain-risk-python-termncolor-and-colorinal-explained
+    author: detections.ai
+    date: 2025-09-08
+    modified: 2024-05-21
+    tags:
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection:
+            # Detects vcpktsvr.exe loading the malicious libcef.dll
+        Image|endswith: '\vcpktsvr.exe'
+        ImageLoaded|endswith: '\libcef.dll'
+      filter_legit:
+            # Exclude legitimate installations in Program Files.
+            # This filter may need to be adjusted for environments with portable developer tools.
+        Image|startswith:
+          - 'C:\Program Files\'
+          - 'C:\Program Files (x86)\'
+      condition: selection and not filter_legit
+    falsepositives:
+      - Legitimate but non-standard installations of developer tools (e.g., portable versions) that place vcpktsvr.exe outside of the default 'Program Files' directories.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.t1574.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.zscaler.com/blogs/security-research/supply-chain-risk-python-termncolor-and-colorinal-explained
+data_sources:
+    - image_load
+    - windows

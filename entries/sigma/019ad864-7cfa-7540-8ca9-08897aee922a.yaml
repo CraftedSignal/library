@@ -1,0 +1,89 @@
+id: 019ad864-7cfa-7540-8ca9-08897aee922a
+name: Suspicious CMD HTTP Call to Non-RFC1918 Dot-Quad or Hex-Encoded IPv4 Address
+description: Detects cmd.exe execution where an HTTP/HTTPS URL points directly to a dot-quad IPv4 address or a hex-encoded IPv4 address, excluding RFC1918 private ranges. Threat actors commonly use raw or hex IP literals to avoid domain filtering and deliver staged payloads.
+query: |
+    title: Suspicious CMD HTTP Call to Non-RFC1918 Dot-Quad or Hex-Encoded IPv4 Address
+    id: f27c7781-0cd9-40d4-a201-4e7bbd9154c5
+    status: experimental
+    description: >-
+      Detects cmd.exe execution where an HTTP/HTTPS URL points directly to a
+      dot-quad IPv4 address or a hex-encoded IPv4 address, excluding RFC1918 private
+      ranges. Threat actors commonly use raw or hex IP literals to avoid domain
+      filtering and deliver staged payloads.
+    references:
+      - https://attack.mitre.org/techniques/T1105/
+      - https://attack.mitre.org/techniques/T1059/003/
+    tags:
+      - attack.command_and_control
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1105
+      - attack.t1059.003
+    author: Firestrike::Labs
+    date: 2025-11-30
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_regex:
+        CommandLine|re: |
+          (?ix)
+          cmd (?:\.exe)?                     # cmd executable
+          .* https?://                       # URL (http|https)
+          (
+            (0x[0-9a-f]+|\d{1,3})             # octet 1 (hex or decimal)
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 2
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 3
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 4
+          )
+      selection_rfc1918:
+        CommandLine|re: |
+          (?ix)
+          cmd (?:\.exe)?
+          .* https?://
+          (
+            10 \.\d{1,3}\.\d{1,3}\.\d{1,3}                     # 10.0.0.0/8
+            |
+            172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}      # 172.16-31.0.0/12
+            |
+            192\.168\.\d{1,3}\.\d{1,3}                         # 192.168.0.0/16
+          )
+      condition: selection_regex and not selection_rfc1918
+    fields:
+      - CommandLine
+      - ParentImage
+      - Image
+      - User
+    falsepositives:
+      - Rare; legitimate scripted testing or diagnostics that use direct public IP
+        URLs from cmd.exe.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059.003
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1105
+    - attack.t1059.003
+author: Firestrike::Labs
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1105/
+    - https://attack.mitre.org/techniques/T1059/003/
+data_sources:
+    - process_creation
+    - windows
+    - security

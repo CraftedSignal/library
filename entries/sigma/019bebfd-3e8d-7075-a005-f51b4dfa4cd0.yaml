@@ -1,0 +1,52 @@
+id: 019bebfd-3e8d-7075-a005-f51b4dfa4cd0
+name: Suspicious LocalAppData Updater Executable
+description: Detects the execution of executables with names like 'Updater.exe' from suspicious paths in the AppData\Local directory, which are associated with fake PDF converter malware families like PDFClick, Easy2Convert, and ConvertMate.
+query: |
+    title: Suspicious LocalAppData Updater Executable
+    id: e154de32-c266-435f-ab01-773df1ad541c
+    status: experimental
+    description: Detects the execution of executables with names like 'Updater.exe'
+      from suspicious paths in the AppData\Local directory, which are associated
+      with fake PDF converter malware families like PDFClick, Easy2Convert, and
+      ConvertMate.
+    references:
+      - Internal ID: 78b624b602dd7221c89da3f71acf4500db4e0b2e6f3f00adb894128e22f37695
+    author: detections.ai
+    date: 2026-01-23
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_path:
+        # Detects updater executables running from the Local AppData folder
+        Image|contains: '\AppData\Local\'
+        Image|endswith: 'Updater.exe'
+      selection_keywords:
+        # Looks for specific malware family names in the process path
+        Image|contains:
+          - '\PDFClick\'
+          - '\Easy2Convert\'
+          - '\ConvertMate\'
+      condition: selection_path and selection_keywords
+    falsepositives:
+      - Legitimate software updaters with similar paths or names.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - attack.defense_evasion
+    - attack.t1036.005
+author: detections.ai
+version: "2"
+references:
+    - '[object Object]'
+data_sources:
+    - process_creation
+    - windows

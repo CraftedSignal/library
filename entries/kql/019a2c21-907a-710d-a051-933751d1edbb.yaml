@@ -1,0 +1,16 @@
+id: 019a2c21-907a-710d-a051-933751d1edbb
+name: BiDi Swap URL in DeviceNetworkEvents
+description: This rule detects the presence of percent-encoded Bi-Directional (BiDi) control characters in URLs within network events. Specifically, it looks for '%E2%80%AE' (Right-to-Left Override - RLO), '%E2%80%8E' (Left-to-Right Mark - LRM), and '%E2%80%8F' (Right-to-Left Mark - RLM). These characters can be used to obfuscate URLs, making malicious links appear benign to users and potentially bypass security controls.
+query: "//BiDi Swap Detection\r\nlet bidi_chars = dynamic(['%E2%80%AE', '%E2%80%8E', '%E2%80%8F']);\r\n// Die wichtigsten BiDi-Zeichen sind RLO (%E2%80%AE), RLM (%E2%80%8F) und LRM (%E2%80%8E).\r\n// Die Liste oben deckt die gängigsten Bidi-Kontroll- und nicht-druckbaren Steuerzeichen ab (U+2000 bis U+206F).\r\nDeviceNetworkEvents\r\n| where isnotempty(RemoteUrl)\r\n// Suche nach den prozentkodierten BiDi-Zeichen in der URL\r\n| where RemoteUrl has_any (bidi_chars)\r\n| project Timestamp, DeviceName, DeviceId, RemoteUrl, ActionType, InitiatingProcessFileName, RemoteIP, RemotePort, ReportId\r\n| extend Bidi_Character_Found = extract_all(@\"(%E2%80%AE|%E2%80%8E|%E2%80%8E)\", RemoteUrl)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1036.002
+    - T1001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "3"

@@ -1,0 +1,19 @@
+id: 019bd86c-cdd9-75fc-bed3-687c61c5a1e3
+name: Gootloader Persistence via LNK and NTFS Shortname
+description: Detects the execution of a JScript file by cscript.exe using a legacy NTFS 8.3 shortname format. This is a specific behavior observed in Gootloader's persistence mechanism, where a .LNK file in the Startup folder executes a second-stage script.
+query: "// Name: Gootloader Persistence via LNK and NTFS Shortname\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-19\r\n// Description: Detects the execution of a JScript file by cscript.exe using a legacy NTFS 8.3 shortname format. This is a specific behavior observed in Gootloader's persistence mechanism, where a .LNK file in the Startup folder executes a second-stage script.\r\n// False Positive Sensitivity: Medium\r\n// MITRE TTPs: T1547.001 (Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder), T1059.007 (Command and Scripting Interpreter: JavaScript)\r\n// References: https://expel.com/blog/gootloaders-malformed-zip/\r\nDeviceProcessEvents\r\n// Look for execution by the command-line script host.\r\n| where FileName =~ \"cscript.exe\"\r\n// The command line must contain the NTFS 8.3 shortname pattern (e.g., FILENA~1.js).\r\n// This is a strong indicator of Gootloader's second-stage script execution.\r\n| where ProcessCommandLine matches regex @'~\\d{1,2}\\.js'\r\n// Tuning: This behavior is highly unusual for legitimate applications.\r\n// If false positives occur, they are likely from custom legacy scripts. Consider excluding specific script names or parent processes if necessary.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA1,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1547.001
+    - T1059.007
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://expel.com/blog/gootloaders-malformed-zip/

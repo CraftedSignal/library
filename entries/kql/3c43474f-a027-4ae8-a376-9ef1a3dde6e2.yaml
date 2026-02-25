@@ -1,0 +1,26 @@
+id: 3c43474f-a027-4ae8-a376-9ef1a3dde6e2
+name: PowerShell Downgrade to Version 2 Detected (AMSI Bypass Technique)
+description: |
+    This detection identifies instances where PowerShell is executed using a legacy engine version (e.g., v2.0), which lacks support for AMSI and script block logging. Attackers often downgrade PowerShell to avoid modern security controls and to evade detection during payload execution.
+
+    PowerShell version information is captured from the DeviceEvents table with ActionType `PowerShellEngineVersion`. Any engine version starting with "2." or "1." is treated as suspicious in this detection.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(1d)  // letzte 24 Stunden\r\n| where ProcessCommandLine has_any (\"-Version 2\", \"-v 2\", \"powershell.exe 2.0\", \"PoweredShell -Version 2\")\r\n| where FileName =~ \"powershell.exe\" or FileName =~ \"pwsh.exe\"\r\n| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+    - T1059.001
+tags:
+    - PowerShell
+    - DowngradeAttack
+    - AMSIBypass
+    - Version2
+    - LegacyExecution
+    - ThreatHunting
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://kurtroggen.wordpress.com/2017/05/17/powershell-security-powershell-downgrade-attacks/

@@ -1,0 +1,37 @@
+id: 019b30f7-8291-77ed-9634-77706c0f1176
+name: Script Execution from Staging Directory
+description: Detects the execution of AutoHotKey (.ahk) or AutoIt (.au3) scripts from common staging directories such as C:\Users\Public\ or C:\Temp\. This is a known technique used by malware like DarkGate to stage and execute its payload.
+query: |
+    // Name: Script Execution from Staging Directory
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the execution of AutoHotKey (.ahk) or AutoIt (.au3) scripts from common staging directories such as C:\Users\Public\ or C:\Temp\. This is a known technique used by malware like DarkGate to stage and execute its payload.
+    // MITRE ATT&CK: T1059.003
+    // References: https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4
+    // False Positive Sensitivity: Medium. Legitimate software or administrative scripts may occasionally run from these locations. If false positives occur, consider excluding specific script names, parent processes, or users known to perform these actions.
+
+    DeviceProcessEvents
+    // Look for AutoIt or AutoHotKey script interpreters
+    | where FileName in~ ("AutoHotKey.exe", "AutoIt3.exe")
+    // Check the command line for script file extensions and common staging paths
+    | where (ProcessCommandLine has ".ahk" or ProcessCommandLine has ".au3")
+        and ProcessCommandLine has_any (
+            "\\Users\\Public\\",
+            "\\PerfLogs\\",
+            "\\Windows\\Temp\\",
+            "\\AppData\\Local\\Temp",
+            "C:\\Temp\\"
+        )
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0009
+techniques:
+    - T1059.010
+    - T1074.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sma-attack-N9bf4

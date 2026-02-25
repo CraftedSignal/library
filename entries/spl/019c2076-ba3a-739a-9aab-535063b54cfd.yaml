@@ -1,0 +1,31 @@
+id: 019c2076-ba3a-739a-9aab-535063b54cfd
+name: Notepad++ Remote Network Connections
+description: This query identifies outbound network connections made by the notepad++.exe process. This is useful for hunting for suspicious activity, such as connections to malicious update servers or C2 channels, by baselining normal update and plugin activity.
+query: |
+    // Name: Notepad++ Remote Network Connections
+    // Author: detections.ai
+    // Date: 2026-02-02
+    // Description: This query identifies outbound network connections made by the notepad++.exe process. This is useful for hunting for suspicious activity, such as connections to malicious update servers or C2 channels, by baselining normal update and plugin activity.
+    // Tactic: Command and Control
+    // Technique: T1071 (Application Layer Protocol)
+    // MDE KQL Query
+
+    // Look for network connections initiated by notepad++.exe
+    DeviceNetworkEvents
+    | where InitiatingProcessFileName =~ "notepad++.exe"
+    // Filter out local and multicast traffic to focus on external connections.
+    | where RemoteIPType != "Loopback" and RemoteIPType != "Private" and RemoteIP !startswith "fe80" and RemoteIP !startswith "ff0"
+    // The following domains are known legitimate sources for Notepad++ updates and plugins.
+    // You may need to add other legitimate domains used by plugins in your environment to reduce noise.
+    | where not(RemoteUrl has_any ("notepad-plus-plus.org", "github.com"))
+    // Summarize connections to see what is most common
+    | summarize count() by DeviceName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP
+    | sort by count_ asc
+query_type: spl
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - spl
+version: "2"

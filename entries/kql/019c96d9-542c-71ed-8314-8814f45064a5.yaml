@@ -1,0 +1,16 @@
+id: 019c96d9-542c-71ed-8314-8814f45064a5
+name: Cisco SD-WAN Log Tampering Detection
+description: Detects the deletion or clearing of critical Cisco SD-WAN log files. This is a common post-exploitation technique used by attackers to cover their tracks after compromising a device, for instance, after exploiting CVE-2026-20127. The rule identifies direct file deletions and commands used to clear or truncate log file content.
+query: "// Name: Cisco SD-WAN Log Tampering\n// Author: Ethan Andrews + detections.ai\n// Date: 2026-02-25\n// Description: Detects the deletion or clearing of critical Cisco SD-WAN log files. This is a common post-exploitation technique used by attackers to cover their tracks after compromising a device, for instance, after exploiting CVE-2026-20127.\n// MITRE ATT&CK: T1070.002 (Indicator Removal: File Deletion)\n// References: https://www.bleepingcomputer.com/news/security/critical-cisco-sd-wan-bug-exploited-in-zero-day-attacks-since-2023/\n// False Positive Sensitivity: Medium. Legitimate administrative actions or automated log rotation scripts could trigger this alert. It is recommended to add known administrative accounts or scripts to an exclusion list if \nlet lookback = 1d;\n// List of critical log files targeted for tampering as identified in CISA/Talos guidance.\nlet critical_log_files = dynamic([\n    \"/var/volatile/log/vdebug\",\n    \"/var/log/tmplog/vdebug\",\n    \"/var/volatile/log/sw_script_synccdb.log\"\n]);\n// Detect direct deletion of the critical log files.\nlet DeletionEvents = DeviceFileEvents\n| where TimeGenerated > ago(lookback)\n| where ActionType == \"FileDeleted\" and FolderPath  has_any (critical_log_files)\n| project\n    Timestamp = TimeGenerated,\n    DeviceName,\n    AccountName = InitiatingProcessAccountName,\n    Tactic = \"File Deletion\",\n    Details = strcat(\"File deleted: \", FolderPath),\n    Process = InitiatingProcessFileName;\n// Detect commands used to clear or truncate the content of the log files.\nlet ClearingEvents = DeviceProcessEvents\n| where TimeGenerated > ago(lookback)\n| where ProcessCommandLine has_any (critical_log_files)\n// Filter for commands that overwrite or truncate files.\n| where\n    // e.g., truncate -s 0 /path/to/log\n    (FileName =~ \"truncate\" and ProcessCommandLine has \"-s 0\") or\n    // e.g., > /path/to/log or cat /dev/null > /path/to/log\n    (ProcessCommandLine contains \">\" and ProcessCommandLine matches regex @\"\\s+>\\s*\")\n// Exclude legitimate log rotation processes to reduce false positives.\n| where InitiatingProcessFileName !~ \"logrotate\" and FileName !~ \"logrotate\"\n| project\n    Timestamp = TimeGenerated,\n    DeviceName,\n    AccountName,\n    Tactic = \"Log Clearing/Truncation\",\n    Details = ProcessCommandLine,\n    Process = FileName;\n// Combine both detection methods.\nunion DeletionEvents, ClearingEvents\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/critical-cisco-sd-wan-bug-exploited-in-zero-day-attacks-since-2023/

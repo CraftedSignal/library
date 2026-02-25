@@ -1,0 +1,57 @@
+id: 019c9547-328e-7138-ac12-1b94ffd11ef2
+name: Metasploit GetSystem Named Pipe Impersonation
+description: Detects the use of Metasploit's 'getsystem' command, which creates a temporary service that executes a command to echo data into a named pipe. This is a common technique for privilege escalation via named pipe impersonation.
+query: |
+    title: Metasploit GetSystem Named Pipe Impersonation
+    id: 9995c0e5-3193-406d-aefd-86dcb7fe1c42
+    status: experimental
+    description: Detects the use of Metasploit's 'getsystem' command, which creates
+      a temporary service that executes a command to echo data into a named pipe.
+      This is a common technique for privilege escalation via named pipe
+      impersonation.
+    author: detections.ai
+    references:
+      - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    date: 2026-02-25
+    tags:
+      - attack.privilege_escalation
+      - attack.t1134.001
+      - attack.t1543.003
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        ParentImage|endswith: '\services.exe' # The parent process is the Service Control Manager
+        Image|endswith: '\cmd.exe'
+        CommandLine|contains|all:
+          - '/c' # Specifies that cmd.exe should carry out the command and then terminate
+          - 'echo'
+          - '>' # Redirects the output of the echo command
+          - '\\.\pipe\' # The output is redirected to a named pipe
+      condition: selection
+    falsepositives:
+      - This behavior is highly unusual for legitimate software. However, some niche
+        applications or administrative scripts might use a similar mechanism for
+        inter-process communication.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0005
+    - TA0003
+techniques:
+    - T1134.001
+    - T1543.003
+tags:
+    - attack.privilege_escalation
+    - attack.t1134.001
+    - attack.t1543.003
+author: detections.ai
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows

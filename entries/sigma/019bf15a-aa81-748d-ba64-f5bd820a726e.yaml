@@ -1,0 +1,86 @@
+id: 019bf15a-aa81-748d-ba64-f5bd820a726e
+name: Suspicious Modification of PAM Configuration
+description: Detects attempts to modify Pluggable Authentication Modules (PAM) configuration files. Attackers may modify PAM configurations to bypass authentication, such as by adding `pam_permit.so` or changing module control flags from `required` to `sufficient` or `optional`.
+query: |
+    title: Suspicious Modification of PAM Configuration
+    id: e831a545-7de3-4aa6-a47f-e8aaa2163c0a
+    status: experimental
+    description: Detects attempts to modify Pluggable Authentication Modules (PAM)
+      configuration files. Attackers may modify PAM configurations to bypass
+      authentication, such as by adding `pam_permit.so` or changing module control
+      flags from `required` to `sufficient` or `optional`.
+    references:
+      - https://attack.mitre.org/techniques/T1556/004/
+      - https://linux.die.net/man/8/pam
+      - https://linux.die.net/man/8/pam_permit
+    author: CIfer
+    date: 2026-01-24
+    tags:
+      - attack.credential_access
+      - attack.defense_evasion
+      - attack.privilege_escalation
+      - attack.t1556.004
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      # Detects common file manipulation tools targeting the PAM config directory
+      selection_tools:
+        Image|endswith:
+          - '/awk'
+          - '/bash'
+          - '/echo'
+          - '/perl'
+          - '/printf'
+          - '/sed'
+          - '/sh'
+          - '/tee'
+        CommandLine|contains: '/etc/pam.d/'
+        # Detects the use of pam_permit.so, which allows access without password checks
+      selection_permit:
+        CommandLine|contains|all:
+          - 'pam_permit.so'
+          - '/etc/pam.d/'
+        # Filter for legitimate package managers that modify PAM files
+        # This may need to be expanded based on your environment
+      filter_legit_parent:
+        ParentImage|endswith:
+          - '/apt'
+          - '/apt-get'
+          - '/dnf'
+          - '/dpkg'
+          - '/pacman'
+          - '/rpm'
+          - '/yum'
+          - '/zypper'
+      condition: (selection_tools or selection_permit) and not filter_legit_parent
+    falsepositives:
+      - Legitimate system administration or configuration management tools (like
+        Ansible, Puppet, Chef) might modify these files.
+      - Software installations or updates can also trigger this rule. Filtering for
+        parent processes associated with package managers is included to reduce some
+        of this noise.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+techniques:
+    - T1556
+    - T1556.003
+tags:
+    - attack.credential_access
+    - attack.defense_evasion
+    - attack.privilege_escalation
+    - attack.t1556.004
+author: CIfer
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1556/004/
+    - https://linux.die.net/man/8/pam
+    - https://linux.die.net/man/8/pam_permit
+data_sources:
+    - process_creation
+    - linux

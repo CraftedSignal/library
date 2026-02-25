@@ -1,0 +1,54 @@
+id: 019bec71-3dcd-7528-a1e8-73f704187991
+name: KONNI AI-Generated PowerShell Backdoor Execution
+description: This rule detects various stages of the KONNI AI-generated PowerShell backdoor execution chain. It identifies the initial LNK loader executing obfuscated PowerShell, the creation of a scheduled task for persistence (specifically looking for 'OneDrive' and 'Startup' in the task name and hourly/monthly execution), XOR decryption activities involving PowerShell and specific file paths like 'C:\ProgramData\VljE', the creation of a staging directory 'C:\ProgramData\VljE', and the extraction of CAB files into 'ProgramData'. The detection logic combines these elements, looking for the LNK loader, or a combination of scheduled task creation with XOR decryption, or staging directory creation with XOR decryption, or CAB file extraction.
+query: |
+    title: KONNI AI-Generated PowerShell Backdoor Execution
+    id: 417b7716-b09a-4e14-a6d2-7544a531663b
+    status: experimental
+    description: Detection of KONNI AI-generated PowerShell backdoor execution chain including LNK loader, XOR decryption, scheduled task persistence, and obfuscated PowerShell execution
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://research.checkpoint.com/2026/konni-targets-developers-with-ai-malware/
+    tags:
+        - attack.execution
+        - attack.persistence
+        - attack.defense_evasion
+        - attack.t1059.001
+        - attack.t1053.005
+        - attack.t1055
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_lnk_loader:
+            Image|endswith: '\cmd.exe'
+            CommandLine|re: '(?i)(powershell.*-w\s+h|powershell.*-WindowStyle\s+Hidden)'
+            CommandLine|re: '(?i)(\[IO\.File\]::ReadAllBytes|XOR|bxor)'
+            ParentImage|endswith: '.lnk'
+        selection_scheduled_task:
+            Image|endswith: '\schtasks.exe'
+            CommandLine|re: '(?i)/create.*OneDrive.*Startup.*Task'
+            CommandLine|re: '(?i)(/sc\s+hourly|/mo\s+1)'
+            CommandLine|re: '(?i)(powershell.*-w\s+h|powershell.*-WindowStyle\s+Hidden)'
+        selection_xor_decrypt:
+            Image|endswith: '\powershell.exe'
+            CommandLine|re: '(?i)(\[IO\.File\]::ReadAllBytes.*bxor|XOR.*decrypt)'
+            CommandLine|re: '(?i)(iex\s+\$|Invoke-Expression)'
+            CommandLine|re: '(?i)(C:\\ProgramData\\VljE|ProgramData.*VljE)'
+        selection_staging_dir:
+            Image|endswith: '\cmd.exe'
+            CommandLine|re: '(?i)(mkdir.*C:\\ProgramData\\VljE|md.*C:\\ProgramData\\VljE)'
+        selection_cab_extract:
+            Image|endswith|any:
+                - '\expand.exe'
+                - '\cmd.exe'
+            CommandLine|re: '(?i)(expand.*CAB|extract.*\.cab)'
+            CommandLine|re: '(?i)(C:\\ProgramData|ProgramData)'
+        condition: selection_lnk_loader or (selection_scheduled_task and selection_xor_decrypt) or (selection_staging_dir and selection_xor_decrypt) or selection_cab_extract
+    falsepositives:
+        - Legitimate OneDrive scheduled tasks (rare, but check task name pattern)
+        - Legitimate PowerShell scripts using XOR (uncommon)
+    level: critical
+query_type: sigma
+version: "2"

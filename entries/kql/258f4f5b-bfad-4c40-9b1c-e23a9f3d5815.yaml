@@ -1,0 +1,18 @@
+id: 258f4f5b-bfad-4c40-9b1c-e23a9f3d5815
+name: 'Threat Hunt: ClickFix Windows run box execution via registry'
+description: "Looking for strings entered into and executed from the Windows run box, which is leveraged by ClickFix campaigns for initial access.\nLooking modifications to the Windows Registry's 'RunMRU' key, which stores the history of commands executed via the 'Run' dialog box (Windows Key + R), we can detect when new run box commands are executed. "
+query: "DeviceRegistryEvents\r\n|where TimeGenerated > ago(500d)\r\n|where RegistryKey contains \"RunMRU\"\r\n|where RegistryValueType==\"String\"\r\n|where PreviousRegistryValueName!=\"MRUList\"\r\n|where IsInitiatingProcessRemoteSession==\"false\"\r\n|extend run_command=replace_string(RegistryValueData,\"\\\\1\",\"\")\r\n|project TimeGenerated,User=InitiatingProcessAccountName,RunBoxCommand=run_command"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: frog
+version: "1"
+references:
+    - https://krebsonsecurity.com/2025/03/clickfix-how-to-infect-your-pc-in-three-easy-steps/
+    - https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape

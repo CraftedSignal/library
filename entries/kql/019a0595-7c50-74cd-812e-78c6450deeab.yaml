@@ -1,0 +1,17 @@
+id: 019a0595-7c50-74cd-812e-78c6450deeab
+name: Detecting DefenderWrite Exploitation in Microsoft Defender for Endpoint
+description: KQL Query
+query: "let Lookback = 1h;\r\nlet MDEProcess=externaldata(DWLProcess:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/MDE.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project DWLProcess;\r\nDeviceFileEvents\r\n| where Timestamp > ago(Lookback)\r\n| where ActionType==\"FileCreated\"\r\n| where FolderPath has \"C:\\\\ProgramData\\\\Microsoft\\\\Windows Defender\"\r\n| where not (InitiatingProcessFileName has_any(MDEProcess)) and isnotempty(InitiatingProcessFileName)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.003
+    - T1211
+tags:
+    - kql
+author: Steven Lim
+version: "2"
+references:
+    - https://www.zerosalarium.com/2025/10/defenderwrite-abusing-whitelisted-programs-arbitrary-write.html

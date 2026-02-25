@@ -1,0 +1,42 @@
+id: 019a05c2-737a-70a2-87e4-5bf1de96fec8
+name: Potential DNS Tunneling via Scripting Engines
+description: This detection identifies network connections to external DNS servers over TCP (port 53) initiated by common scripting engines like PowerShell, Python, or WScript. While DNS over TCP is a valid protocol, it is less common for standard queries and is often used by malware for command and control (C2) or data exfiltration through DNS tunneling.
+query: |
+    // Name: Potential DNS Tunneling via Scripting Engines
+    // Author: detections.ai
+    // Date: 2025-10-21
+    // Description: This detection identifies network connections to external DNS servers over TCP (port 53) initiated by common scripting engines like PowerShell, Python, or WScript. While DNS over TCP is a valid protocol, it is less common for standard queries and is often used by malware for command and control (C2) or data exfiltration through DNS tunneling.
+    // Tactics: Command and Control
+    // Techniques: T1071.004
+    // False Positive Sensitivity: Medium
+
+    DeviceNetworkEvents
+    // Focus on TCP-based DNS traffic, which can be indicative of tunneling.
+    | where Protocol startswith "Tcp" and RemotePort == 53
+    // Exclude connections to localhost and internal IP ranges to focus on external destinations.
+    | where RemoteIP != "127.0.0.1" and not (
+        ipv4_is_in_range(RemoteIP, "10.0.0.0/8") or
+        ipv4_is_in_range(RemoteIP, "172.16.0.0/12") or
+        ipv4_is_in_range(RemoteIP, "192.168.0.0/16")
+    )
+    // Target scripting engines often abused for C2 and tunneling.
+    | where InitiatingProcessFileName has_any ("powershell.exe", "python.exe", "wscript.exe", "cscript.exe")
+    // The following command-line exclusions are examples for legitimate DNS tools.
+    // FP Tuning: You may need to add exclusions for legitimate administrative scripts or security tools that perform DNS lookups over TCP.
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0010
+techniques:
+    - T1071.004
+    - T1059.001
+    - T1059.006
+    - T1041
+tags:
+    - kql
+author: aminhamid91
+version: "4"
+references:
+    - https://attack.mitre.org/techniques/T1071/004/

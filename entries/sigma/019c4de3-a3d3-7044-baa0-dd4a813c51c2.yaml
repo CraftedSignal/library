@@ -1,0 +1,34 @@
+id: 019c4de3-a3d3-7044-baa0-dd4a813c51c2
+name: Microsoft ClickFix LOLBIN Stacking cmd and curl
+description: This rule detects two distinct patterns associated with the 'ClickFix' social engineering technique, as described by Microsoft. The first pattern identifies the stacking of 'cmd.exe /c' commands, indicating a multi-stage command execution. The second pattern focuses on obfuscated 'curl' commands, specifically looking for escape characters within 'curl' or 'curl.exe' combined with indicators of network communication (HTTP/HTTPS URLs, PHP, or BAT file extensions). This combination suggests an attempt to download or execute malicious content using an obfuscated 'curl' command.
+query: |
+    title: Microsoft ClickFix LOLBIN Stacking cmd and curl
+    id: b2c3d4e5-f6a7-4b8c-9d0e-microsoft02
+    status: experimental
+    description: |
+        Repeated cmd.exe /c chain or curl with escape-character obfuscation (e.g. c^u^rl.e^x^e). ClickFix evasion pattern per Microsoft blog.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059.003
+        - attack.t1027
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_cmd_stack:
+            CommandLine|re: 'cmd\.exe\s+/c\s+cmd\.exe\s+/c'
+        selection_curl_obfuscated:
+            CommandLine|re: 'c\^u\^r\^l|curl\.e\^x\^e'
+        selection_curl_https:
+            CommandLine|contains: 'curl'
+            CommandLine|contains: '-'
+            CommandLine|re: 'https?://|\.php\?|\.bat'
+        condition: selection_cmd_stack or (selection_curl_obfuscated and selection_curl_https)
+    falsepositives:
+        - Legitimate multi-stage scripts using cmd /c
+    level: high
+query_type: sigma
+version: "2"

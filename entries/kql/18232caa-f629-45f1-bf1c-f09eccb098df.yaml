@@ -1,0 +1,23 @@
+id: 18232caa-f629-45f1-bf1c-f09eccb098df
+name: '[RW] - Detect Attempts to modify Amcache.hve or SYSTEM files'
+description: |-
+    Amcache.hve is a Windows registry file that logs details about executed programs, including file paths, hashes, timestamps, and metadata. It helps reconstruct what was run on a system—even if the original file is gone. On the other hand, Shimcache is a memory-resident registry artifact that records executables seen or run by the system. It stores file paths and last modified timestamps, making it useful for tracking historical program execution—even after deletion. Attackers aware of forensic techniques could try to delete or alter these files to remove the evidences of their attacks:
+
+    Deleting or wiping Amcache.hve Overwriting or tampering with the SYSTEM hive to destroy Shimcache Using tools like SDelete, cipher /w:, or direct registry access to tamper logs
+query: "DeviceFileEvents \n| where (FileName contains \"SYSTEM\" and FolderPath contains \"C:\\\\Windows\\\\System32\\\\config\\\\\") or (FileName has \"Amcache.hve\")\n| project Timestamp, DeviceName,DeviceId, FileName, FolderPath, ActionType, InitiatingProcessFileName, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.004
+    - T1562.006
+tags:
+    - KQL
+    - Sergio_Albea
+    - Ransomware
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://medium.com/detect-fyi/identifying-ransomware-final-stage-activities-with-kql-queries-00b3cf0ef31b

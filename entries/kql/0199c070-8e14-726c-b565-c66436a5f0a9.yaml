@@ -1,0 +1,50 @@
+id: 0199c070-8e14-726c-b565-c66436a5f0a9
+name: Suspicious NeutralinoJS Framework Execution from Non-Standard Directory
+description: Detects the execution of NeutralinoJS framework components ('neutralino.exe', 'node.exe') from non-standard directories. This behavior is associated with the EvilAI campaign, where threat actors leverage the NeutralinoJS framework to execute arbitrary JavaScript code for covert data access and process spawning. The detection specifically looks for the '--load-dir-res' argument, which is a strong indicator of a NeutralinoJS application launch, and filters out executions from standard application installation directories to focus on anomalous locations, which can indicate malware masquerading as a portable app or running from a temporary/user location.
+query: |
+    // Name: Suspicious NeutralinoJS Framework Execution
+    // Author: detections.ai
+    // Date: 2025-10-07
+    // Description: Detects the execution of NeutralinoJS framework components ('neutralino.exe', 'node.exe') from non-standard directories. This behavior is associated with the EvilAI campaign, where threat actors leverage the NeutralinoJS framework to execute arbitrary JavaScript code for covert data access and process spawning.
+    // False Positives: Legitimate, non-standard or portable installations of applications built with NeutralinoJS may trigger this alert. Consider adding known application paths to an allowlist to reduce noise.
+    // References: https://thehackernews.com/2025/09/evilai-malware-masquerades-as-ai-tools.html
+    // MITRE ATT&CK: T1059.007 (JavaScript)
+    // False Positive Sensitivity: Medium
+    // Detection Comment Level: Medium
+
+    let standard_install_paths = dynamic([
+        "C:\\Program Files\\",
+        "C:\\Program Files (x86)\\"
+    ]);
+    DeviceProcessEvents
+    | where Timestamp > ago(1d)
+    // Filter for processes associated with the NeutralinoJS framework.
+    | where FileName in~ ("neutralino.exe", "node.exe")
+    // The '--load-dir-res' argument is a strong indicator of a NeutralinoJS application launch.
+    | where ProcessCommandLine has "--load-dir-res"
+    // Filter out executions from standard application installation directories to focus on anomalous locations.
+    // This is a key indicator for malware masquerading as a portable app or running from a temp/user location.
+    | where not(FolderPath has_any (standard_install_paths))
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        CommandLines = makeset(ProcessCommandLine),
+        ParentProcesses = makeset(InitiatingProcessFileName),
+        ExecutionPath = take_any(FolderPath)
+        by DeviceId, DeviceName, AccountName, bin(Timestamp, 30m)
+    | extend
+        timestamp = StartTime,
+        HostCustomEntity = DeviceName,
+        AccountCustomEntity = AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+    - T1059
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/09/evilai-malware-masquerades-as-ai-tools.html

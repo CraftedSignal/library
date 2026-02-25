@@ -1,0 +1,50 @@
+id: 4b02a7e8-32c1-416d-ad85-b1912769b4df
+name: Event log clear attempt (command)
+description: Detects scenarios where an attacker attempts to clear the event logs.
+query: |-
+    title: Event log clear attempt (command)
+    description: Detects scenarios where an attacker attempts to clear the event logs.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1070.001-Clear%20Windows%20event%20logs
+    - https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/wevtutil
+    - https://www.zscaler.com/blogs/security-research/technical-analysis-crytox-ransomware
+    - https://www.microsoft.com/en-us/security/blog/2022/06/13/the-many-lives-of-blackcat-ransomware/
+    - https://www.elastic.co/security-labs/invisible-miners-unveiling-ghostengine
+    tags:
+    - attack.defense_evasion
+    - attack.t1070.001
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      category: process_creation
+    detection: # Full command: wevtutil el | Foreach-Object {Write-Host "Clearing $_"; wevtutil cl "$_"}
+      selection:
+        NewProcessName|endswith: '\wevtutil.exe'
+        CommandLine|contains:
+          - 'clear-log'
+          - cl # reduced command
+      condition: selection
+    falsepositives:
+    - None
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1070.001
+tags:
+    - attack.defense_evasion
+    - attack.t1070.001
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1070.001-Clear%20Windows%20event%20logs
+    - https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/wevtutil
+    - https://www.zscaler.com/blogs/security-research/technical-analysis-crytox-ransomware
+    - https://www.microsoft.com/en-us/security/blog/2022/06/13/the-many-lives-of-blackcat-ransomware/
+    - https://www.elastic.co/security-labs/invisible-miners-unveiling-ghostengine
+data_sources:
+    - process_creation
+    - windows

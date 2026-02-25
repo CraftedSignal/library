@@ -1,0 +1,46 @@
+id: 2c5a2eac-9339-4491-b0d8-85c3b1399e07
+name: 'Part 2: DefenderXDR KQL detection for fake CrowdStrike domain URL'
+description: KQL Query
+query: |
+    // Part 2: DefenderXDR KQL detection for fake CrowdStrike domain URL
+    // https://www.linkedin.com/posts/activity-7220748665924042752-pRST/
+
+    // Hourly custom detection: Detect & Purge
+
+    EmailUrlInfo
+    | where Timestamp > ago(1h)
+    | join EmailEvents on NetworkMessageId
+    | where EmailDirection == "Inbound"
+    | where LatestDeliveryAction == "Delivered"
+    | where UrlDomain contains "crowdstrike"
+    | where UrlDomain !endswith "crowdstrike.com"
+    | where SenderFromDomain !endswith "crowdstrike.com" and
+    SenderFromDomain !endswith "litmos.com" and
+    SenderFromDomain !endswith "zoom.us"
+
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the analysis, the query can be mapped to the following MITRE ATT&CK techniques:
+
+    // Phishing (T1566):
+    // The query is designed to detect phishing attempts by identifying suspicious URLs in inbound emails.
+    // Spearphishing Link (T1566.002):
+    // Specifically targets emails with links that may lead to malicious sites, excluding known legitimate domains.
+    // Indicator Removal on Host (T1070):
+    // By filtering out legitimate domains, the query aims to identify attempts to bypass detection mechanisms.
+    // Command and Control (T1071):
+    // The presence of suspicious URLs could indicate attempts to establish command and control channels.
+query_type: kql
+tactics:
+    - TA0001
+    - TA0005
+    - TA0011
+techniques:
+    - T1566
+    - T1566.002
+    - T1070
+    - T1071
+tags:
+    - kql
+version: "1"

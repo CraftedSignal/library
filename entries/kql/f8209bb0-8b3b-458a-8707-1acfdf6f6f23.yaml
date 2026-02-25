@@ -1,0 +1,15 @@
+id: f8209bb0-8b3b-458a-8707-1acfdf6f6f23
+name: Detection fake CAPTCHA-based clipboard hijacking
+description: 'KQL Query from file: Detection fake CAPTCHA-based clipboard hijacking'
+query: "let clipboardEvents = \r\n    DeviceEvents\r\n    | where ActionType contains \"GetClipboardData\" \r\n    and (InitiatingProcessFileName =~ \"explorer.exe\" or InitiatingProcessFileName =~ \"mshta.exe\")\r\n    | project DeviceId, Timestamp, ReportId, DeviceName, InitiatingProcessFileName;\r\nlet suspiciousWebRequests = \r\n    DeviceProcessEvents\r\n    | where FileName in~ (\"powershell.exe\", \"mshta.exe\") \r\n    and ProcessCommandLine contains \"http\"\r\n    and ProcessCommandLine !contains \"http://localhost\"\r\n    and (ProcessCommandLine contains \"hidden\" or ProcessCommandLine contains \"Invoke-WebRequest\" or ProcessCommandLine contains \"curl\")\r\n    | project DeviceId, Timestamp, ReportId, DeviceName, FileName, ProcessCommandLine;\r\nclipboardEvents\r\n| join kind=inner (suspiciousWebRequests) on DeviceId\r\n| where abs(datetime_diff('minute', Timestamp, Timestamp1)) <= 1\r\n| project DeviceId, DeviceName, Timestamp=Timestamp1, ReportId, InitiatingProcessFileName, FileName, ProcessCommandLine\r\n| summarize count() by DeviceId, DeviceName, bin(Timestamp, 5m), ReportId\r\n| order by count_ desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.malwarebytes.com/blog/news/2025/03/fake-captcha-websites-hijack-your-clipboard-to-install-information-stealers

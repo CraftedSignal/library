@@ -1,0 +1,73 @@
+id: 019a0c1d-57e2-72dc-a03b-0208ab8d4c02
+name: SharePoint ToolShell Vulnerability Exploitation (CVE-2025-53770)
+description: Detects potential exploitation of the ToolShell remote code execution vulnerability (CVE-2025-53770) in on-premises Microsoft SharePoint servers. Attackers have been observed sending POST requests to the 'ToolPane.aspx' endpoint and subsequently dropping webshells with specific names in the SharePoint LAYOUTS directory.
+query: |
+    title: SharePoint ToolShell Vulnerability Exploitation (CVE-2025-53770)
+    id: 29e3ded1-81ee-4000-8c6c-513abe0eeba0
+    status: experimental
+    description: >-
+      Detects potential exploitation of the ToolShell remote code execution
+      vulnerability (CVE-2025-53770) in on-premises Microsoft SharePoint servers.
+      Attackers have been observed sending POST requests to the 'ToolPane.aspx'
+      endpoint and subsequently dropping webshells with specific names in the
+      SharePoint LAYOUTS directory.
+    references:
+      - https://www.security.com/threat-intelligence/warlock-ransomware-origins
+      - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2025.49704
+      - cve.2025.49706
+      - cve.2025.53770
+      - cve.2025.53771
+    logsource:
+      # This rule combines web server and endpoint file creation logs. Please adapt the logsource fields to your specific environment.
+      - category: webserver
+      - product: windows
+        category: file_event
+    detection:
+      # Detects the initial web request associated with the exploit attempt.
+      web_exploit:
+        cs-method: 'POST'
+        c-uri|endswith: '/ToolPane.aspx'
+      # Detects the creation of known webshells dropped post-exploitation.
+      file_webshell:
+        TargetFilename|endswith: '.aspx'
+        TargetFilename|contains:
+          - 'spinstall'
+          - 'spupdate'
+          - 'SpLogoutLayout'
+          - 'SP.UI.TitleView'
+          - 'queryruleaddtool'
+          - 'ClientId'
+        TargetDirectory|contains|all:
+          - 'Microsoft Shared\Web Server Extensions\'
+          - '\TEMPLATE\LAYOUTS'
+      condition: web_exploit or file_webshell
+    falsepositives:
+      - Legitimate administrative activities on SharePoint may involve POST requests
+        to 'ToolPane.aspx'. If the 'web_exploit' selection is too noisy, consider
+        correlating it with other suspicious activity or focusing only on the
+        'file_webshell' selection, which is higher fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2025.49704
+    - cve.2025.49706
+    - cve.2025.53770
+    - cve.2025.53771
+author: detections.ai
+version: "2"
+references:
+    - https://www.security.com/threat-intelligence/warlock-ransomware-origins
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

@@ -1,0 +1,48 @@
+id: d52947e7-919c-40e8-8f4e-6d8813312154
+name: AORTA - New Forest Trust with TGT Delegation Enabled
+description: Detects the creation of a new Active Directory forest trust with both FOREST_TRANSITIVE (0x00000008) and CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flags set, indicative of the AORTA attack. This rule specifically checks for the TdoAttributes value 0x808, which represents the exact combination of these two flags. Attackers might set additional flags, which would result in a different TdoAttributes value, potentially leading to false negatives. Consider implementing backend-specific bitwise checks if your SIEM supports them for more comprehensive detection.
+query: |-
+    title: AORTA - New Forest Trust with TGT Delegation Enabled
+    id: 5a7b9c1d-2e3f-4a5b-6c7d-8e9f0a1b2c3d
+    status: experimental
+    description: Detects the creation of a new Active Directory forest trust with both FOREST_TRANSITIVE (0x00000008) and CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flags set, indicative of the AORTA attack. This rule specifically checks for the TdoAttributes value 0x808, which represents the exact combination of these two flags. Attackers might set additional flags, which would result in a different TdoAttributes value, potentially leading to false negatives. Consider implementing backend-specific bitwise checks if your SIEM supports them for more comprehensive detection.
+    author: Detections.ai
+    date: 2025-06-29
+    references:
+        - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+    logsource:
+        product: windows
+        service: security
+        log_on_dc: true # Event 4706 is logged on Domain Controllers
+    detection:
+        selection:
+            EventID: 4706
+            TdoAttributes: '0x808' # Matches the exact hexadecimal string representation of the combined flags
+        condition: selection
+    falsepositives:
+        - Legitimate creation of a forest trust with TGT delegation enabled is highly unusual and discouraged by Microsoft, making false positives rare.
+    level: high
+    tags:
+        - attack.persistence
+        - attack.privilege_escalation
+        - attack.t1098.006 # Account Manipulation: Domain Trust Modification
+        - attack.defense_evasion
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.006
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098.006
+    - attack.defense_evasion
+author: Detections.ai
+version: "1"
+references:
+    - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+data_sources:
+    - windows
+    - security

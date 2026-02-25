@@ -1,0 +1,48 @@
+id: 019b30ed-771b-7454-b6f7-e1aceadc9836
+name: Linux Sliver C2 Implant Detection
+description: Detects the presence of a file with a specific SHA-256 hash associated with a Linux Sliver TCP Pivot implant. This implant has been linked to the CL-CRI-1036 group and is used as a precursor to 01flip ransomware deployment. The rule searches across file and process events for this high-fidelity indicator of compromise.
+query: |
+    // Name: Sliver C2 Linux Implant
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the presence of a file with the SHA-256 hash ba41f0c7ea36cefe7bc9827b3cf27308362a4d07a8c97109704df5d209bce191. This hash corresponds to a Linux Sliver TCP Pivot implant used by the CL-CRI-1036 group as a precursor to 01flip ransomware deployment.
+    // Tactic: Command and Control
+    // References: https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/
+
+    let TimeFrame = 48h;
+    let SliverImplantHash = "ba41f0c7ea36cefe7bc9827b3cf27308362a4d07a8c97109704df5d209bce191";
+
+    // Search across file and process events for the specific hash.
+    union DeviceFileEvents, DeviceProcessEvents
+    | where Timestamp > ago(TimeFrame)
+    // Filter for events where the file hash matches the known Sliver implant SHA256.
+    | where SHA256 == SliverImplantHash
+    // This is a high-fidelity indicator; any match is a strong signal of compromise.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        ActionTypes = make_set(ActionType),
+        // Collect relevant file and process information for investigation.
+        FileName = take_any(FileName),
+        FolderPath = take_any(FolderPath),
+        InitiatingProcessCommandLine = take_any(InitiatingProcessCommandLine)
+        by DeviceId, DeviceName, SHA256
+    | project
+        StartTime,
+        EndTime,
+        DeviceId,
+        DeviceName,
+        ActionTypes,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/

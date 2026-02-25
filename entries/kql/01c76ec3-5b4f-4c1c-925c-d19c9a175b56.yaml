@@ -1,0 +1,12 @@
+id: 01c76ec3-5b4f-4c1c-925c-d19c9a175b56
+name: Browser Initiated File Download Detection
+description: This rule identifies file download events initiated by common web browsers such as Microsoft Edge, Internet Explorer, Google Chrome, and Mozilla Firefox. It can be used for hunting suspicious file downloads on devices, especially after an incident alert, or for general threat hunting.
+query: "#### This query idetifies any files being downlaoded from browsers like Internet Explorer, Edge, Chrome and firefox. This query can be used as hunting query to identify any suspicious file being downloaded from device browser, after an incident alert triggred in the defender or can be used just to hunt for any suspicious files being downlaoded on devices.\n\n#### Query:\n```KQL\nDeviceFileEvents \n| where Timestamp > ago(7d)\n| where FolderPath !has \"$Recycle.Bin\"\n| where \n    // Edge\n     InitiatingProcessFileName == \"msedge.exe\"\n     or\n     InitiatingProcessFolderPath endswith @\"windows\\system32\\browser_broker.exe\" \n    // Internet Explorer x64\n    or InitiatingProcessFolderPath endswith @\"program files\\internet explorer\\iexplore.exe\"\n    // Internet Explorer x32\n    or InitiatingProcessFolderPath endswith @\"program files (x86)\\internet explorer\\iexplore.exe\"\n    // Chrome\n    or (InitiatingProcessFileName =~ \"chrome.exe\" and FileName endswith \"crdownload\")\n    // Firefox\n    or (InitiatingProcessFileName =~ \"firefox.exe\" and (FileName !endswith \".js\" or FolderPath !has \"profile\"))\n| project Timestamp, DeviceName, InitiatingProcessFileName, FileName, FolderPath\n```\n"
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - kql
+version: "1"

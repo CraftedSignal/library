@@ -1,0 +1,18 @@
+id: 019c671a-dcfd-74ec-8575-b6c3e3b059c3
+name: APT28 - Stealthy Microsoft Edge Execution with Data URI
+description: Detects Microsoft Edge launched with command-line arguments used to hide the browser window (headless mode or off-screen positioning) in conjunction with a Base64-encoded HTML data URI. This technique was observed in the APT28 "Operation MacroMaze" campaign to execute payloads stealthily.
+query: "// Name: APT28 - Stealthy Microsoft Edge Execution\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-16\r\n// Description: Detects Microsoft Edge launched with command-line arguments used to hide the browser window (headless mode or off-screen positioning) in conjunction with a Base64-encoded HTML data URI. This technique was observed in the APT28 \"Operation MacroMaze\" campaign to execute payloads stealthily.\r\n// Tactic: Defense Evasion, Execution\r\n// Technique: T1564.003, T1204.002, T1048.003\r\n// References: https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/\r\n// False Positive Sensitivity: Medium. Legitimate automation or web development/testing tools might use similar command-line arguments. Consider filtering by parent process or user if false positives occur.\r\nDeviceProcessEvents\r\n// Look for process creation events\r\n| where FileName =~ \"msedge.exe\"\r\n// Filter for Microsoft Edge being launched\r\n| where ProcessCommandLine has \"data:text/html;base64,\"\r\n    // Detects the use of a Base64 encoded HTML payload, a key part of the attack chain\r\n    and (\r\n    ProcessCommandLine has \"--headless=new\" // Variant 1: True headless execution\r\n    or (ProcessCommandLine has \"--window-size=1,1\" and ProcessCommandLine has \"--window-position=10000,10000\") // Variant 2: Hiding the window by moving it off-screen\r\n    )\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1564.003
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/

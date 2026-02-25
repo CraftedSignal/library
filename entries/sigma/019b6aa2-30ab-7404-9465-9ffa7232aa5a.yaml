@@ -1,0 +1,61 @@
+id: 019b6aa2-30ab-7404-9465-9ffa7232aa5a
+name: RondoDoX IoT Command Injection
+description: Detects command injection attempts in HTTP POST requests targeting IoT device web interfaces, a technique used by the RondoDoX botnet to compromise vulnerable devices.
+query: |
+    title: RondoDoX IoT Command Injection
+    id: 0b59e7c0-ce6c-4fe8-814b-ae73ce77a1dd
+    status: experimental
+    description: Detects command injection attempts in HTTP POST requests targeting
+      IoT device web interfaces, a technique used by the RondoDoX botnet to
+      compromise vulnerable devices.
+    references:
+      - https://www.cloudsek.com/blog/rondodox-botnet-weaponizes-react2shell
+    author: tim@detections.ai
+    date: 2025-12-29
+    tags:
+      - attack.t1203
+      - attack.initial_access
+      - attack.execution
+    logsource:
+      category: webserver
+    detection:
+      selection_http:
+        cs-method: 'POST' # Rule targets HTTP POST requests, which are used to submit data to web forms.
+      selection_params:
+        c-body|contains:
+          # Looks for specific parameters in the request body known to be abused by RondoDoX for command injection.
+          - 'ping_ipaddr='
+          - 'dest_host='
+          - 'SPECIFIC_SERVER='
+          - 'hostname='
+          - 'ttcp_ip='
+          - 'command='
+      selection_commands:
+        c-body|contains:
+          # Looks for common shell commands used to download and execute malicious payloads.
+          - 'wget '
+          - 'curl '
+          - 'busybox '
+      condition: selection_http and selection_params and selection_commands
+    falsepositives:
+      - Legitimate administrative actions or diagnostic tools on some IoT devices
+        might use these parameters and commands. Tuning may be required based on
+        specific device management software in the environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1203
+tags:
+    - attack.t1203
+    - attack.initial_access
+    - attack.execution
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.cloudsek.com/blog/rondodox-botnet-weaponizes-react2shell
+data_sources:
+    - webserver

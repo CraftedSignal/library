@@ -1,0 +1,65 @@
+id: 019c07ab-30ab-732f-99b0-baaaa0c17973
+name: Shell.Explorer OLE Object Loading
+description: |
+    Detects Sysmon Image Load events for shdocvw.dll or ieframe.dll by Office applications, which indicates the Shell.Explorer.1 or Internet Explorer component is being loaded. This is a direct indicator of CVE-2026-21509 exploitation as Office normally doesn't load these browser-related DLLs. The vulnerability specifically exploits the Shell.Explorer.1 COM object which relies on these DLLs for browser functionality within Office documents.
+query: |
+    title: Shell.Explorer OLE Object Loading
+    id: 0b1c2d3e-4f5a-6b7c-8d9e-0f1a2b3c4d5e
+    status: experimental
+    description: |
+      Detects Sysmon Image Load events for shdocvw.dll or ieframe.dll by Office applications, which indicates the Shell.Explorer.1 or Internet Explorer component is being loaded. This is a direct indicator of CVE-2026-21509 exploitation as Office normally doesn't load these browser-related DLLs. The vulnerability specifically exploits the Shell.Explorer.1 COM object which relies on these DLLs for browser functionality within Office documents.
+    references:
+      - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509
+      - https://blog.0patch.com/2026/01/micropatches-released-for-microsoft.html
+    author: tim@detections.ai
+    date: 2026-01-28
+    modified: 2026-01-28
+    tags:
+      - attack.execution
+      - attack.t1559.001
+      - cve.2026-21509
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_process:
+        Image|endswith:
+          - '\WINWORD.EXE'
+          - '\EXCEL.EXE'
+          - '\POWERPNT.EXE'
+          - '\MSPUB.EXE'
+          - '\VISIO.EXE'
+      selection_browser_dll:
+        ImageLoaded|endswith:
+          - '\shdocvw.dll' # Shell Doc Object and Control Library
+          - '\ieframe.dll' # Internet Explorer Frame
+          - '\mshtml.dll'  # Microsoft HTML Rendering Engine
+          - '\urlmon.dll'  # OLE32 URL Moniker
+          - '\wininet.dll' # Windows Internet API
+      condition: selection_process and selection_browser_dll
+    falsepositives:
+      - Some legitimate Office features may load these DLLs in specific scenarios
+      - Office web query features
+    level: high
+    associated_cves:
+      - CVE-2026-21509
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1559.001
+tags:
+    - attack.execution
+    - attack.t1559.001
+    - cve.2026-21509
+author: tim@detections.ai
+version: "2"
+references:
+    - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509
+    - https://blog.0patch.com/2026/01/micropatches-released-for-microsoft.html
+data_sources:
+    - image_load
+    - windows
+    - sysmon

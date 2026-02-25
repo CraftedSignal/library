@@ -1,0 +1,75 @@
+id: bca10294-48e5-4cd6-89a5-def35185b7a0
+name: EDR Killer Malicious Driver Creation
+description: Detects the creation of malicious drivers used by an EDR Killer tool. This tool is leveraged by numerous ransomware groups, including RansomHub, Blacksuit, Medusa, and INC, to disable security products before deploying ransomware. The detection is based on known malicious file hashes and drivers signed with specific, known-abused certificates.
+query: |
+    title: EDR Killer Malicious Driver
+    id: d998347b-b621-493a-9fd8-b77b865d8a54
+    status: experimental
+    description: Detects the creation of malicious drivers used by an EDR Killer tool. This tool is leveraged by numerous ransomware groups, including RansomHub, Blacksuit, Medusa, and INC, to disable security products before deploying ransomware. The detection is based on known malicious file hashes and drivers signed with specific, known-abused certificates.
+    references:
+      - https://news.sophos.com/en-us/2025/08/06/shared-secret-edr-killer-in-the-kill-chain/
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - malware.edr_killer
+      - malware.ransomhub
+      - malware.blacksuit
+      - malware.medusa
+      - malware.inc
+    logsource:
+      category: file_creation
+      product: windows
+    detection:
+      selection_signer:
+        # Detects .sys files signed with known-abused certificates
+        TargetFilename|endswith: '.sys'
+        Signature:
+          - 'Changsha Hengxiang Information Technology Co., Ltd.'
+          - 'Fuzhou Dingxin Trade Co., Ltd.'
+      selection_hashes:
+        # Detects known malicious hashes of the EDR killer executables and drivers
+        Hashes|contains:
+          # SHA1
+          - '21a9ca6028992828c9c360d752cb033603a2fd93' # mraml.sys
+          - '2bc75023f6a4c50b21eb54d1394a7b8417608728' # uA8s.exe
+          - 'd58dade6ea03af145d29d896f56b2063e2b078a4' # 6Vwq.exe
+          # SHA256
+          - '20f5e210d87c10eb9deb7b93c29da3bbae8b3c4bbe5bfefd3d2e16e94df0bf20'
+          - '3fbe5a1ed857a6736e061a6850706f9e8a7e881f024bff044df1c34795b89bf4'
+          - '43cd3f8675e25816619f77b047ea5205b6491137c5b77cce058533a07bdc9f98' # 6Vwq.exe
+          - '597d4011deb4f08540e10d1419b5cbdfb38506ed53a5c0ccfb12f96c74f4a7a1' # Embedded HeartCrypt-packed EDR killer
+          - '61557a55ad40b8c40f363c4760033ef3f4178bf92ce0db657003e718dffd25bd' # Extracted payload
+          - '6d8209114aa52d28c18d5789efbb873fc131d56b538c5747d713a2d7a5447e22'
+          - '6fc26e8ac9c44a8e461a18b20929f345f8cfc86e9a454eae3509084cf6ece3be' # noedt.sys
+          - '77360c4a82229349cb1b9e105b7f5618a10848a8ef9beb5d6d0bd21e86f3527b'
+          - '99a2c5b7224d537c768035ffdf6066330509b6541f750ec3ad0ffd92bfe3199e'
+          - 'a44aa98dd837010265e4af1782b57989de07949f0c704a6325f75af956cc85de' # Extracted payload
+          - 'c793304fabb09bb631610f17097b2420ee0209bab87bb2e6811d24b252a1b05d' # vp4n.exe
+          - 'ce1ba2a584c7940e499194972e1bd6f829ffbae2ecf2148cdb03ceeca906d151' # CSd2.exe
+      condition: selection_signer or selection_hashes
+    falsepositives:
+      - Legitimate software is highly unlikely to be signed by these specific certificates, which are known to be abused by malware authors.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - malware.edr_killer
+    - malware.ransomhub
+    - malware.blacksuit
+    - malware.medusa
+    - malware.inc
+author: detections.ai
+version: "1"
+references:
+    - https://news.sophos.com/en-us/2025/08/06/shared-secret-edr-killer-in-the-kill-chain/
+data_sources:
+    - file_creation
+    - windows

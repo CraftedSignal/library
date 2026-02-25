@@ -1,0 +1,46 @@
+id: 019a2687-8a16-75f3-a7a2-940a027cc6d6
+name: 'Security Hardening: Critical/High Vulnerabilities on Commercial VPN Clients'
+description: This KQL query identifies vulnerable VPN clients installed on endpoints that have High or Critical severity CVEs. VPN software is a high-value target for attackers because vulnerabilities can be exploited to bypass network access controls, intercept traffic, or gain remote access to internal networks.
+query: |-
+    // ----------------------------------------------------------
+    // MS Defender HUNT: Critical/High Vulnerabilities in Commercial VPN Clients
+    // ----------------------------------------------------------
+
+    DeviceTvmSoftwareVulnerabilities
+    | where tolower(SoftwareName) has_any (
+    "anyconnect",
+    "forticlient", "fortigate",
+    "globalprotect",
+    "pulse secure", "connect secure",
+    "netextender", "mobile connect",
+    "openvpn",
+    "checkpoint", "remote access vpn",
+    "zywall",
+    "big-ip", "f5 edge client",
+    "citrix gateway", "netscaler",
+    "juniper", "junos pulse"
+    )
+    | where VulnerabilitySeverityLevel in ("High", "Critical")
+    | join kind=leftouter (
+    DeviceTvmInfoGathering
+    | summarize LastSeenTime = max(LastSeenTime) by DeviceId
+    ) on DeviceId
+    | project
+    DeviceName,
+    SoftwareVendor,
+    SoftwareName,
+    SoftwareVersion,
+    CveId,
+    VulnerabilitySeverityLevel,
+    LastSeenTime,
+    RecommendedSecurityUpdate
+query_type: kql
+severity: medium
+techniques:
+    - T1190
+    - T1552
+    - T1078
+tags:
+    - kql
+author: IronBr@nded
+version: "2"

@@ -1,0 +1,22 @@
+id: df90ca13-04d5-48f9-9b35-14d87e991c09
+name: Detect LOLDrivers
+description: |-
+    Detecting LOLDrivers using www.loldrivers.io and MDE telemetry.
+
+    This rule was created by Mehmet Ergene from BluRaven Academy and added to Detections.ai as it was missing from the repository.
+query: "let LOLDrivers = externaldata (Category:string, KnownVulnerableSamples:dynamic, Verified:string ) [h@\"https://www.loldrivers.io/api/drivers.json\"]\r\n    with (format=multijson, ingestionMapping='[{\"Column\":\"Category\",\"Properties\":{\"Path\":\"$.Category\"}},{\"Column\":\"KnownVulnerableSamples\",\"Properties\":{\"Path\":\"$.KnownVulnerableSamples\"}},{\"Column\":\"Verified\",\"Properties\":{\"Path\":\"$.Verified\"}}]')\r\n| mv-expand KnownVulnerableSamples\r\n| extend SHA1 = tostring(KnownVulnerableSamples.SHA1), SHA256 = tostring(KnownVulnerableSamples.SHA256)\r\n;\r\n// you can filter the drivers further based on category or verified status\r\nDeviceEvents\r\n| where ActionType == \"DriverLoad\"\r\n| join kind=inner (LOLDrivers | where isnotempty(SHA256)) on SHA256\r\n| union (\r\n  DeviceEvents\r\n  | where ActionType == \"DriverLoad\"\r\n  | join kind=inner (LOLDrivers | where isnotempty(SHA1)) on SHA1\r\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1068
+    - T1218
+    - T1553
+tags:
+    - kql
+author: Mehmet Ergene
+version: "1"
+references:
+    - https://academy.bluraven.io/blog/detecting-vulnerable-drivers-using-defender-for-endpoint-kql

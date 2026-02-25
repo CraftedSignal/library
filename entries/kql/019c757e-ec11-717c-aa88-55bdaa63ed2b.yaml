@@ -1,0 +1,21 @@
+id: 019c757e-ec11-717c-aa88-55bdaa63ed2b
+name: Unauthenticated better-auth API Key Request (CVE-2025-61928)
+description: Detects successful POST requests to better-auth API key creation or update endpoints that appear to be unauthenticated. This pattern is indicative of exploitation of CVE-2025-61928, where an attacker can create or modify API keys for any user without a valid session.
+query: "// Name: Unauthenticated better-auth API Key Request (CVE-2025-61928)\r\n// Author: detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects successful POST requests to better-auth API key creation or update endpoints that appear to be unauthenticated. This pattern is indicative of exploitation of CVE-2025-61928, where an attacker can create or modify API keys for any user without a valid session.\r\n// Tactics: Credential Access, Persistence\r\n// Techniques: T1550.001, T1098.003\r\n// References: https://cybersecuritynews.com/authentication-bypass-better-auth-api-keys/\r\n// False Positive Sensitivity: Medium\r\n// Note: This query is a template and may need to be adapted to your specific log schema. Replace '_Im_WebLogs' with your web log table name and adjust field names (e.g., HttpRequestMethod, Url, HttpStatusCode, HttpRequestBody, AuthorizationHeader, CookieHeader) as needed.\r\n\r\nlet vulnerable_paths = dynamic([\"/api/auth/api-key/create\", \"/api/auth/api-key/update\"]);\r\nAzureDiagnostics\r\n| where TimeGenerated > ago(7d)\r\n| where httpMethod_s == \"POST\"\r\n| where requestUri_s has_any (vulnerable_paths)\r\n| where toint(httpStatus_d) == 200\r\n| where requestQuery_s has \"userId\"\r\n| project TimeGenerated, clientIP_s, requestUri_s, httpStatus_d, requestQuery_s, userAgent_s\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0005
+    - TA0008
+    - TA0004
+techniques:
+    - T1550.001
+    - T1098.003
+    - T1212
+tags:
+    - kql
+version: "2"
+references:
+    - https://cybersecuritynews.com/authentication-bypass-better-auth-api-keys/

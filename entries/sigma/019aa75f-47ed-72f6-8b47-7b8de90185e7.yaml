@@ -1,0 +1,23 @@
+id: 019aa75f-47ed-72f6-8b47-7b8de90185e7
+name: AWS Network Firewall Suspicious TLD Monitoring
+description: This rule monitors AWS Network Firewall for HTTP and TLS connections to domains with uncommon TLDs to identify anomalous behavior without blocking traffic, providing visibility rather than specific threat detection.
+query: "title: AWS Network Firewall - Suspicious TLD Monitoring (HTTP/TLS)\nid: 202501065-202501066-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that alerts (but does not block) on HTTP and TLS\n  connections to domains using TLDs outside of common trusted domains (.com, .org, .net, .io, .edu, .aws). This is a\n  monitoring control that customers configure to gain visibility into potentially suspicious domain access patterns\n  without disrupting legitimate traffic. AWS Network Firewall uses Suricata as its underlying engine. The rules inspect\n  both the TLS SNI field and HTTP Host header to identify connections to less common TLDs. This is not a specific threat\n  detection but rather a visibility control to help security teams identify anomalous behavior and potential threats.\n  \n  Suricata Rules:\n  alert tls $HOME_NET any -> any any (tls.sni; pcre:\"/^(?!.*\\.(com|org|net|io|edu|aws)$).*/i\"; msg:\"Request to possible suspicious TLDs\"; flow:to_server; sid:202501065;)\n  alert http $HOME_NET any -> any any (http.host; pcre:\"/^(?!.*\\.(com|org|net|io|edu|aws)$).*/i\"; msg:\"Request to possible suspicious TLDs\"; flow:to_server; sid:202501066;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1071/001/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071.001\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_tls:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n  selection_http:\n    protocol: http\n    direction: outbound\n    source_network: internal\n  filter:\n    tls_sni|endswith:\n      - '.com'\n      - '.org'\n      - '.net'\n      - '.io'\n      - '.edu'\n      - '.aws'\n    http_host|endswith:\n      - '.com'\n      - '.org'\n      - '.net'\n      - '.io'\n      - '.edu'\n      - '.aws'\n  condition: (selection_tls or selection_http) and not filter\nfalsepositives:\n  - Many legitimate TLDs exist beyond the common ones\n  - Country-specific ccTLDs\n  - New gTLDs for specific industries\n  - Regional or international domains\nlevel: informational\n"
+query_type: sigma
+severity: informational
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1071/001/
+data_sources:
+    - firewall
+    - aws_network_firewall

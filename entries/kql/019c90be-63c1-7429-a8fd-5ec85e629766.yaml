@@ -1,0 +1,72 @@
+id: 019c90be-63c1-7429-a8fd-5ec85e629766
+name: FortiGate Operations by AI-Augmented Threat Actor
+description: This rule detects activity associated with a specific threat actor targeting FortiGate devices. It identifies network connections to known threat actor infrastructure IPs, attempts to access FortiGate management ports (443, 8443, 10443, 4443) over TCP, and successful administrative or VPN authentications from the threat actor's IPs in Fortinet/FortiGate logs. Additionally, it looks for DCSync-style directory replication access (event ID 4662) in Windows Security logs, indicating potential Active Directory compromise.
+query: |-
+    // AI-augmented FortiGate operations at scale (AWS) plus exposed tooling infra (CyberAndRamen)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // References:
+    // https://aws.amazon.com/blogs/security/ai-augmented-threat-actor-accesses-fortigate-devices-at-scale/
+    // https://cyberandramen.net/2026/02/21/llms-in-the-kill-chain-inside-a-custom-mcp-targeting-fortigate-devices-across-continents/
+
+    let Lookback = 30d;
+    let InfraIPs = dynamic(["212.11.64.250","185.196.11.225"]);
+    let FortiMgmtPorts = dynamic([443,8443,10443,4443]);
+
+    union isfuzzy=true
+    (
+        // Network pivot: any endpoint connections involving the reported infrastructure IPs
+        DeviceNetworkEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where RemoteIP in (InfraIPs) or LocalIP in (InfraIPs)
+        | extend MatchType = "network_reported_infra_ip"
+        | project TimeGenerated, DeviceName, MatchType,
+                  LocalIP, LocalPort, RemoteIP, RemotePort, RemoteUrl,
+                  InitiatingProcessAccountName, InitiatingProcessParentFileName,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                  ReportId
+    ),
+    (
+        // Network context: attempts on common FortiGate management ports
+        // Note: this flags endpoints touching these ports. It does not prove FortiGate targeting unless your logs reflect FortiGate VIPs.
+        DeviceNetworkEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where RemotePort in (FortiMgmtPorts)
+        | extend MatchType = "network_fortigate_mgmt_ports"
+        | project TimeGenerated, DeviceName, MatchType,
+                  LocalIP, LocalPort, RemoteIP, RemotePort, RemoteUrl,
+                  InitiatingProcessAccountName, InitiatingProcessParentFileName,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                  ReportId
+    ),
+    (
+        // DCSync style detection using Defender for Identity advanced hunting
+        // Uses string matches for replication rights names which appear in DCSync detection logic
+        // Availability depends on tenant configuration and which fields are populated in AdditionalFields
+        IdentityDirectoryEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where tostring(AdditionalFields) has_any ("DS-Replication-Get-Changes",
+                                                   "DS-Replication-Get-Changes-All",
+                                                   "DS-Replication-Get-Changes-In-Filtered-Set",
+                                                   "Replicating Directory Changes")
+        | extend MatchType = "identity_dcsync_replication_rights"
+        | project TimeGenerated, DeviceName = tostring(DestinationDeviceName), MatchType,
+                  ActionType, AccountName, AccountDomain,
+                  AdditionalFields, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0001
+techniques:
+    - T1003.006
+    - T1190
+    - DS0026
+tags:
+    - kql
+version: "5"
+references:
+    - https://aws.amazon.com/blogs/security/ai-augmented-threat-actor-accesses-fortigate-devices-at-scale/
+    - https://cyberandramen.net/2026/02/21/llms-in-the-kill-chain-inside-a-custom-mcp-targeting-fortigate-devices-across-continents/

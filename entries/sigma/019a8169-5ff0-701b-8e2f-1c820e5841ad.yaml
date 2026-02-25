@@ -1,0 +1,56 @@
+id: 019a8169-5ff0-701b-8e2f-1c820e5841ad
+name: InvisibleFerret Payload Retrieval from Pastebin
+description: Detects network connections to Pastebin.com from a Python process. This behavior is associated with the InvisibleFerret malware, as part of the 'Contagious Interview' campaign, which retrieves additional payloads from Pastebin.
+query: |
+    title: InvisibleFerret Payload Retrieval from Pastebin
+    id: a40040fa-e997-42a2-9ce7-c903fd3f4daf
+    status: experimental
+    description: >-
+      Detects network connections to Pastebin.com from a Python process. This
+      behavior is associated with the InvisibleFerret malware, as part of the
+      'Contagious Interview' campaign, which retrieves additional payloads from
+      Pastebin.
+    references:
+      - https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.t1105
+      - attack.t1071.001
+      - detection.emerging-threats
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # InvisibleFerret is a Python-based malware framework.
+        Image|endswith:
+          - '\python.exe'
+          - '\pythonw.exe'
+        # It was observed retrieving next-stage payloads from Pastebin.
+        DestinationHostname|contains: 'pastebin.com'
+      condition: selection
+    falsepositives:
+      - Legitimate scripts or developers using Python to access content on Pastebin
+        may cause false positives.
+      - This rule is best used for threat hunting or in environments where this
+        behavior is not expected.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1071.001
+tags:
+    - attack.t1105
+    - attack.t1071.001
+    - detection.emerging-threats
+author: detections.ai
+version: "2"
+references:
+    - https://blog.nviso.eu/2025/11/13/contagious-interview-actors-now-utilize-json-storage-services-for-malware-delivery/
+data_sources:
+    - network_connection
+    - windows

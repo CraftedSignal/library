@@ -1,0 +1,20 @@
+id: 019ac700-0629-76d7-a8bd-1212a3de524d
+name: Malicious Use of Post-Exploitation Tools by CL-CRI-1040/Storm-2603
+description: Detects the execution of legitimate or dual-use tools commonly used by the CL-CRI-1040/Storm-2603 actor for post-exploitation activities like credential dumping, reconnaissance, and lateral movement. The rule attempts to reduce false positives by looking for execution from unusual paths or by suspicious parent processes.
+query: "// Name: Malicious Use of Post-Exploitation Tools by CL-CRI-1040/Storm-2603\n// Author: detections.ai\n// Date: 2025-11-27\n// Description: Detects the execution of legitimate or dual-use tools commonly used by the CL-CRI-1040/Storm-2603 actor for post-exploitation activities like credential dumping, reconnaissance, and lateral movement.\n// References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/\n// MITRE ATT&CK: T1003.001 (OS Credential Dumping: LSASS Memory), T1049 (System Network Connections Discovery), T1018 (Remote System Discovery), T1569.002 (System Services: Service Execution)\n// False Positive Sensitivity: Medium. These tools can be used by administrators. The rule attempts to reduce FPs by looking for execution from unusual paths or by suspicious parent processes. Further tuning by excluding legitimate admin workstations or specific folder paths may be necessary.\n\nlet suspiciousTools = dynamic([\n    \"nxc.exe\", // PyPyKatz\n    \"SharpHostInfo.x64.exe\",\n    \"masscan_1.3.0.exe\",\n    \"masscan.exe\",\n    \"sd.exe\", // SharpAdidnsdump\n    \"PsExec64.exe\",\n    \"PsExec.exe\",\n    \"velociraptor.exe\"\n]);\n\n// Define paths often used by attackers to drop tools.\nlet suspiciousPaths = dynamic([\n    \"C:\\\\Users\\\\Public\\\\\",\n    \"C:\\\\PerfLogs\\\\\",\n    \"C:\\\\ProgramData\\\\\",\n    \"\\\\AppData\\\\Local\\\\Temp\\\\\",\n    \"\\\\Windows\\\\Temp\\\\\"\n]);\n\n// Define parent processes that would be unusual for these tools, such as web servers (indicating a web shell).\nlet suspiciousParents = dynamic([\n    \"w3wp.exe\",\n    \"httpd.exe\",\n    \"tomcat.exe\"\n]);\n\nDeviceProcessEvents\n// Filter for the execution of known tools used by the actor.\n| where FileName in~ (suspiciousTools)\n// Reduce FPs by looking for execution from unusual contexts.\n| where \n    // Context 1: Execution from a temporary or public folder.\n    FolderPath has_any (suspiciousPaths)\n    or\n    // Context 2: Spawned by a web server process, which could indicate web shell activity.\n    InitiatingProcessFileName in~ (suspiciousParents)\n| project\n    TimeGenerated,\n    DeviceName,\n    AccountName,\n    FileName,\n    FolderPath,\n    ProcessCommandLine,\n    SHA256,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    InitiatingProcessId\n// Map entities for investigation.\n| extend\n    timestamp = TimeGenerated,\n    HostName = DeviceName,\n    Process = FileName,\n    Account = AccountName\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0007
+    - TA0002
+techniques:
+    - T1003.001
+    - T1049
+    - T1018
+    - T1569.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

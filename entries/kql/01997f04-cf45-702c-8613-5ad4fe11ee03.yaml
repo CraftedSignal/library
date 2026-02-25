@@ -1,0 +1,13 @@
+id: 01997f04-cf45-702c-8613-5ad4fe11ee03
+name: YiBackdoor registry persistence
+description: This rule detects the creation of a registry run key (Run or RunOnce) that attempts to establish persistence by executing a DLL via regsvr32. It specifically looks for registry value data containing 'regsvr32' followed by a DLL path. The rule then correlates this registry event with a file creation event for the same DLL on the same device within a specified timeframe, indicating a potential persistence mechanism where a malicious DLL is dropped and then configured to run at startup.
+query: "let timeframe = 10d;\r\nlet regEvents =\r\nDeviceRegistryEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey matches regex @\"(?i)\\\\Software\\\\(Microsoft\\\\Windows\\\\CurrentVersion|Wow6432Node\\\\Microsoft\\\\Windows\\\\CurrentVersion)\\\\(Run|RunOnce)$\"\r\n| where RegistryValueData matches regex @\"(?i)regsvr32(\\.exe)?\\s+.*\\.dll\"\r\n| extend DllPath = extract(@\"(?i)regsvr32(?:\\.exe)?\\s*(?:/s\\s*)?[\"\"']?([^\"\"']+\\.dll)[\"\"']?\", 1, RegistryValueData)\r\n| where isnotempty(DllPath)\r\n| project RegTimestamp = Timestamp, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, InitiatingProcessId, DllPath, RegistryKey, RegistryValueName, RegistryValueData;\r\nlet fileEvents =\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType == \"FileCreated\" and toupper(FolderPath) endswith \".DLL\"\r\n| project FileTimestamp = Timestamp, DeviceName, FilePath = FolderPath, FileSHA256 = SHA256;\r\nregEvents\r\n| join kind=inner fileEvents on $left.DeviceName == $right.DeviceName, $left.DllPath == $right.FilePath\r\n| where abs(FileTimestamp - RegTimestamp) <= timeframe\r\n| project\r\n    Timestamp = RegTimestamp,\r\n    PrincipalHostname = DeviceName,\r\n    PrincipalUser = InitiatingProcessAccountName,\r\n    ActorProcessCommandLine = InitiatingProcessCommandLine,\r\n    ActorProcessPID = InitiatingProcessId,\r\n    MaliciousDllPath = DllPath,\r\n    MaliciousDllSha256 = FileSHA256,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    RegistryValueData"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1547.001
+tags:
+    - kql
+version: "2"

@@ -1,0 +1,8 @@
+id: 019c48f9-7869-777a-9268-fa63891d5225
+name: Potential Data Exfiltration or Command and Control Activity via HTTP with Small, Repetitive Responses
+description: This rule detects potential web scraping or automated data exfiltration activities by identifying clients making a high number of HTTP requests (at least 5 requests within a 5-second window) to a single destination host and port. The detection is further refined by looking for patterns where these requests have very similar response body lengths (at most 3 unique sizes) and target a very limited number of URIs (at most 2 unique URIs). This behavior can indicate an automated process systematically collecting specific data from a web server.
+query: "index=onion source=\"/nsm/zeek/logs/current/http.log\" response_body_len!=0 response_body_len<500\r\n| bin _time span=5s\r\n| stats count as requests_per_second,\r\n        dc(response_body_len) as unique_sizes,\r\n        values(response_body_len) as sizes,\r\n        dc(uri) as unique_uris,\r\n        values(uri) as uris,\r\n        values(user_agent) as user_agents,\r\n        dc(method) as unique_methods,\r\n        values(method) as methods\r\n  by _time, id.orig_h, id.resp_h, id.resp_p\r\n| where requests_per_second >= 5\r\n      AND unique_sizes <= 3\r\n      AND unique_uris <= 2\r\n| table _time, id.orig_h, id.resp_h, id.resp_p, requests_per_second, unique_sizes, sizes, unique_uris, uris, user_agents, methods"
+query_type: spl
+tags:
+    - spl
+version: "1"

@@ -1,0 +1,18 @@
+id: 019bc245-e51a-77d1-a28b-d1d80f5be219
+name: Suspicious PowerShell Download and Execution Cradle
+description: Detects the execution of PowerShell with command-line arguments containing keywords indicative of in-memory download and execution, such as '-enc' or '-EncodedCommand' used in conjunction with 'IEX' (Invoke-Expression) or 'DownloadString'. This pattern is a common TTP for initial access and second-stage payload delivery, and was observed in the exploitation of CVE-2025-55182 (React2Shell).
+query: "// Name: Suspicious PowerShell Download and Execution Cradle\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-15\r\n// Description: Detects the execution of PowerShell with command-line arguments containing keywords indicative of in-memory download and execution, such as '-enc' or '-EncodedCommand' used in conjunction with 'IEX' (Invoke-Expression) or 'DownloadString'. This pattern is a common TTP for initial access and second-stage payload delivery, and was observed in the exploitation of CVE-2025-55182 (React2Shell).\r\n// Tactics: Execution, Command and Control\r\n// Techniques: T1059.001, T1105\r\n// References: https://www.greynoise.io/blog/cve-2025-55182-react2shell-opportunistic-exploitation-in-the-wild-what-the-greynoise-observation-grid-is-seeing-so-far\r\n\r\nDeviceProcessEvents\r\n// Look for PowerShell process executions.\r\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\r\n// Detect the combination of download/execution commands and encoding flags.\r\n| where (ProcessCommandLine has \"IEX\" or ProcessCommandLine has \"DownloadString\")\r\n    and (ProcessCommandLine has \"-enc\" or ProcessCommandLine has \"-EncodedCommand\")\r\n// FP Tuning: Legitimate administrative scripts or software deployment tools might use encoded commands and downloaders.\r\n// Consider filtering for expected parent processes or specific users if false positives occur.\r\n// Example: | where not (InitiatingProcessFileName in~ (\"legit_admin_tool.exe\", \"sccm.exe\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.greynoise.io/blog/cve-2025-55182-react2shell-opportunistic-exploitation-in-the-wild-what-the-greynoise-observation-grid-is-seeing-so-far

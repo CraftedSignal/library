@@ -1,0 +1,17 @@
+id: dd34a18e-8625-47c6-a734-a5ca96c95fba
+name: Beavertail Exfiltration over TCP
+description: 'SPL Query from file: Beavertail Exfiltration over TCP'
+query: "index=<zscaler> sourcetype=<zscaler firewall data> dest_port IN (\"1224\",\"1244\",\"1245\") bytes_out>10000 NOT dest_ip IN (\"10.0.0.0/8\",\"172.16.0.0/12\",\"192.168.0.0/16\")\nprotocol=TCP earliest=-65m latest=-5m\n| bin span=1m _time \n| eval hostname=devicehostname, src=csip\n| table _time, user, hostname, action, dest_port, bytes_out, src, dest, protocol, dest_ip\n| stats count, values(*) as *, min(_time) as earliest_seen, max(_time) as latest_seen by user, hostname, protocol\n| eval threat_description=\"This identifies similar exfiltration vector on Beavertrail usually happens over TCP with ports 1224,1244 and 1245\"\n| eval detection_purpose=\"This attack is similar to Beavertail Exfiltration vector, while the ports are blocked for egress a detection will mean that there's a potentially active infection on the machine  https://threatchronicles.com/2024/11/dev-popper-contagious-interview-campaign-follow-up-november-2024/\""
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+    - TA0005
+    - TA0011
+techniques:
+    - T1571
+tags:
+    - spl
+version: "1"
+references:
+    - https://threatchronicles.com/2024/11/dev-popper-contagious-interview-campaign-follow-up-november-2024/"

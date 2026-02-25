@@ -1,0 +1,14 @@
+id: 7a4a805e-ec1c-402c-817c-5e446760a405
+name: Detect Anomalous .txt File Execution
+description: Identifies a possible malware persistence mechanism where the registry is modified to run a non-text editor application each time the user interacts with a .txt file.
+query: "// Identifies malware persistence where registry is modified to run malware each time user interacts with .txt file\r\n// General text file applications\r\nlet allowed_editors = dynamic ([\"notepad.exe\",\"notepad++.exe\",\"code.exe\",\"sublime_text.exe\",\"wordpad.exe\",\"write.exe\"])\r\n// Identify non-listed processes run when .txt is clicked\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName == \"explorer.exe\"\r\n| where ProcessCommandLine matches regex @\"(?i)\\.txt(\\s|$|\\\"\")\"\r\n| tolower(FileName) !in (allowed_editors)\r\n// Review FileName, FolderPath, SHA256, ProcessVersionInfoCompanyName to confirm if action is malicious or not."
+query_type: kql
+severity: medium
+techniques:
+    - T1546.001
+tags:
+    - kql
+author: Glory Chukwuemeka
+version: "1"
+references:
+    - https://hunt.io/blog/tinyloader-malware-cryptocurrency-theft-infrastructure

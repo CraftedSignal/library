@@ -1,0 +1,57 @@
+id: 019b30e8-f837-70ff-b366-6c0268a7cc86
+name: Suspicious FortiCloud SSO Login from Untrusted IP
+description: This rule detects successful administrative logins to Fortinet devices (FortiGate, FortiWeb, FortiProxy, FortiSwitchManager) that leverage the FortiCloud SSO mechanism from an IP address not on an allowlist. This could indicate exploitation of CVE-2025-59718 and CVE-2025-59719, which allow for an authentication bypass.
+query: |
+    // Name: Suspicious FortiCloud SSO Login
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: This rule detects successful administrative logins to Fortinet devices (FortiGate, FortiWeb, FortiProxy, FortiSwitchManager) that leverage the FortiCloud SSO mechanism from an IP address not on an allowlist. This could indicate exploitation of CVE-2025-59718 and CVE-2025-59719, which allow for an authentication bypass.
+    // Tactic: Initial Access
+    // Technique: T1190, T1078
+    // False Positive Sensitivity: Medium
+    // References: https://arcticwolf.com/resources/blog/cve-2025-59718-and-cve-2025-59719/
+
+    let timeframe = 1h;
+    // Create an allowlist of known IP addresses used by administrators for FortiCloud SSO logins.
+    // This is the primary mechanism for tuning this rule and reducing false positives.
+    let KnownAdminIPs = dynamic([
+        "192.168.1.100", // Placeholder for a known admin workstation
+        "203.0.113.5"    // Placeholder for a known admin public IP
+    ]);
+
+    // This rule assumes Fortinet logs are ingested into the CommonSecurityLog table.
+    // Adjust the table name and field names (e.g., Activity, DeviceAction, AdditionalExtensions) as needed for your environment.
+    CommonSecurityLog
+    | where TimeGenerated > ago(timeframe)
+    // Filter for Fortinet device logs.
+    | where DeviceVendor == "Fortinet"
+    // Filter for successful administrative login events.
+    | where EventType == 'utm' and DeviceAction == "accept" and (Activity has "Admin login successful" or Activity has "sslvpn-login-success")
+    // Key detection logic: Identify logins that explicitly mention FortiCloud SSO.
+    // The specific log message may vary.
+    | where AdditionalExtensions has "FortiCloud SSO" or Activity has "FortiCloud SSO"
+    // Exclude logins from known/trusted administrative IP addresses.
+    | where isnotempty(SourceIP) and SourceIP !in (KnownAdminIPs)
+    // Summarize to reduce noise, showing the latest login per user and source IP.
+    | summarize arg_max(TimeGenerated, *) by SourceIP, DestinationUserName, DeviceName
+    | project-reorder TimeGenerated, DeviceName, DestinationUserName, SourceIP, Activity, DeviceAction
+    // Map entities for investigation in Microsoft Sentinel.
+    | extend
+        AccountCustomEntity = DestinationUserName,
+        IPCustomEntity = SourceIP,
+        HostCustomEntity = DeviceName
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1190
+    - T1078
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog/cve-2025-59718-and-cve-2025-59719/

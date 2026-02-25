@@ -1,0 +1,12 @@
+id: 019c2432-84bf-73db-a7c1-2ca0003399eb
+name: Inbound Emails with QR Code URLs from Uncommon Senders
+description: This query hunts for inbound emails that contain URLs embedded in QR codes and originate from senders that are not commonly observed in the environment, a common technique used in QR-based phishing campaigns.
+query: "EmailEvents\r\n| where EmailDirection == \"Inbound\"\r\n| where isnotempty(SenderFromAddress)\r\n| join kind=leftanti (\r\n    EmailEvents\r\n    | where isnotempty(SenderFromAddress)\r\n    | summarize EmailCount = dcount(NetworkMessageId) by SenderFromAddress\r\n    | where EmailCount > 1\r\n) on SenderFromAddress\r\n| join (\r\n    EmailUrlInfo\r\n    | where UrlLocation == \"QRCode\"\r\n) on NetworkMessageId\r\n| project Timestamp, SenderFromAddress, RecipientEmailAddress, Url, Subject, NetworkMessageId"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Andre Zeemering
+version: "1"

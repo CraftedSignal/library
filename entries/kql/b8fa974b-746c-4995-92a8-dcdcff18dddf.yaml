@@ -1,0 +1,27 @@
+id: b8fa974b-746c-4995-92a8-dcdcff18dddf
+name: Detect human-operated ransomware attacks that use RDP
+description: KQL Query
+query: "// Detect human-operated ransomware attacks that use RDP\n\n// Microsoft Defender for Endpoint is now enhancing RDP data by adding a detailed layer of session information. This enhancement allows you to more easily identify potentially compromised devices within your organization. The new layer provides additional details about RDP sessions in the context of initiated activities, simplifying correlation and increasing the accuracy of threat detection and proactive hunting.\n// This update introduces 8 extra fields, represented as new columns in Advanced Hunting, and expands the schema across various tables: DeviceEvents, DeviceFileEvents, DeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents, and DeviceRegistryEvents.\n// The following KQL query detects the IsInitiatingProcessRemoteSession == true field across 7 schema tables for all your MDE devices over the last hour. It then correlates this data against the ProcessRemoteSessionIP (the IP address of the remote device from which the created process’s RDP session was initiated). In a typical ransomware attack, a threat actor might use compromised admin credentials to launch RDP attacks against workstations reachable by the compromised endpoint. This KQL query helps identify any remote IPs that exceed the threshold for conducting RDP attacks.\n\n// Define your Privileged Access Workstations (PAWs) IPs below\nlet PAW = dynamic (['127.0.0.1', '10.0.0.1', '10.0.0.2']);\nlet flag = \"true\"; // Initiating process was run under a remote desktop protocol (RDP) session = True\nlet TriggerThreshold = 5; // Define your threshold where a remote IP can initate RDP to perform the in below schema table \nsearch in (DeviceEvents, DeviceFileEvents, DeviceImageLoadEvents, \nDeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents, DeviceRegistryEvents)\nTimestamp between (ago(1h) .. now())\nand (\nIsInitiatingProcessRemoteSession == flag\n)\n| where not (ProcessRemoteSessionIP has_any (PAW))\n| where ProcessRemoteSessionIP != \"\"\n| summarize RemoteActivityIP=count() by ProcessRemoteSessionIP\n| where RemoteActivityIP > TriggerThreshold\n\n// #MicrosoftDefender #DefenderforCloud #Security #MicrosoftSecurity #Cybersecurity #DefenderXDR #MicrosoftThreatIntelligence\n\n// MITRE ATT&CK Mapping\n// The KQL query primarily focuses on detecting suspicious remote desktop protocol (RDP) activities. Here are the relevant MITRE ATT&CK techniques:\n\n// T1076 - Remote Desktop Protocol:\n// The query detects RDP sessions, which is directly related to this technique. It identifies when RDP is used to access systems, especially from non-PAW IPs.\n// T1021 - Remote Services:\n// This technique involves using remote services like RDP to move laterally within a network. The query helps identify unusual remote access patterns.\n// T1078 - Valid Accounts:\n// The use of valid accounts for remote access is a common tactic. The query can help detect when valid accounts are used from unexpected IP addresses.\n// T1087 - Account Discovery:\n// By monitoring RDP sessions, the query can indirectly assist in identifying account discovery activities, where adversaries attempt to find valid accounts for lateral movement.\n// T1566 - Phishing:\n// Although not directly related, detecting unusual RDP activity can sometimes be a follow-up to successful phishing attacks where credentials are compromised.\n"
+query_type: kql
+tactics:
+    - TA0008
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0040
+    - TA0002
+techniques:
+    - T1076
+    - T1021
+    - T1078
+    - T1087
+    - T1566
+    - T1486
+    - T1059
+    - T1053
+    - T1490
+tags:
+    - kql
+version: "1"

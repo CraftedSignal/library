@@ -1,0 +1,67 @@
+id: 019a8238-59c8-7705-b5ee-f97e97a8cd78
+name: Rapid Privilege Escalation After Account Creation in Azure
+description: Detects a user account creation event in Azure AD followed by that same account being added to a privileged administrative role within a short timeframe (e.g., 40 minutes). This behavior is a key tactic of threat actors like Muddled Libra (Scattered Spider), who are known to rapidly escalate privileges after gaining initial access. This detection requires a SIEM to correlate the user identity between the creation event and the role addition event.
+query: |
+    title: Rapid Privilege Escalation After Account Creation in Azure
+    id: 3c3c7d2a-d61b-4971-863b-0231cdf0db59
+    status: experimental
+    description: >-
+      Detects a user account creation event in Azure AD followed by that same account being added to a privileged administrative role within a short timeframe (e.g., 40 minutes).
+      This behavior is a key tactic of threat actors like Muddled Libra (Scattered Spider), who are known to rapidly escalate privileges after gaining initial access.
+      This detection requires a SIEM to correlate the user identity between the creation event and the role addition event.
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.privilege_escalation
+      - attack.ta0004
+    logsource:
+      product: azure
+      category: AuditLogs
+    detection:
+      # Detects the creation of a new user account in Azure AD
+      user_creation:
+        operationName: 'Add user'
+        category: 'UserManagement'
+        result: 'success'
+      # Detects a user being added to a high-privilege Azure AD role
+      priv_role_add:
+        operationName: 'Add member to role'
+        category: 'RoleManagement'
+        result: 'success'
+        TargetResources|contains:
+          - displayName: 'Global Administrator'
+          - displayName: 'Privileged Role Administrator'
+          - displayName: 'Security Administrator'
+          - displayName: 'User Administrator'
+          - displayName: 'Exchange Service Administrator'
+          - displayName: 'SharePoint Administrator'
+          - displayName: 'Application Administrator'
+          - displayName: 'Cloud Application Administrator'
+          - displayName: 'Intune Administrator'
+          - displayName: 'Conditional Access Administrator'
+      # Correlate the two events happening within a 40 minute window, based on Muddled Libra TTPs
+      timeframe: 40m
+      condition: user_creation and priv_role_add
+    fields:
+      - TargetResources.0.userPrincipalName
+    falsepositives:
+      - Legitimate, rapid creation and promotion of administrative or service accounts in Azure.
+      - Automated user provisioning scripts (e.g., via Terraform, Bicep, or other IaC tools) may trigger this alert.
+      - This rule relies on time-based correlation. To reduce false positives, it is critical to configure the SIEM to correlate the events where the created user (`user_creation.TargetResources[0].userPrincipalName`) is the same as the user added to the role (`priv_role_add.TargetResources[0].userPrincipalName`).
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+tags:
+    - attack.privilege_escalation
+    - attack.ta0004
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra/
+data_sources:
+    - AuditLogs
+    - azure

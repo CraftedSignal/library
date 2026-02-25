@@ -1,0 +1,49 @@
+id: 019c8a8e-90a0-72bc-b5ab-c452f9981661
+name: AD Discovery via AdsiSearcher from ProgramData
+description: Detects PowerShell commands using AdsiSearcher to count computer objects in Active Directory. This is a specific discovery technique observed in the BeyondTrust CVE-2026-1731 exploitation campaign where it was executed via a malicious RMM tool dropped in C:\ProgramData.
+query: |
+    // Name: Suspicious Domain Account Creation via BeyondTrust Exploit
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects the creation of a new domain account using the 'net.exe' command. This specific TTP was observed in the CVE-2026-1731 BeyondTrust exploitation campaign, where threat actors created new domain accounts for persistence and privilege escalation, often initiated by the compromised appliance process running as SYSTEM.
+    // References: https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
+    // MITRE TTPs: T1136.002, T1078.002
+    // False Positive Sensitivity: Medium
+
+    // Define known BeyondTrust/Bomgar parent process names to add specific context.
+    let bomgar_processes = dynamic(["bomgar-pac.exe", "bomgar-scc.exe", "bomgar-rep.exe"]);
+    DeviceProcessEvents
+    // Look for the execution of net.exe or net1.exe.
+    | where FileName in~ ("net.exe", "net1.exe")
+    // The command line must contain the arguments to add a user to the domain.
+    | where ProcessCommandLine has "user" and ProcessCommandLine has "/add" and ProcessCommandLine has "/domain"
+    // The intel report indicates this was initiated by the compromised appliance, often running as SYSTEM.
+    // This filter looks for either a known BeyondTrust parent or a generic high-privilege service account.
+    | where InitiatingProcessFileName in~ (bomgar_processes) or InitiatingProcessAccountName in~ ("SYSTEM", "NETWORK SERVICE", "LOCAL SERVICE")
+    // FP-Tip: Legitimate administrative scripts or other management tools may create domain users.
+    // Consider adding filters to exclude known administrative tools or limit this alert to run only on specific assets like the BeyondTrust appliance itself.
+    | project
+        Timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0011
+techniques:
+    - T1018
+    - T1087.002
+    - T1219.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/

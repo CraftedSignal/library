@@ -1,0 +1,17 @@
+id: 019c8c26-c3b7-72cf-a6e7-63475aafb5e2
+name: Malicious NuGet Campaign File Hashes Detected
+description: Detects file creation or process execution events involving the SHA256 hashes of malicious DLLs from the NCryptYo, DOMOAuth2_, IRAOAuth2.0, and SimpleWriter_ NuGet packages. This rule identifies the presence or execution of known malicious components associated with a supply chain compromise targeting ASP.NET developers.
+query: "// Name: Malicious NuGet Campaign File Hashes\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects file creation or process execution events involving the SHA256 hashes of malicious DLLs from the NCryptYo, DOMOAuth2_, IRAOAuth2.0, and SimpleWriter_ NuGet packages.\r\n// False Positives: Extremely low. This detection is based on specific file hashes, and the likelihood of a collision with a legitimate file is negligible.\r\n// References: https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential\r\n// MITRE ATT&CK: T1195.002 (Supply Chain Compromise: Compromise Software Supply Chain)\r\nlet malicious_hashes = dynamic([\r\n    // NCryptYo (NCrypt.dll)\r\n    \"7c1a9a681411c528ee2bd291450d955f9d599a03cf34a530d9c526451c63c0aa\",\r\n    // DOMOAuth2_ (OAuth2.0.dll)\r\n    \"44f3766323d813752e9ec879edf17a284f5ed971f814777f18f5e8f83c1ff5ba\",\r\n    // IRAOAuth2.0 (OAuth2.0.dll)\r\n    \"6d64d0ca9b3262eb00396e2c441a389fb748b750a3f16b8d086456cc3364d397\",\r\n    // SimpleWriter_ (SimpleWriter.dll)\r\n    \"c2ac85bcbf38c6a4e1b4ba971742f126eb0deaf486b7bd396858d98a3773de73\"\r\n]);\r\n// Combine file and process events to detect the malware being written to disk or executed.\r\nunion withsource=TableName isfuzzy=true DeviceFileEvents, DeviceProcessEvents\r\n// Look for events where the file hash matches one of the known malicious DLLs.\r\n| where SHA256 in~ (malicious_hashes)\r\n| extend EventType = TableName\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    EventType,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    SHA256,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/four-malicious-nuget-packages-target-asp-net-developers-with-jit-hooking-and-credential

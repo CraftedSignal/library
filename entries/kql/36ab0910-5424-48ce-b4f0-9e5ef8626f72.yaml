@@ -1,0 +1,16 @@
+id: 36ab0910-5424-48ce-b4f0-9e5ef8626f72
+name: Detect Suspicious ncrypt.dll usage by process requesting Entra ID Nonce
+description: This detection rule uses a WDAC audit policy to ingest missing DeviceImageLoad events in MDE, and check for suspicious processes using the ncrypt.dll and requesting an Entra ID Nonce. More information on the attack scenario this is detection is applicable for can be found in the references.
+query: "let cli_tools = dynamic([\"powershell\", \"python\"]);\n// Get all possible nonce requests\nlet nonce_requests = (\n    DeviceNetworkEvents\n    | where Timestamp > ago(1h)\n    | where ActionType startswith \"ConnectionSuccess\"\n    | where RemoteUrl =~ \"login.microsoftonline.com\"\n    | project-rename NonceTimestamp = Timestamp\n);\n// Get suspicious ncrypt.dll usage via WDAC audit policy\nDeviceEvents\n| where Timestamp > ago(1h)\n| where ActionType startswith \"AppControl\" and FileName =~ \"ncrypt.dll\"\n// Check if the same initiating process is doing a nonce request\n| join kind=inner nonce_requests on InitiatingProcessId, DeviceId\n// Only flag when nonce was request 10min before of after ncrypt usage\n| where Timestamp between (todatetime(NonceTimestamp - 10m) .. todatetime(NonceTimestamp + 10m))\n| invoke FileProfile(InitiatingProcessSHA1, 1000)\n| where (\n    // Flag CLI tools\n    InitiatingProcessFileName has_any (cli_tools) or \n    // Flag unknown processes\n    GlobalPrevalence < 250\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1606
+    - T1555.004
+    - T1555
+version: "1"
+references:
+    - https://hybridbrothers.com/detecting-non-privileged-windows-hello-abuse/
+    - https://github.com/dirkjanm/ROADtools/blob/master/winhello_assertion/hellopoc.ps1

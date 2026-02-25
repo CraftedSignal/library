@@ -1,0 +1,19 @@
+id: 019bff1c-4727-759c-9575-a1cd9c869d50
+name: ' CoolClient backdoor Browser Credential Access or Staging by Non-Browser Process'
+description: This rule detects suspicious activity related to browser credential theft or staging. It triggers when a non-browser process accesses sensitive browser files (like 'Login Data' or 'Local State') or when temporary artifacts associated with credential stealer activity ('chromeTmp', 'Local State-journal') are created. This behavior is indicative of an attacker attempting to exfiltrate browser-stored credentials.
+query: "let browserProcesses = dynamic([\r\n    \"chrome.exe\",\r\n    \"msedge.exe\",\r\n    \"brave.exe\",\r\n    \"opera.exe\"\r\n]);\r\nlet sensitiveFiles = dynamic([\r\n    \"Login Data\",\r\n    \"Local State\"\r\n]);\r\nlet tempArtifacts = dynamic([\r\n    \"chromeTmp\",\r\n    \"Local State-journal\"\r\n]);\r\nDeviceFileEvents\r\n| where\r\n    (FileName in~ (tempArtifacts) and ActionType == \"FileCreated\")\r\n    or\r\n    (\r\n        FileName in~ (sensitiveFiles)\r\n        and FolderPath has_any (\r\n            \"\\\\AppData\\\\Local\\\\Google\\\\Chrome\\\\User Data\\\\\",\r\n            \"\\\\AppData\\\\Local\\\\Microsoft\\\\Edge\\\\User Data\\\\\",\r\n            \"\\\\AppData\\\\Local\\\\BraveSoftware\\\\Brave-Browser\\\\User Data\\\\\",\r\n            \"\\\\AppData\\\\Local\\\\Opera Software\\\\Opera Stable\\\\\"\r\n        )\r\n        and not(InitiatingProcessFileName in~ (browserProcesses))\r\n    )\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    MD5,\r\n    SHA1,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1555
+    - T1005
+    - T1074.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "3"
+references:
+    - https://securelist.com/honeymyte-updates-coolclient-uses-browser-stealers-and-scripts/118664/

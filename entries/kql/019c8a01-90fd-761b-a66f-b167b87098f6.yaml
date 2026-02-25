@@ -1,0 +1,17 @@
+id: 019c8a01-90fd-761b-a66f-b167b87098f6
+name: Ivanti EPMM RCE Exploit Attempt (CVE-2026-1281, CVE-2026-1340)
+description: This rule detects potential exploitation attempts against Ivanti Endpoint Manager Mobile (EPMM) vulnerabilities CVE-2026-1281 and CVE-2026-1340. The detection looks for HTTP requests to vulnerable URI paths that contain the 'gPath' parameter, which is a key indicator of the bash arithmetic expansion exploit.
+query: "// Name: Ivanti EPMM RCE Exploit Attempt (CVE-2026-1281, CVE-2026-1340)\r\n// Author: Adarsh Pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects potential exploitation attempts against Ivanti Endpoint Manager Mobile (EPMM) vulnerabilities CVE-2026-1281 and CVE-2026-1340. The detection looks for HTTP requests to vulnerable URI paths that contain the 'gPath' parameter, which is a key indicator of the bash arithmetic expansion exploit.\r\n// Tactics: Initial Access, Execution\r\n// Techniques: T1190, T1059.004\r\n// References: https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/\r\n\r\n// Define the specific URI paths targeted by the exploit\r\nlet vulnerable_paths = dynamic([\"/mifs/c/appstore/fob\", \"/mifs/c/aftstore/fob\"]);\r\n// Combine multiple web log sources for broader coverage\r\nunion isfuzzy=true CommonSecurityLog, W3CIISLog, DeviceNetworkEvents\r\n| where\r\n    // Check for exploit indicators in various URL/URI fields across different log types\r\n    (isnotempty(RequestURL) and (RequestURL has_any (vulnerable_paths)) and RequestURL contains \"gPath\") or\r\n    (isnotempty(csUriStem) and (csUriStem has_any (vulnerable_paths)) and csUriQuery contains \"gPath\") or\r\n    (isnotempty(RemoteUrl) and (RemoteUrl has_any (vulnerable_paths)) and RemoteUrl contains \"gPath\")\r\n// FP Tuning: This logic is highly specific to the exploit. However, if false positives occur,\r\n// consider filtering by DestinationIP to only include your known Ivanti EPMM servers.\r\n// | where coalesce(DestinationIP, s_ip, LocalIP) in (\"<your_ivanti_server_ip_1>\", \"<your_ivanti_server_ip_2>\")\r\n| extend\r\n    // Normalize key fields for easier analysis\r\n    Timestamp = coalesce(TimeGenerated, EventTime),\r\n    SrcIp = coalesce(SourceIP, c_ip, RemoteIP),\r\n    DestIp = coalesce(DestinationIP, s_ip, LocalIP),\r\n    Url = coalesce(RequestURL, strcat(csUriStem, \"?\", csUriQuery), RemoteUrl),\r\n    // Attempt to extract the injected command from the 'gPath' parameter for analysis\r\n    AttemptedCommand = extract(@'gPath\\[\\'([^\\'\\]]+)', 1, Url)\r\n| project-reorder Timestamp, SrcIp, DestIp, Url, AttemptedCommand\r\n| extend\r\n    // Add entity mappings for incident context\r\n    AccountCustomEntity = SrcIp,\r\n    IPCustomEntity = SrcIp,\r\n    HostCustomEntity = DestIp,\r\n    URLCustomEntity = Url\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

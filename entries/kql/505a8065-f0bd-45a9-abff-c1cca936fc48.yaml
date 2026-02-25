@@ -1,0 +1,14 @@
+id: 505a8065-f0bd-45a9-abff-c1cca936fc48
+name: Delivered Inbound Phishing Emails with Malicious URLs
+description: This rule identifies inbound emails that have been delivered to the organization's email domain and are categorized as 'Phishing' by the email security system. It specifically looks for phishing indicators within the email's attachment or body. The query then summarizes the count of such emails by their URL domain, sorting them to highlight the most frequent phishing domains. The accompanying Python script demonstrates how to cross-reference these identified URL domains with VirusTotal for further analysis.
+query: "#### If You want to hunt for the e-mails delivered which is categorized as “Phishing” on the organization e-mail domain then run this query\n#### Query:\n```KQL\nEmailEvents_CL\n| where EmailDirection_s == \"Inbound\"\n| join EmailUrlInfo_CL on NetworkMessageId_g\n| where UrlLocation_s in (\"Attachment\", “Body”) // To see Suspicious e-mail from Attachment or Body of the e-mail. //You can look for different Urllocation according to your need.\n| where DeliveryAction_s == \"Delivered\"\n| where ThreatTypes_s contains \"phish\"\n| summarize Count=count() by UrlDomain_s\n| sort by Count desc\n```\n#### Once you get the list of UrlDomains that were cayagorised as phishing you can cross check these urldomains in virus total running the below python Script:\n```PYTHON\nimport requests\nAPI_KEY = \"Put Your Virus Total API KEY\"  \nurl = \"https://www.virustotal.com/vtapi/v2/url/report\"\n\ndef check_domain(domain):\n    params = {\"apikey\": API_KEY, \"resource\": domain}\n    response = requests.get(url, params=params)\n    return response.json()\n```\n#### Example usage\ndomains = [\"www.healthevidence.org\", \"belmontbusinessmedia.emlnk9.com\", \"soinsintermediaire.us15.list-manage.com\", \"content.app-us1.com\", \"www.facebook.com\", \"soinsintermediaires.com\", \"www.instagram.com\", \"www.linkedin.com\", \"mailchi.mp\"] # Replace with your list of domains\nfor domain in domains:\n    report = check_domain(domain)\n    print(f\"Domain: {domain}, Report: {report}\")\n\n\n#### After you run the script you'll get the report from virusTotal and see if any security vendor has flagged or reported them as malicious. \n"
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.001
+    - T1566.002
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,14 @@
+id: 019ba318-7512-774a-8de9-0ef2f4cd8d42
+name: Outbound Chrome Connection to Known C2 Domains
+description: This rule detects outbound network connections initiated by 'chrome.exe' to a predefined list of known Command and Control (C2) domains over HTTPS (port 443). This indicates potential communication with malicious infrastructure.
+query: "let C2Domains = dynamic([\r\n    \"deepaichats.com\",\r\n    \"chatsaigpt.com\",\r\n    \"chataigpt.pro\",\r\n    \"chatgptsidebar.pro\"\r\n]);\r\nDeviceNetworkEvents\r\n| where InitiatingProcessFileName in~ (\"chrome.exe\", \"msedge.exe\") \r\n| where RemoteUrl has_any (C2Domains)\r\n| where ActionType == @\"ConnectionSuccess\"\r\n| where RemotePort == 443\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessRemoteSessionDeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    RemoteUrl,\r\n    RemoteIP\r\n| order by Timestamp desc\r\n\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: AwaisM
+version: "8"

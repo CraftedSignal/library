@@ -1,0 +1,19 @@
+id: 019c70e2-fdf7-77d5-8363-8da597ef3290
+name: Suspicious Obfuscated Command-Line Execution
+description: |-
+    This detection identifies suspicious command-line obfuscation executed by common scripting engines such as PowerShell, CMD, and Windows Script Host. It detects high signal behaviors including string concatenation, repeated string reconstruction, character based assembly, and encoded command execution flags.
+
+    These techniques are commonly used to conceal execution intent and evade security monitoring. Alerts should be reviewed in context to distinguish legitimate scripting from potentially evasive activity.
+query: "//This KQL query aims to detect an obfuscated command line using a regex pattern match. \r\n//This query was tested against a large enterprise tenant and did not have excessive noise or false positive events. It should be tuned for your environment if you experience false positive detections.\r\n//It is recommended to adjust the timestamp based on the lookback and frequency you will set for the custom detection in Defender XDR.\r\n\r\nDeviceProcessEvents\r\n| where Timestamp >= ago(1h)\r\n| where isnotempty(ProcessCommandLine)\r\n| where InitiatingProcessFileName in~ (\"powershell.exe\",\"pwsh.exe\",\"cmd.exe\",\"wscript.exe\",\"cscript.exe\")\r\n| extend CmdLine = tostring(ProcessCommandLine)\r\n| where\r\n    CmdLine matches regex @\"'[^']+'\\s*\\+\\s*'[^']+'\" or\r\n    CmdLine matches regex @\"\"\"[^\"\"]+\"\"\\s*\\+\\s*\"\"[^\"\"]+\"\"\" or\r\n    CmdLine matches regex @\"(\\+\\s*['\"\"][^'\"\"]+['\"\"]){2,}\" or\r\n    CmdLine matches regex @\"\\[(char)\\]\\s*\\d+\\s*\\+\\s*\\[(char)\\]\\s*\\d+\" or\r\n    CmdLine matches regex @\"\\s-(enc|encodedcommand)\\b\"\r\n| extend FullAccountName = strcat(AccountDomain, \"\\\\\", AccountName)\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    FullAccountName,\r\n    AccountName,\r\n    AccountDomain,\r\n    AccountSid,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine,\r\n    ReportId\r\n| order by Timestamp desc\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - kql
+author: Nikolay Petkanov
+version: "5"

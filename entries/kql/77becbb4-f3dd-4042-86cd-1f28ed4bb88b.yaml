@@ -1,0 +1,16 @@
+id: 77becbb4-f3dd-4042-86cd-1f28ed4bb88b
+name: 'Threat Hunt: Info Stealer browser remote debugging execution '
+description: |-
+    Looking for processes executing chrome / edge with a remote debugging port, this is typically seen being leverage by info stealer malware to steal credentials.
+    The remote debugging functionality can be used to obtain cookies without requiring keychain access.
+query: "DeviceProcessEvents\r\n|where TimeGenerated > ago(500d)\r\n|where ProcessCommandLine has_all (\"remote-debugging-port\",\"Default\")\r\n|where FileName has_any (\"chrome.exe\",\"msedge.exe\")\r\n|where IsProcessRemoteSession==\"false\"\r\n|where strlen(ProcessCommandLine)<=100\r\n|project TimeGenerated,AccountName,Parent=InitiatingProcessFileName,Browser=FileName,ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+tags:
+    - kql
+author: frog
+version: "1"
+references:
+    - https://redcanary.com/blog/threat-intelligence/google-chrome-app-bound-encryption/

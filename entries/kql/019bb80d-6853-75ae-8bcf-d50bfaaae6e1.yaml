@@ -1,0 +1,16 @@
+id: 019bb80d-6853-75ae-8bcf-d50bfaaae6e1
+name: Suspicious Access to Credential Stores
+description: Detects suspicious process access to common credential storage locations such as certificate stores, PCPKSP keys, and CloudAPCache for AzureAD credentials. The severity of the alert is escalated based on the initiating process and command line arguments, specifically looking for keywords like 'mimikatz', 'dump', or 'export'.
+query: "// Inspired by the amazing Session of Nestori Syynimaa (Trusted by Design: How Windows Uses TPM to Secure PRTs) @ yellowhat.live 2026\r\nDeviceEvents\r\n| where InitiatingProcessFileName != \"lsass.exe\"\r\n| where (\r\n    FolderPath startswith @\"Cert:\\LocalMachine\\My\\\" \r\n    or (FolderPath startswith @\"C:\\ProgramData\\Microsoft\\Crypto\\PCPKSP\\\" and FileName endswith \"PCBKEY\")\r\n    or (FolderPath startswith @\"C:\\Windows\\System32\\config\\systemprofile\\AppData\\Local\\Microsoft\\Crypto\\PCPKSP\\\" and FileName endswith \"PCBKEY\")\r\n    or FolderPath has_any (@\"CloudAPCache\\AzureAD\", @\"cloudapcache\\azuread\") \r\n)\r\n| extend \r\n    SuspiciousAccess = case(\r\n        ProcessCommandLine has_any (\"mimikatz\", \"dump\", \"export\"), \"High\",\r\n        InitiatingProcessFileName in~ (\"powershell.exe\", \"cmd.exe\", \"wmic.exe\"), \"Medium\",\r\n        \"Low\"\r\n    )"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"
+references:
+    - 'Nestori Syynimaa Trusted by Design: How Windows Uses TPM to Secure PRTs https://yellowhat.live/session-catalog/'

@@ -1,0 +1,21 @@
+id: 49015bd4-0be7-4728-809b-68265dcb291a
+name: Risky Sign-in After URL Click
+description: This rule detects potentially malicious sign-in attempts that occur shortly after a user clicks on a URL, especially when the sign-in originates from a different IP address or subnet than the URL click. It specifically looks for risky sign-ins to Microsoft first-party applications. The logic aims to identify scenarios where a user might be phished (e.g., via a malicious link) and then their credentials are used to sign in from an attacker-controlled location.
+query: "let searchTimeRange = 14d;\r\nlet msftFirstPartyApp= externaldata(AppId:string, AppDisplayName:string)\r\n[\r\n  h@\"https://raw.githubusercontent.com/hchiphong/KQL/refs/heads/main/data/MicrosoftFirstPartyApp.csv\"\r\n]\r\nwith(format=\"csv\");\r\nlet data =\r\nunion\r\n( SigninLogs\r\n// Exlucde Corp Device\r\n| where AppDisplayName in (( msftFirstPartyApp | distinct AppDisplayName)) // App in microsoft first party app\r\n| where UserPrincipalName has \"@\" //ignore uid\r\n| extend deviceId = tostring(DeviceDetail.deviceId), displayName = tostring(DeviceDetail.displayName)\r\n| where isempty(deviceId)\r\n| where RiskEventTypes !='[]' or RiskEventTypes_V2 !='[]' // Risky sign in only, this can be commented but result more FP\r\n| extend Risks= array_concat(todynamic(RiskEventTypes),todynamic(RiskEventTypes_V2))\r\n| project TimeGenerated, CreatedDateTime, Type, AccountUpn= tolower(UserPrincipalName), IPAddress,AppDisplayName, ResourceDisplayName ,RiskLevel,Risks,TenantId,CorrelationId, ResultType,ResultDescription \r\n)\r\n,(\r\nUrlClickEvents\r\n| project TimeGenerated, Timestamp,Type,AccountUpn=tolower( AccountUpn), IPAddress,Url\r\n)\r\n| where ingestion_time() >= ago(searchTimeRange)\r\n| partition hint.strategy=native by AccountUpn\r\n    (\r\n    sort by TimeGenerated asc\r\n    | scan with_match_id=id  declare(ClickTime:datetime, LoginTime:datetime,Url:string,ClickIP:string) with\r\n    (\r\n        step UrlClick output=none: Type==\"UrlClickEvents\" => ClickTime = Timestamp ;\r\n        step Login : Type==\"SigninLogs\"  and  CreatedDateTime- UrlClick.ClickTime between (5s .. 300s ) \r\n                        and (\r\n                            not( ipv4_is_in_range(IPAddress,format_ipv4_mask(UrlClick.IPAddress,24))) \r\n                            or ((IPAddress has \":\" or UrlClick.IPAddress has \":\") and IPAddress != UrlClick.IPAddress)\r\n                            ) //subnet of click IP different from signin IP, which can be adjusted\r\n                        => LoginTime= CreatedDateTime, ClickTime=UrlClick.ClickTime, Url=UrlClick.Url,ClickIP=UrlClick.IPAddress ;\r\n    )\r\n    | project LoginTime, AccountUpn, ClickTime,  LoginIPAddress= IPAddress,AppDisplayName, ResourceDisplayName, LoginResult=strcat(ResultType,\"-\",ResultDescription), EventGroupNumber=id,RiskLevel,Risks,Url,ClickIP, CorrelationId, TenantId\r\n    | sort by LoginTime,AccountUpn,EventGroupNumber desc  // EventGroupNumber means how many grouped series events the user has\r\n);\r\ndata\r\n//Exclude previous known signin IP\r\n| join kind=anti  ( SigninLogs \r\n| where TimeGenerated between (ago(searchTimeRange+30d) .. ago(searchTimeRange))\r\n| where UserPrincipalName in (( data | distinct AccountUpn))\r\n| distinct IPAddress, UserPrincipalName\r\n ) on $left.AccountUpn == $right.UserPrincipalName, $left.LoginIPAddress==$right.IPAddress"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0008
+techniques:
+    - T1078
+    - T1534
+tags:
+    - kql
+version: "1"
+references:
+    - https://github.com/hchiphong/KQL/blob/main/Signin_AfterUrlClick.kql

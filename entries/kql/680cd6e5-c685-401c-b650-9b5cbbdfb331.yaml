@@ -1,0 +1,28 @@
+id: 680cd6e5-c685-401c-b650-9b5cbbdfb331
+name: Insider Threat Monitoring - Exfiltrate data via Link to Windows app
+description: KQL Query
+query: "// Insider Threat Monitoring - Exfiltrate data via Link to Windows app\n// https://www.linkedin.com/posts/activity-7222581799716016128-7Nww/\n\n// Microsoft has simplified accessing Android phones from a PC on Windows 11. However, this convenience could potentially allow critical identities to exfiltrate data, as it lacks logging via browser or network access. By utilizing DefenderXDR exposure management, the following KQL can detect the installation of the ‘Link to Windows’ app on endpoints associated with critical identities for DLP monitoring.\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet CriticalDevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nDeviceFileEvents\n| where Timestamp > ago(30d)\n| where ActionType == \"FileCreated\"\n| where FileName contains \"YourPhoneAppProxy\"\n| where DeviceName has_any (CriticalDevices)\n\n// MITRE ATT&CK Mapping\n\n// The KQL query is designed to identify critical identities and devices, and then monitor for specific file creation events on those devices. This approach helps in detecting potential unauthorized access and suspicious activities, aligning with several MITRE ATT&CK techniques such as Valid Accounts (T1078), Permission Groups Discovery (T1069), Ingress Tool Transfer (T1105), and Application Layer Protocol (T1071).\n\n// T1078: Valid Accounts - Identifying critical accounts that could be targeted for unauthorized access.\n// T1078: Valid Accounts - Identifying devices that critical accounts can access.\n// T1069: Permission Groups Discovery - Discovering devices and their associated permissions.\n// T1105: Ingress Tool Transfer - Detecting the creation of files that might be used for transferring tools or data.\n// T1071: Application Layer Protocol - Monitoring for suspicious file creation that could indicate data exfiltration or command and control.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0011
+    - TA0010
+    - TA0009
+techniques:
+    - T1078
+    - T1069
+    - T1105
+    - T1071
+    - T1020
+    - T1567.004
+    - T1074
+    - T1041
+    - T1052
+    - T1567
+tags:
+    - kql
+version: "1"

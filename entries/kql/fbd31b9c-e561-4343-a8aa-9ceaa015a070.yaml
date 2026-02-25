@@ -1,0 +1,58 @@
+id: fbd31b9c-e561-4343-a8aa-9ceaa015a070
+name: Detect Copilot Exfiltration arises from AiTM Token Theft
+description: KQL Query
+query: |
+    // Detect Copilot Exfiltration arises from AiTM Token Theft
+    // https://www.linkedin.com/posts/activity-7217887769744793601-JUeb/
+
+    // Identify token theft through AiTM phishing attacks, where stolen tokens are exploited for Copilot activities involving data summarization and extraction from a "non-malicious" IP. Leverage Sentinel Behavior Analytics to detect initial logins from new ISP with investigation score set (potentially threat actors) and correlate this IP data with Copilot activities from CloudAppEvents. This KQL is primarily targeted at threat actors using clean IP to perform Copilot exfiltration.
+
+    let FirstTimeUserConnectedISPIP =
+    BehaviorAnalytics
+    | where TimeGenerated > ago(7d)
+    // Behaviour Analytics detecting user first time connected to a new ISP
+    | where tostring(ActivityInsights.FirstTimeUserConnectedViaISP) == "True"
+    | where ActivityType == "LogOn"
+    | where SourceDevice == ""     // Non-corporate endpoint
+    | where InvestigationPriority > 0  // Suspicious Session
+    | project SourceIPAddress;
+    CloudAppEvents
+    | where ActionType == "CopilotInteraction"
+    // Correlating copilot activities from the new ISP IP
+    | where IPAddress has_any(FirstTimeUserConnectedISPIP)
+
+
+    // MITRE ATT&CK Mapping
+
+    // Initial Access:
+    // Technique T1078 - Valid Accounts: The detection of a new ISP connection and logon activity could indicate the use of valid accounts from an unusual location.
+
+    // Persistence:
+    // Technique T1078 - Valid Accounts: Repeated logon activities from a new ISP might suggest persistence using valid credentials.
+
+    // Defense Evasion:
+    // Technique T1078 - Valid Accounts: Using a non-corporate endpoint and a new ISP can be a method to evade detection.
+
+    // Credential Access:
+    // Technique T1078 - Valid Accounts: Suspicious logon activities might indicate attempts to access credentials.
+
+    // Command and Control:
+    // Technique T1071 - Application Layer Protocol: Correlating Copilot interactions from the new ISP IP could indicate command and control activities using legitimate services.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0010
+    - TA0006
+    - TA0009
+techniques:
+    - T1078
+    - T1071
+    - T1557
+    - T1134.001
+tags:
+    - kql
+version: "1"

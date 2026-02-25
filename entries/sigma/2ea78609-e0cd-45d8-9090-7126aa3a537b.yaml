@@ -1,0 +1,24 @@
+id: 2ea78609-e0cd-45d8-9090-7126aa3a537b
+name: Potential Exploitation of Notepad++ CVE-2025-49144 Privilege Escalation
+description: Detects possible abuse of Notepad++ installer (v8.8.1) where a malicious regsvr32.exe is executed from an untrusted directory, leading to privilege escalation to SYSTEM.
+query: "title: Potential Exploitation of Notepad++ CVE-2025-49144 Privilege Escalation\r\nid: 7cc4786d-89ef-4b91-95d0-f073234e4ff7\r\nstatus: experimental\r\ndescription: Detects possible abuse of Notepad++ installer (v8.8.1) where a malicious regsvr32.exe is executed from an untrusted directory, leading to privilege escalation to SYSTEM.\r\nauthor: Thaung Htet\r\ndate: 2025-06-24\r\nreferences:\r\n  - https://nvd.nist.gov/vuln/detail/CVE-2025-49144\r\n  - https://cybersecuritynews.com/notepad-vulnerability/\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection_installer_execution:\r\n    Image|endswith: '\\npp.8.8.1.Installer.x64.exe'\r\n    ParentImage|contains: '\\Downloads\\'\r\n  selection_malicious_dll:\r\n    Image|endswith: '\\regsvr32.exe'\r\n    ParentImage|endswith: '\\npp.8.8.1.Installer.x64.exe'\r\n    CommandLine|contains: '\\Downloads\\'  # suspicious working directory\r\n  filter_legit_sys_path:\r\n    CommandLine|contains: 'System32\\regsvr32.exe'\r\n  condition: selection_installer_execution and selection_malicious_dll and not filter_legit_sys_path\r\nfalsepositives:\r\n  - Manual installations where legitimate regsvr32.exe was copied temporarily\r\n  - Software testing environments\r\nlevel: high\r\ntags:\r\n  - attack.privilege_escalation\r\n  - attack.t1055.001\r\n  - cve.2025-49144\r\n  - notepadplusplus"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.001
+tags:
+    - attack.privilege_escalation
+    - attack.t1055.001
+    - cve.2025-49144
+    - notepadplusplus
+author: Thaung Htet
+version: "1"
+references:
+    - https://nvd.nist.gov/vuln/detail/CVE-2025-49144
+    - https://cybersecuritynews.com/notepad-vulnerability/
+data_sources:
+    - process_creation
+    - windows

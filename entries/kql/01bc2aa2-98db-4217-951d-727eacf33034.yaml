@@ -1,0 +1,64 @@
+id: 01bc2aa2-98db-4217-951d-727eacf33034
+name: Exposure Management + Defender for Office 365
+description: 'KQL Query from file: Exposure Management + Defender for Office 365'
+query: |
+    //Exposure Management + Defender for Office 365
+    //https://www.linkedin.com/posts/activity-7178261918795649024-cah8/
+
+    //Custom DefenderXDR detection rule for critical identities marked by exposure management clicking on malicious email link. This would triggered the isolation of the user account and devices impacted to minimize lateral movement.
+
+    //KQL Detection Code:
+
+    let CriticalIdentities =
+    ExposureGraphNodes
+    | where set_has_element(Categories, "identity")
+    | where isnotnull(NodeProperties.rawData.criticalityLevel) and NodeProperties.rawData.criticalityLevel.criticalityLevel < 4
+    | extend AccountUPN = tostring(NodeProperties.rawData.accountUpn)
+    | distinct AccountUPN;
+    AlertInfo
+    | where Title == "A potentially malicious URL click was detected"
+    | join AlertEvidence on AlertId
+    | join EmailEvents on NetworkMessageId
+    | where RecipientEmailAddress has_any (CriticalIdentities)
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the analysis, the following MITRE ATT&CK techniques are relevant:
+
+    // T1071.001 - Application Layer Protocol: Web Protocols
+    // The detection of a potentially malicious URL click involves monitoring web protocols, which falls under this technique.
+    // T1566.002 - Phishing: Spearphishing Link
+    // The alert for a potentially malicious URL click is indicative of spearphishing attempts, where attackers use malicious links to compromise targets.
+    // T1078 - Valid Accounts
+    // The focus on critical identities and their email addresses suggests monitoring for the use of valid accounts, which is relevant to this technique.
+    // T1087.002 - Account Discovery: Domain Account
+    // The query’s identification of critical identities involves discovering domain accounts, aligning with this technique.
+query_type: kql
+tactics:
+    - TA0011
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0007
+    - TA0006
+    - TA0009
+    - TA0002
+    - TA0043
+techniques:
+    - T1071.001
+    - T1566.002
+    - T1078
+    - T1087.002
+    - T1114
+    - T1114.002
+    - T1114.001
+    - T1204
+    - T1204.001
+    - T1204.004
+    - T1566
+    - T1598
+    - T1212
+tags:
+    - kql
+version: "1"

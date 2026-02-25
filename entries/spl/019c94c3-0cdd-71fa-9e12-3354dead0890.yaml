@@ -1,0 +1,11 @@
+id: 019c94c3-0cdd-71fa-9e12-3354dead0890
+name: CVE-2026-2329 Hunt
+description: This rule detects potential exploitation attempts against Grandstream GXP1600 series IP phones related to CVE-2026-2329. It specifically looks for HTTP requests to the '/cgi-bin/api.values.get' endpoint where the 'request' parameter in the URI query string has a length greater than or equal to 65 characters, which could indicate an attempt to trigger a buffer overflow or similar vulnerability.
+query: "/* \nGrandstream GXP1600 CVE-2026-2329 hunt\nAuthor: Daniel Jeremiah\nDate: 2026-02-24\nReference: https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/\n*/\n\n(index=* sourcetype=*)\n(\n  (uri_path=\"/cgi-bin/api.values.get\" OR url_path=\"/cgi-bin/api.values.get\" OR path=\"/cgi-bin/api.values.get\" OR cs_uri_stem=\"/cgi-bin/api.values.get\" OR url=\"*/cgi-bin/api.values.get*\")\n  AND\n  (uri_query=\"*request=*\" OR url_query=\"*request=*\" OR query_string=\"*request=*\" OR cs_uri_query=\"*request=*\" OR url=\"*request=*\")\n)\n| eval endpoint=coalesce(uri_path,url_path,path,cs_uri_stem)\n| eval q=coalesce(uri_query,url_query,query_string,cs_uri_query)\n| eval q=coalesce(q, replace(url, \"^.*\\\\?(.*)$\", \"\\\\1\"))\n| rex field=q \"(?i)(?:^|[&;])request=(?<request_val>[^&;]+)\"\n| eval request_len=len(request_val)\n| where request_len >= 65\n| stats count min(_time) as firstSeen max(_time) as lastSeen values(host) as host values(src_ip) as src_ip values(dest_ip) as dest_ip values(http_method) as http_method values(status) as status values(url) as url values(request_len) as request_len values(user_agent) as user_agent values(sourcetype) as sourcetype by endpoint\n| convert ctime(firstSeen) ctime(lastSeen)\n| sort - lastSeen"
+query_type: spl
+severity: medium
+tags:
+    - spl
+version: "5"
+references:
+    - CVE-2026-2329

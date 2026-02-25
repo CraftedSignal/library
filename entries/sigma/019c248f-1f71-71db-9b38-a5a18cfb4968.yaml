@@ -1,0 +1,50 @@
+id: 019c248f-1f71-71db-9b38-a5a18cfb4968
+name: Evasive Panda Secondary Loader Writes status.dat or perf.dat in eHome Directory
+description: This rule detects the creation or modification of 'status.dat' or 'perf.dat' files within the 'C:\ProgramData\Microsoft\eHome' directory. The detection is specifically triggered when the process performing this file operation is either 'evteng.exe' or another process located within the 'eHome' directory, or 'libpython2.4.dll'. This activity is associated with the Evasive Panda secondary loader.
+query: |-
+    title: Evasive Panda Secondary Loader status.dat and perf.dat (High Fidelity)
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda005
+    status: experimental
+    description: |
+        High-fidelity detection: status.dat and perf.dat under C:\ProgramData\Microsoft\eHome are written by
+        Evasive Panda secondary loader (libpython2.4.dll). Context: Initiating process must be evteng.exe or
+        another process from eHome path (not generic Media Center or system). Requires full path eHome and
+        filename status.dat or perf.dat.
+    references:
+        - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.defense_evasion
+        - attack.t1565
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_path_file:
+            TargetFilename|contains: '\Microsoft\eHome'
+            TargetFilename|endswith|any:
+                - '\status.dat'
+                - '\perf.dat'
+        context_ehome_process:
+            Image|re: '.*\\(Microsoft\\eHome|evteng\.exe|libpython2\.4\.dll).*'
+        condition: selection_path_file and context_ehome_process
+    falsepositives:
+        - Legitimate eHome/Media Center writing .dat in eHome (rare; context_ehome_process limits to evteng/eHome loader)
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0040
+techniques:
+    - T1565
+tags:
+    - attack.defense_evasion
+    - attack.t1565
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securelist.com/evasive-panda-apt/118576/
+data_sources:
+    - file_event
+    - windows

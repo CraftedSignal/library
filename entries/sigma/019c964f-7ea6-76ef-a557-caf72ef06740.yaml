@@ -1,0 +1,50 @@
+id: 019c964f-7ea6-76ef-a557-caf72ef06740
+name: Github Branch Protection Disabled
+description: |
+    Detects action of Repo branch protection being disabled. This would mean no PR or review process is needed for that repo and an actor (Insider or attacker) could push arbitrary code. Bypassing usual Security controls.
+query: |
+    title: Github Branch Protection Disabled
+    id: 4a86afd3-a49e-4ec6-991f-90bcd495c2a3
+    status: experimental
+    description: >
+      Detects action of Repo branch protection being disabled. This would mean no PR
+      or review process is needed for that repo and an actor (Insider or attacker) could push arbitrary code.
+      Bypassing usual Security controls.
+    references:
+      - >-
+        https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#protected_branch
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      product: github
+      category: audit
+    detection:
+      selection_action:
+        - protected_branch.destroy
+      filter_automations:
+        TargetFilename|contains:
+          - '%automation_scripts%'
+      condition: selection_action and not filter_automations
+    level: medium
+    author: zendannyy
+    falsepositives:
+      - Legitimate administrative action to reconfigure repository settings.
+      - Automated scripts or CI/CD pipelines that temporarily disable branch
+        protection for specific deployment or maintenance tasks.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: zendannyy
+version: "1"
+references:
+    - https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#protected_branch
+data_sources:
+    - audit
+    - github

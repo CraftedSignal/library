@@ -1,0 +1,28 @@
+id: 84cbe1c6-f2bd-4677-a3b5-3b5f01dac49e
+name: UNC3944 Malicious VIB Installation on VMware ESXi
+description: Detects the reconfiguration of a virtual machine where a virtual disk (.vmdk) from a different, often critical, VM is attached. This is a key tactic used by threat actors like UNC3944 to perform offline credential theft by mounting a Domain Controller's disk to a staging VM to access the NTDS.dit file.
+query: "title: UNC3944 Malicious VIB Installation on VMware ESXi\r\nid: 88408c14-3d46-4792-bf32-2a557e975044\r\nstatus: experimental\r\ndescription: Detects the reconfiguration of a virtual machine where a virtual\r\n  disk (.vmdk) from a different, often critical, VM is attached. This is a key\r\n  tactic used by threat actors like UNC3944 to perform offline credential theft\r\n  by mounting a Domain Controller's disk to a staging VM to access the NTDS.dit\r\n  file.\r\nreferences:\r\n  - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944\r\nauthor: Kaung Khant Ko\r\ndate: 2025-07-29\r\ntags:\r\n  - attack.credential_access\r\n  - attack.t1552.005\r\n  - attack.t1078\r\n  - threat_actor.unc3944\r\nlogsource:\r\n  product: vmware\r\n  service: vcenter\r\ndetection:\r\n  # This detection looks for the core event of a VM being reconfigured.\r\n  # Field names for event type may vary (e.g., event.code, eventTypeId).\r\n  reconfig_event:\r\n    event.action: 'vim.event.VmReconfiguredEvent'\r\n    event.outcome: 'success'\r\n  # This selection identifies when the reconfiguration involves attaching a disk from a known critical asset.\r\n  # The logic checks for common naming conventions for critical VMs within the event message.\r\n  disk_from_critical_vm:\r\n    message|contains|all:\r\n      - '.vmdk'\r\n        # The file extension for a VMware virtual disk.\r\n        # Add patterns that identify your critical assets (Tier 0).\r\n        # Example patterns for Domain Controllers, Certificate Authorities, PAM, etc.\r\n      - - 'DC'\r\n        - 'AD'\r\n        - 'CA'\r\n        - 'PKI'\r\n        - 'VEEAM'\r\n        - 'BACKUP'\r\n  # This filter excludes events where the VM being reconfigured is one of the critical assets itself.\r\n  # This helps to focus on the \"staging VM\" scenario where a non-critical VM is used to mount the disk.\r\n  filter_not_staging_vm:\r\n    vm.name|contains:\r\n      - 'DC'\r\n      - 'AD'\r\n      - 'CA'\r\n      - 'PKI'\r\n      - 'VEEAM'\r\n      - 'BACKUP'\r\n  condition: reconfig_event and disk_from_critical_vm and not filter_not_staging_vm\r\nfalsepositives:\r\n  - Legitimate disaster recovery or maintenance operations might involve\r\n    attaching a VM's disk to another for data recovery, though this is typically\r\n    rare.\r\n  - The lists in 'disk_from_critical_vm' and 'filter_not_staging_vm' must be\r\n    tuned to your environment's naming conventions to be effective and avoid\r\n    noise.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0009
+techniques:
+    - T1078
+    - T1119
+tags:
+    - attack.credential_access
+    - attack.t1552.005
+    - attack.t1078
+    - threat_actor.unc3944
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944
+data_sources:
+    - vmware
+    - vcenter

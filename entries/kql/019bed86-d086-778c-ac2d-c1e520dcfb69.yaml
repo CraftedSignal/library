@@ -1,0 +1,9 @@
+id: 019bed86-d086-778c-ac2d-c1e520dcfb69
+name: Large Email Attachment (>5MB) Sent by Monitored User
+description: This rule detects when a user from a specified watchlist sends an email with a large attachment (over 5MB).
+query: "// Define the list of specific sender email addresses to monitor.\r\nlet monitoredSenders = dynamic([\r\n    \"UPN1\",\r\n    \"UPN2\",\r\n    \"UPN3\",\r\n]);\r\n// Define the attachment size threshold in Megabytes (MB).\r\nlet sizeThresholdMB = 5;\r\nEmailAttachmentInfo\r\n// Add a calculated column for FileSize in MB for easier comparison.\r\n| extend FileSizeMB = FileSize / (1024.0 * 1024.0)\r\n// Filter for emails sent by the monitored senders.\r\n| where SenderFromAddress in (monitoredSenders)\r\n// Filter for attachments larger than the defined size threshold.\r\n| where FileSizeMB > sizeThresholdMB\r\n| project\r\n    TimeGenerated,\r\n    SenderFromAddress,\r\n    RecipientEmailAddress,\r\n    Subject,\r\n    FileName,\r\n    FileType,\r\n    FileSize,\r\n    FileSizeMB = round(FileSizeMB, 2),\r\n    NetworkMessageId,\r\n    Threats\r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,45 @@
+id: 019bd122-17ee-75ff-b7d0-ef75cf0ff35f
+name: APT24 BADAUDIO C2 Communication via Cloudflare Workers
+description: 'This rule detects command and control (C2) communication patterns associated with the BADAUDIO malware. Specifically, it looks for HTTP GET requests to known BADAUDIO C2 domains or Cloudflare Workers infrastructure. The detection logic focuses on the presence of specific cookie patterns (''Cookie: SSID='' or ''Cookie: cfuvid='') within the DestinationUrl, which BADAUDIO uses to exfiltrate encrypted system information. It also includes a specific URL path ''/pub/static/img/merged'' which might be used by the malware.'
+query: |
+    title: APT24 BADAUDIO - C2 Communication Pattern
+    id: 4b5c6d7e-8f90-1234-4567-89abcdef0123
+    status: experimental
+    description: |
+        Detects command and control communication patterns used by BADAUDIO malware. The malware sends encrypted system information as a cookie value (SSID or cfuvid) in GET requests to C2 servers. The system information is encrypted using a hard-coded AES key and sent with HTTP requests to fetch AES-encrypted payloads. BADAUDIO uses Cloudflare Workers domains and legitimate-looking domains for C2 infrastructure. This rule detects HTTP GET requests with suspicious cookie patterns containing base64-encoded or encrypted data, particularly to known BADAUDIO C2 domains or Cloudflare Workers infrastructure.
+    references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/apt24-pivot-to-multi-vector-attacks
+    author: Daniel Jeremiah
+    date: 2025/01/18
+    tags:
+        - attack.command_and_control
+        - attack.t1071.001
+        - attack.t1573.002
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection:
+            DestinationUrl|contains|any:
+                - 'workers.dev'
+                - 'clients.brendns.workers.dev'
+                - 'wispy.geneva.workers.dev'
+                - 'roller.johallow.workers.dev'
+                - 'www.cundis.com'
+                - 'www.twisinbeth.com'
+                - 'tradostw.com'
+                - 'jarzoda.net'
+                - 'trcloudflare.com'
+            EventType|contains: 'GET'
+            DestinationUrl|contains|any:
+                - 'Cookie: SSID='
+                - 'Cookie: cfuvid='
+                - '/pub/static/img/merged'
+        condition: selection
+    falsepositives:
+        - Legitimate applications using Cloudflare Workers for content delivery
+        - Web applications using SSID or cfuvid cookies for session management
+        - CDN and static asset delivery services
+    level: high
+query_type: sigma
+version: "2"

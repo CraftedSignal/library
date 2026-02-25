@@ -1,0 +1,16 @@
+id: 6e8f84a6-e9df-4e88-a8a5-e4c744023272
+name: Suspicious FileFix activity
+description: 'KQL Query from file: Suspicious FileFix activity'
+query: "DeviceProcessEvents\r\n| where FileName has_any(\"powershell\",\"pwsh\",\"mshta\",\"bitsadmin\", \"cmd\", \"msiexec\", \"regsvr32\") // Filter for execution of known Living-off-the-Land Binaries and Scripts (LOLBAS)\r\nand InitiatingProcessFileName has_any(\"firefox\",\"brave\",\"chrome\",\"msedge\") // Filter for common browsers\r\nand ProcessCommandLine has_any (\"forfiles\", \"-eC\", \"Hidden\", \"iwr\", \"Invoke-WebRequest\", \"iex\", \"-Uri\", \"https\", \"-outfile\",\" -e \", ' -en ', ' -enc ', \r\n' -enco', 'ftp', 'http', \"https\",'Invoke-', \"Start-Process\", \"-replace\", \"Verification\", \"CAPTCHA\", \"robot\", \"curl\", \"%USERPROFILE%\") // Check for suspicious or malicious command line patterns \r\n| where not(ProcessCommandLine has_any (\"Force exceptions to stop execution\")) // Exclude known benign \r\n| project Timestamp, DeviceName, UserAccount = AccountUpn, ActionType, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.004
+tags:
+    - kql
+author: Thomas Carr
+version: "1"
+references:
+    - https://mrd0x.com/filefix-clickfix-alternative/

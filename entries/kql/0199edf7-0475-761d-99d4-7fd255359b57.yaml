@@ -1,0 +1,12 @@
+id: 0199edf7-0475-761d-99d4-7fd255359b57
+name: Correlating DeviceInfo and CommonSecurityLog to Detect Operation Zero Disco
+description: KQL Query
+query: "// Operation Zero Disco - Trigger 1\r\n\r\nCommonSecurityLog\r\n| where TimeGenerated > ago(1h)\r\n| where (DestinationPort==161 and Protocol==\"udp\") or\r\n(DestinationPort==23 and Protocol==\"tcp\")\r\n| where DeviceAction == \"allow\"\r\n| summarize PortConnect=dcount(DestinationPort) by DestinationIP\r\n| where PortConnect==2\r\n\r\n// Operation Zero Disco - Trigger 2\r\n\r\nDeviceInfo\r\n| where Timestamp > ago(30d)\r\n| summarize arg_max(Timestamp, *) by DeviceId\r\n| where Vendor == \"Cisco\"\r\n| where DeviceCategory == \"NetworkDevice\"\r\n| where DeviceSubtype == \"Switch\"\r\n| where Model contains \"9300\" or Model contains \"9400\" or Model contains \"3750\"\r\n| invoke SeenBy()"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/25/j/operation-zero-disco-cisco-snmp-vulnerability-exploit.html

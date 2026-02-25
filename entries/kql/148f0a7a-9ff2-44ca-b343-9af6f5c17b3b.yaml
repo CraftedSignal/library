@@ -1,0 +1,19 @@
+id: 148f0a7a-9ff2-44ca-b343-9af6f5c17b3b
+name: Potential Data Exfiltration via Ping.exe
+description: This rule detects potential data exfiltration attempts using the built-in Windows `ping.exe` utility. Specifically, it looks for `ping.exe` executions where a large payload size (greater than 1024 bytes) is specified using the -L command-line argument. This technique can be used to tunnel data over ICMP, which might bypass some network defenses.
+query: "DeviceProcessEvents\r\n| where FileName =~ \"ping.exe\"\r\n| where ProcessCommandLine has_any(\"-l\", \"/l\")\r\n| extend payload_size = extract(@\"[-/][lL]\\s+(\\d+)\", 1, ProcessCommandLine)\r\n| extend RemoteIP = extract(@\"\\b\\d{1,3}(?:\\.\\d{1,3}){3}\\b\", 0, ProcessCommandLine)\r\n| extend RemoteURL = extract(@\"(?:https?:\\/\\/)?(?:[^@\\s]+@)?(?:www\\.)?([a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})\", 1, ProcessCommandLine)\r\n| where isnotempty(payload_size) and toint(payload_size) > 1024\r\n| project Timestamp, DeviceName, AccountName, RemoteIP, RemoteURL, payload_size, ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1048.003
+    - T1572
+tags:
+    - LOTL
+    - ping
+    - ICMP. Exfiltration
+    - kql
+author: Dylan Evans
+version: "1"

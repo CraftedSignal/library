@@ -1,0 +1,20 @@
+id: 019c8a05-54ed-71de-8b7e-d9ffe59d1229
+name: ClickFix LoLBin Abuse
+description: This rule detects suspicious command-line activity involving several Windows executables (wscript.exe, cscript.exe, wmic.exe, ssh.exe) when combined with specific keywords. It looks for wscript.exe or cscript.exe executing 'SyncAppvPublishingServer.vbs', wmic.exe executing 'process', 'call', or 'create', or ssh.exe using 'ProxyCommand'. Additionally, the rule filters for command lines containing keywords like 'gal', 'i*x', 'gcm', '*stM*', 'jsdelivr.net', 'github', or 'powershell', which are often associated with malicious activity, obfuscation, or external resource loading.
+query: "DeviceProcessEvents\r\n| where Timestamp >= ago(7d)\r\n| where (\r\n    (FileName in~ (\"wscript.exe\", \"cscript.exe\") and ProcessCommandLine has \"SyncAppvPublishingServer.vbs\")\r\n    or (FileName =~ \"wmic.exe\" and ProcessCommandLine has_any (\"process\", \"call\", \"create\"))\r\n    or (FileName =~ \"ssh.exe\" and ProcessCommandLine has \"ProxyCommand\")\r\n)\r\n| where ProcessCommandLine has_any (\r\n    \"gal\", \"i*x\",         \r\n    \"gcm\", \"*stM*\",       \r\n    \"jsdelivr.net\",       \r\n    \"github\",             \r\n    \"powershell\"          \r\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1216.002
+    - T1047
+    - T1202
+    - T1027.010
+tags:
+    - kql
+author: 'Benjamin Zulliger '
+version: "1"
+references:
+    - https://www.linkedin.com/posts/mauricefielenbach_threathunting-dfir-cybersecurity-activity-7429953431588659200-c0zE/

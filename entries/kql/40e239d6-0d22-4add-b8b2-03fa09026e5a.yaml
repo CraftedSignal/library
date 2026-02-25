@@ -1,0 +1,13 @@
+id: 40e239d6-0d22-4add-b8b2-03fa09026e5a
+name: 'IOC Hunting: Malicious IP Activity Sweep'
+description: This rule detects activity from a list of specified malicious IP addresses across network connection events and sign-in attempts. It correlates `DeviceNetworkEvents` (network connections from devices) and `SigninLogs` (user authentication attempts) to identify instances where these IPs are involved. The rule is designed for hunting, looking back 30 days for any activity originating from the defined IP addresses.
+query: "let IOC = dynamic([\"IP Address\",\"IP Address\"]);\r\nlet DeviceNetworkHunt = (\r\n    DeviceNetworkEvents\r\n    | where Timestamp > ago(30d) \r\n    | where RemoteIP in (IOC)\r\n    | project Table = Type, Timestamp, DeviceName, MaliciousIP = RemoteIP);\r\nlet SigninHunt = (\r\n    SigninLogs\r\n    | where TimeGenerated > ago(30d)\r\n    | where IPAddress in (IOC)\r\n    | project Table = Type, Timestamp = TimeGenerated, Identity, Application = AppDisplayName, MaliciousIP = IPAddress);\r\nunion isfuzzy=true DeviceNetworkHunt, SigninHunt"
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1590.005
+tags:
+    - kql
+version: "1"

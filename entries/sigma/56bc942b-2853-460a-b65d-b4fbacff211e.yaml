@@ -1,0 +1,26 @@
+id: 56bc942b-2853-460a-b65d-b4fbacff211e
+name: Replication privileges granted to perform DCSync attack
+description: Detects scenarios where an attacker grants replication privilege to an account to exflitrate Active Directory credentials
+query: "title: Replication privileges granted to perform DCSync attack\ndescription: Detects scenarios where an attacker grants replication privilege to an account to exflitrate Active Directory credentials\nrequirements: auditing SACL \"Modify permissions\" must be placed on the root domain container (otherwise not visible) using the Active Directory console (https://www.manageengine.com/products/active-directory-audit/active-directory-auditing-configuration-guide-configure-object-level-auditing-manually.html).\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/\n- https://www.ired.team/offensive-security-experiments/active-directory-kerberos-abuse/dump-password-hashes-from-domain-controller-with-dcsync\n- https://attack.stealthbits.com/privilege-escalation-using-mimikatz-dcsync\n- https://blog.fox-it.com/2018/04/26/escalating-privileges-with-acls-in-active-directory/\n- https://simondotsh.com/infosec/2022/07/11/dirsync.html\n- https://www.logpoint.com/en/blog/compromises-in-azure-ad-through-aad-connect/\ntags:\n  - attack.credential_access\n  - attack.t1222.001\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  service: security\ndetection:\n  selection:\n    EventID: 5136\n    AttributeLDAPDisplayName: ntSecurityDescriptor\n    OperationType: '%%14674'  # value added  \n    AttributeValue|contains:\n      - 1131f6aa-9c07-11d1-f79f-00c04fc2dcd2 # DS-Replication-Get-Changes\n      - 1131f6ad-9c07-11d1-f79f-00c04fc2dcd2 # DS-Replication-Get-Changes-All\n      - 89e95b76-444d-4c62-991a-0facbeda640c # DS-Replication-Get-Changes-In-Filtered-Set\n  filter:\n    SubjectUserName|endswith: $\n  condition: selection and not filter\nfalsepositives:\n- Unknown\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0005
+techniques:
+    - T1222.001
+tags:
+    - attack.credential_access
+    - attack.t1222.001
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0006-Credential%20Access/
+    - https://www.ired.team/offensive-security-experiments/active-directory-kerberos-abuse/dump-password-hashes-from-domain-controller-with-dcsync
+    - https://attack.stealthbits.com/privilege-escalation-using-mimikatz-dcsync
+    - https://blog.fox-it.com/2018/04/26/escalating-privileges-with-acls-in-active-directory/
+    - https://simondotsh.com/infosec/2022/07/11/dirsync.html
+    - https://www.logpoint.com/en/blog/compromises-in-azure-ad-through-aad-connect/
+data_sources:
+    - windows
+    - security

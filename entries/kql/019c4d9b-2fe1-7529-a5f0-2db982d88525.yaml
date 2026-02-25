@@ -1,0 +1,34 @@
+id: 019c4d9b-2fe1-7529-a5f0-2db982d88525
+name: Shadow Campaigns TGR-STA-1030 Activity
+description: This rule detects activities associated with the "Shadow Campaigns" espionage operation. It identifies the "Diaoyu loader" through specific command-line arguments, C2 communication with known malicious domains, and the deployment of webshells (Behinder, Neo-reGeorg, Godzilla, reGeorg) originating from common web server processes (w3wp.exe, httpd.exe, nginx.exe, java.exe).
+query: |
+    // Shadow Campaigns TGR-STA-1030. Unit 42.
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+
+    // Diaoyu loader process
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where ProcessCommandLine contains "pic1.png" or ProcessCommandLine contains "padeqav"
+        or ProcessCommandLine contains "admin-bar-sprite" or ProcessCommandLine contains "DiaoYu"
+        or (ProcessCommandLine contains "raw.githubusercontent.com" and ProcessCommandLine contains "WordPress")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+    // C2 domains
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteUrl has_any ("gouvn.me", "dog3rj.tech", "zamstats.me", "msonline.help", "pickupweb.me", "servgate.me",
+        "abwxjp5.me", "brackusi0n.live", "emezonhe.me", "pr0fu5a.me", "q74vn.live", "zrheblirsy.me")
+    | project Timestamp, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName
+
+    // Webshell from web server
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where ProcessCommandLine contains "Behinder" or ProcessCommandLine contains "Neo-reGeorg"
+        or ProcessCommandLine contains "Godzilla" or ProcessCommandLine contains "reGeorg"
+    | where InitiatingProcessFileName in ("w3wp.exe", "httpd.exe", "nginx.exe", "java.exe")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+query_type: kql
+tags:
+    - kql
+version: "2"

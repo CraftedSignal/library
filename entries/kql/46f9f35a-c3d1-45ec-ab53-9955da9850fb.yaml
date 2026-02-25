@@ -1,0 +1,19 @@
+id: 46f9f35a-c3d1-45ec-ab53-9955da9850fb
+name: NTLMv2 Hash Leak via COM Detection
+description: 'KQL Query from file: NTLMv2 Hash Leak via COM Detection'
+query: "// NTLMv2 Hash Leak via COM Detection\n// https://medium.com/@andreabocchetti88/ntlmv2-hash-leak-via-com-auto-execution-543919e577cb\n\nlet QueryPeriod = 1h;\nlet UserDeviceLogon =\nDeviceLogonEvents \n| where Timestamp > ago(QueryPeriod)\n| where ActionType == \"LogonSuccess\" and LogonType == \"Interactive\"\n| where parse_json(AdditionalFields)[\"IsLocalLogon\"] == 'true'\n| distinct DeviceName;\nDeviceNetworkEvents\n| where Timestamp > ago(QueryPeriod)\n| where RemotePort == \"445\" and RemoteIPType == \"Public\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (UserDeviceLogon)\n"
+query_type: kql
+tactics:
+    - TA0006
+    - TA0009
+    - TA0005
+    - TA0008
+techniques:
+    - T1557.001
+    - T1171
+    - T1550.002
+    - T1550
+    - T1557
+tags:
+    - kql
+version: "1"

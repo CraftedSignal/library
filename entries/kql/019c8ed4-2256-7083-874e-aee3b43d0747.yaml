@@ -1,0 +1,16 @@
+id: 019c8ed4-2256-7083-874e-aee3b43d0747
+name: PCPcat Persistence via Systemd Service
+description: Detects the creation or enabling of systemd services used by the PCPcat malware for persistence on Linux hosts. This rule identifies the creation of specific service files associated with PCPcat in systemd directories and the execution of 'systemctl' commands to enable or start these services.
+query: "// Name: PCPcat Persistence via Systemd Service\r\n// Author: detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects the creation or enabling of systemd services used by the PCPcat malware for persistence on Linux hosts.\r\n// Tactics: Persistence\r\n// Techniques: T1543.002\r\n// References: https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/\r\nlet pcpcat_services = dynamic([\r\n    \"pcpcat-gost.service\",\r\n    \"pcpcat-frp.service\",\r\n\"pcpcat-scanner.service\",\r\n    \"pcpcat-react.service\"\r\n]);\r\n(union isfuzzy=true\r\n    (\r\n        DeviceFileEvents\r\n        // Detects the creation of the malicious systemd service files.\r\n        | where ActionType == \"FileCreated\"\r\n        | where FolderPath has_any (\"/etc/systemd/system\", \"/run/systemd/system\", \"/usr/lib/systemd/system\")\r\n        | where FileName in (pcpcat_services)\r\n        | extend Activity = \"PCPcat systemd service file created\", SuspiciousProcess = InitiatingProcessFileName, CommandLine = InitiatingProcessCommandLine, ServiceName = FileName\r\n    ),\r\n    (\r\n        DeviceProcessEvents\r\n        // Detects commands used to enable or start the malicious services.\r\n        | where FileName =~ \"systemctl\"\r\n        | where ProcessCommandLine has_any (\"enable\", \"start\", \"daemon-reload\")\r\n        | where ProcessCommandLine has_any (pcpcat_services)\r\n        | extend Activity = \"PCPcat systemd service enabled or started\", SuspiciousProcess = FileName, CommandLine = ProcessCommandLine, ServiceName = extract(\"([a-z-]+.service)\", 1, ProcessCommandLine)\r\n    )\r\n)\r\n// These service names are specific to the PCPcat campaign. Future variants may use different names.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    Activity,\r\n    ServiceName,\r\n    SuspiciousProcess,\r\n    CommandLine,\r\n    AccountName,\r\n    AccountDomain,\r\n    FolderPath,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/

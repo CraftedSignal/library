@@ -1,0 +1,69 @@
+id: 9ca1ef9c-55dc-4483-8048-47d6c28d3815
+name: SharePoint Reconnaissance Attempt for CVE-2025-53770
+description: Detects reconnaissance activity associated with the exploitation of SharePoint vulnerabilities (CVE-2025-53770, CVE-2025-53771, etc.). Attackers send a specific HTTP POST request to ToolPane.aspx to probe for vulnerable servers.
+query: |
+    title: SharePoint Reconnaissance Attempt for CVE-2025-53770
+    id: 1b41b78b-160d-439e-93f7-66ab7dd8aeb1
+    status: experimental
+    description: >-
+      Detects reconnaissance activity associated with the exploitation of SharePoint
+      vulnerabilities (CVE-2025-53770, CVE-2025-53771, etc.). Attackers send a
+      specific HTTP POST request to ToolPane.aspx to probe for vulnerable servers.
+    references:
+      - >-
+        https://unit42.paloaltonetworks.com/microsoft-sharepoint-cve-2025-49704-cve-2025-49706-cve-2025-53770/
+      - >-
+        https://www.sentinelone.com/blog/sharepoint-toolshell-zero-day-exploited-in-the-wild-targets-enterprise-servers/
+      - >-
+        https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+    author: "Nomit Vyas"
+    date: 2025-08-08T00:00:00.000Z
+    tags:
+      - attack.reconnaissance
+      - attack.t1595
+      - cve.2025.53770
+      - cve.2025.53771
+      - cve.2025.49704
+      - cve.2025.49706
+    logsource:
+      category: webserver
+      product: windows
+    detection:
+      selection:
+        http.method: POST
+        url.path|endswith: /_layouts/15/ToolPane.aspx
+        url.query|contains|all:
+          - DisplayMode=Edit
+          - a=/ToolPane.aspx
+        http.user_agent: python-requests/2.32.3
+        http.referrer: null
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or monitoring scripts that use Python's requests
+        library might trigger this rule, although the combination of the specific
+        URL, parameters, and lack of a referrer is highly indicative of malicious
+        activity. Consider tuning by adding known internal IP ranges to an exclusion
+        filter if false positives occur.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1595
+tags:
+    - attack.reconnaissance
+    - attack.t1595
+    - cve.2025.53770
+    - cve.2025.53771
+    - cve.2025.49704
+    - cve.2025.49706
+author: Nomit Vyas
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/microsoft-sharepoint-cve-2025-49704-cve-2025-49706-cve-2025-53770/
+    - https://www.sentinelone.com/blog/sharepoint-toolshell-zero-day-exploited-in-the-wild-targets-enterprise-servers/
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+data_sources:
+    - webserver
+    - windows

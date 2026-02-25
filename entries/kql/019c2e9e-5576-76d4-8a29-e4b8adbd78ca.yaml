@@ -1,0 +1,18 @@
+id: 019c2e9e-5576-76d4-8a29-e4b8adbd78ca
+name: Vulnerable EnCase Driver 'OemHwUpd.sys' Activity
+description: Detects the creation or loading of the vulnerable EnCase forensic driver 'OemHwUpd.sys'. This driver is being exploited in Bring Your Own Vulnerable Driver (BYOVD) attacks to terminate security products.
+query: "// Name: Vulnerable EnCase Driver 'OemHwUpd.sys' Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-05\r\n// Description: Detects the creation or loading of the vulnerable EnCase forensic driver 'OemHwUpd.sys'. This driver is being exploited in Bring Your Own Vulnerable Driver (BYOVD) attacks to terminate security products.\r\n// MITRE TTPs: T1068, T1543.003\r\n// References: https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html\r\n// False Positive Sensitivity: Medium. Legitimate use of the old EnCase forensic suite may generate alerts. Consider excluding known forensic workstations or user accounts if this is common in your environment.\r\nlet vulnerable_driver_name = \"OemHwUpd.sys\";\r\n// For higher fidelity, add known malicious hashes of the driver here.\r\n// let vulnerable_driver_hashes = dynamic([]);\r\nunion isfuzzy=true\r\n(\r\n    // Detects the vulnerable driver file being written to disk.\r\n    DeviceFileEvents\r\n    | where FileName =~ vulnerable_driver_name\r\n    // | where SHA256 in (vulnerable_driver_hashes) // Uncomment to filter by known hashes.\r\n    | project\r\n        Timestamp,\r\n        ActionType,\r\n        DeviceName,\r\n        FileName,\r\n        FolderPath,\r\n        InitiatingProcessCommandLine,\r\n        InitiatingProcessAccountName,\r\n        SHA1,\r\n        SHA256\r\n),\r\n(\r\n    // Detects the vulnerable driver being loaded as an image.\r\n    DeviceImageLoadEvents\r\n    | where FileName =~ vulnerable_driver_name\r\n    // | where SHA256 in (vulnerable_driver_hashes) // Uncomment to filter by known hashes.\r\n    | project\r\n        Timestamp,\r\n        ActionType,\r\n        DeviceName,\r\n        FileName,\r\n        FolderPath,\r\n        InitiatingProcessCommandLine,\r\n        InitiatingProcessAccountName,\r\n        SHA1,\r\n        SHA256\r\n)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1068
+    - T1543.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.csoonline.com/article/4127968/attackers-exploit-decade%E2%80%91old-windows-driver-flaw-to-shut-down-modern-edr-defenses.html

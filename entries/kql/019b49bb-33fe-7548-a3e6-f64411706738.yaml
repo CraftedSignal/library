@@ -1,0 +1,44 @@
+id: 019b49bb-33fe-7548-a3e6-f64411706738
+name: PCPcat C2 Network Communication
+description: Detects outbound network connections to a known PCPcat C2 server IP address on specific ports used for API communication, reverse tunneling, and payload distribution. This rule identifies potential command and control activity and data exfiltration attempts by monitoring network traffic to a hardcoded malicious IP and associated non-standard ports.
+query: |
+    // Name: PCPcat C2 Network Communication
+    // Author: detections.ai
+    // Date: 2025-12-23
+    // Description: Detects outbound network connections to the known PCPcat C2 server IP on ports used for API communication, reverse tunneling, and payload distribution.
+    // Reference: https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/
+    // MITRE ATT&CK: T1041 (Exfiltration Over C2 Channel), T1571 (Non-Standard Port)
+    // False Positive Sensitivity: Medium. This IP is a known malicious indicator. False positives are unlikely unless the IP is reallocated and used for legitimate services.
+
+    DeviceNetworkEvents
+    // Search for network connections within the last day. Adjust the timeframe as needed.
+    | where Timestamp > ago(1d)
+    // Look for connections to the specific C2 IP address identified in the PCPcat campaign.
+    | where RemoteIP == "67.217.57.240"
+    // Filter for the specific ports used by the threat actor for C2 activities.
+    // 5656: Main C2 API (tasking, exfil)
+    // 888: FRP Server (reverse tunnel)
+    // 666: Distribution Server (payloads)
+    | where RemotePort in (5656, 888, 666)
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        RemoteIP,
+        RemotePort,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1571
+tags:
+    - kql
+version: "2"
+references:
+    - https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/

@@ -1,0 +1,14 @@
+id: 019c48f6-ee05-7465-a2bd-ba3b4fd01f14
+name: 'PowerShell Script Block Logging: Deobfuscation and Assembly Loading'
+description: |-
+    This rule detects PowerShell script blocks that exhibit characteristics of highly obfuscated and potentially malicious code. Specifically, it looks for the combination of:
+    1. Compression techniques (using 'IO.Compression.DeflateStream' or 'IO.Compression.GzipStream').
+    2. Base64 decoding (using 'FromBase64String' or 'Convert::FromBase64').
+    3. Assembly loading via reflection (using 'Reflection.Assembly' or 'Assembly]::Load').
+
+    This combination is frequently used by attackers to hide malicious payloads, decompress them, decode them, and then load them into memory for execution, bypassing traditional file-based detection.
+query: "index=windows sourcetype=\"WinEventLog:Microsoft-Windows-PowerShell/Operational\" EventCode=4104\r\n| search (ScriptBlockText=\"*IO.Compression.DeflateStream*\" OR ScriptBlockText=\"*IO.Compression.GzipStream*\")\r\n| search (ScriptBlockText=\"*FromBase64String*\" OR ScriptBlockText=\"*Convert::FromBase64*\")\r\n| search (ScriptBlockText=\"*Reflection.Assembly*\" OR ScriptBlockText=\"*Assembly]::Load*\" OR ScriptBlockText=\"*.Load(*\")\r\n| table _time, ComputerName, User, ScriptBlockText"
+query_type: spl
+tags:
+    - spl
+version: "1"

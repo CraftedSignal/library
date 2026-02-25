@@ -1,0 +1,88 @@
+id: 0199c9da-c897-768d-9969-d0da8cfce8c6
+name: Exploitation of Oracle E-Business Suite RCE CVE-2025-61882
+description: Detects exploitation of a remote code execution vulnerability (CVE-2025-61882) in Oracle E-Business Suite. The attack involves an authentication bypass followed by the upload and execution of a malicious XSLT template, leading to command execution and potential web shell deployment.
+query: |
+    title: Exploitation of Oracle E-Business Suite RCE CVE-2025-61882
+    id: eb079df2-904e-4313-aa2f-14cf9af2ac8c
+    status: experimental
+    description: Detects exploitation of a remote code execution vulnerability
+      (CVE-2025-61882) in Oracle E-Business Suite. The attack involves an
+      authentication bypass followed by the upload and execution of a malicious XSLT
+      template, leading to command execution and potential web shell deployment.
+    references:
+      - https://www.crowdstrike.com/en-us/blog/crowdstrike-identifies-campaign-targeting-oracle-e-business-suite-zero-day-CVE-2025-61882/
+      - https://www.oracle.com/security-alerts/alert-cve-2025-61882.html
+    author: detections.ai
+    date: 2025-10-09
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1190
+      - attack.t1059.004
+      - cve.2025.61882
+      - vendor.oracle
+      - product.e-business_suite
+      - os.linux
+    logsource:
+      category: webserver
+      product: oracle_e_business_suite
+      service: oajsp
+    detection:
+      web_rce:
+        cs-method: 'POST'
+        c-uri|contains|all:
+          - '/OA_HTML/OA.jsp'
+          - 'page=/oracle/apps/xdo/oa/template/webui/TemplatePreviewPG'
+      web_shell:
+        c-uri|contains: '/OA_HTML/help/state/content/destination./navId.1/navvSetId.iHelp/'
+      linux_recon:
+        ParentImage|endswith: '/java'
+        Image|endswith:
+          - '/bash'
+          - '/sh'
+        CommandLine|contains:
+          - 'cat /etc/fstab'
+          - 'cat /etc/hosts'
+          - 'df -h'
+          - 'ip addr'
+          - 'cat /proc/net/arp'
+      condition: web_rce or web_shell or linux_recon
+    falsepositives:
+      - Legitimate administrative activity on Oracle EBS servers could trigger parts
+        of this rule. The reconnaissance commands might be run by an administrator,
+        though spawning from a 'java' process is less common. The web RCE pattern is
+        specific but could theoretically be triggered by a developer or
+        administrator testing template functionality. It is highly recommended to
+        scope this rule to known Oracle E-Business Suite servers to reduce potential
+        noise.
+    level: high
+    associated_cves:
+      - CVE-2025-61882
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+    - TA0003
+techniques:
+    - T1190
+    - T1059.004
+    - T1505.003
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1190
+    - attack.t1059.004
+    - cve.2025.61882
+    - vendor.oracle
+    - product.e-business_suite
+    - os.linux
+author: detections.ai
+version: "3"
+references:
+    - https://www.crowdstrike.com/en-us/blog/crowdstrike-identifies-campaign-targeting-oracle-e-business-suite-zero-day-CVE-2025-61882/
+    - https://www.oracle.com/security-alerts/alert-cve-2025-61882.html
+data_sources:
+    - webserver
+    - oracle_e_business_suite
+    - oajsp

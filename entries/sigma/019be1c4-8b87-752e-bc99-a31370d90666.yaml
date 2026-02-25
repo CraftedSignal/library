@@ -1,0 +1,64 @@
+id: 019be1c4-8b87-752e-bc99-a31370d90666
+name: File Association Hijacking for Denial of Service
+description: Detects the modification of file association registry keys to hijack the default 'open' action. This technique is used by malware to prevent users from launching applications or opening files by redirecting the action to a command that displays a message, effectively causing a denial of service on the endpoint.
+query: |
+    title: File Association Hijacking for Denial of Service
+    id: 2ee15b2f-5308-466d-aee7-feb3b265c21c
+    status: experimental
+    description: Detects the modification of file association registry keys to
+      hijack the default 'open' action. This technique is used by malware to prevent
+      users from launching applications or opening files by redirecting the action
+      to a command that displays a message, effectively causing a denial of service
+      on the endpoint.
+    references:
+      - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    author: detections.ai
+    date: 2026-01-21
+    tags:
+      - attack.impact
+      - attack.t1499
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection_path:
+        TargetObject|startswith:
+          # Checks for modifications in the HKEY_CLASSES_ROOT hive.
+          - 'HKEY_CLASSES_ROOT\'
+          - 'HKCR\'
+        TargetObject|endswith: '\shell\open\command' # Targets the default open command for a file association.
+      selection_command:
+        Details|contains|all:
+          # Looks for the command structure and actor-specific identifier.
+          - 'cmd'
+          - '/c'
+          - 'echo'
+          - 'pause'
+          - '@NeverMind12F'
+      condition: selection_path and selection_command
+    falsepositives:
+      - This detection is highly specific to the observed malware campaign due to
+        the unique Telegram handle and command structure. Legitimate use is highly
+        unlikely. To broaden detection for similar techniques, consider removing the
+        '@NeverMind12F' value, but this will increase the potential for false
+        positives from custom scripts or system administration tools.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0004
+    - TA0003
+techniques:
+    - T1499
+    - T1546.001
+tags:
+    - attack.impact
+    - attack.t1499
+author: detections.ai
+version: "4"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+data_sources:
+    - registry_set
+    - windows

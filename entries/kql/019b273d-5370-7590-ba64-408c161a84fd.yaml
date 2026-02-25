@@ -1,0 +1,58 @@
+id: 019b273d-5370-7590-ba64-408c161a84fd
+name: Malicious Lightshot.dll
+description: This query was build for hunting IOCs from article The VS Code Malware That Captures Your Screen
+query: |-
+    // Define IOCs
+    let MaliciousDomains = pack_array(
+        "syn1112223334445556667778889990.org",
+        "mentality.cloud"
+    );
+    let MaliciousHashes = pack_array(
+        "369479bd9a248c9448705c222d81ff1a0143343a138fc38fc0ea00f54fcc1598" // Malicious DLL
+    );
+    let SuspiciousFileNames = pack_array(
+        "Lightshot.exe",
+        "Lightshot.dll",
+        "Lightshot.zip",
+        ".done",
+        "btc-ext.log",
+        "codo-ai.log"
+    );
+    let SuspiciousFolders = pack_array(
+        @"\AppData\Local\Temp\Lightshot",
+        @"\AppData\Local\Evelyn"
+    );
+    // Begin Search
+    union
+        // 1. Network Activity (HTTP/HTTPS Connections)
+        (DeviceNetworkEvents
+        | where RemoteUrl has_any (MaliciousDomains)
+           or (RemoteUrl contains "server09.mentality.cloud" and RemotePort == 40207)
+        | extend SuspicionType = "Network C2 Connection", DNSQuery = ""),
+        // 3. File Creation/Modification (Dropper activity)
+        (DeviceFileEvents
+        | where SHA256 in (MaliciousHashes)
+           or (FolderPath has_any (SuspiciousFolders))
+           or (FileName in~ (SuspiciousFileNames) and FolderPath has @"\Temp\")
+        | extend SuspicionType = "File System Artifact", RemoteUrl = "", RemoteIP = "", RemotePort = 0, DNSQuery = ""),
+        // 4. Process Execution (Malware Running)
+        (DeviceProcessEvents
+        | where SHA256 in (MaliciousHashes)
+           or (FolderPath has_any (SuspiciousFolders))
+           or (ProcessCommandLine has_any (SuspiciousFolders))
+        | extend SuspicionType = "Process Execution", RemoteUrl = "", RemoteIP = "", RemotePort = 0, DNSQuery = ""),
+        // 5. DLL Hijacking (Image Load)
+        (DeviceImageLoadEvents
+        | where SHA256 in (MaliciousHashes)
+           or (FileName =~ "Lightshot.dll" and FolderPath has @"\AppData\Local\Temp\Lightshot")
+        | extend SuspicionType = "DLL Hijacking Event", RemoteUrl = "", RemoteIP = "", RemotePort = 0, DNSQuery = "")
+    | project TimeGenerated, DeviceName, SuspicionType, ActionType, FileName, FolderPath, SHA256, RemoteUrl, DNSQuery, RemoteIP, ProcessCommandLine, InitiatingProcessCommandLine
+    | order by TimeGenerated desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Idan Dardikman
+version: "1"
+references:
+    - https://www.koi.ai/blog/the-vs-code-malware-that-captures-your-screen

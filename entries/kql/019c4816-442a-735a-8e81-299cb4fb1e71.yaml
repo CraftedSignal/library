@@ -1,0 +1,14 @@
+id: 019c4816-442a-735a-8e81-299cb4fb1e71
+name: 'MacOS logs cleared '
+description: Detects logs cleared  in MacOS systems
+query: "//reference:https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1070.003/T1070.003.md\r\nlet shell_history = dynamic([\".bash_history\",\".zsh_history\"]);\r\nlet hist_variable = dynamic ([\"HISTFILESIZE\",\"HISTSIZE\",\"HISTFILE\"]);\r\nDeviceProcessEvents\r\n| where FileName == \"rm\"\r\n| where ProcessCommandLine has_any (shell_history )\r\n| extend Activity = \"Clears bash history via rm\"\r\n| union\r\nDeviceProcessEvents\r\n| where FileName == \"cat\"\r\n| where ProcessCommandLine has (\"/dev/null\")\r\n| where ProcessCommandLine has_any (shell_history)\r\n| extend Activity = \"Clears bash history via cat /dev/null\"\r\n| union \r\nDeviceProcessEvents\r\n| where FileName == \"ln\"\r\n| where ProcessCommandLine has_all (\"-f\",\"/dev/null\")\r\n| where ProcessCommandLine has_any (shell_history)\r\n| extend Activity = \"Clears bash history via a symlink to /dev/null\"\r\n| union \r\nDeviceProcessEvents\r\n| where FileName == \"export\"\r\n| where ProcessCommandLine has_any (hist_variable)\r\n| where ProcessCommandLine has (\"0\")\r\n| extend Activity = \"Setting the history size variable to zero\"\r\n| union \r\nDeviceProcessEvents\r\n| where FileName == \"set\"\r\n| where ProcessCommandLine has_all (\"+o\",\"history\")\r\n| extend Activity = \"disable bash history logging\" "
+query_type: kql
+severity: medium
+techniques:
+    - T1070.002
+tags:
+    - kql
+author: Enzima45
+version: "1"
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/master/atomics/T1070.003/T1070.003.md

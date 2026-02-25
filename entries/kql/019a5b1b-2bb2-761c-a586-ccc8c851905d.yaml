@@ -1,0 +1,24 @@
+id: 019a5b1b-2bb2-761c-a586-ccc8c851905d
+name: '[EX] - Detecting abuse of SyncThing tool to steal data'
+description: |+
+    Syncthing is a peer-to-peer file synchronization utility, designed to sync files between devices on a local network or between remote devices over the Internet.
+    This utility to exfiltrate data, has been already abused  to exfiltrate data by Malicious actor.
+    The following KQL Query detect connections to external IPs via the mentioned software and the corresponding country.
+
+query: |-
+    DeviceNetworkEvents
+    | extend geo_info = tostring(geo_info_from_ip_address(RemoteIP).country)
+    | where InitiatingProcessCommandLine has "syncthing.exe --no-browser"
+    | summarize by DeviceName,LocalIP, RemoteIP,geo_info, InitiatingProcessVersionInfoProductName, InitiatingProcessCommandLine, ActionType
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/ukraine-says-hackers-abuse-syncthing-tool-to-steal-data/

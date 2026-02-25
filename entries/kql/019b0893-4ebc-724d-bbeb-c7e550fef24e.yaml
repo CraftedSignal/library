@@ -1,0 +1,15 @@
+id: 019b0893-4ebc-724d-bbeb-c7e550fef24e
+name: Application Collecting Device Information via Google Analytics
+description: This rule detects applications, other than common web browsers, that are making network connections to Google Analytics domains and also contain 'microsoft' in the remote URL. This could indicate an application collecting device information or other telemetry and exfiltrating it via Google Analytics, potentially for malicious purposes or unauthorized data collection.
+query: "// Application colecting device information via google analytics \r\nDeviceNetworkEvents\r\n|where Timestamp > ago(30d)\r\n| where RemoteUrl has \"google-analytics.com\"\r\n| where InitiatingProcessFileName !in~ (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\", \"opera.exe\", \"iexplore.exe\")\r\n|where RemoteUrl contains \"microsoft\"\r\n|summarize count(), dcount(DeviceName) by InitiatingProcessFileName, InitiatingProcessSHA256\r\n// you can further filter for application that are unsigned and have low GlobalPrevalence\r\n// |invoke FileProfile(InitiatingProcessSHA256,1000)\r\n// | where SignatureState == @\"Unsigned\"\r\n// |project-reorder dcount_DeviceName, GlobalPrevalence"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1567
+    - T1071
+tags:
+    - kql
+version: "1"

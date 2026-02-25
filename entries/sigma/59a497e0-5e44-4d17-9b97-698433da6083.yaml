@@ -1,0 +1,75 @@
+id: 59a497e0-5e44-4d17-9b97-698433da6083
+name: Suspicious NPM Post-Install Script Execution
+description: Detects the execution of suspicious commands commonly used for reconnaissance or networking, where the parent process command indicates it was triggered by an npm 'postinstall' script. This behavior is associated with the XORIndex loader used in the "Contagious Interview" campaign.
+query: |
+    title: Suspicious NPM Post-Install Script Execution
+    id: d50a0a53-218e-42f0-9993-5c62b04e372a
+    status: experimental
+    description: >-
+      Detects the execution of suspicious commands commonly used for reconnaissance
+      or networking, where the parent process command indicates it was
+      triggered by an npm 'postinstall' script. This behavior is associated with the
+      XORIndex loader used in the "Contagious Interview" campaign.
+    references:
+      - https://www.bleepingcomputer.com/news/security/north-korean-xorindex-malware-hidden-in-67-malicious-npm-packages/
+    author: detections.ai
+    date: 2025-07-23
+    tags:
+      - attack.execution
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_child:
+        # Detects suspicious child processes often used for recon or downloading next stages
+        Image|endswith:
+          - '\curl.exe'
+          - '\wget.exe'
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\whoami.exe'
+          - '\hostname.exe'
+          - '\ipconfig.exe'
+          - '\systeminfo.exe'
+          - '\net.exe'
+          - '\net1.exe'
+      selection_parent_context:
+        # The parent is often a shell or node itself, executing the script.
+        # The command line will contain keywords for npm lifecycle scripts.
+        ParentCommandLine|contains:
+          - 'postinstall'
+          - 'preinstall' # Also a common abuse vector
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate npm packages may use post-install scripts to run system commands,
+        download dependencies, or perform other setup tasks.
+      - If this is too noisy, consider adding more specific parent process image
+        conditions (e.g., cmd.exe, node.exe) or excluding known-good package
+        installation command lines.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0007
+    - TA0011
+techniques:
+    - T1059.007
+    - T1033
+    - T1016
+    - T1049
+    - T1057
+    - T1082
+    - T1018
+    - T1090
+tags:
+    - attack.execution
+    - attack.t1059.007
+author: detections.ai
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/north-korean-xorindex-malware-hidden-in-67-malicious-npm-packages/
+data_sources:
+    - process_creation
+    - windows

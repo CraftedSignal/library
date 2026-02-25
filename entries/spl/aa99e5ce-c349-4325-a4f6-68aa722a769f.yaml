@@ -1,0 +1,44 @@
+id: aa99e5ce-c349-4325-a4f6-68aa722a769f
+name: 'Akamai WAF: Broad Scanning or Reconnaissance Activity'
+description: This rule identifies a source IP address that is triggering a variety of Akamai WAF rules across multiple hosts, which is indicative of broad scanning or reconnaissance activity. It aggregates events by source IP within 30-minute windows, counting distinct WAF rules and hosts targeted. The rule then applies thresholds to identify suspicious behavior, specifically looking for an IP that triggers more than 5 distinct WAF rules, targets more than 2 distinct hosts, and generates over 10 denied events.
+query: |
+    `comment("This detection identifies a source IP address that is triggering a variety of Akamai WAF rules across multiple hosts, which is indicative of a broad scanning or reconnaissance activity.")`
+    `comment("The thresholds for distinct_rule_count and distinct_host_count are starting points and may need to be tuned for your environment. Higher values will reduce false positives but may miss more subtle scanning.")`
+    `comment("This search assumes you have a macro named 'akamai' that points to your Akamai WAF data (e.g., index=waf sourcetype=akamai:waf). It also assumes field names like 'action', 'rule_id', 'http_host', and 'src_ip'. Please validate and update these field names based on your data model.")`
+
+    `akamai`
+    `comment("Filter for 'deny' actions to focus on high-confidence malicious events.")`
+    | where action="deny"
+
+    `comment("Group events into 30-minute windows to analyze activity over a meaningful period.")`
+    | bucket _time span=30m
+
+    `comment("Aggregate events by source IP. Count distinct WAF rules and hosts targeted, and list their names.")`
+    | stats
+        dc(rule_id) as distinct_rule_count,
+        values(rule_id) as rules_triggered,
+        dc(http_host) as distinct_host_count,
+        values(http_host) as hosts_targeted,
+        count
+        by _time, src_ip
+
+    `comment("Apply thresholds to identify suspicious behavior. An attacker is likely to trigger many rule types across several applications.")`
+    `comment("Potential False Positives: This could trigger on legitimate security scanners or large corporate NATs/proxies. Consider adding known scanner IPs or corporate IP ranges to a 'allowlist' lookup to filter them out.")`
+    | where distinct_rule_count > 5 AND distinct_host_count > 2 AND count > 10
+
+    `comment("Format the output for readability and triage.")`
+    | rename src_ip as "Suspected Attacker IP", count as "Total Denied Events", distinct_rule_count as "Distinct Rules Triggered", distinct_host_count as "Distinct Hosts Targeted"
+    | fields - _time
+query_type: spl
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1595
+    - T1595.002
+    - T1595.001
+    - T1592
+    - T1590
+tags:
+    - spl
+version: "1"

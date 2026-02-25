@@ -1,0 +1,15 @@
+id: 019c06f1-6781-76eb-bfdc-670f84b266a6
+name: KQL - Email links click/ Email attachment open before recall.
+description: |
+    This KQL check for email links that were clicked/ email attachment that were opened before recall
+query: "// Detect URL clicks tied to the specific email\r\nlet UrlClicks =\r\n    UrlClickEvents\r\n    | where ActionType in (\"ClickAllowed\", \"ClickBlocked\")\r\n    | summarize UrlClickTime = min(TimeGenerated) by NetworkMessageId;\r\n// Detect attachment opens tied to the specific email\r\nlet AttachmentOpened =\r\n    EmailAttachmentInfo\r\n    | where isnotempty(FileName)\r\n    | summarize AttachmentTime = min(TimeGenerated) by NetworkMessageId;\r\n// Identify recalled email alerts\r\nlet RecalledEmails =\r\n    SecurityAlert\r\n    | where DisplayName has \"removed after delivery\"\r\n    | extend IncidentId = tostring(parse_json(ExtendedProperties).IncidentId)\r\n    | mv-expand Entities = todynamic(Entities)\r\n    | extend\r\n        Sender = tostring(Entities.Sender),\r\n        Recipient = tostring(Entities.Recipient),\r\n        Subject = tostring(Entities.Subject),\r\n        NetworkMessageId = tostring(Entities.NetworkMessageId),\r\n        RecallAlertTime = TimeGenerated\r\n    | where isnotempty(NetworkMessageId);\r\n// Join interaction evidence\r\nRecalledEmails\r\n| join kind=leftouter UrlClicks on NetworkMessageId\r\n| join kind=leftouter AttachmentOpened on NetworkMessageId\r\n| where\r\n    (isnotempty(UrlClickTime) and UrlClickTime <= RecallAlertTime)\r\n    or\r\n    (isnotempty(AttachmentTime) and AttachmentTime <= RecallAlertTime)\r\n// Label interaction type\r\n| extend InteractionType =\r\n    case(\r\n        isnotempty(UrlClickTime) and isnotempty(AttachmentTime), \"URL Clicked + Attachment Opened\",\r\n        isnotempty(UrlClickTime), \"URL Clicked\",\r\n        isnotempty(AttachmentTime), \"Attachment Opened\",\r\n        \"Unknown\"\r\n    )\r\n// Summarize for SOC consumption\r\n| summarize\r\n    FirstSeen = min(RecallAlertTime),\r\n    LastSeen = max(RecallAlertTime),\r\n    Recipients = make_set(Recipient),\r\n    RecipientCount = dcount(Recipient),\r\n    InteractionTypes = make_set(InteractionType),\r\n    InteractionTimes = make_set(coalesce(UrlClickTime, AttachmentTime))\r\n    by Sender, Subject, IncidentId\r\n| project\r\n    FirstSeen,\r\n    LastSeen,\r\n    Sender,\r\n    Subject,\r\n    RecipientCount,\r\n    Recipients,\r\n    InteractionTypes,\r\n    IncidentId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "2"

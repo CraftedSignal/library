@@ -1,0 +1,26 @@
+id: 7a7d03fc-7623-41c7-80fd-7f38ab68e36c
+name: Azure cloud account takeover (ATO) Reconnaissance Detection
+description: KQL Query
+query: "//Azure cloud account takeover (ATO) Reconnaissance Detection\n//https://www.linkedin.com/posts/activity-7179350804431085569-CcT_/\n\n//In Feb, Proofpoint published \"Ongoing Malicious Campaign Impacting Microsoft Azure Cloud Environments\"\n//https://lnkd.in/d7A_evhi\n\n//Based on the published blog data, I was able to construct a KQL threat hunting query to correlate against Microsoft Graph commands used by threat actors to conduct tenant resource reconnaissance. Do make sure you send Microsoft Graph activity logs to a Log Analytics workspace (https://lnkd.in/ghqQiiEg) in order to be able to detect this type of reconnaissance.\n\n//Below are the two types of graph commands your KQL needs to check in the RequestUri for potential tenant reconnaissance activity.\n\n//List Tenants\n//https://lnkd.in/gtPB_Mvq\n\n//List subscribedSkus\n//https://lnkd.in/gmi8uEa8 \n\n//The below KQL help you check if you are potentially impacted by this ATO campaign.\n\nlet ATOIPs =\nSigninLogs\n| where TimeGenerated > ago(90d)\n| where UserAgent == \"Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36\"\n| where AppDisplayName == \"OfficeHome\"\n| distinct IPAddress;\nMicrosoftGraphActivityLogs\n| where TimeGenerated > ago(90d)\n| where IPAddress has_any (ATOIPs)\n| where RequestUri contains \"tenantRelationships\" or RequestUri contains \"subscribedSkus\"\n\n// MITRE ATT&CK Mapping\n\n// KQL code is designed to detect suspicious activities related to specific user agents and application usage, and then correlate these activities with specific Microsoft Graph API requests. The associated MITRE ATT&CK techniques primarily involve the use of valid cloud accounts and web protocols for communication and discovery activities.\n\n// T1087.004: Account Discovery: Cloud Account - Identifying cloud accounts and their roles.\n// T1078.004: Valid Accounts: Cloud Accounts - Continued use of valid credentials to access cloud services.\n// T1071.001: Application Layer Protocol: Web Protocols - The use of web protocols for communication.\n"
+query_type: kql
+tactics:
+    - TA0007
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0043
+    - TA0008
+techniques:
+    - T1087.004
+    - T1078.004
+    - T1071.001
+    - T1526
+    - T1102
+    - T1021.007
+    - T1098
+    - T1136
+tags:
+    - kql
+version: "1"

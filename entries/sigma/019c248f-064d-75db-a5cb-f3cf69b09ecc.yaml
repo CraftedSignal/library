@@ -1,0 +1,36 @@
+id: 019c248f-064d-75db-a5cb-f3cf69b09ecc
+name: Evasive Panda DNS Poisoning Lure dictionary.com
+description: This rule detects highly specific URI patterns associated with Evasive Panda DNS poisoning lures. It looks for requests to 'dictionary.com' that include 'image?id=' and 'dict-homepage.png' within the URI. This combination of URI components is considered high-fidelity for detecting the second-stage shellcode fetching mechanism used by Evasive Panda. The rule explicitly states that legitimate dictionary.com image requests rarely use this exact query pattern, making this a targeted detection for the described threat.
+query: |-
+    title: Evasive Panda DNS Poisoning Lure dictionary.com (High Fidelity)
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda007
+    status: experimental
+    description: |
+        High-fidelity detection of Evasive Panda DNS poisoning lure. Context: specific resource URI used to fetch
+        second-stage shellcode - image?id= and product=dict-homepage.png (and optionally id=115832434703699686).
+        Legitimate dictionary.com image requests rarely use this exact query pattern. Require both URI components.
+    references:
+        - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.command_and_control
+        - attack.t1071
+    logsource:
+        category: proxy
+        product: windows
+    detection:
+        selection_domain:
+            c-uri|contains: 'dictionary.com'
+            c-uri|contains: 'image?id='
+            c-uri|contains: 'dict-homepage.png'
+        selection_alt:
+            RequestUrl|contains: 'dictionary.com'
+            RequestUrl|contains: 'image?id='
+            RequestUrl|contains: 'dict-homepage.png'
+        condition: selection_domain or selection_alt
+    falsepositives:
+        - Legitimate requests to dictionary.com with same URI pattern (uncommon)
+    level: high
+query_type: sigma
+version: "2"

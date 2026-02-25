@@ -1,0 +1,87 @@
+id: 019c4317-bb70-714c-adab-7cdf57da4100
+name: Successful VPN Connection
+description: Detects successful VPN connections from various common security devices logging to CommonSecurityLog. Monitoring successful VPN logins is crucial for tracking remote access and identifying potential unauthorized access, especially when correlated with other events like logins from unusual locations or impossible travel scenarios.
+query: |
+    title: Successful VPN Connection
+    id: ea0d50aa-ff61-436c-a335-0f1efb979377
+    status: experimental
+    description: Detects successful VPN connections from various common security
+      devices logging to CommonSecurityLog. Monitoring successful VPN logins is
+      crucial for tracking remote access and identifying potential unauthorized
+      access, especially when correlated with other events like logins from unusual
+      locations or impossible travel scenarios.
+    references:
+      - https://learn.microsoft.com/en-us/azure/sentinel/cef-name-mapping
+    author: detections.ai
+    date: 2025-11-18
+    tags:
+      - attack.initial_access
+      - attack.t1133
+    logsource:
+      product: azure
+      service: sentinel
+      category: commonsecuritylog
+    detection:
+      generic_vpn:
+        Activity|contains:
+          - 'vpn-login'
+          - 'vpn-logon'
+          - 'sslvpn-login'
+          - 'sslvpn-logon'
+          - 'vpn connect'
+        DeviceAction|contains:
+          - 'success'
+          - 'allow'
+          - 'accept'
+          - 'succeeded'
+          - 'successful'
+      paloalto:
+        DeviceVendor: 'Palo Alto Networks'
+        Activity|contains: 'globalprotect'
+        Activity|endswith: 'succ'
+      cisco_asa:
+        DeviceVendor: 'Cisco'
+        DeviceProduct: 'ASA'
+        DeviceEventClassID:
+          - '722051'
+          - '113019'
+          - '716038'
+      fortinet:
+        DeviceVendor: 'Fortinet'
+        DeviceProduct: 'FortiGate'
+        AdditionalExtensions|contains|all:
+          - 'subtype=vpn'
+          - 'action=ssl-login'
+          - 'level=notice'
+      checkpoint:
+        DeviceVendor: 'Check Point'
+        Activity: 'Logon'
+        Reason: 'user authenticated'
+        AdditionalExtensions|contains: 'product=VPN-1 & FireWall-1'
+      condition: 1 of them
+    falsepositives:
+      - This rule will trigger on all legitimate successful VPN connections. It is
+        intended for visibility and as a baseline for more advanced detections
+        (e.g., impossible travel, logins from new geolocations, or logins outside of
+        business hours).
+      - Consider filtering by known corporate IP ranges or expected user groups if
+        noise is too high.
+    level: low
+query_type: sigma
+severity: low
+tactics:
+    - TA0003
+    - TA0001
+techniques:
+    - T1133
+tags:
+    - attack.initial_access
+    - attack.t1133
+author: detections.ai
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/azure/sentinel/cef-name-mapping
+data_sources:
+    - commonsecuritylog
+    - azure
+    - sentinel

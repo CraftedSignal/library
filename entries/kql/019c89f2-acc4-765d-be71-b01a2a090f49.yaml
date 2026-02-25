@@ -1,0 +1,16 @@
+id: 019c89f2-acc4-765d-be71-b01a2a090f49
+name: RunMRU ClickFix Detection
+description: This rule detects modifications to the 'RunMRU' registry key, specifically looking for new or changed entries where the command string is unusually long (greater than 50 characters). This can indicate an attempt to persist or execute malicious code via the RunMRU list, which stores recently executed commands.
+query: "// ClickFix: Discovery of RunMRU Command\r\nDeviceRegistryEvents\r\n| where Timestamp >= ago(7d)\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey has @\"Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\"\r\n| extend RunCommand = RegistryValueData\r\n| extend RunCommandLength = strlen(RunCommand)\r\n| where RunCommandLength > 50\r\n// Exclusions\r\n| where not(RunCommand has_any ( \"SAMPLE1\",  \"SAMPLE2\"))"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1012
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://thehackernews.com/2026/02/microsoft-discloses-dns-based-clickfix.html

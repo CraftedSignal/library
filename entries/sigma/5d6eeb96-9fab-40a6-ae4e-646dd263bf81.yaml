@@ -1,0 +1,29 @@
+id: 5d6eeb96-9fab-40a6-ae4e-646dd263bf81
+name: RDP tunneling via ngrok detected
+description: Detects scenarios where an attacker uses RDP tunneling to redirect traffic to a C&C target.
+query: "title: RDP tunneling via ngrok detected\ndescription: Detects scenarios where an attacker uses RDP tunneling to redirect traffic to a C&C target.\nreferences:\n- https://twitter.com/malmoeb/status/1519710302820089857\n- https://twitter.com/Purp1eW0lf/status/1624073100420677633\n- https://www.mandiant.com/resources/blog/bypassing-network-restrictions-through-rdp-tunneling\n- https://www.huntress.com/blog/abusing-ngrok-hackers-at-the-end-of-the-tunnel\n- https://www.logpoint.com/en/blog/a-deep-look-at-the-darkside-ransomware-operators-and-their-affiliates/#\n- https://www.mandiant.com/resources/blog/sim-swapping-abuse-azure-serial\ntags:\n- attack.command_and_control\n- attack.t1572 # Protocol Tunneling \n- attack.lateral_movement\n- attack.t1021.001 # Remote Services: Remote Desktop Protocol \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: rdp\ndetection: # suspicious paramter in the IP field should be : \"::%16777216\"\n  selection1:\n    EventID: \n      - 21 # session logon succeeded\n      - 24 # session has been disconnected\n      - 25 # session reconnection successed\n    Channel: Microsoft-Windows-TerminalServices-LocalSessionManager/Operational\n    EventXML.Address|startswith: '::%' # IP address is provided in \"EventXML.Address\"\n\n  selection2:\n    EventID: 1149 # 'User authentication succeeded': DOES NOT indicate a successful user authentication !!!\n    Channel: Microsoft-Windows-TerminalServices-RemoteConnectionManager/Operational\n    EventXML.Param3|startswith: '::%' # IP address is provided in \"EventXML.Param3\"\n\n  condition: selection1 or selection2\nfalsepositives:\n- Nested RDP session on the same host using ::1 as destination IP\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0008
+techniques:
+    - T1572
+    - T1021.001
+tags:
+    - attack.command_and_control
+    - attack.t1572
+    - attack.lateral_movement
+    - attack.t1021.001
+author: mdecrevoisier
+version: "1"
+references:
+    - https://twitter.com/malmoeb/status/1519710302820089857
+    - https://twitter.com/Purp1eW0lf/status/1624073100420677633
+    - https://www.mandiant.com/resources/blog/bypassing-network-restrictions-through-rdp-tunneling
+    - https://www.huntress.com/blog/abusing-ngrok-hackers-at-the-end-of-the-tunnel
+    - https://www.logpoint.com/en/blog/a-deep-look-at-the-darkside-ransomware-operators-and-their-affiliates/#
+    - https://www.mandiant.com/resources/blog/sim-swapping-abuse-azure-serial
+data_sources:
+    - rdp
+    - windows

@@ -1,0 +1,12 @@
+id: 019c24b9-2da5-747a-a10f-ad3d8b721373
+name: Possible ransoware activity
+description: The query aim to identify a typical ransomware behavior which is file encryption follow by file deletion
+query: "let Timeframe = 5m;\r\nDeviceFileEvents\r\n| where ActionType == \"FileDeleted\"\r\n| summarize make_set(Timestamp),count() by DeviceName,bin(Timestamp,Timeframe)\r\n| where count_ > 500\r\n| extend FilesExcluded = count_\r\n| order by count_ desc \r\n| join kind=inner ( \r\nDeviceProcessEvents\r\n| where FileName  =~ \"cipher.exe\"\r\n| summarize CipherCount = dcount(ProcessCommandLine), \r\n  CipherList = make_set(ProcessCommandLine) by DeviceName, bin(Timestamp,Timeframe) \r\n   //cipher.exe accessing multiple drives in a short timeframe \r\n| where CipherCount > 1\r\n) on DeviceName,Timestamp\r\n| project DeviceName,CipherList,CipherCount,FilesExcluded"
+query_type: kql
+severity: medium
+techniques:
+    - T1486
+tags:
+    - kql
+author: Enzima45
+version: "1"

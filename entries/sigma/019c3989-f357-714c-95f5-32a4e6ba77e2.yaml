@@ -1,0 +1,61 @@
+id: 019c3989-f357-714c-95f5-32a4e6ba77e2
+name: DeadVax Process Injection into Trusted Targets
+description: |
+    Malware often tries to hide inside programs that users trust. In this attack, it runs its code inside Windows apps like OneDrive, RuntimeBroker, or similar system processes. These apps are signed by Microsoft and run in the background, so they attract less attention. The malware uses PowerShell to put its code into those processes. Once inside, the malicious code runs as if it were part of the trusted app. This makes it harder for security tools and users to spot. Normal use of these apps does not involve PowerShell accessing them in this way. Security teams should treat PowerShell or a renamed PowerShell accessing these specific processes as a strong sign of an attack. This rule helps detect that behaviour.
+query: |
+    title: "DeadVax Process Injection into Trusted Targets"
+    id: c3d4e5f6-a7b8-4c5d-9e0f-deadvax004
+    status: experimental
+    description: >
+      Malware often tries to hide inside programs that users trust. In this attack,
+      it runs its code inside Windows apps like OneDrive, RuntimeBroker, or similar
+      system processes. These apps are signed by Microsoft and run in the
+      background, so they attract less attention. The malware uses PowerShell to put
+      its code into those processes. Once inside, the malicious code runs as if it
+      were part of the trusted app. This makes it harder for security tools and
+      users to spot. Normal use of these apps does not involve PowerShell accessing
+      them in this way. Security teams should treat PowerShell or a renamed
+      PowerShell accessing these specific processes as a strong sign of an attack.
+      This rule helps detect that behaviour.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+      - attack.defense-evasion
+      - attack.t1055.001
+    logsource:
+      category: process_access
+      product: windows
+    detection:
+      selection_target:
+        TargetImage|endswith|any:
+          - \RuntimeBroker.exe
+          - \OneDrive.exe
+          - \taskhostw.exe
+          - \sihost.exe
+      selection_source:
+        SourceImage|endswith|any:
+          - \powershell.exe
+          - \mbs.exe
+      condition: selection_target and selection_source
+    falsepositives:
+      - Legitimate process monitoring
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.001
+tags:
+    - attack.defense-evasion
+    - attack.t1055.001
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_access
+    - windows

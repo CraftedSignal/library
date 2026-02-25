@@ -1,0 +1,76 @@
+id: 0199ab3c-b8d7-75da-9402-7f0bedf1afba
+name: Confucius PowerShell Download and Execution
+description: Detects PowerShell commands using `curl -o` to download `.dll`, `.pyc`, or other suspicious file extensions to temporary user directories. This technique was observed being used by the Confucius group to download their malware components.
+query: |
+    title: Confucius PowerShell Download and Execution
+    description: Detects PowerShell commands using `curl -o` to download `.dll`,
+      `.pyc`, or other suspicious file extensions to temporary user directories.
+      This technique was observed being used by the Confucius group to download
+      their malware components.
+    references:
+      - https://www.fortinet.com/blog/threat-research/confucius-espionage-from-stealer-to-backdoor
+    author: detections.ai
+    date: 2025-10-03
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.command_and_control
+      - attack.t1105
+      - threat_actor.confucius
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_powershell:
+        # Detects PowerShell process
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+      selection_curl:
+        # Detects curl being used to write a file to disk
+        CommandLine|contains|all:
+          - 'curl'
+          - '-o'
+      selection_temp_dirs:
+        # Detects download to common temp/local appdata folders
+        CommandLine|contains:
+          - '$env:TMP'
+          - '$env:TEMP'
+          - '$env:LOCALAPPDATA'
+          - '$pa+' # Variable used in the observed sample
+          - '\AppData\Local\'
+          - '\Temp\'
+      selection_file_types:
+        # Detects download of specific malicious file types
+        CommandLine|contains:
+          - '.dll'
+          - '.pyc'
+          - '.rko' # Observed extension in Confucius campaigns
+          - '.kut' # Observed extension in Confucius campaigns
+      condition: all of selection*
+    falsepositives:
+      - Legitimate software update mechanisms or administrative scripts might use
+        similar commands. Consider filtering based on parent processes or known
+        script locations if false positives occur.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.command_and_control
+    - attack.t1105
+    - threat_actor.confucius
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/confucius-espionage-from-stealer-to-backdoor
+data_sources:
+    - process_creation
+    - windows

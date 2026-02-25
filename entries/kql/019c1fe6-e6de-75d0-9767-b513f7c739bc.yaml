@@ -1,0 +1,9 @@
+id: 019c1fe6-e6de-75d0-9767-b513f7c739bc
+name: 'Admin Service Activity: Actual vs Expected Baseline'
+description: This rule detects anomalous logon activity for accounts containing 'your admin service account name' by comparing actual logon volumes against a dynamically generated machine learning baseline. It focuses on identifying deviations from expected behavior for these administrative service accounts over a 14-day lookback period, with a sensitivity threshold of 2.5.
+query: "// TITLE: Visual Anomaly Report - Actual vs Baseline\r\n// Author: Daniel Miller\r\n// VISUALIZATION: Renders a timechart for visual hunting and or reporting\r\n//\r\nlet Lookback = 14d;\r\nlet TimeStep = 1h;\r\nlet Sensitivity = 2.5; \r\nIdentityLogonEvents\r\n| where Timestamp > ago(Lookback)\r\n| where AccountUpn contains \" your admin service account name\" // Specific focus for the report\r\n| make-series \r\n    ActualVolume = count() \r\n    on Timestamp step TimeStep by AccountUpn\r\n// Generate the machine learning baseline\r\n| extend (Flag, Score, Baseline) = series_decompose_anomalies(ActualVolume, Sensitivity, -1, 'linefit')\r\n| mv-expand Timestamp, ActualVolume, Baseline\r\n| project Timestamp, AccountUpn, ActualVolume, Baseline = toint(Baseline)\r\n| render timechart with (title=\"Admin Service Activity: Actual vs Expected Baseline\")"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

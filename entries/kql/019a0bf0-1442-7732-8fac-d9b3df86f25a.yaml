@@ -1,0 +1,17 @@
+id: 019a0bf0-1442-7732-8fac-d9b3df86f25a
+name: Gmail Sender with Multiple Display Names
+description: Detects a single Gmail sender address using multiple distinct display names within a short timeframe (1 hour). This behavior can indicate an attempt at impersonation, phishing, or spam campaigns where an attacker tries to appear as different entities from the same compromised or controlled email account.
+query: "let suspiciousSender = EmailEvents\r\n| where SenderFromAddress endswith \"gmail.com\"\r\n| where Timestamp > ago(2h)\r\n| where EmailDirection == \"Inbound\"\r\n| summarize \r\n    DistinctDisplayNames = dcount(SenderDisplayName),\r\n    DisplayNames = make_set(SenderDisplayName)\r\nby SenderFromAddress\r\n| where DistinctDisplayNames > 1\r\n| order by DistinctDisplayNames desc;\r\nEmailEvents\r\n| join kind=inner (\r\n    suspiciousSender\r\n    | project SenderFromAddress) on SenderFromAddress "
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1566
+    - T1656
+    - T1672
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "2"

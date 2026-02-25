@@ -1,0 +1,64 @@
+id: 019c25b8-985d-742c-9adf-8de01999436d
+name: Abnormal Curl User-Agent for Exfiltration
+description: Detects the use of curl.exe where the User-Agent header is abused to pass a URL. This is a specific technique observed in the Notepad++ supply chain attack where attackers used it to exfiltrate reconnaissance data by sending a temp.sh URL to their C2 server.
+query: |
+    title: Abnormal Curl User-Agent for Exfiltration
+    id: 119586d9-4b29-4259-ad52-9f6821e897c8
+    status: experimental
+    description: Detects the use of curl.exe where the User-Agent header is abused
+      to pass a URL. This is a specific technique observed in the Notepad++ supply
+      chain attack where attackers used it to exfiltrate reconnaissance data by
+      sending a temp.sh URL to their C2 server.
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    author: detections.ai
+    date: 2026-02-03
+    tags:
+      - attack.exfiltration
+      - attack.t1041
+      - attack.command_and_control
+      - attack.t1071.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith: '\curl.exe' # Identifies the curl executable
+      selection_flag:
+        CommandLine|contains:
+          # Checks for the presence of user-agent flags
+          - '--user-agent '
+          - ' -A '
+      selection_content:
+        CommandLine|contains:
+          # Looks for the specific exfiltration service used in the attack
+          - 'http://temp.sh/'
+          - 'https://temp.sh/'
+      condition: all of selection_*
+    falsepositives:
+      - While highly specific to the observed attack, it's possible other legitimate
+        but unusual scripts could use a similar method. The use of 'temp.sh'
+        significantly reduces the likelihood of false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+    - TA0011
+    - TA0001
+techniques:
+    - T1041
+    - T1071.001
+    - T1195.002
+tags:
+    - attack.exfiltration
+    - attack.t1041
+    - attack.command_and_control
+    - attack.t1071.001
+author: detections.ai
+version: "4"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,30 @@
+id: 019aa5c0-3faa-77d8-878e-d20bf2a657d7
+name: BQTLock Ransomware Activity
+description: Detects potential execution of BQTLock ransomware by identifying characteristic command-line strings, credential staging files, and associated UAC bypass techniques.
+query: "title: BQTLock Ransomware Activity\r\nid: 0a7db08f-4b5d-4821-871a-ad0a27232fe4\r\nstatus: experimental\r\ndescription: >-\r\n  Detects potential execution of BQTLock ransomware by identifying\r\n  characteristic command-line strings, credential staging files, and associated\r\n  UAC bypass techniques.\r\nreferences:\r\n  - https://medium.com/@shubhandrew/analysis-of-bqtlock-ransomware-2c63a9ecff84\r\nauthor: Subhankar H.\r\ndate: 2025-11-21\r\ntags:\r\n  - attack.credential_access\r\n  - attack.t1555\r\n  - attack.privilege_escalation\r\n  - attack.t1548.002\r\n  - attack.impact\r\n  - attack.t1486\r\n  - attack.defense_evasion\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection_strings:\r\n    CommandLine|contains:\r\n      # Specific strings logged or used by BQTLock ransomware\r\n      - 'BQTLock Payload started'\r\n      - 'BQTLock Payload finished'\r\n      - 'BQTLock Bot'\r\n      - 'UAC bypass re-launch attempted'\r\n      - 'Attempting to send final report'\r\n      - 'Encryption Complete! Files:'\r\n      - 'Password Stealing'\r\n      - 'C:\\Windows\\Temp\\bqt_passwords.txt'\r\n  selection_uac_bypass:\r\n    # Detects UAC bypass via eventvwr.exe, a technique used by BQTLock\r\n    ParentImage|endswith: '\\eventvwr.exe'\r\n    Image|endswith:\r\n      - '\\powershell.exe'\r\n      - '\\cmd.exe'\r\n      - '\\schtasks.exe'\r\n  condition: 1 of them\r\nfalsepositives:\r\n  - The UAC bypass technique can be used legitimately by administrators, though\r\n    it is rare. Further investigation of the child process is recommended.\r\n  - The strings are specific but could overlap with other tools or scripts in\r\n    non-malicious contexts.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0004
+    - TA0005
+    - TA0040
+techniques:
+    - T1555
+    - T1548.002
+    - T1486
+tags:
+    - attack.credential_access
+    - attack.t1555
+    - attack.privilege_escalation
+    - attack.t1548.002
+    - attack.impact
+    - attack.t1486
+    - attack.defense_evasion
+author: Subhankar H.
+version: "2"
+references:
+    - https://medium.com/@shubhandrew/analysis-of-bqtlock-ransomware-2c63a9ecff84
+data_sources:
+    - process_creation
+    - windows

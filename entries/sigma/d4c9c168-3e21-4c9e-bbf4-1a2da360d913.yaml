@@ -1,0 +1,90 @@
+id: d4c9c168-3e21-4c9e-bbf4-1a2da360d913
+name: Scattered Spider C2 Communication Indicators
+description: Detects network communication patterns associated with Scattered Spider threat group, including known C2 domains, IP addresses, and characteristic domain patterns used for phishing and command and control operations.
+query: |-
+    title: Scattered Spider C2 Communication Indicators
+    id: 8a7d4e2f-3b9c-4f1a-9e5d-6c8a7b4e3f2d
+    status: experimental
+    description: Detects network communication patterns associated with Scattered Spider threat group, including known C2 domains, IP addresses, and characteristic domain patterns used for phishing and command and control operations.
+    references:
+        - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-320a
+        - https://attack.mitre.org/groups/G1015/
+    author: Es Er
+    date: 2025/07/30
+    modified: 2025/07/30
+    tags:
+        - attack.command_and_control
+        - attack.t1071.001
+        - attack.t1566.002
+        - attack.initial_access
+        - scattered_spider
+        - g1015
+        - roasted_0ktapus
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection_ip_indicators:
+            DestinationIp:
+                - '99.25.84.9'      # Florida, US - Used for Okta authentication attempts
+                - '144.76.136.153'  # Used for data exfiltration via transfer.sh
+        selection_domain_patterns:
+            DestinationHostname|contains:
+                - '-sso.'
+                - '-okta.'
+                - '-servicedesk.'
+                - '-duo.'
+                - '-vpn.'
+                - '-helpdesk.'
+                - '-servicenow.'
+                - '-mfa.'
+                - 'oktalogin-'
+                - 'sso-'
+                - 'okta-'
+                - 'servicedesk-'
+        selection_exfil_services:
+            DestinationHostname|contains:
+                - 'mega.nz'
+                - 'transfer.sh'
+                - 'ngrok.io'
+        selection_suspicious_domains:
+            DestinationHostname:
+                # Known malicious domains from analysis
+                - 'twitter-okta.com'
+                - 'paxos-my-salesforce.com'
+            DestinationHostname|endswith:
+                - '-sso.com'
+                - '-okta.com'
+                - '-servicedesk.com'
+                - '-duo.com'
+                - '-helpdesk.com'
+        condition: 1 of selection_*
+    falsepositives:
+        - Legitimate access to company SSO portals with similar naming conventions
+        - Authorized use of file transfer services for business purposes
+        - Legitimate IT operations using remote access tools
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1071.001
+    - T1566.002
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1566.002
+    - attack.initial_access
+    - scattered_spider
+    - g1015
+    - roasted_0ktapus
+author: Es Er
+version: "1"
+references:
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa23-320a
+    - https://attack.mitre.org/groups/G1015/
+data_sources:
+    - network_connection
+    - windows

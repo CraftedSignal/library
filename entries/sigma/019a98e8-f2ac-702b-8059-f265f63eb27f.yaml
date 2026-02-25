@@ -1,0 +1,73 @@
+id: 019a98e8-f2ac-702b-8059-f265f63eb27f
+name: XWiki SolrSearch Groovy Code Injection Attempt (CVE-2025-24893)
+description: Detects exploitation attempts targeting a code injection vulnerability in XWiki's SolrSearch macro (CVE-2025-24893). Attackers can inject malicious Groovy code through specially crafted requests to the SolrSearch endpoint, leading to unauthenticated remote code execution.
+query: |
+    title: XWiki SolrSearch Groovy Code Injection Attempt (CVE-2025-24893)
+    id: f241619f-62c0-45b8-a684-11c6dd3be211
+    status: experimental
+    description: >-
+      Detects exploitation attempts targeting a code injection vulnerability in
+      XWiki's SolrSearch macro (CVE-2025-24893). Attackers can inject malicious
+      Groovy code through specially crafted requests to the SolrSearch endpoint,
+      leading to unauthenticated remote code execution.
+    references:
+      - https://www.vulncheck.com/blog/xwiki-under-increased-attack
+      - https://www.vulncheck.com/blog/xwiki-cve-2025-24893-eitw
+      - https://www.securityweek.com/widespread-exploitation-of-xwiki-vulnerability-observed/
+      - https://nvd.nist.gov/vuln/detail/CVE-2025-24893
+    author: detections.ai
+    date: 2025-11-18
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2025.24893
+    logsource:
+      category: proxy
+    detection:
+      # Detects requests to the vulnerable SolrSearch endpoint
+      selection_endpoint:
+        c-uri-path|contains: '/SolrSearch'
+      # Detects the key indicator of Groovy code injection
+      selection_indicator:
+        c-uri-query|contains: '{{groovy}}'
+      # Detects various payload indicators used in conjunction with the exploit
+      selection_payload:
+        c-uri-query|contains:
+          - '{{async}}'
+          - '.execute()'
+          - 'println('
+          - '/bin/bash'
+          - '/bin/sh'
+          - 'busybox nc'
+          - '/dev/tcp/'
+          - 'cat /etc/passwd'
+          - 'wget '
+          - 'curl '
+          - 'IyEvYmluL2Jhc2g' # Base64 for: #!/bin/bash
+          - 'Y3VybC' # Base64 for: curl
+          - 'd2dldC' # Base64 for: wget
+      condition: selection_endpoint and selection_indicator and selection_payload
+    falsepositives:
+      - Legitimate but unusual use of Groovy scripts within XWiki's Solr search
+        functionality.
+      - Security scanners and vulnerability assessment tools.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2025.24893
+author: detections.ai
+version: "3"
+references:
+    - https://www.vulncheck.com/blog/xwiki-under-increased-attack
+    - https://www.vulncheck.com/blog/xwiki-cve-2025-24893-eitw
+    - https://www.securityweek.com/widespread-exploitation-of-xwiki-vulnerability-observed/
+    - https://nvd.nist.gov/vuln/detail/CVE-2025-24893
+data_sources:
+    - proxy

@@ -1,0 +1,47 @@
+id: 019bb091-e7e5-761d-8e7e-670df90993d9
+name: ' User-Driven Download of Potentially Malicious File Type'
+description: This query detects when a user downloads a potentially malicious or unauthorized file type (e.g., executable, script, archive) from the internet using a web browser. It leverages endpoint file creation events, which is a high-fidelity source for this activity in Microsoft Defender for Endpoint.
+query: |
+    // Name: User-Driven Download of Potentially Malicious File Type
+    // Author: detections.ai
+    // Date: 2026-01-11
+    // Description: This query detects when a user downloads a potentially malicious or unauthorized file type (e.g., executable, script, archive) from the internet using a web browser. It leverages endpoint file creation events, which is a high-fidelity source for this activity in Microsoft Defender for Endpoint.
+
+    // Define lists for file extensions, browsers, and safe domains for easier management.
+    let suspicious_extensions = dynamic([".exe", ".dll", ".msi", ".bat", ".ps1", ".vbs", ".scr", ".jar", ".zip", ".rar", ".7z"]);
+    let browser_processes = dynamic(["chrome.exe", "firefox.exe", "msedge.exe", "iexplore.exe", "opera.exe", "brave.exe", "vivaldi.exe"]);
+    // FP Tuning: Add your company's trusted software repositories or partner domains here.
+    let safe_domains = dynamic(["microsoft.com", "windowsupdate.com", "google.com", "apple.com", "adobe.com"]);
+
+    DeviceFileEvents
+    // Look for files created on disk, which is the result of a download.
+    | where ActionType == "FileCreated"
+    // Filter for files created by common web browser processes.
+    | where InitiatingProcessFileName in~ (browser_processes)
+    // Filter for suspicious or notable file extensions.
+    | where FileName has_any (suspicious_extensions)
+    // The FileOriginUrl field is populated by browsers and indicates the source URL of the download.
+    | where isnotempty(FileOriginUrl)
+    // FP Tuning: Exclude downloads from known safe and trusted domains.
+    | where not(FileOriginUrl has_any (safe_domains))
+    // FP Tuning: Exclude common browser cache and temp folders. This list may need to be expanded based on your environment.
+    | where not(FolderPath has_any (@"\AppData\Local\Temp", @"\AppData\Local\Microsoft\Windows\INetCache", @"\AppData\Local\Google\Chrome\User Data\Default\Cache"))
+    // Structure the output for analysis and alerting.
+    | project
+        Timestamp,
+        DeviceName,
+        User = InitiatingProcessAccountName,
+        Source_IP = tostring(parse_json(AdditionalFields).LocalIP),
+        Destination_Host = tostring(parse_url(FileOriginUrl).Host),
+        URL = FileOriginUrl,
+        File_Name = FileName,
+        File_Path = FolderPath,
+        File_Size_Bytes = FileSize,
+        SHA1,
+        Initiating_Process = InitiatingProcessFileName
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: detections.ai
+version: "2"

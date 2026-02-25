@@ -1,0 +1,75 @@
+id: a8fbe50f-a77c-4251-9f5c-b72ab02382d0
+name: FortiWeb Pre-Auth SQL Injection to RCE CVE-2025-25257
+description: Detects attempts to exploit FortiWeb Pre-Auth SQL Injection leading to Remote Code Execution (CVE-2025-25257) via the /api/fabric/device/status endpoint. The rule specifically looks for SQL injection payloads, including boolean-based and INTO OUTFILE techniques, within the Authorization header of HTTP requests.
+query: |
+    title: FortiWeb Pre-Auth SQL Injection to RCE CVE-2025-25257
+    id: c722a1d3-04f0-4c61-b1e6-0d3c072ca04d
+    status: experimental
+    description: Detects attempts to exploit FortiWeb Pre-Auth SQL Injection leading to RCE (CVE-2025-25257) via the /api/fabric/device/status endpoint.
+    references:
+      - https://pwner.gg/blog/2025-07-10-fortiweb-fabric-rce
+    author: detections.ai
+    date: 2025-08-18
+    tags:
+      - attack.initial_access
+      - attack.persistence
+      - attack.discovery
+      - attack.t1190
+      - attack.t1505.003
+      - attack.t1213
+      - cve.2025.25257
+      - vendor.fortinet
+      - product.fortiweb
+      - vuln.sqli
+      - attack.rce
+    logsource:
+      category: webserver
+      product: fortinet_fortiweb
+    detection:
+      selection_request:
+            # Vulnerable API endpoint mentioned in the research
+        c-uri|contains: '/api/fabric/device/status'
+      selection_sqli_boolean:
+            # Simple boolean-based SQLi payload seen in the PoC
+            # Note: The field for the authorization header may vary by log source.
+        http.request.header.authorization|contains:
+          - "' or 'x'='x"
+          - "'/**/or/**/'x'='x"
+      selection_sqli_outfile:
+            # SQLi payload using INTO OUTFILE to write to the filesystem for RCE
+            # Note: The field for the authorization header may vary by log source.
+        http.request.header.authorization|contains|all:
+          - 'select'
+          - 'into'
+          - 'outfile'
+      condition: selection_request and (1 of selection_sqli_*)
+    falsepositives:
+      - Vulnerability scanners or other security tools may trigger this detection.
+      - Legitimate but malformed API requests could potentially match. Tuning may be required to exclude traffic from known scanners.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.persistence
+    - attack.discovery
+    - attack.t1190
+    - attack.t1505.003
+    - attack.t1213
+    - cve.2025.25257
+    - vendor.fortinet
+    - product.fortiweb
+    - vuln.sqli
+    - attack.rce
+author: detections.ai
+version: "1"
+references:
+    - https://pwner.gg/blog/2025-07-10-fortiweb-fabric-rce
+data_sources:
+    - webserver
+    - fortinet_fortiweb

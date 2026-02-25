@@ -1,0 +1,77 @@
+id: dc3046ab-bbfd-478e-9189-6f1673f03ffb
+name: UNC6395 Suspicious Salesforce SOQL Queries
+description: Detects the execution of specific SOQL (Salesforce Object Query Language) queries associated with the UNC6395 data theft campaign. The actor used these queries to enumerate and exfiltrate data from sensitive Salesforce objects.
+query: |
+    title: UNC6395 Suspicious Salesforce SOQL Queries
+    id: dae6071d-01a4-4158-ad5f-0a1d43a49cad
+    status: experimental
+    description: Detects the execution of specific SOQL (Salesforce Object Query
+      Language) queries associated with the UNC6395 data theft campaign. The actor
+      used these queries to enumerate and exfiltrate data from sensitive Salesforce
+      objects.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift
+    author: detections.ai
+    date: 2025-08-26
+    tags:
+      - attack.t1005
+      - attack.t1083
+      - threat_actor.unc6395
+      - os.cloud
+      - platform.salesforce
+    logsource:
+      product: salesforce
+      category: database # Corresponds to Salesforce Event Monitoring logs, specifically UniqueQuery events.
+    detection:
+      # Selection for enumeration queries used by the actor
+      selection_enumeration:
+        query|contains:
+          - 'SELECT COUNT() FROM Account'
+          - 'SELECT COUNT() FROM Opportunity'
+          - 'SELECT COUNT() FROM User'
+          - 'SELECT COUNT() FROM Case'
+        # Selection for the specific user data exfiltration query
+      selection_exfil:
+        query|contains|all:
+          - 'SELECT'
+          - 'FROM User'
+          - 'WHERE IsActive = true'
+          - 'ORDER BY LastLoginDate'
+          - 'Username'
+          - 'Email'
+          - 'LastLoginDate'
+          - 'EmailEncodingKey'
+      condition: selection_enumeration or selection_exfil
+    falsepositives:
+      - The 'SELECT COUNT()' queries can be legitimate and used by administrators or
+        reporting tools.
+      - The detailed user query might be used by legitimate data integration or
+        backup scripts.
+      - To reduce false positives, correlate these queries with other suspicious
+        activity, such as logins from unusual IP addresses (e.g., Tor nodes) or
+        activity from a compromised application user (e.g., the Drift application
+        user mentioned in the report).
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0010
+    - TA0009
+techniques:
+    - T1005
+    - T1083
+    - T1213.004
+tags:
+    - attack.t1005
+    - attack.t1083
+    - threat_actor.unc6395
+    - os.cloud
+    - platform.salesforce
+author: detections.ai
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/data-theft-salesforce-instances-via-salesloft-drift
+data_sources:
+    - database
+    - salesforce

@@ -1,0 +1,14 @@
+id: 019c7b38-d289-73ae-8317-ec73471a236b
+name: High-Impact Phishing Campaign Detected (≥25 Recipients in 48h)
+description: Detects high-impact phishing campaigns identified by Microsoft Defender for Office 365. Alerts when a campaign (CampaignName, CampaignId) targets 25 or more recipients (RecipientEmailAddress) within 48 hours, providing timestamp and message details (NetworkMessageId) for investigation.
+query: "CampaignInfo\r\n| where Timestamp > ago(48h)\r\n| where CampaignType == \"Phish\"\r\n| summarize UniqueRecipients = dcount(RecipientEmailAddress)\r\n    by CampaignId, CampaignName\r\n| where UniqueRecipients >= 25\r\n| join kind=inner (\r\n    CampaignInfo\r\n    | where Timestamp > ago(48h)\r\n    | where CampaignType == \"Phish\"\r\n) on CampaignId\r\n| project Timestamp, CampaignName, CampaignId, RecipientEmailAddress, NetworkMessageId"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Andre Zeemering
+version: "1"
+references:
+    - https://learn.microsoft.com/en-gb/defender-xdr/advanced-hunting-campaigninfo-table

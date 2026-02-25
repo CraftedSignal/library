@@ -1,0 +1,23 @@
+id: 019bb840-7211-713f-b0b8-dc65daca48b0
+name: Suspicious Python Installation via PowerShell
+description: Detects the use of PowerShell to download and/or expand a Python environment from the official python.org website. This technique has been observed in AsyncRAT campaigns to stage a legitimate interpreter for executing malicious Python code, bypassing defenses that might block known malicious executables.
+query: "title: Suspicious Python Installation via PowerShell\r\nid: 5849873b-4e89-4958-8f97-7c9dfce3851a\r\nstatus: experimental\r\ndescription: Detects the use of PowerShell to download and/or expand a Python\r\n  environment from the official python.org website. This technique has been\r\n  observed in AsyncRAT campaigns to stage a legitimate interpreter for executing malicious Python code, bypassing defenses that might block known malicious executables.\r\nreferences:\r\n  - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html\r\nauthor: detections.ai\r\ndate: 2026-01-13\r\ntags:\r\n  - attack.t1059.001\r\n  - attack.t1105\r\n  - attack.execution\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection_process:\r\n    Image|endswith:\r\n      - '\\powershell.exe'\r\n      - '\\pwsh.exe'\r\n  selection_download:\r\n    # Detects PowerShell downloading a Python zip archive from the official website\r\n    CommandLine|contains:\r\n      - 'iwr '\r\n      - 'Invoke-WebRequest '\r\n    CommandLine|contains|all:\r\n      - 'python.org/ftp/python'\r\n      - '.zip'\r\n  selection_expand:\r\n    # Detects expanding an archive within the AppData\\Local directory, a common staging area for this threat\r\n    # This could be tuned by specifying more exact paths if false positives occur (e.g., `\\AppData\\Local\\Temp\\p.zip'`)\r\n    CommandLine|contains|all:\r\n      - 'Expand-Archive'\r\n      - '\\AppData\\Local\\'\r\n      - '.zip'\r\n  condition: selection_process and (selection_download or selection_expand)\r\nfalsepositives:\r\n  - System administrators or developers might legitimately download and install\r\n    Python using PowerShell, although it is not a common practice for enterprise software deployment.\r\nlevel: medium\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.t1059.001
+    - attack.t1105
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+data_sources:
+    - process_creation
+    - windows

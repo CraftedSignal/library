@@ -1,0 +1,15 @@
+id: 019c1b84-f7e1-7179-bd8d-518826bfdf2b
+name: Outbound Network Connection to Known C2 Infrastructure
+description: This rule detects outbound network connections to known command and control (C2) infrastructure. Specifically, it looks for connections to suspicious URLs (meeting.bulletmailer.net, clawdbot.getintwopc.site, darkgptprivate.com, getintwopc.site) or specific IP addresses (179.43.176.32, 178.16.54.253), or connections on a specific port (8041) which has been associated with ScreenConnect C2. The rule also attempts to identify the specific threat indicator based on the matched URL, IP, or port.
+query: "DeviceNetworkEvents\n| where Timestamp > ago(30d)\n| where RemoteUrl has_any (\n    \"meeting.bulletmailer.net\",\n    \"clawdbot.getintwopc.site\",\n    \"darkgptprivate.com\",\n    \"getintwopc.site\"\n) or RemoteIP in (\n    \"179.43.176.32\",\n    \"178.16.54.253\"\n) or RemotePort == 8041\n| extend ThreatIndicator = case(\n    RemoteUrl has \"meeting.bulletmailer.net\" and RemotePort == 8041, \"ScreenConnect C2\",\n    RemoteUrl has \"clawdbot.getintwopc.site\", \"Extension C2\",\n    RemoteUrl has \"darkgptprivate.com\", \"Backup C2\",\n    RemoteIP == \"179.43.176.32\", \"ScreenConnect Relay IP\",\n    RemoteIP == \"178.16.54.253\", \"Backup C2 IP\",\n    \"Unknown C2\"\n)\n| project \n    Timestamp,\n    DeviceName,\n    InitiatingProcessAccountName,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    RemoteUrl,\n    RemoteIP,\n    RemotePort,\n    ThreatIndicator,\n    ActionType,\n    LocalIP,\n    LocalPort\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+    - T1071.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "13"

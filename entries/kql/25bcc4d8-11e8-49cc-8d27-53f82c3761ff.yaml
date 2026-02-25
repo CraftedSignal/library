@@ -1,0 +1,17 @@
+id: 25bcc4d8-11e8-49cc-8d27-53f82c3761ff
+name: Tycoon 2FA Phishing Kit Domain Activity
+description: This rule detects network connections or DNS queries to domains associated with the Tycoon 2FA phishing kit. The rule leverages an external data source containing a list of known malicious domains used by this phishing kit. Detection occurs if a device attempts to connect to or resolve any of these domains.
+query: "// resource: https://github.com/SecurityAura/DE-TH-Aura/blob/main/Defender%20for%20Endpoint/ExternalData%20-%20Network%20Connection%20to%20Tycoon2FA%20Domain.md\r\n\r\n\r\nlet Tycoon2FADomains = externaldata (Domain:string)\r\n[\"https://raw.githubusercontent.com/NoMorePhish/Tycoon2FADomains/refs/heads/main/MaliciousDomains\"]\r\nwith(format=txt);\r\nDeviceNetworkEvents\r\n| extend Query = iif(ActionType == \"DnsConnectionInspected\", tostring(parse_json(AdditionalFields).query), \"\")\r\n| where RemoteUrl has_any (Tycoon2FADomains)\r\n    or Query has_any (Tycoon2FADomains)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1621
+tags:
+    - kql
+author: SecurityAura
+version: "1"
+references:
+    - https://raw.githubusercontent.com/NoMorePhish/Tycoon2FADomains/refs/heads/main/MaliciousDomains
+    - https://github.com/SecurityAura/DE-TH-Aura/blob/main/Defender%20for%20Endpoint/ExternalData%20-%20Network%20Connection%20to%20Tycoon2FA%20Domain.md

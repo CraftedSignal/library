@@ -1,0 +1,10 @@
+id: 0199ec5f-27b7-75be-b589-76e9ce01208b
+name: F5 BIGIP Suspicious Admin Activity
+description: Identify Suspicious Admin Activity in F5 BIG IP
+query: "index=<F5Indexname> message IN (\"*authentication failure*\", \"*Login failed for user*\", \"*result=FAIL*\") OR (message=\"*audisp-tacplus:*\" message=\"*cmd=*\" message IN (\"* create *\", \"* modify *\", \"* delete *\", \"* install *\", \"* edit *\", \"* load *\", \"* run *\"))\r\n| stats min(_time) as firstTime max(_time) as lastTime count values(f5_bigip_service) as f5_bigip_service values(message_id) as message_id  values(message_severity) as message_severity  values(user) as user values(action) as action values(User) as User values(vendor_product) as vendor_product  by  message   f5_bigip_host \r\n| `security_content_ctime(firstTime)` \r\n| `security_content_ctime(lastTime)`\r\n| table firstTime lastTime User user f5_bigip_host message message_id message_severity action count vendor_product"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Rajuaravind Sankar
+version: "1"

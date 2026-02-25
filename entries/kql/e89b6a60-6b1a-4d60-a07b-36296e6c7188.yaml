@@ -1,0 +1,25 @@
+id: e89b6a60-6b1a-4d60-a07b-36296e6c7188
+name: Sentinel All-In-One UPN ThreatHunt
+description: 'KQL Query from file: Sentinel All-In-One UPN ThreatHunt'
+query: "// Sentinel All-In-One UPN ThreatHunt\n// https://www.linkedin.com/pulse/microsoft-sentinel-kql-solo-leveling-steven-lim-8hsqc/\n\n// This KQL query searches across these Sentinel log tables for the UPN variable that is defined at the start:\n// Anomalies, CloudAppEvents, CommonSecurityLog, DeviceEvents, DeviceFileEvents, DeviceLogonEvents, AzureActivity, EmailEvents, OfficeActivity, SecurityEvent, BehaviorAnalytics\n\nlet upn = \"FirstName.LastName@onmicrosoft.com\";\nsearch in (Anomalies,CloudAppEvents,CommonSecurityLog,DeviceEvents,DeviceFileEvents,DeviceLogonEvents,AzureActivity,\nEmailEvents,OfficeActivity,SecurityEvent,BehaviorAnalytics)\nTimeGenerated between (ago(1d) .. now())\nand (\n// ** Events initiated by this UPN **\nUserPrincipalName == upn                        // Anomalies, BehaviorAnalytics \nor tostring(RawEventData.UserId) == upn         // CloudAppEvents \nor SourceUserName == upn                        // CommonSecurityLog\nor AccountName == upn                           // DeviceEvents\nor InitiatingProcessAccountUpn  == upn          // DeviceFileEvents, DeviceLogonEvents  \nor Caller == upn                                // AzureActivity\nor RecipientEmailAddress == upn                 // EmailEvents\nor SenderMailFromAddress == upn                 // EmailEvents\nor UserId == upn                                // OfficeActivity\nor Entities contains upn                        // SecurityEvent\n) \n\n// MITRE ATT&CK Mapping\n\n// Based on the fields and data sources used in the KQL query, here are some potential MITRE ATT&CK techniques that could be detected:\n\n// T1078 - Valid Accounts: The query checks for events where the UPN is used, which can help identify the use of valid accounts across different services and logs.\n// T1059 - Command and Scripting Interpreter: If the DeviceEvents or DeviceFileEvents tables include script execution logs, this technique could be relevant.\n// T1071 - Application Layer Protocol: The EmailEvents table checks for email activities, which can be mapped to this technique if emails are used for command and control.\n// T1106 - Execution: The DeviceLogonEvents and DeviceFileEvents tables can help detect execution of processes or files.\n// T1110 - Brute Force: The SecurityEvent table can be used to detect brute force attempts if it includes authentication logs.\n// T1040 - Network Sniffing: If CommonSecurityLog includes network traffic logs, this technique could be relevant.\n// T1087 - Account Discovery: The AzureActivity table can help detect account discovery activities in Azure environments.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+    - TA0011
+    - TA0006
+    - TA0007
+techniques:
+    - T1078
+    - T1059
+    - T1071
+    - T1106
+    - T1110
+    - T1040
+    - T1087
+tags:
+    - kql
+version: "1"

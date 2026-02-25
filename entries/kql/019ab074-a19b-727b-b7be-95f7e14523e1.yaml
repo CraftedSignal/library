@@ -1,0 +1,25 @@
+id: 019ab074-a19b-727b-b7be-95f7e14523e1
+name: NotDoor behavior pattern
+description: |
+    This query identifies an anomalous pattern associated with behavior performed by NotDoor to establish persistence and avoid its detection.
+query: "id: 99f1f0e5-2697-4adf-86f2-fde7ab4c98e4\nname: NotDoor behavior pattern\ndescription: |\n  'This query identifies an anomalous pattern associated with behavior performed by NotDoor to establish persistence and avoid its detection.\n  Ref: https://www.splunk.com/en_us/blog/security/notdoor-insights-a-closer-look-at-outlook-macros-and-more.html'\nrequiredDataConnectors:\n  - connectorId: MicrosoftThreatProtection\n    dataTypes:\n    - DeviceFileEvents\n    - DeviceRegistryEvents\ntactics:\n  - Persistence\n  - Defense Evasion\nrelevantTechniques:\n  - T1137\n  - T1112\nquery: |\n  let starttime = ago(90d);\n  let endtime = now();\n  let abnormalActions = 4.0;\n  let DeviceFileEvents = materialize(DeviceFileEvents\n    | where TimeGenerated >= starttime\n    | where TimeGenerated <= endtime\n    | where ActionType in ('FileCreated', 'FileModified')\n    | where FolderPath has '\\\\appdata\\\\roaming' and FileName =~ 'vbaproject.otm');\n  let DeviceRegistryEvents = materialize(DeviceRegistryEvents\n    | where TimeGenerated >= starttime\n    | where TimeGenerated <= endtime\n    | where ActionType == 'RegistryValueSet'\n    | where ((RegistryKey endswith '\\\\software\\\\microsoft\\\\office\\\\16.0\\\\outlook' and RegistryValueName =~ 'loadmacroprovideronboot' and RegistryValueData == 1) or (RegistryKey endswith '\\\\software\\\\microsoft\\\\office\\\\16.0\\\\outlook\\\\security' and RegistrValueName =~ 'level' and RegistryValueData == 1) or (RegistryKey endswith '\\\\software\\\\microsoft\\\\office\\\\16.0\\\\outlook\\\\options\\\\general' and RegistryValueName =~ 'pont_string' and RegistryValueData == '32'));\n  let confidence = materialize(union DeviceFileEvents, DeviceRegistryEvents\n    | summarize fileActions=make_set(FileName), registryActions=make_set(RegistryValueName) by bin(TimeGenerated, 1h), DeviceName\n    | extend confidenceScore = case(isempty(registryActions[0]), round(array_length(fileActions) / abnormalActions, 2), isempty(fileActions[0]), round(array_length(registryActions) / abnormalActions, 2), round((array_length(fileActions) + array_length(registryActions)) / abnormalActions, 2)));\n  union DeviceFileEvents, DeviceRegistryEvents \n  | join kind=leftouter (confidence) on DeviceName \n  | where confidenceScore >= 0.75\n  | project-away *1\n  | project-reorder TimeGenerated, Type, ActionType, confidenceScore \n  | sort by TimeGenerated asc\nversion: 1.0.0"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+techniques:
+    - T1137
+    - T1112
+tags:
+    - kql
+    - tactic:Persistence
+    - tactic:Defense Evasion
+    - technique:T1137
+    - technique:T1112
+version: "7"
+references:
+    - https://www.splunk.com/en_us/blog/security/notdoor-insights-a-closer-look-at-outlook-macros-and-more.html
+data_sources:
+    - DeviceFileEvents
+    - DeviceRegistryEvents

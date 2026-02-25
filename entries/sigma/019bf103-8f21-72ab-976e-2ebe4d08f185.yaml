@@ -1,0 +1,24 @@
+id: 019bf103-8f21-72ab-976e-2ebe4d08f185
+name: EtherRAT React2Shell Exploitation and Fileless Execution
+description: This rule detects suspicious Node.js activity potentially related to EtherRAT's React2Shell exploitation (CVE-2025-55182) and fileless execution. It looks for combinations of fileless Node.js execution patterns (using -e, --eval, or --input-type=module with common modules like require, import, fetch, http) alongside Ethereum RPC queries (eth_call, eth_getStorageAt, infura.io, alchemy.com, cloudflare-eth). It also identifies scenarios where Node.js is downloaded from nodejs.org and then persistence mechanisms are set up via .bashrc, .profile, .bash_profile, systemd, or cron. Another detection path involves fileless Node.js execution combined with systemd or cron persistence. The rule specifically targets Linux environments and process creation events.
+query: "title: EtherRAT React2Shell Exploitation and Fileless Execution\nid: 7e8f9a0b-1c2d-3e4f-5a6b-7c8d9e0f1a2b\nstatus: experimental\ndescription: |\n    Detection of EtherRAT's React2Shell exploitation (CVE-2025-55182) and fileless \n    Node.js execution patterns. Correlates prototype pollution signatures with \n    Node.js runtime behavior and blockchain RPC queries.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2\ntags:\n    - attack.initial_access\n    - attack.execution\n    - attack.t1190\n    - attack.t1059.007\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    nodejs_fileless:\n        Image|endswith|any:\n            - '/node'\n            - '/nodejs'\n        CommandLine|re: '(?i)(-e\\s+|--eval\\s+|--input-type=module).*(require|import|fetch|http)'\n    ethereum_rpc:\n        CommandLine|re: '(?i)(eth_call|eth_getStorageAt|infura\\.io|alchemy\\.com|cloudflare-eth)'\n    nodejs_download:\n        CommandLine|re: '(?i)(curl|wget).*nodejs\\.org.*/dist/.*node-v[0-9]+\\.[0-9]+\\.[0-9]+'\n    persistence_injection:\n        CommandLine|re: '(?i)(echo|cat|tee).*(bashrc|profile|\\.bash_profile).*node'\n    systemd_persistence:\n        CommandLine|re: '(?i)(systemctl\\s+enable|systemctl\\s+start).*node'\n    cron_persistence:\n        CommandLine|re: '(?i)(crontab|/etc/cron).*node'\n    condition: (nodejs_fileless and ethereum_rpc) or (nodejs_download and persistence_injection) or (nodejs_fileless and (systemd_persistence or cron_persistence))\nfalsepositives:\n    - Legitimate Node.js applications using Ethereum RPC\n    - Development environments\nlevel: critical\n"
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1190
+    - T1059.007
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1190
+    - attack.t1059.007
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

@@ -1,0 +1,15 @@
+id: 3c744153-67d5-4d15-be2a-ed73867b6dce
+name: macOS Signed Application Spawning Script Interpreter
+description: 'Description: Detects the execution of a signed macOS application that subsequently spawns a script interpreter like osascript, sh, or bash. This behavior is uncommon for many legitimate GUI applications but is a known TTP for macOS malware like Odyssey Stealer, which uses signed droppers to execute malicious scripts for credential theft, persistence, and payload delivery.'
+query: "let timeframe = 30d;\r\n\r\n//list of script interpreters often used for malicious purposes\r\nlet script_interpreters = pack_array(\"osascript\", \"sh\", \"bash\", \"zsh\");\r\n\r\n//list of legitimate applications that are known to spawn shell scripts.\r\n// This list should be customized for your environment to reduce potential false positives.\r\nlet legitimate_parents_filter = pack_array(\"Terminal\", \"iTerm2\", \"Xcode\", \"zsh\", \"bash\", \"sh\", \"sshd\", \"login\", \"cron\", \"jamf\", \"code\", \"Automator\");\r\n\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n| where DevicePlatform == \"macOS\"\r\n| where FileName in (script_interpreters)\r\n| where isnotempty(InitiatingProcessSigner)\r\n| where not(InitiatingProcessFileName has_any (legitimate_parents_filter))\r\n| extend IsKnownBadSigner = iif(InitiatingProcessSigner contains \"A2FTSWF4A2\", true, false)\r\n| where IsKnownBadSigner or ProcessCommandLine has_any (\"-e\", \"/tmp/\", \"/var/folders/\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessSigner,\r\n    InitiatingProcessCommandLine,\r\n    IsKnownBadSigner,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFolderPath,\r\n    FolderPath,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.jamf.com/blog/signed-and-stealing-uncovering-new-insights-on-odyssey-infostealer/

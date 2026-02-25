@@ -1,0 +1,17 @@
+id: 019b6403-0987-749b-8df1-10da4b5c7599
+name: Browser-Triggered Suspicious File Creation via Sysmon
+description: "Detects suspicious file creations in temporary or user application data directories immediately following browser process activities, indicating potential injected content saved to disk. Aligns with MITRE DET0349 guidance. \n"
+query: "title: Browser-Triggered Suspicious File Creation via Sysmon\r\nid: AN0590-CI02\r\nstatus: experimental\r\ndescription: >\r\n  Detects suspicious file creations in temporary or user application data\r\n  directories immediately following browser process activities, indicating\r\n  potential injected content saved to disk. Aligns with MITRE DET0349 guidance. \r\nauthor: Senior Detection Engineer\r\ndate: 2025-12-28T00:00:00.000Z\r\nreferences:\r\n  - >-\r\n    https://attack.mitre.org/detectionstrategies/DET0349/\r\n    :contentReference[oaicite:2]{index=2}\r\nlogsource:\r\n  product: windows\r\n  service: sysmon\r\n  definition:\r\n    - EventID: 11\r\nlevel: medium\r\ndetection:\r\n  selection_path:\r\n    TargetFilename|contains:\r\n      - \\AppData\\\r\n      - \\Temp\\\r\n      - \\Local\\Temp\\\r\n  selection_parent:\r\n    ParentImage|endswith:\r\n      - \\chrome.exe\r\n      - \\firefox.exe\r\n      - \\msedge.exe\r\n  condition: selection_path and selection_parent\r\nfields:\r\n  - TargetFilename\r\n  - ParentImage\r\n  - Image\r\n  - ProcessId\r\nfalsepositives:\r\n  - Legitimate browser downloads (e.g., user initiated) writing benign files to\r\n    temp locations.\r\nmutable_elements:\r\n  MonitoredExtensions:\r\n    - .exe\r\n    - .dll\r\n    - .js\r\n    - .vbs\r\n  SuspiciousParentProcesses:\r\n    - chrome.exe\r\n    - firefox.exe\r\n    - msedge.exe\r\ntags:\r\n  - \"[attack.tactic: execution]\"\r\n  - \"[attack.tactic: initial_access]\"\r\n  - \"[attack.technique: T1659]\""
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1659
+author: Senior Detection Engineer
+version: "2"
+references:
+    - https://attack.mitre.org/detectionstrategies/DET0349/ :contentReference[oaicite:2]{index=2}
+data_sources:
+    - windows
+    - sysmon

@@ -1,0 +1,61 @@
+id: 019c4de3-f323-721d-84f7-53707eaea9ca
+name: Microsoft ClickFix RunMRU Suspicious Command
+description: This rule detects suspicious commands being set in the RunMRU registry key by explorer.exe. It specifically looks for the presence of LOLBins such as powershell, mshta, and curl, as well as obfuscation techniques like caret (^) and ProxyCommand, or patterns indicative of encoded/script execution (e.g., Invoke-Expression, FromBase64String, -eC). This activity is associated with the 'ClickFix' social engineering technique.
+query: |
+    title: Microsoft ClickFix RunMRU Suspicious Command
+    id: a1b2c3d4-e5f6-4a7b-8c9d-microsoft01
+    status: experimental
+    description: |
+        Explorer sets RunMRU with value indicating ClickFix: LOLBins (powershell, mshta, curl, msiexec), obfuscation (caret, ProxyCommand), or encoded/script patterns. Ref Microsoft blog Aug 2025.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059
+        - attack.t1547.001
+    logsource:
+        category: registry_set
+        product: windows
+    detection:
+        selection_explorer:
+            Image|endswith: '\explorer.exe'
+        selection_runmru:
+            TargetObject|contains: 'CurrentVersion\Explorer\RunMRU'
+        selection_suspicious:
+            Details|contains|any:
+                - 'powershell'
+                - 'mshta'
+                - 'curl'
+                - 'Invoke-Expression'
+                - 'Invoke-WebRequest'
+                - 'iex'
+                - 'iwr'
+                - 'FromBase64String'
+                - 'DownloadString'
+                - ' -eC '
+                - 'ProxyCommand='
+                - '^'
+        condition: selection_explorer and selection_runmru and selection_suspicious
+    falsepositives:
+        - Legitimate admin or script copying similar commands to Run
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059
+    - T1547.001
+tags:
+    - attack.t1059
+    - attack.t1547.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+data_sources:
+    - registry_set
+    - windows

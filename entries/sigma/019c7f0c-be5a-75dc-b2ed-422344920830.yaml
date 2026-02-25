@@ -1,0 +1,60 @@
+id: 019c7f0c-be5a-75dc-b2ed-422344920830
+name: BeyondTrust/Bomgar Remote Support Spawning Post-Exploitation Tooling
+description: Detects the execution of high-risk discovery or collection tools, such as vssadmin.exe, ntdsutil.exe, wevtutil.exe, certutil.exe, adfind.exe, dsquery.exe, klist.exe, or nltest.exe, when spawned by a BeyondTrust/Bomgar Remote Support session process (bomgar-scc.exe). This activity is indicative of post-exploitation behavior, potentially linked to intrusions described in CVE-2026-1731.
+query: |+
+    title: BeyondTrust/Bomgar Remote Support Spawning Post-Exploitation Tooling
+    id: 2f2d7cc9-9f19-4f07-a2fe-4c5df5e4d8e4
+    status: experimental
+    description: Detects high-risk discovery/collection tooling executed from a BeyondTrust/Bomgar Remote Support session process (bomgar-scc.exe), consistent with post-exploitation activity described in CVE-2026-1731 intrusions.
+    author: Daniel Jeremiah
+    date: 2026-02-21
+    references:
+      - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_parent:
+        ParentImage|endswith: '\bomgar-scc.exe'
+      selection_child_high_risk:
+        Image|endswith:
+          - '\vssadmin.exe'
+          - '\ntdsutil.exe'
+          - '\wevtutil.exe'
+          - '\certutil.exe'
+          - '\adfind.exe'
+          - '\dsquery.exe'
+          - '\klist.exe'
+          - '\nltest.exe'
+      condition: selection_parent and selection_child_high_risk
+    falsepositives:
+      - Rare: legitimate incident response or domain troubleshooting performed via BeyondTrust sessions
+    level: high
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - attack.discovery
+      - attack.collection
+      - attack.defense_evasion
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0009
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.discovery
+    - attack.collection
+    - attack.defense_evasion
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+data_sources:
+    - process_creation
+    - windows

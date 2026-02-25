@@ -1,0 +1,29 @@
+id: 6325be2b-8687-4165-98cb-d7d916c3c5df
+name: 'Threat Hunt: Charon Ransomware'
+description: This rule detects activities associated with the Charon ransomware, including DLL side-loading, process creation patterns, file modifications related to ransom notes and payload artifacts, shadow copy deletion attempts, and service creation for persistence. It also includes SHA1 hashes for known Charon ransomware executables.
+query: "let DllSideLoad=DeviceImageLoadEvents\r\n| where InitiatingProcessVersionInfoOriginalFileName =~ \"cookie_exporter.exe\" and FileName in~ (\"msedge.dll\",\"TSMSISrv.dll\",\"PulseBeaconX96311.dll\") and InitiatingProcessParentFileName=~\"cmd.exe\";\r\nlet RansomeDeploy=DeviceProcessEvents\r\n| where InitiatingProcessParentFileName=~ \"cmd.exe\" and InitiatingProcessVersionInfoOriginalFileName =~ \"cookie_exporter.exe\" and FileName =~\"svchost.exe\";\r\nlet PayloadRead=DeviceFileEvents\r\n| where FileName contains \"DumpStack.log\"\r\n| where InitiatingProcessVersionInfoOriginalFileName =~ (\"cookie_exporter.exe\") or InitiatingProcessFileName =~ \"Edge.exe\"\r\n| where ActionType in (\"FileModified\",\"FileAccessed\",\"FileRead\");\r\nlet RansomNote=DeviceFileEvents\r\n| where FileName =~ \"How To Restore Your Files.txt\" or FileName endswith \".Charon\"\r\n| where ActionType in (\"FileRenamed\",\"FileCreated\",\"FileModified\");\r\nlet ShadowCopyD=DeviceProcessEvents\r\n| where FileName in~ (\"vssadmin.exe\",\"wmic.exe\",\"powershell.exe\")\r\n| where ProcessCommandLine has_any (\"delete shadows\",\"shadowcopy\");\r\nlet sha1_iocs = dynamic([\"92750eb5990cdcda768c7cb7b654ab54651c058a\",\"a1c6090674f3778ea207b14b1b55be487ce1a2ab\",\"21b233c0100948d3829740bd2d2d05dc35159ccb\"]);\r\nlet SHAHit=DeviceProcessEvents\r\n| where (tolower(SHA1) in~ (sha1_iocs));\r\nlet ServiceCreation=DeviceRegistryEvents\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryValueName == \"ImagePath\"\r\n| where RegistryValueData contains @\"\\System32\\Drivers\\WWC.sys\";\r\nunion RansomeDeploy,DllSideLoad,PayloadRead,RansomNote,ShadowCopyD,SHAHit,ServiceCreation\r\n\r\n//https://www.trendmicro.com/en_dk/research/25/h/new-ransomware-charon.html\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0040
+    - TA0007
+    - TA0002
+techniques:
+    - T1574.001
+    - T1490
+    - T1083
+    - T1059
+    - T1036.004
+    - T1562.001
+    - T1543.003
+tags:
+    - Charon
+    - Ransomware
+    - kql
+author: Aamir Muhammad
+version: "1"
+references:
+    - https://www.trendmicro.com/en_dk/research/25/h/new-ransomware-charon.html

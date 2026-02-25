@@ -1,0 +1,27 @@
+id: fa1758d2-504a-44b7-8e33-b17a7c7452a1
+name: Data Exfiltration via Microsoft Teams
+description: 'KQL Query from file: Data Exfiltration via Microsoft Teams'
+query: "// Data Exfiltration via Microsoft Teams\n// https://www.linkedin.com/posts/activity-7202676905441964032-Qi3m/\n\n// Should a malicious actor gain access to an Office 365 user account and initiate the unauthorized transfer of email content by utilizing Power Automate to trigger an Office 365 Outlook flow that sends a Teams message to an external domain upon the arrival of a new email, do you possess the detection capabilities for such unauthorized data transfers? The KQL script provided leverages Microsoft Defender’s CloudAppEvents to identify unusual patterns in the volume of Teams messages directed to specific external domains. Upon activation of the monitoring alert, the security team is prompted to conduct a thorough investigation to verify the authenticity of the Teams communications. In instances where your users frequently collaborate with known external partner tenants, implementing a whitelist can help avert unwarranted rule activations.\n\nCloudAppEvents\n| where Application == \"Microsoft Teams\"\n| where ActionType == \"MessageSent\"\n| extend AccountUPN = RawEventData.UserId\n| extend CommsType = RawEventData.CommunicationType\n| extend ExternalTenant = RawEventData.ParticipantInfo.HasForeignTenantUsers\n| extend ExtUserDomain = tostring(split(AccountUPN, '@')[1])\n| where CommsType == \"OneOnOne\" or CommsType == \"GroupChat\"\n| where ExternalTenant == \"true\"\n| where ExtUserDomain != \"\"\n| summarize Count=count() by ExtUserDomain\n| sort by Count desc\n// Set your Teams msg trigger threshold to external tenant \n| where Count > 20\n// Whitelist External Partner Domain\n| where ExtUserDomain !contains \"trusteddomain.com\"\n\n\n// MITRE ATT&CK Mapping\n\n// This query can be mapped to several MITRE ATT&CK techniques:\n\n// T1071.001 - Application Layer Protocol: Web Protocols:\n// Detects the use of web protocols for communication, which in this case is Microsoft Teams1.\n\n// T1102.002 - Web Service: Application Deployment Software:\n// Identifies the use of web services for application deployment, relevant to the detection of messages sent via Teams2.\n\n// T1078 - Valid Accounts:\n// Detects the use of valid accounts, especially focusing on external tenants which might indicate compromised or unauthorized access3.\n\n// T1087.001 - Account Discovery: Local Account:\n// Involves discovering accounts, here focusing on external user domains4.\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0010
+    - TA0009
+techniques:
+    - T1071.001
+    - T1102.002
+    - T1078
+    - T1087.001
+    - T1567.004
+    - T1074
+    - T1653
+    - T1119
+    - T1137
+tags:
+    - kql
+version: "1"

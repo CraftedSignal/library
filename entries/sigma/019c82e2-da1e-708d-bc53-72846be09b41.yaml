@@ -1,0 +1,50 @@
+id: 019c82e2-da1e-708d-bc53-72846be09b41
+name: Unusual DNS Record Type for Tunneling
+description: Detects abuse of uncommon DNS record types for tunneling (CNAME, MX, NULL)
+query: |
+    title: Unusual DNS Record Type for Tunneling
+    id: 21ea2ea1-f045-41da-a893-f2da76814dff
+    status: experimental
+    description: Detects abuse of uncommon DNS record types for tunneling (CNAME, MX, NULL)
+    references:
+      - https://unit42.paloaltonetworks.com/dns-tunneling-in-the-wild/
+      - https://pmc.ncbi.nlm.nih.gov/articles/PMC10007605/
+    author: zendannyy
+    tags:
+      - attack.command_and_control
+      - attack.t1071.004
+    logsource:
+      category: dns
+    detection:
+      selection_uncommon_types:
+        query_type:
+          - 'NULL'
+          - CNAME
+          - MX
+      selection_high_volume:
+        timeframe: 10m
+      selection_suspicious_patterns:
+        query|re: '[a-z0-9]{15,}\.[a-z0-9\-]+'
+      condition: >-
+        selection_uncommon_types and selection_suspicious_patterns |
+        count(query_type) by src_ip >= 5
+    falsepositives:
+      - CDN configuration (CNAME)
+      - DNS testing and troubleshooting
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - attack.command_and_control
+    - attack.t1071.004
+author: zendannyy
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/dns-tunneling-in-the-wild/
+    - https://pmc.ncbi.nlm.nih.gov/articles/PMC10007605/
+data_sources:
+    - dns

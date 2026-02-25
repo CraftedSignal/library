@@ -1,0 +1,18 @@
+id: 019c7ca0-651e-7248-a6ac-01dcdcf7bcf5
+name: Explorer Parent Shell Execution Detection
+description: Detects common shell or script processes spawned by explorer.exe, which may indicate execution via the Windows Run dialog. This behavior aligns with ClickFix social engineering techniques and checks for suspicious command-line arguments tied to this pattern, often used to download or execute malicious code.
+query: "// Name: Explorer Parent Shell Execution Detection\r\n// Author: MFA meex\r\n// Date: 2026-02-20\r\n// Description: Detects common shell or script processes spawned by explorer.exe, which may indicate execution via the Windows Run dialog. This behavior aligns with ClickFix social engineering techniques and checks for suspicious cmd arguments tied to this pattern.\r\n// Reference: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/\r\n//Note: To reduce false positives, an exculsion of scripts, commands, and / or users should be added.\r\n\r\nlet suspicious_processes = dynamic([\r\n    \"powershell.exe\",\r\n    \"cmd.exe\",\r\n    \"wscript.exe\",\r\n    \"mshta.exe\",\r\n    \"curl.exe\",\r\n    \"rundll32.exe\",\r\n    \"bitsadmin.exe\"\r\n]);\r\n\r\nDeviceProcessEvents\r\n// Identifies shell/scripting processes spawned by explorer.exe, a common indicator of Run dialog (Win+R) usage.\r\n| where InitiatingProcessFileName == \"explorer.exe\"\r\n    and FileName in (suspicious_processes)\r\n// Filters for suspicious command-line arguments and patterns commonly used in ClickFix attacks to download or execute malicious code.\r\n| where ProcessCommandLine has_any (\r\n        // Common PowerShell downloaders and execution flags\r\n        \"iex \", \"iwr \", \"irm \", \"Invoke-Expression\", \"Invoke-WebRequest\",\r\n         \"Invoke-RestMethod\", \"DownloadString\", \"DownloadFile\", \r\n         \"FromBase64String\", \"-w hidden\", \"-ep bypass\", \"-enc \",\r\n        // MSHTA executing remote scripts\r\n        \"mshta.exe http\", \"mshta.exe javascript:\",\r\n        // Other LOLBins used for downloading or proxying execution\r\n        \"rundll32.exe javascript:\", \"bitsadmin /transfer\", \"curl.exe -o\",\r\n        // Command-line obfuscation characters\r\n        \" ^\", \" & \"\r\n    )\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0011
+techniques:
+    - T1059
+    - T1204.004
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/

@@ -1,0 +1,50 @@
+id: f77991f5-bc14-4b00-be65-f24d222fa7d0
+name: Unusual FIDO Key Registration
+description: Detects the successful registration of a new FIDO2/WebAuthn security key for a user account. This activity can be legitimate, but attackers who have compromised an account may register their own FIDO key to maintain persistent access. This activity should be correlated with other suspicious events, such as a recent password reset or login from an unusual location.
+query: |
+    title: Unusual FIDO Key Registration
+    id: 60dd3274-8718-4910-bf6b-00969df31d48
+    status: experimental
+    description: Detects the registration of a new FIDO2/WebAuthn security key for a user account. While this can be a legitimate activity, attackers who have compromised an account may register their own FIDO key to maintain persistent access. This activity should be correlated with other suspicious events, such as a recent password reset or login from an unusual location.
+    references:
+      - https://expel.com/blog/poisonseed-bypassing-fido-keys-to-fetch-user-accounts/
+    author: detections.ai
+    date: 2025-07-18
+    tags:
+      - attack.persistence
+      - attack.t1098.005
+      - threat_actor.poisonseed
+    logsource:
+      product: okta
+      category: authentication
+    detection:
+      selection:
+        eventType: 'user.mfa.factor.activate'
+        outcome.result: 'SUCCESS'
+        target.alternateId: 'webauthn' # This indicates a FIDO2/WebAuthn key
+        target.type: 'FACTOR_TYPE'
+      condition: selection
+    falsepositives:
+      - Legitimate users enrolling new FIDO keys for the first time or as a replacement.
+      - To reduce false positives, this alert should be correlated with other suspicious activities.
+      - Consider creating a more specific version of this rule that triggers only when multiple keys are registered for the same user in a short time frame (e.g., within an hour).
+      - Further tuning can be done by filtering for key registrations from unusual geographic locations or for FIDO key brands not issued by the organization.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.005
+tags:
+    - attack.persistence
+    - attack.t1098.005
+    - threat_actor.poisonseed
+author: detections.ai
+version: "1"
+references:
+    - https://expel.com/blog/poisonseed-bypassing-fido-keys-to-fetch-user-accounts/
+data_sources:
+    - authentication
+    - okta

@@ -1,0 +1,157 @@
+id: 019c8cff-14ac-7542-9eb9-436afecd7a03
+name: OpenClaw, Clawdbot, and Moltbot Runtime Activity Detection
+description: 'This rule detects activity related to OpenClaw, Clawdbot, and Moltbot, including their known aliases (clawd, molty, clawhub). Detection is based on several indicators: specific command-line arguments used with common scripting/execution environments (node, npm, bun, pnpm, bash, sh, zsh, launchd, env, curl, pwsh, powershell), presence of specific install or data directories (e.openclaw, .moltbot, .clawdbot, /clawd/, .molty), macOS LaunchAgent persistence mechanisms (ai.openclaw.gateway.plist, bot.molt., com.openclaw.gateway.plist, /Applications/OpenClaw.app), and the use of specific configuration file names (openclaw.json, moltbot.json, clawdbot.json, clawd.json) or aliases (molty, clawhub) within process display names or names.'
+query: |
+    /*
+     * Title: OpenClaw Runtime Activity
+     * Author: Emil Stahl / team.blue
+     * Date: 2026-02-24
+     * Description: Detects OpenClaw, Clawdbot, and Moltbot activity at runtime via process command line arguments, binary/file paths, install directories, LaunchAgent plists, and config file names. Covers all known aliases: openclaw, clawdbot, moltbot, clawd, molty, clawhub.
+     * MITRE ATT&CK: T1059.004, T1543.001, T1053.004, T1071.001
+     * References: https://www.sentinelone.com/blog/how-sentinelone-secures-the-ai-tools-that-act-like-users/
+     */
+    dataSource.name = "SentinelOne" AND
+    src.process.name in (
+      "node","npm","bun","pnpm",
+      "bash","sh","zsh","launchd","env",
+      "curl","pwsh","powershell"
+    ) AND
+    (
+      /* Command line subcommands */
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw onboard" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw gateway" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw agent" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw doctor" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw status" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw message" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "openclaw" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "moltbot" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "clawdbot" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "clawd" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "molty" OR
+      any(src.process.cmdline, tgt.process.cmdline, osSrc.process.cmdline) contains:anycase "clawhub" OR
+
+      /* Install/data directories */
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/.openclaw/" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/.moltbot/" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/.clawdbot/" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/clawd/" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/.molty/" OR
+
+      /* macOS LaunchAgent persistence */
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/Library/LaunchAgents/ai.openclaw.gateway.plist" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/Library/LaunchAgents/bot.molt." OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/Library/LaunchAgents/com.openclaw.gateway.plist" OR
+      any(
+        src.process.parent.image.path, src.process.image.path, task.path,
+        tgt.file.path, tgt.file.oldPath, tgt.process.image.path, module.path,
+        osSrc.process.activeContent.path, osSrc.process.image.path,
+        osSrc.process.parent.image.path, src.process.activeContent.path,
+        tgt.process.activeContent.path
+      ) contains:anycase "/Applications/OpenClaw.app" OR
+
+      /* Config/JSON filenames in process display names */
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "openclaw.json" OR
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "moltbot.json" OR
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "clawdbot.json" OR
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "clawd.json" OR
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "molty" OR
+      any(
+        dataSource.name, src.process.displayName, src.process.name,
+        src.process.parent.displayName, src.process.parent.name,
+        osSrc.process.name, tgt.process.displayName, tgt.process.name,
+        osSrc.process.displayName, osSrc.process.parent.displayName,
+        osSrc.process.parent.name
+      ) contains:anycase "clawhub"
+    )
+query_type: kql
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1059.004
+    - T1543.001
+    - T1071.001
+tags:
+    - kql
+version: "2"

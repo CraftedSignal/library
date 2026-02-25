@@ -1,0 +1,20 @@
+id: 019bb6c2-1fca-727c-91e6-adade99c19c2
+name: Malicious Chrome Extension C2 Communication
+description: This rule detects network connections and DNS queries to command-and-control (C2) domains associated with malicious Chrome extensions. These extensions are known to steal sensitive data such as ChatGPT and DeepSeek conversations, as well as other browsing data. The rule specifically targets known malicious domains to identify C2 communication and potential data exfiltration.
+query: "// Name: Malicious Chrome Extension C2 Communication\r\n// Author: CyberHawk Threat Intel\r\n// Date: 2026-01-13\r\n// Description: This rule detects network connections to command-and-control (C2) domains associated with malicious Chrome extensions known to steal ChatGPT and DeepSeek conversations, as well as other browsing data.\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/\r\n// Tactics: Command and Control, Exfiltration\r\n// Techniques: T1071.001, T1041\r\nlet MaliciousC2Domains = dynamic([\r\n    \"deepaichats.com\",\r\n    \"chatsaigpt.com\"\r\n]);\r\n// Define the lookback period for the search.\r\nlet Lookback = 1d;\r\n(union isfuzzy=true\r\n    (\r\n        DeviceNetworkEvents\r\n        | where Timestamp > ago(Lookback)\r\n        // Look for connections to the known malicious C2 domains.\r\n        | where RemoteUrl has_any (MaliciousC2Domains) or RemoteDomain has_any (MaliciousC2Domains)\r\n        // Potential for false positives is low as these are specific IOCs.\r\n        // However, to increase fidelity, you could filter for common browser processes.\r\n        // | where InitiatingProcessFileName has_any (\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\")\r\n        | extend EventType = \"DeviceNetworkEvents\"\r\n        | project\r\n            TimeGenerated = Timestamp, // Rename Timestamp for consistency with other data sources\r\n            DeviceName,\r\n            InitiatingProcessFileName,\r\n            RemoteUrl,\r\n            RemoteIP,\r\n            ActionType\r\n    ),\r\n    (\r\n        DnsEvents\r\n        | where TimeGenerated > ago(Lookback)\r\n        // Look for DNS queries for the malicious domains.\r\n        | where Name has_any (MaliciousC2Domains)\r\n        | extend EventType = \"DnsEvents\"\r\n        | project\r\n            TimeGenerated,\r\n            DeviceName,\r\n            InitiatingProcessFileName = ClientProcessName,\r\n            RemoteUrl = Name,\r\n            RemoteIP = IPAddresses,\r\n            ActionType = \"DnsQuery\"\r\n    )\r\n)\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    make_set(InitiatingProcessFileName),\r\n    make_set(RemoteUrl),\r\n    make_set(RemoteIP),\r\n    make_set(EventType)\r\n    by DeviceName, ActionType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0003
+techniques:
+    - T1071.001
+    - T1041
+    - T1176.001
+tags:
+    - kql
+author: CyberHawk Threat Intel
+version: "5"
+references:
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/

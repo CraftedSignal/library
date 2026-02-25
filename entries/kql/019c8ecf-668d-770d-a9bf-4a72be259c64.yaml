@@ -1,0 +1,15 @@
+id: 019c8ecf-668d-770d-a9bf-4a72be259c64
+name: React2Shell Scanning Activity Detection
+description: Detects inbound web traffic with User-Agent strings commonly associated with automated tools and scanners exploiting CVE-2025-55182 (React2Shell). This rule identifies suspicious User-Agents such as 'Go-http-client/1.1', 'Assetnote/1.0.0', 'aiohttp', and 'python-requests' in web traffic logs, which are often used by attackers to scan for and exploit vulnerabilities in public-facing applications.
+query: "// Name: React2Shell Scanning Activity\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Detects inbound web traffic with User-Agent strings commonly associated with automated tools and scanners exploiting CVE-2025-55182 (React2Shell).\r\n// Tactics: Initial Access\r\n// Techniques: T1190\r\n// References: https://www.greynoise.io/blog/cve-2025-55182-react2shell-opportunistic-exploitation-in-the-wild-what-the-greynoise-observation-grid-is-seeing-so-far\r\n// Define the list of suspicious User-Agents\r\nlet suspicious_user_agents = dynamic([\r\n    \"Go-http-client/1.1\",\r\n    \"Assetnote/1.0.0\",\r\n    \"aiohttp\",\r\n    \"python-requests\"\r\n]);\r\nCommonSecurityLog\r\n// Filter for web traffic containing the suspicious User-Agent strings.\r\n// RequestClientApplication is a common field for User-Agent in CEF logs. This may need to be adjusted for your specific log source (e.g., HttpUserAgent in W3CIISLog).\r\n| where RequestClientApplication in~ (suspicious_user_agents)\r\n// Potential for False Positives: User-Agents like 'python-requests' or 'Go-http-client' can be used by legitimate applications.\r\n// Consider excluding traffic from known-good source IPs or to internal, non-public-facing assets to reduce noise.\r\n// Example: | where SourceIP !in (\"1.2.3.4\", \"5.6.7.8\")\r\n| project\r\n    TimeGenerated,\r\n    SourceIP,\r\n    DestinationIP,\r\n    DestinationPort,\r\n    RequestURL,\r\n    RequestClientApplication, // This is the User-Agent\r\n    DeviceName,\r\n    DeviceVendor,\r\n    DeviceProduct,\r\n    ReceiptTime\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.greynoise.io/blog/cve-2025-55182-react2shell-opportunistic-exploitation-in-the-wild-what-the-greynoise-observation-grid-is-seeing-so-far

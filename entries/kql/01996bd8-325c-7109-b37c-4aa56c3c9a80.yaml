@@ -1,0 +1,18 @@
+id: 01996bd8-325c-7109-b37c-4aa56c3c9a80
+name: 'Detecting EDR-Freeze '
+description: DR-Freeze abuses WerFaultSecure.exe to suspend AV/EDR via MiniDumpWriteDump — no BYOVD needed.
+query: "let MDEProcess = dynamic([\"MsSense.exe\",\"MpDefenderCoreService.exe\",\"MsMpEng.exe\"]);\r\nlet SuspendPID =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n| where FileName has \"WerFaultSecure\"\r\n| summarize arg_max(TimeGenerated, *) by DeviceId\r\n| extend PID=tostring(extract(@\"-p\\s+(\\d+)\", 1, ProcessCommandLine))\r\n| project PID;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where tostring(ProcessId) has_any(SuspendPID)\r\n| where FileName has_any(MDEProcess)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.001
+    - T1055.001
+tags:
+    - kql
+author: Steven Lim
+version: "3"
+references:
+    - https://www.zerosalarium.com/2025/09/EDR-Freeze-Puts-EDRs-Antivirus-Into-Coma.html

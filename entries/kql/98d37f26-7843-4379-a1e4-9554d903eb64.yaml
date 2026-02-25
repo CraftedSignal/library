@@ -1,0 +1,24 @@
+id: 98d37f26-7843-4379-a1e4-9554d903eb64
+name: Suspicious AI activity related to PromptLock Ransomware Activity
+description: Detects activity related to the PromptLock ransomware, which leverages the Ollama AI API and is written in Go. This rule looks for network connections to the Ollama service (port 11434) and related process executions, specifically identifying processes like go.exe, curl.exe, wget.exe, python.exe, powershell.exe making connections or processes with 'ollama' in their command line.
+query: "// Title: Suspicious AI activity related to PromptLock Ransomware Activity\r\n// Description: Detects activity related to the PromptLock ransomware, which leverages the Ollama AI API and is written in Go. This rule looks for network connections to the Ollama service and related process executions.\r\n// Author: Dylan Evans (detections.ai/user/Decksy), https://github.com/dylanevans-cybersec/KQL-Queries\r\n// References: https://x.com/ESETresearch/status/1960365364300087724\r\nlet timeframe = 24h;\r\nlet ollama_port = 11434;\r\nlet common_tools = dynamic([\"go.exe\", \"curl.exe\", \"wget.exe\", \"python.exe\", \"python3.exe\", \"powershell.exe\", \"pwsh.exe\"]);\r\nlet suspicious_events = union isfuzzy=true\r\n(DeviceNetworkEvents\r\n| where Timestamp >= ago(timeframe)\r\n| where RemotePort == ollama_port and InitiatingProcessFileName in~ (common_tools)\r\n| extend UserAgent = tostring(parse_json(AdditionalFields).UserAgent)\r\n| project Timestamp, DeviceId, DeviceName, AccountName = InitiatingProcessAccountName, ProcessName = InitiatingProcessFileName, ProcessCommandLine = InitiatingProcessCommandLine, RemoteIP, RemotePort, RemoteUrl, UserAgent, ActivityType = \"NetworkToOllamaPort\"\r\n),\r\n(DeviceNetworkEvents\r\n| where Timestamp >= ago(timeframe)\r\n| where RemoteUrl contains \"ollama\"\r\n| extend UserAgent = tostring(parse_json(AdditionalFields).UserAgent)\r\n| where UserAgent contains \"go-http-client\"\r\n| project Timestamp, DeviceId, DeviceName, AccountName = InitiatingProcessAccountName, ProcessName = InitiatingProcessFileName, ProcessCommandLine = InitiatingProcessCommandLine, RemoteIP, RemotePort, RemoteUrl, UserAgent, ActivityType = \"GoClientToOllamaUrl\"\r\n),\r\n(DeviceProcessEvents\r\n| where Timestamp >= ago(timeframe)\r\n| where ActionType == \"ProcessCreated\" and (ProcessCommandLine contains \"ollama\" or InitiatingProcessCommandLine contains \"ollama\")\r\n| project Timestamp, DeviceId, DeviceName, AccountName, ProcessName = FileName, ProcessCommandLine, RemoteIP = tostring(null), RemotePort = toint(null), RemoteUrl = tostring(null), UserAgent = tostring(null), ActivityType = \"OllamaInCommandLine\"\r\n);\r\nsuspicious_events\r\n| summarize StartTime = min(Timestamp), EndTime = max(Timestamp), ActivityTypes = make_set(ActivityType), RemoteIPs = make_set(RemoteIP), RemoteUrls = make_set(RemoteUrl), UserAgents = make_set(UserAgent) by DeviceId, DeviceName, AccountName, ProcessName, ProcessCommandLine\r\n| extend ReportId = strcat(DeviceId, \"-\", tostring(hash_sha256(strcat(DeviceName, ProcessName, ProcessCommandLine))))\r\n| extend AlertTitle = \"Suspicious AI activity related to PromptLock Ransomware Activity\"\r\n| extend AlertDescription = strcat(\"Potential PromptLock activity detected on host \", DeviceName, \" by user \", AccountName, \". Observed activities: \", tostring(ActivityTypes), \". Process: \", ProcessName, \" with command line: \", ProcessCommandLine)\r\n| project DeviceId, Timestamp = StartTime, ReportId, AccountName, ProcessName, ProcessCommandLine, EndTime, ActivityTypes, RemoteIPs, RemoteUrls, UserAgents"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1071.001
+    - T1059
+    - T1486
+    - T1027
+tags:
+    - Ollama
+    - PromptLock
+    - Ransomware
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://x.com/ESETresearch/status/1960365364300087724
+    - https://github.com/dylanevans-cybersec/KQL-Queries

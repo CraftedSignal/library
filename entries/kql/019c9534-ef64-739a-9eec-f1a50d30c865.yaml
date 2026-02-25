@@ -1,0 +1,54 @@
+id: 019c9534-ef64-739a-9eec-f1a50d30c865
+name: Anomalous PHP Web Shell Execution
+description: This rule detects the execution of PHP with command-line arguments indicative of web shells like 'aws.php' and 'file_save.php', which have been used in the exploitation of CVE-2026-1731. The detection looks for the use of eval with base64 decoding and specific, non-standard parameters used to pass commands.
+query: |
+    // Name: Anomalous PHP Web Shell Execution
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: This rule detects the execution of PHP with command-line arguments indicative of web shells like 'aws.php' and 'file_save.php', which have been used in the exploitation of CVE-2026-1731. The detection looks for the use of eval with base64 decoding and specific, non-standard parameters used to pass commands.
+    // Tags: CVE-2026-1731, Web Shell, PHP, aws.php, file_save.php
+    // Tactics: Persistence, Command and Control
+    // Techniques: T1505.003, T1059.006
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    // False Positive Sensitivity: Medium
+    let lookback = 7d;
+    // Define suspicious command-line patterns associated with the observed web shells
+    let webShellPatterns = dynamic([
+        "eval(base64_decode", // Common obfuscation technique
+        "POST['1']",          // Parameter used by one-line shell
+        "ASS",                // Parameter used by aws.php shell
+        "key=vjwr"            // Parameter used by file_save.php shell
+    ]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Focus on PHP interpreter processes. This may need to be tuned based on how PHP is named in your environment.
+    | where FileName has_any ("php.exe", "php-cgi.exe", "php") or ProcessCommandLine has "php"
+    // Match against the specific patterns identified in the threat intel
+    | where ProcessCommandLine has_any (webShellPatterns)
+    // FP-TUNING: Some legitimate applications, though it is poor practice, might use 'eval(base64_decode'.
+    // If you have such applications, exclude their specific command lines or parent processes to reduce noise.
+    // For example: | where InitiatingProcessFileName !~ "legit_app.exe"
+    | project
+        timestamp = TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+    - TA0002
+techniques:
+    - T1505.003
+    - T1059.004
+    - T1059.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

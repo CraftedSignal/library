@@ -1,0 +1,16 @@
+id: 019c8eb5-b948-730d-ad8a-5f9db6b5a8ec
+name: PowerShell Base64 Encoded Command Execution
+description: This rule detects the execution of PowerShell or PowerShell Core (pwsh.exe) with command-line arguments indicating the use of Base64 encoded commands. Adversaries often use Base64 encoding to obfuscate malicious PowerShell scripts, making them harder to detect by signature-based methods and to evade basic command-line logging. This detection specifically looks for the '-EncodedCommand', '-enc', or '-ec' flags (and their variations in casing) which are used to execute Base64 encoded strings as PowerShell commands.
+query: "// Detection: PowerShell Base64 Encoded Command Execution\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1059.001 - PowerShell\r\n\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\r\n| where ProcessCommandLine has_any (\r\n    \"-EncodedCommand\",\"-enc \",\"-ec \",\r\n    \"-EnC\",\"-eNc\",\"-e \",\"-eN\"\r\n)\r\n| extend\r\n    ParentProcess = InitiatingProcessFileName,\r\n    User          = AccountName,\r\n    Domain        = AccountDomain\r\n| project TimeGenerated, DeviceName, FileName,\r\n          ProcessCommandLine, ParentProcess,\r\n          User, Domain, InitiatingProcessCommandLine, SHA256\r\n| extend AlertDescription =\r\n    \"PowerShell with Base64 encoded argument detected — potential obfuscated payload delivery\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

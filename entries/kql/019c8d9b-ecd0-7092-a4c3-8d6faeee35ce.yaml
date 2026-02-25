@@ -1,0 +1,20 @@
+id: 019c8d9b-ecd0-7092-a4c3-8d6faeee35ce
+name: Quishing - QR Pivot to Suspicious Entra Sign-in (Correlation)
+description: This rule detects a potential quishing (QR code phishing) attack followed by a suspicious successful sign-in to Entra ID (formerly Azure AD). It correlates URL click events or device network events containing deep link indicators (like 'tg://login', 'wa.me/settings/linked_devices', 'signal://', 'line://') or '.apk' file downloads with a successful Entra ID sign-in by the same user within a 30-minute window. This behavior suggests a user may have scanned a malicious QR code, clicked a phishing link, or downloaded a malicious application, leading to a successful but potentially compromised authentication.
+query: "// Name: Quishing - QR Pivot to Suspicious Entra Sign-in (Correlation)\r\n// Reference: https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/\r\n// MITRE ATT&CK: T1566.002, T1078\r\nlet Lookback = 7d;\r\nlet PivotWindow = 30m;\r\nlet DeepLinkIndicators = dynamic([\"tg://login\",\"wa.me/settings/linked_devices\",\"signal://\",\"line://\"]);\r\n\r\nlet PivotEvents =\r\nunion isfuzzy=true\r\n(\r\n  UrlClickEvents\r\n  | where TimeGenerated > ago(Lookback)\r\n  | where tostring(Url) has_any (DeepLinkIndicators)\r\n  | project PivotTime=TimeGenerated, AccountUpn, PivotUrl=tostring(Url)\r\n),\r\n(\r\n  DeviceNetworkEvents\r\n  | where TimeGenerated > ago(Lookback)\r\n  | where tostring(RemoteUrl) has_any (DeepLinkIndicators) or tostring(RemoteUrl) endswith \".apk\"\r\n  | project PivotTime=TimeGenerated, AccountUpn=tostring(InitiatingProcessAccountUpn), PivotUrl=tostring(RemoteUrl)\r\n);\r\n\r\nPivotEvents\r\n| join kind=inner (\r\n    SigninLogs\r\n    | where TimeGenerated > ago(Lookback)\r\n    | project SigninTime=TimeGenerated, UserPrincipalName, AppDisplayName, ResultType, IPAddress,\r\n              Location, DeviceDetail, AuthenticationRequirement, ConditionalAccessStatus\r\n) on $left.AccountUpn == $right.UserPrincipalName\r\n| where SigninTime between (PivotTime .. PivotTime + PivotWindow)\r\n| where ResultType == 0  // successful\r\n| project PivotTime, SigninTime, UserPrincipalName, PivotUrl, AppDisplayName, IPAddress, Location, DeviceDetail, AuthenticationRequirement, ConditionalAccessStatus"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1566.002
+    - T1078
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/

@@ -1,0 +1,42 @@
+id: 766d48d5-eb03-4e67-8cc2-4e8b58fceb22
+name: macOS CVE-2025-31191 Sandbox Escape Detection
+description: Detects attempts to manipulate the 'com.apple.scopedbookmarksagent.xpc' keychain item using the security command as part of CVE-2025-31191 in macOS sandbox escape.
+query: |-
+    title: macOS CVE-2025-31191 Sandbox Escape Attempt - Keychain Manipulation
+    id: 892f5134-1a2b-4c3d-9e0f-1234567890ab # Replace with a unique UUID
+    version: 1
+    date: 2025/05/01
+    status: experimental # Rule is based on research, may need tuning
+    description: Detects attempts to delete or add the 'com.apple.scopedbookmarksagent.xpc' keychain item using the security command, which is a key step in the CVE-2025-31191 macOS sandbox escape vulnerability.
+    references:
+        - https://malware.news/t/analyzing-cve-2025-31191-a-macos-security-scoped-bookmarks-based-sandbox-escape/93819
+        - https://www.microsoft.com/en-us/security/blog/2025/05/01/analyzing-cve-2025-31191-a-macos-security-scoped-bookmarks-based-sandbox-escape/
+    author: Aaron Mog - detections.ai
+    tags:
+        - attack.privilege_escalation
+        - attack.t1548.001 # Abuse Elevation Control Mechanisms: Bypass User Account Control (macOS) - Closest match for bypassing sandbox/ACLs
+        - cve.2025.31191
+    logsource:
+        product: macos
+        category: process_creation
+    detection:
+        selection:
+            Image|endswith: '/usr/bin/security'
+            CommandLine|contains:
+                - ' delete-generic-password '
+                - ' add-generic-password '
+            CommandLine|contains|all:
+                - ' com.apple.scopedbookmarksagent.xpc'
+                - ' login.keychain-db' # Often targets the login keychain
+        condition: selection
+    falsepositives:
+        - Legitimate administration tasks involving the security command, although manipulation of this specific keychain item is highly suspicious.
+    level: high
+query_type: sigma
+severity: medium
+tags:
+    - attack.privilege_escalation
+    - attack.t1548.001
+    - cve.2025.31191
+author: Aaron Mog - detections.ai
+version: "1"

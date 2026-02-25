@@ -1,0 +1,55 @@
+id: 019be644-a99d-72dd-9784-ae382b633306
+name: TamperedChef Scheduled Task Persistence
+description: Detects the creation of scheduled tasks with specific names and command lines used by the TamperedChef malware for persistence.
+query: |
+    title: TamperedChef Scheduled Task Persistence
+    id: c3116c6a-606e-479d-9955-52ac2acbf213
+    status: experimental
+    description: Detects the creation of scheduled tasks with specific names and
+      command lines used by the TamperedChef malware for persistence.
+    references:
+      - https://www.sophos.com/en-us/blog/tamperedchef-serves-bad-ads-with-infostealers-as-the-main-course
+    author: detections.ai
+    date: 2026-01-22
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      product: windows
+      category: task_creation
+    detection:
+      selection_task_1:
+        # Detects the primary persistence task used by TamperedChef
+        TaskName|endswith: '\PDFEditorScheduledTask'
+        CommandLine|contains|all:
+          - 'PDF Editor.exe'
+          - '--cm=--partialupdate'
+      selection_task_2:
+        # Detects the secondary persistence task used by TamperedChef
+        TaskName|endswith: '\PDFEditorUScheduledTask'
+        CommandLine|contains|all:
+          - 'PDF Editor.exe'
+          - '--cm=--backupupdate'
+      condition: 1 of selection_*
+    falsepositives:
+      - Unlikely as the task names and command line parameters are specific to
+        TamperedChef.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: detections.ai
+version: "2"
+references:
+    - https://www.sophos.com/en-us/blog/tamperedchef-serves-bad-ads-with-infostealers-as-the-main-course
+data_sources:
+    - task_creation
+    - windows

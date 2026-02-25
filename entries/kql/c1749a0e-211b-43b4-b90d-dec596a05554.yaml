@@ -1,0 +1,50 @@
+id: c1749a0e-211b-43b4-b90d-dec596a05554
+name: Detecting External Microsoft Teams Spray
+description: 'KQL Query from file: Detecting External Microsoft Teams Spray'
+query: |+
+    // Detecting External Microsoft Teams Spray
+
+    // In late October, the ransomware group Black Basta introduced a new social engineering technique. Initially, they bombarded users with email spam, leading them to create help-desk tickets. The attackers then impersonated help-desk staff to gain access. Recently, they have shifted to using Microsoft Teams chat messages and malicious QR codes to communicate with targets. These tactics are designed to convince users to download remote monitoring tools, ultimately resulting in ransomware deployment. This campaign is particularly notable for its intensity and high volume of activity, posing a significant threat to organizations that do not restrict Teams communications with external entities.
+
+    // The KQL code below helps defenders detect anomalous external inbound Teams chats to your Entra tenant, allowing them to take immediate action to block the external tenant if necessary. The KQL code can be downloaded from my SlimKQL GitHub Repository, which is featured on my LinkedIn profile. (Search for “Detecting External Microsoft Teams Spray”)
+
+    // External Tenant Teams Spray Threshold
+    let SprayCounter = 3;
+
+    CloudAppEvents
+    | where Timestamp > ago(1h)
+    | where Application == "Microsoft Teams"
+    | where ActionType == "ChatCreated"
+    | where tostring(RawEventData.CommunicationType)=="OneOnOne" // Inbound 1:1 Chat
+    | where AccountId has "@"                                    // External Tenant Teams User
+    | extend ExtUserDomain = tostring(split(AccountId, '@')[1])
+    | where UncommonForUser != "[]"                              // Behaviour Analytics to improve detection accuracy
+    | summarize InboundChat=count() by ExtUserDomain
+    | where InboundChat > SprayCounter or ExtUserDomain contains ".onmicrosoft.com"
+
+query_type: kql
+tactics:
+    - TA0043
+    - TA0042
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0002
+    - TA0008
+techniques:
+    - T1593.001
+    - T1586.001
+    - T1585.001
+    - T1566.001
+    - T1566.002
+    - T1566
+    - T1078
+    - T1204.002
+    - T1534
+    - T1059
+    - T1059.003
+    - T1566.003
+tags:
+    - kql
+version: "1"

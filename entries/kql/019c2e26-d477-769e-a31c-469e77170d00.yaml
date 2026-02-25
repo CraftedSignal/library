@@ -1,0 +1,56 @@
+id: 019c2e26-d477-769e-a31c-469e77170d00
+name: DKnife Router Discovery POST Request
+description: Detects DKnife attempting to discover network information by sending a POST request with a specific password hash to a router management interface. This activity is associated with the DKnife framework, a China-nexus gateway-monitoring tool.
+query: |
+    // title: DKnife Router Discovery POST Request
+    // description: Detects DKnife attempting to discover network information by sending a POST request with a specific password hash to a router management interface. This activity is associated with the DKnife framework, a China-nexus gateway-monitoring tool.
+    // author: tim@detections.ai
+    // date: 2026-02-05
+    // id: 1cc94ede-52c0-45fa-a00c-9f16c35917df
+    // status: experimental
+    // references:
+    // - https://blog.talosintelligence.com/knife-cutting-the-edge/
+    // tags:
+    // - attack.discovery
+    // - attack.t1082
+    // - attack.t1046
+    // level: high
+    //
+    // Note: This detection requires logs that capture HTTP request details, including method, URI, and request body.
+    // Common table names include CommonSecurityLog, DeviceNetworkEvents, or custom proxy logs.
+    // You may need to adjust table and field names (e.g., RemoteIP, Url, HttpRequestMethod, HttpRequestBody) to match your environment.
+    let selection_auth = view () {
+        CommonSecurityLog
+        // Search for POST requests to the specific management interface IP and port.
+        | where HttpRequestMethod == "POST" and DestinationIP == "192.168.92.92" and DestinationPort == 8080
+        // Check for the specific URIs used for authentication.
+        | where RequestURL endswith "/login" or RequestURL endswith "/fe-device-info"
+        // Detect the hardcoded password hash in the request body.
+        // The field containing the request body may vary (e.g., AdditionalExtensions, RequestPayload).
+        | where AdditionalExtensions has "c62d929e7b7e7b6165923a5dfc60cb56"
+    };
+    let selection_user_query = view () {
+        CommonSecurityLog
+        // Search for POST requests to the specific management interface IP and port.
+        | where HttpRequestMethod == "POST" and DestinationIP == "192.168.92.92" and DestinationPort == 8080
+        // Check for the specific URI used to query user information.
+        | where RequestURL endswith "/user"
+        // Detect the specific JSON payload used in the follow-on request.
+        // The field containing the request body may vary (e.g., AdditionalExtensions, RequestPayload).
+        | where AdditionalExtensions has '{"index":"all"}'
+    };
+    union selection_auth, selection_user_query
+    // False Positives: Extremely unlikely. This combination of a specific private IP, port, URI, and request body is unique to the DKnife framework's discovery activity.
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1082
+    - T1046
+tags:
+    - kql
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.talosintelligence.com/knife-cutting-the-edge/

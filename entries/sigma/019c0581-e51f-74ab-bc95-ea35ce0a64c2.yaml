@@ -1,0 +1,66 @@
+id: 019c0581-e51f-74ab-bc95-ea35ce0a64c2
+name: PureRAT C2 and Payload Infrastructure
+description: Detects network connections to known C2 servers and payload delivery URLs associated with a PureRAT campaign. This activity is linked to a Vietnamese threat actor using AI to generate their toolset.
+query: |
+    title: PureRAT C2 and Payload Infrastructure
+    id: 8fd513ff-cf97-44de-953a-d60af515d532
+    status: experimental
+    description: Detects network connections to known C2 servers and payload
+      delivery URLs associated with a PureRAT campaign. This activity is linked to a
+      Vietnamese threat actor using AI to generate their toolset.
+    references:
+      - https://www.security.com/threat-intelligence/ai-purerat-phishing
+    author: detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.t1105
+      - attack.t1567.002
+      - attack.command_and_control
+    logsource:
+      category: network_connection
+      product: firewall
+    detection:
+      ips:
+        # Known C2 IP addresses from the campaign
+        DestinationIp:
+          - '116.202.214.234'
+          - '139.99.17.175'
+          - '139.99.17.184'
+          - '144.172.116.103'
+          - '196.251.86.145'
+          - '217.217.253.186'
+          - '51.79.214.125'
+          - '103.166.185.228'
+          - '15.235.172.166'
+          - '192.30.139.187'
+      urls:
+        # Specific URL paths used for payload delivery
+        Url|contains:
+          - '/huna'
+          - '/doraemon'
+          - '/kimxhwan'
+          - '/nauh'
+          - '/mrwolf'
+      condition: 1 of them
+    falsepositives:
+      - These indicators are highly specific to this campaign. However, cloud
+        storage URLs could generate false positives if the keywords are part of a
+        legitimate, unrelated file path. Context is key.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - attack.t1105
+    - attack.t1567.002
+    - attack.command_and_control
+author: detections.ai
+version: "2"
+references:
+    - https://www.security.com/threat-intelligence/ai-purerat-phishing
+data_sources:
+    - network_connection
+    - firewall

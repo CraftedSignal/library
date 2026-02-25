@@ -1,0 +1,13 @@
+id: 46481211-3393-4976-bb90-368789759ebf
+name: Windows Server File Exfiltration via Common Tools
+description: This rule detects suspicious file write and network activity that may indicate data exfiltration from a Windows Server using common tools like curl, ftp, or powershell. It correlates file creation/modification events with outbound network connections made by known exfiltration tools within a 5-minute window. This is useful for identifying insider threats, compromised servers, and automated exfiltration scripts.
+query: "## \U0001F50D KQL Description\n#### The objective of this KQL script is to detect suspicious file write and network activity that may indicate data exfiltration from a Windows Server using known tools like curl, ftp, or powershell.\n#### This is especially useful for identifying:\n#### 1. Insider threats\n#### 2. Compromised servers\n#### 3. Automated exfiltration scripts\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic: Exfiltration\n#### Goal: The adversary is trying to steal data from your environment.\n#### Technique: T1048 – Exfiltration Over Alternative Protocol, T1041 – Exfiltration Over C2 Channel\n#### Using tools like ftp.exe, certutil.exe, or winscp.exe to send data out.\n### Query:\n```KQL\nlet OS_info = DeviceInfo\n| where OSPlatform contains \"Windows Server\"\n| project DeviceName;\nlet exfilTools = dynamic([\"curl.exe\", \"ftp.exe\", \"powershell.exe\", \"certutil.exe\", \"bitsadmin.exe\", \"winscp.exe\"]);\nlet fileWrites = DeviceFileEvents\n| where ActionType in (\"FileCreated\", \"FileModified\")\n| project FileWriteTime = Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessId, InitiatingProcessCommandLine, InitiatingProcessFileName;\nlet netConnections = DeviceNetworkEvents\n| where RemoteUrl != \"\" and RemotePort in (21, 22, 80, 443)\n| project NetConnectTime = Timestamp, DeviceName, RemoteUrl, RemotePort, InitiatingProcessId, InitiatingProcessCommandLine, InitiatingProcessFileName;\nfileWrites\n| join kind=inner (netConnections) on DeviceName, InitiatingProcessId\n| where abs(datetime_diff(\"minute\", FileWriteTime, NetConnectTime)) <= 5\n| where DeviceName in (OS_info)\n| where InitiatingProcessFileName in~ (exfilTools)\n| project FileWriteTime, NetConnectTime, DeviceName, FileName, FolderPath, RemoteUrl, RemotePort, InitiatingProcessFileName, InitiatingProcessCommandLine\n```\n"
+query_type: kql
+tactics:
+    - TA0010
+techniques:
+    - T1048
+    - T1041
+tags:
+    - kql
+version: "1"

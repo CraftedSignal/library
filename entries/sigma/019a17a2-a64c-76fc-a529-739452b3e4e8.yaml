@@ -1,0 +1,27 @@
+id: 019a17a2-a64c-76fc-a529-739452b3e4e8
+name: WSUS Spawning Command Shell for Reconnaissance
+description: Detects the spawning of a Windows command shell, powershell, or reconnaissance tools by the IIS worker process (w3wp.exe). This behavior is a strong indicator of a successful web application exploit, such as the deserialization vulnerability in WSUS (CVE-2025-59287), where an attacker gains remote code execution. Also detects the WSUS Service as the parent process spawning another process.
+query: "title: WSUS Spawning Command Shell for Reconnaissance\nid: 3fac0486-ca52-4fea-a935-71d63971babd\nstatus: experimental\ndescription: >-\n  Detects the spawning of a Windows command shell, powershell, or reconnaissance\n  tools by the IIS worker process (w3wp.exe). This behavior is a strong\n  indicator of a successful web application exploit, such as the deserialization\n  vulnerability in WSUS (CVE-2025-59287), where an attacker gains remote code\n  execution. Also detects the WSUS Service as the parent process spawning\n  another process.\nreferences:\n  - >-\n    https://research.eye.security/wsus-deserialization-exploit-in-the-wild-cve-2025-59287/\n  - >-\n    https://www.linkedin.com/posts/johnhammond010_weve-been-seeing-some-of-the-wsus-cve-2025-activity-7387528448145186816-2bDC?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAx0FooBz0szRHeK7PdeBhOeISDk9PI9iio\n  - >-\n    https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability?utm_source=linkedin&utm_medium=social&utm_campaign=cy25-10-rr-edr-global-broad-all-windows_server_update&utm_content=Image\nauthor: detections.ai\ndate: 2025-10-24T00:00:00.000Z\ntags:\n  - attack.execution\n  - attack.t1059.003\n  - attack.discovery\n  - attack.t1033\n  - cve.2025.59287\nlogsource:\n  category: process_creation\n  product: windows\n  service: iis-configuration\ndetection:\n  selection1:\n    ParentImage|endswith: \n      - \\w3wp.exe\n      - \\wsusservice.exe\n  selection2:\n    Image|endswith:\n      - \\cmd.exe\n      - \\powershell.exe\n      - \\pwsh.exe\n      - \\powershell_ise.exe\n      - \\whoami.exe\n      - \\net.exe\n      - \\net1.exe\n  condition: selection1 and selection2\nfalsepositives:\n  - Some legitimate administration scripts or web applications running under IIS\n    may spawn command-line interpreters. However, this is generally rare for the\n    WSUS application pool.\n  - Consider tuning by adding specific command-line arguments if false positives\n    occur.\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0007
+techniques:
+    - T1059.003
+    - T1033
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.discovery
+    - attack.t1033
+    - cve.2025.59287
+author: detections.ai
+version: "8"
+references:
+    - https://research.eye.security/wsus-deserialization-exploit-in-the-wild-cve-2025-59287/
+    - https://www.linkedin.com/posts/johnhammond010_weve-been-seeing-some-of-the-wsus-cve-2025-activity-7387528448145186816-2bDC?utm_source=share&utm_medium=member_desktop&rcm=ACoAAAx0FooBz0szRHeK7PdeBhOeISDk9PI9iio
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability?utm_source=linkedin&utm_medium=social&utm_campaign=cy25-10-rr-edr-global-broad-all-windows_server_update&utm_content=Image
+data_sources:
+    - process_creation
+    - windows

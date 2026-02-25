@@ -1,0 +1,25 @@
+id: 7587f3a0-eaef-4c1c-ba7b-184caf7d1625
+name: Detect Suspicious Sysmon Events with DEVMAN and ADMIN$ Indicators
+description: Detection of potentially malicious activities on Windows systems related to Sysmon events, focusing on executable files, registry changes, and network connections.
+query: |-
+    (index=windows sourcetype=WinEventLog:Microsoft-Windows-Sysmon/Operational)
+    (
+      (EventCode=11 TargetFilename="*.DEVMAN") OR
+      (EventCode=11 TargetFilename="*e47qfsnz2trbkhnt.devman") OR
+      (EventCode=1 EventData="*hsfjuukjzloqu28oajh727190*") OR
+      (EventCode IN (12, 13, 14) RegistryKeyName="*\\Microsoft\\RestartManager\\Session0000*") OR
+      (EventCode=3 DestinationPort=445 AND CommandLine="*ADMIN$*")
+    )
+    | stats count min(_time) as firstTime max(_time) as lastTime by Computer, Image, TargetFilename, EventData, RegistryKeyName, CommandLine, DestinationPort
+    | convert timeformat="%Y-%m-%d %H:%M:%S" ctime(firstTime) ctime(lastTime)
+    | rename Computer as host
+    | table host, firstTime, lastTime, Image, TargetFilename, EventData, RegistryKeyName, CommandLine, DestinationPort, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.002
+tags:
+    - spl
+version: "1"

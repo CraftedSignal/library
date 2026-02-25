@@ -1,0 +1,18 @@
+id: 019c23f3-481e-7298-b91e-0dfc7120e990
+name: Notepad++ Updater Spawning Suspicious Child Process
+description: Detects the legitimate Notepad++ updater process (GUP.exe) spawning suspicious child processes. This behavior was observed during the Notepad++ supply chain attack where the updater was used to launch malicious payloads. The rule specifically looks for GUP.exe as the parent process and child processes with filenames like 'update.exe', 'install.exe', 'AutoUpdater.exe', 'curl.exe', or 'cmd.exe'.
+query: "// Name: Notepad++ Updater Spawning Suspicious Child Process\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-03\r\n// Description: Detects the legitimate Notepad++ updater process (GUP.exe) spawning suspicious child processes. This behavior was observed during the Notepad++ supply chain attack where the updater was used to launch malicious payloads.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://securelist.com/notepad-supply-chain-attack/118708/\r\n// MITRE TTPs: T1195.002, T1547.001, T1105\r\nlet suspiciousChildren = dynamic([\r\n    \"update.exe\",\r\n    \"install.exe\",\r\n    \"AutoUpdater.exe\",\r\n    \"curl.exe\",\r\n    \"cmd.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events\r\n| where ActionType == \"ProcessCreated\"\r\n// The parent process is the Notepad++ updater\r\n| where InitiatingProcessFileName endswith \"GUP.exe\"\r\n// The child process is one of the suspicious executables observed in the attack\r\n| where FileName in~ (suspiciousChildren)\r\n// FP Tuning: The inclusion of 'cmd.exe' may cause false positives.\r\n// Consider filtering for specific command-line arguments associated with the attack,\r\n// such as 'whoami', 'tasklist', 'systeminfo', or redirection to a file in an AppData path.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SHA1,\r\n    InitiatingProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1195.002
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

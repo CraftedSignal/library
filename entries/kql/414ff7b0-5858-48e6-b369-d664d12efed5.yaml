@@ -1,0 +1,16 @@
+id: 414ff7b0-5858-48e6-b369-d664d12efed5
+name: Akira Sonicwall byovd weaponization (rwdrv.sys and hlpdrv.sys)
+description: This is a KQL detection based on the YARA rules by Jason Baker of GuidePoint Security in linked reference - Connected to the Akira ransomware exploits
+query: "let badHashes = dynamic([\r\n    \"bd1f381e5a3db22e88776b7873d4d2835e9a1ec620571d2b1da0c58f81c84a56\",\r\n    \"16f831056177c4ec24c7e99d01ca9d96f713bd0497eeedb777a3ffefa99c97f0\"\r\n]);\r\n// Will match known hashes and pathes. Guidepoint assessed presence of these\r\n// to at least july 15, so adjust accordingly\r\nDeviceFileEvents\r\n| where Timestamp > ago(7d)\r\n| where SHA256 in (badHashes)\r\n   or FolderPath endswith @\"\\AppData\\Local\\Temp\"\r\n      and FileName in~ (\"hlpdrv.sys\", \"rwdrv.sys\")\r\n| project Timestamp, DeviceName, FileName, FolderPath, SHA256, InitiatingProcessFileName, ReportId\r\n\r\nunion\r\n\r\n// Service creation evemts associated with the bad drivers\r\nDeviceRegistryEvents\r\n| where Timestamp > ago(7d)\r\n| where RegistryKey endswith @\"\\System\\CurrentControlSet\\Services\\mgdsrv\"\r\n   or RegistryKey endswith @\"\\System\\CurrentControlSet\\Services\\KMHLPSVC\"\r\n| where RegistryValueName == \"ImagePath\"\r\n| where RegistryValueData endswith @\"\\AppData\\Local\\Temp\\rwdrv.sys\"\r\n   or RegistryValueData endswith @\"\\AppData\\Local\\Temp\\hlpdrv.sys\"\r\n| project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, ReportId"
+query_type: kql
+severity: medium
+techniques:
+    - T1543.003
+    - T1547
+    - T1574.001
+tags:
+    - kql
+author: Me
+version: "1"
+references:
+    - https://www.guidepointsecurity.com/blog/gritrep-akira-sonicwall/

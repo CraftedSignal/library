@@ -1,0 +1,54 @@
+id: 8803cd13-8a6a-4779-99a1-7b2d9ab935d7
+name: Promptlocker "Worlds first AI-powered Ransomware" is detectable
+description: This detection identifies the presence of PromptLock ransomware by looking for known malicious file hashes (SHA1 and SHA256). PromptLock is reported to be the first AI-powered ransomware, written in Go, and uses a local AI model to generate malicious Lua scripts. The rule searches across both file and process creation events for wider coverage.
+query: |
+    // Name: Promptlocker "Worlds AI-powered Ransomware" is detectable
+    // Author: Reyben T. Cortes
+    // Date: 2025-08-26
+    // References: https://bsky.app/profile/esetresearch.bsky.social/post/3kzvq4u5vhy2c
+    // Description: This detection identifies the presence of PromptLock ransomware by looking for known malicious file hashes (SHA1) with low VT submissions. PromptLock is reported to be the first AI-powered ransomware, written in Go, and uses a local AI model to generate malicious Lua scripts. FunkSec ransomware was also considered "AI-powered" ransomware discovered before Promplock by ESET security.
+    // Note: This "AI-powered" ransomware is still commanded by hard-coded prompts and not considered "Polymorphic malware" but reported as first operational AI-powered ransomware.
+    let promptlock_sha1_hashes = dynamic([
+        "24bf7b72f54aa5b93c6681b4f69e579a47d7c102",
+        "ad223fe2bb4563446aee5227357bbfdc8ada3797",
+        "bb8fb75285bcd151132a3287f2786d4d91da58b8",
+        "f3f4c40c344695388e10cbf29ddb18ef3b61f7ef",
+        "639dbc9b365096d6347142fcae64725bd9f73270",
+        "161cdcdb46fb8a348aec609a86ff5823752065d2"
+    ]);
+    let promptlock_sha256_hashes = dynamic([
+        "2755e1ec1e4c3c0cd94ebe43bd66391f05282b6020b2177ee3b939fdd33216f6",
+        "1612ab799df51a7f1169d3f47ea129356b42c8ad81286d05b0256f80c17d4089",
+        "b43e7d481c4fdc9217e17908f3a4efa351a1dab867ca902883205fe7d1aab5e7",
+        "09bf891b7b35b2081d3ebca8de715da07a70151227ab55aec1da26eb769c006f",
+        "e24fe0dd0bf8d3943d9c4282f172746af6b0787539b371e6626bdb86605ccd70",
+        "1458b6dc98a878f237bfb3c3f354ea6e12d76e340cefe55d6a1c9c7eb64c9aee"
+    ]);
+    // Search across both file and process creation events for wider coverage.
+    union DeviceProcessEvents, DeviceFileEvents
+    | where SHA1 in~ (promptlock_sha1_hashes) or SHA256 in~ (promptlock_sha256_hashes)
+    | extend EventSource = TableName
+    | project
+        Timestamp,
+        DeviceName,
+        EventSource,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA1,
+        SHA256,
+        InitiatingProcessCommandLine,
+        ProcessCommandLine,
+        InitiatingProcessAccountName,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "1"
+references:
+    - https://bsky.app/profile/esetresearch.bsky.social/post/3kzvq4u5vhy2c

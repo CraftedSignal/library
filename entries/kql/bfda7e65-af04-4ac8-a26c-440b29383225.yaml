@@ -1,0 +1,164 @@
+id: bfda7e65-af04-4ac8-a26c-440b29383225
+name: Detection of Inactive Log Sources in the Last Hour
+description: The rule identifies log sources that have stopped sending data in the last hour despite being active in the past 24 hours, suggesting possible misconfigurations or disruptions. The rule is valid.
+query: |-
+    {
+        "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+        "contentVersion": "1.0.0.0",
+        "parameters": {
+            "workspace": {
+                "type": "String"
+            }
+        },
+        "resources": [
+            {
+                "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/5e21c920-98a5-46b8-b2c2-86969a043ed5')]",
+                "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/5e21c920-98a5-46b8-b2c2-86969a043ed5')]",
+                "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+                "kind": "Scheduled",
+                "apiVersion": "2023-12-01-preview",
+                "properties": {
+                    "displayName": "Detection of Inactive Log Sources in the Last Hour",
+                    "description": "This query identifies log sources that were actively reporting data in the past 24 hours but have stopped sending logs in the last hour. It helps detect potential issues such as misconfigurations, service disruptions, or malicious activity attempting to disable logging. By leveraging a watchlist for expected log sources, this query ensures efficient monitoring without the need to scan historical data constantly.",
+                    "severity": "Low",
+                    "enabled": false,
+                    "query": "let BaselineFunction = (tableNames: dynamic) {\r\n    union isfuzzy=true Syslog, CommonSecurityLog, SecurityEvent, WindowsEvent, Heartbeat\r\n    | where TimeGenerated >= ago(1d)\r\n    | where isnotempty(Computer)\r\n    | extend DeviceName = Computer\r\n    //| extend DeviceName = iff(Type has \"CommonSecurityLog\", DeviceName, Computer)\r\n    | summarize LastSeen = max(TimeGenerated) by DeviceName, Type\r\n    | distinct DeviceName, LastSeen, Type\r\n};\r\nlet LookBackFunction = (tableNames: dynamic) {\r\n    union isfuzzy=true Syslog, CommonSecurityLog, SecurityEvent, WindowsEvent, Heartbeat\r\n    | where TimeGenerated >= ago(1h)\r\n    | where isnotempty(Computer)\r\n    | extend DeviceName = Computer\r\n    //| extend DeviceName = iff(Type has \"CommonSecurityLog\", DeviceName , Computer)\r\n    | distinct DeviceName, Type\r\n};\r\nlet Baseline = BaselineFunction(dynamic([\"Syslog\", \"CommonSecurityLog\", \"SecurityEvent\", \"WindowsEvent\", \"Heartbeat\"]));\r\nlet Lookback = LookBackFunction(dynamic([\"Syslog\", \"CommonSecurityLog\", \"SecurityEvent\", \"WindowsEvent\", \"Heartbeat\"]));\r\nLookback\r\n| join kind=rightanti Baseline on DeviceName",
+                    "queryFrequency": "PT1H",
+                    "queryPeriod": "P1D",
+                    "triggerOperator": "GreaterThan",
+                    "triggerThreshold": 0,
+                    "suppressionDuration": "PT5H",
+                    "suppressionEnabled": false,
+                    "startTimeUtc": null,
+                    "tactics": [
+                        "DefenseEvasion"
+                    ],
+                    "techniques": [
+                        "T1070",
+                        "T1562"
+                    ],
+                    "subTechniques": [],
+                    "alertRuleTemplateName": null,
+                    "incidentConfiguration": {
+                        "createIncident": true,
+                        "groupingConfiguration": {
+                            "enabled": false,
+                            "reopenClosedIncident": false,
+                            "lookbackDuration": "PT5H",
+                            "matchingMethod": "AllEntities",
+                            "groupByEntities": [],
+                            "groupByAlertDetails": [],
+                            "groupByCustomDetails": []
+                        }
+                    },
+                    "eventGroupingSettings": {
+                        "aggregationKind": "AlertPerResult"
+                    },
+                    "alertDetailsOverride": {
+                        "alertDisplayNameFormat": "{{DeviceName}} is not sending data to table {{Type}}  ",
+                        "alertDescriptionFormat": "This query identifies log sources that were actively reporting data in the past 24 hours but have stopped sending logs in the last hour. The affected device {{DeviceName}} has last sent logs at {{LastSeen}}.",
+                        "alertDynamicProperties": []
+                    },
+                    "customDetails": {
+                        "DataType": "Type"
+                    },
+                    "entityMappings": [
+                        {
+                            "entityType": "Host",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "HostName",
+                                    "columnName": "DeviceName"
+                                }
+                            ]
+                        }
+                    ],
+                    "sentinelEntitiesMappings": null,
+                    "templateVersion": null
+                }
+            },
+            {
+                "id": "[concat(resourceId('Microsoft.OperationalInsights/workspaces/providers', parameters('workspace'), 'Microsoft.SecurityInsights'),'/alertRules/5f31f851-f9a2-4e82-82df-f9b1e85daf13')]",
+                "name": "[concat(parameters('workspace'),'/Microsoft.SecurityInsights/5f31f851-f9a2-4e82-82df-f9b1e85daf13')]",
+                "type": "Microsoft.OperationalInsights/workspaces/providers/alertRules",
+                "kind": "NRT",
+                "apiVersion": "2023-12-01-preview",
+                "properties": {
+                    "displayName": "Linux - Failed Login Detected",
+                    "description": "This analytic rule captures all failed logins via SSH process.",
+                    "severity": "Medium",
+                    "enabled": true,
+                    "query": "Syslog\r\n| where Facility =~ \"authpriv\"\r\n| where SyslogMessage has \"authentication failure\"\r\n| extend Process = extract(@'tty=([^ ]*)', 1, SyslogMessage),\r\nSourceIP = extract(@'rhost=([^ ]*)', 1, SyslogMessage),\r\nTargetUserDetails = extract(@'user=([^;]*)', 1, SyslogMessage)\r\n| where isnotempty(SourceIP)\r\n| extend TargetUser = extract(@'user=([^;]*)', 1, TargetUserDetails)\r\n| extend TargetUser = iff(isempty(TargetUser), \"NotCapturedInLog\", TargetUser)\r\n| extend Process = iff(isempty(Process), ProcessName, Process)\r\n| lookup Heartbeat on _ResourceId\r\n| distinct SourceIP, Process, TargetUser, HostName, TargetIP = ComputerIP",
+                    "suppressionDuration": "PT5H",
+                    "suppressionEnabled": false,
+                    "tactics": [
+                        "InitialAccess"
+                    ],
+                    "techniques": [
+                        "T1078"
+                    ],
+                    "subTechniques": [],
+                    "alertRuleTemplateName": null,
+                    "incidentConfiguration": {
+                        "createIncident": true,
+                        "groupingConfiguration": {
+                            "enabled": false,
+                            "reopenClosedIncident": false,
+                            "lookbackDuration": "PT5H",
+                            "matchingMethod": "AllEntities",
+                            "groupByEntities": [],
+                            "groupByAlertDetails": [],
+                            "groupByCustomDetails": []
+                        }
+                    },
+                    "eventGroupingSettings": {
+                        "aggregationKind": "AlertPerResult"
+                    },
+                    "alertDetailsOverride": null,
+                    "customDetails": null,
+                    "entityMappings": [
+                        {
+                            "entityType": "IP",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "Address",
+                                    "columnName": "SourceIP"
+                                }
+                            ]
+                        },
+                        {
+                            "entityType": "IP",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "Address",
+                                    "columnName": "TargetIP"
+                                }
+                            ]
+                        },
+                        {
+                            "entityType": "Host",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "HostName",
+                                    "columnName": "HostName"
+                                }
+                            ]
+                        },
+                        {
+                            "entityType": "Account",
+                            "fieldMappings": [
+                                {
+                                    "identifier": "Name",
+                                    "columnName": "TargetUser"
+                                }
+                            ]
+                        }
+                    ],
+                    "sentinelEntitiesMappings": null,
+                    "templateVersion": null
+                }
+            }
+        ]
+    }
+query_type: kql
+version: "1"

@@ -1,0 +1,60 @@
+id: 019c8a2c-b67c-7314-b39d-11c5520e9f88
+name: Automated System Discovery Sequence with Output Redirection
+description: Detects a sequence of system discovery commands (whoami, tasklist, systeminfo, netstat) executed by the same parent process within a short time window, with output redirected to a file. This TTP was used in the Notepad++ supply chain attack for system profiling.
+query: |
+    // Name: Automated System Discovery Sequence
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects a sequence of system discovery commands (whoami, tasklist, systeminfo, netstat) executed by the same parent process within a short time window, with output redirected to a file. This TTP was used in the Notepad++ supply chain attack for system profiling.
+    // MITRE TTPs: T1033, T1057, T1082, T1049
+    // References: https://securelist.com/notepad-supply-chain-attack/118708/
+    let timeframe = 1d;
+    // Define the set of suspicious discovery commands observed in the attack
+    let discovery_cmds = dynamic(["whoami.exe", "tasklist.exe", "systeminfo.exe", "netstat.exe"]);
+    // Set the threshold for the number of unique commands required to trigger an alert
+    let command_threshold = 3;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Filter for the specific discovery commands being executed
+    | where FileName in~ (discovery_cmds)
+    // Filter for command lines that redirect output to a file, a key part of the TTP
+    | where ProcessCommandLine has ">"
+    // Group events by the parent process on a single device within a 5-minute window
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        ExecutedCommands = make_set(FileName),
+        AllCommandLines = make_set(ProcessCommandLine),
+        UniqueCommandCount = dcount(FileName)
+        by DeviceName, InitiatingProcessId, InitiatingProcessFileName, InitiatingProcessCommandLine, bin(TimeGenerated, 5m)
+    // Core detection logic: Alert if the number of unique commands meets or exceeds the threshold
+    | where UniqueCommandCount >= command_threshold
+    // Potential for false positives: Legitimate administrative or monitoring scripts may perform similar actions.
+    // Consider excluding known safe parent processes or scripts if noise occurs.
+    // Example: | where InitiatingProcessFileName !in ("legit_script.exe", "monitoring_agent.exe")
+    | project
+        StartTime,
+        EndTime,
+        DeviceName,
+        InitiatingProcessId,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        UniqueCommandCount,
+        ExecutedCommands,
+        AllCommandLines
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0001
+techniques:
+    - T1033
+    - T1057
+    - T1082
+    - T1049
+    - T1195.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

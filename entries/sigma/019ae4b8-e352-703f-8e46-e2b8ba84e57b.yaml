@@ -1,0 +1,50 @@
+id: 019ae4b8-e352-703f-8e46-e2b8ba84e57b
+name: Matanbuchus DLL Injection Named Pipe
+description: Detects the creation of a named pipe with the format `\.\pipe\dll-%hex_encoded_PID%`. This behavior is associated with the Matanbuchus malware, which uses this technique to inject a DLL payload into a remote msiexec.exe process.
+query: |
+    title: Matanbuchus DLL Injection Named Pipe
+    id: a53f488a-29a3-4a06-aa26-aef4547d5e86
+    status: experimental
+    description: >-
+      Detects the creation of a named pipe with the format
+      `\.\pipe\dll-%hex_encoded_PID%`. This behavior is associated with the
+      Matanbuchus malware, which uses this technique to inject a DLL payload into a
+      remote msiexec.exe process.
+    references:
+      - >-
+        https://www.zscaler.com/blogs/security-research/technical-analysis-matanbuchus-3-0
+    author: detections.ai
+    date: 2025-12-03T00:00:00.000Z
+    tags:
+      - attack.t1055
+    logsource:
+      product: windows
+      category: pipe_created
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith: \msiexec.exe
+        PipeName|startswith: \.\pipe\dll-
+      condition: selection
+    falsepositives:
+      - Legitimate software might create named pipes with a similar naming scheme,
+        although the combination with `msiexec.exe` as the creator process makes it
+        more specific. Tuning might be required if legitimate installers exhibit
+        this behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055
+tags:
+    - attack.t1055
+author: detections.ai
+version: "3"
+references:
+    - https://www.zscaler.com/blogs/security-research/technical-analysis-matanbuchus-3-0
+data_sources:
+    - pipe_created
+    - windows

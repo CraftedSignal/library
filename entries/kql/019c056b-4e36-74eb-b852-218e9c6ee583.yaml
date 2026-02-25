@@ -1,0 +1,45 @@
+id: 019c056b-4e36-74eb-b852-218e9c6ee583
+name: Suspicious Parent Process for Tar.exe
+description: Detects tar.exe being spawned by processes commonly associated with initial access or lateral movement, such as web servers or remote management services. This activity is highly indicative of post-exploitation activity like data staging.
+query: |
+    // Name: Suspicious Parent Process for Tar.exe
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects tar.exe being spawned by processes commonly associated with initial access or lateral movement, such as web servers or remote management services. This activity is highly indicative of post-exploitation activity like data staging.
+    // MITRE ATT&CK: T1560.001, T1021.006
+    // References: https://ss64.com/nt/tar.html
+    DeviceProcessEvents
+    // medium: Look for tar.exe process execution.
+    | where FileName =~ "tar.exe"
+    // medium: Filter for parent processes often exploited for initial access or used for lateral movement.
+    | where ParentProcessFileName in~ (
+        "w3wp.exe", // IIS Worker Process
+        "sqlservr.exe", // SQL Server
+        "wsmprovhost.exe", // Windows Remote Management (WinRM)
+        "php-cgi.exe", // PHP CGI
+        "httpd.exe" // Apache HTTP Server
+    )
+    // medium: Spawning tar.exe from these parent processes is highly anomalous and suggests an attacker is using a compromised service to stage data for exfiltration.
+    // medium: FP Tuning: This is a high-fidelity detection. However, if legitimate administrative scripts are run from these services, consider excluding specific parent command lines or user accounts known to perform such actions.
+    | project-reorder
+        Timestamp,
+        DeviceName,
+        AccountName,
+        ProcessCommandLine,
+        ParentProcessFileName,
+        ParentProcessCommandLine,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0008
+techniques:
+    - T1560.001
+    - T1021.006
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://ss64.com/nt/tar.html

@@ -1,0 +1,40 @@
+id: 2c32ab6f-ad00-49d8-8627-0b62559e418f
+name: Warlock Dark Army Temp File Creation
+description: Detects the creation of a randomly named executable (16-character alphanumeric) in common temporary directories (AppData\Local\Temp or C:\Windows\Temp). This behavior is associated with Warlock Dark Army ransomware.
+query: |
+    -- name: Warlock Dark Army Temp File Creation
+    -- author: detections.ai
+    -- date: 2025-07-23
+    -- description: Detects the creation of a randomly named executable in a temporary directory, a behavior associated with Warlock Dark Army ransomware.
+    -- references:
+    --   - https://labs.k7computing.com/index.php/ransomed-by-warlock-dark-army-officials/
+
+    -- Use the Filesystem data model to look for file creation events.
+    from datamodel=Endpoint.Filesystem
+
+    -- Filter for file creation events in common temporary directories.
+    | where Filesystem.action = "create" AND (Filesystem.file_path LIKE "%\\AppData\\Local\\Temp\\%" OR Filesystem.file_path LIKE "C:\\Windows\\Temp\\%")
+
+    -- The malware sample creates a 16-character alphanumeric executable.
+    -- This logic checks for .exe files with a name length of 16 characters.
+    | where match(Filesystem.file_name, /^[A-Za-z0-9]{16}\.exe$/)
+
+    -- Potential for False Positives: Legitimate software installers or updaters may also create randomly named executables in temp folders.
+    -- Consider filtering by file signature status or excluding known good parent processes if false positives occur.
+    -- | where Filesystem.file_is_signed = "false"
+
+    -- Format the results for analysis.
+    | table _time, dest, user, Filesystem.file_name, Filesystem.file_path, Filesystem.action, Filesystem.process_guid
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.003
+    - DS0022
+tags:
+    - spl
+version: "1"
+references:
+    - https://labs.k7computing.com/index.php/ransomed-by-warlock-dark-army-officials/

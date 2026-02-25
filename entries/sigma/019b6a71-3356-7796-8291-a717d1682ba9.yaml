@@ -1,0 +1,54 @@
+id: 019b6a71-3356-7796-8291-a717d1682ba9
+name: HoneyMyte Disables Microsoft Defender via Altitude Tampering
+description: Detects the tampering of the Microsoft Defender file system mini-filter driver's 'Altitude' registry value. The HoneyMyte APT's rootkit sets this value to '0' to prevent the driver from loading, effectively impairing system defenses.
+query: |
+    title: HoneyMyte Disables Microsoft Defender via Altitude Tampering
+    id: 5f65821c-a0a1-4da2-a280-fb837b217f7b
+    status: experimental
+    description: Detects the tampering of the Microsoft Defender file system
+      mini-filter driver's 'Altitude' registry value. The HoneyMyte APT's rootkit
+      sets this value to '0' to prevent the driver from loading, effectively
+      impairing system defenses.
+    references:
+      - https://securelist.com/honeymyte-kernel-mode-rootkit/118590/
+    author: tim@etections.ai
+    date: 2025-12-29
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - attack.g0102
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection:
+        # Detects modification of the WdFilter instance key
+        TargetObject|endswith: '\Services\WdFilter\Instances\WdFilter Instance\Altitude'
+        # The specific value being modified to control load order
+        Details:
+          - '0'
+          - '0x00000000'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or troubleshooting activities could potentially
+        modify this value, although setting it to '0' for the WdFilter is highly
+        unusual. Consider filtering events based on known administrative tools or
+        change management tickets.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - attack.g0102
+author: tim@etections.ai
+version: "3"
+references:
+    - https://securelist.com/honeymyte-kernel-mode-rootkit/118590/
+data_sources:
+    - registry_set
+    - windows

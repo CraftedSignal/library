@@ -1,0 +1,16 @@
+id: 019c4c7e-ac3f-74b1-8f11-e41415cb46c0
+name: Suspicious Azure Blob Enumeration by Insider
+description: This rule detects suspicious enumeration of Azure Blob, File, Table, Queue, or DFS storage accounts by internal users. It identifies devices making network connections to public Azure storage URLs using potentially suspicious processes (e.g., PowerShell, Python, AzCopy, curl, wget, WinSCP, FileZilla, Storage Explorer). The rule then analyzes the distinct storage accounts accessed and uses a Jaccard index to identify unusual naming conventions among the accessed storage accounts, potentially indicating an insider attempting to discover or exfiltrate data from unfamiliar storage resources.
+query: "// Posible insider enumerating Azure blobs, jaccard_index used to check if the SA have diferent naming convention \r\nlet known_sa = dynamic([\"yourtenant1\", \"yourtenant2\"]);\r\nlet suspicious_procs = dynamic([\"powershell.exe\", \"pwsh.exe\", \"python.exe\",\r\n    \"python3.exe\", \"azcopy.exe\", \"curl.exe\", \"wget.exe\", \"winscp.exe\",\r\n    \"filezilla.exe\", \"fzsftp.exe\", \"storageexplorer.exe\", \"azcopy\"]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where RemoteUrl has \".core.windows.net\"\r\n| where RemoteUrl matches regex @\"\\.(blob|file|table|queue|dfs)\\.core\\.windows\\.net$\"\r\n| where RemoteIPType == \"Public\"\r\n| extend StorageAccount = extract(@\"^([^.]+)\\.\", 1, RemoteUrl)\r\n| extend IsKnownSA = StorageAccount in (known_sa)\r\n| where InitiatingProcessFileName in~ (suspicious_procs)\r\n| join kind=inner (\r\n    DeviceInfo\r\n    | where DeviceType !contains \"server\"\r\n    | distinct DeviceId\r\n) on DeviceId\r\n| summarize\r\n    TotalConnections = count(),\r\n    DistinctSAs = dcount(StorageAccount),\r\n    UnknownSAs = dcountif(StorageAccount, not(IsKnownSA)),\r\n    KnownSAs = dcountif(StorageAccount, IsKnownSA),\r\n    Processes = make_set(InitiatingProcessFileName, 10),\r\n    SampleSAs = make_set(StorageAccount, 50)\r\n    by DeviceName, InitiatingProcessAccountName\r\n| where DistinctSAs > 3\r\n// --- Pairwise Jaccard on SA name character sets ---\r\n| mv-apply with_itemindex=i1 sa1 = SampleSAs to typeof(string) on (\r\n    mv-apply with_itemindex=i2 sa2 = SampleSAs to typeof(string) on (\r\n        where i1 < i2\r\n        | extend sa1_prefix = substring(tolower(tostring(sa1)), 0, 8)\r\n        | extend sa2_prefix = substring(tolower(tostring(sa2)), 0, 8)\r\n        | extend chars1 = extract_all(\"(.)\", sa1_prefix)\r\n        | extend chars2 = extract_all(\"(.)\", sa2_prefix)\r\n        | extend pair_jaccard = todouble(jaccard_index(chars1, chars2))\r\n    )\r\n    | summarize avg_jaccard = round(avg(pair_jaccard), 3)\r\n)\r\n| sort by avg_jaccard asc, UnknownSAs desc, DistinctSAs desc\r\n|where avg_jaccard < 0.52\r\n|sort by DistinctSAs desc  "
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0009
+techniques:
+    - T1567.002
+    - T1530
+    - DS0010
+tags:
+    - kql
+version: "3"

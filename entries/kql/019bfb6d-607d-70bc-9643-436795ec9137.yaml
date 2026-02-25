@@ -1,0 +1,17 @@
+id: 019bfb6d-607d-70bc-9643-436795ec9137
+name: Scheduled Task Creation with Suspicious Command Line
+description: Detects the creation of scheduled tasks using 'schtasks /create' that include suspicious command-line arguments often associated with malicious activity, such as PowerShell execution, web requests (Invoke-WebRequest, curl, wget, bitsadmin), or script execution (.ps1, .vbs, .js). This rule aims to identify persistence mechanisms or initial access attempts.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(60d)\r\n| where ProcessCommandLine has_all (\"schtasks\", \"/create\")\r\n| where ProcessCommandLine has_any (\"powershell\",\"pwsh\",\"Invoke-WebRequest\",\"iwr\",\"curl\",\"wget\",\"bitsadmin\",\"mshta\",\"cmd /c\",\"rundll32\",\".ps1\",\".vbs\",\".js\",\"http://\",\"https://\",\"-enc\",\"-EncodedCommand\",\"FromBase64String\")\r\n| extend CleanCommandLine = replace_regex(ProcessCommandLine, @\"C:\\\\Users\\\\[^\\\\]+\", \"C:\\\\Users\\\\\")\r\n| project Timestamp, DeviceName, InitiatingProcessAccountName, FileName, CleanCommandLine, FolderPath, InitiatingProcessFileName, InitiatingProcessSHA256\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059
+    - T1059.001
+tags:
+    - kql
+version: "1"

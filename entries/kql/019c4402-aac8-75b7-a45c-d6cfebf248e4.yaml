@@ -1,0 +1,12 @@
+id: 019c4402-aac8-75b7-a45c-d6cfebf248e4
+name: Powershell Logs Cleared
+description: 'Query identity the deletetion of the file  ConsoleHost_history.txt, the file stores the process command line history of Powershell '
+query: "DeviceFileEvents\r\n| where ActionType == @\"FileDeleted\"\r\n| where not (InitiatingProcessParentFileName in (\"userinit.exe\",\"svchost.exe\"))\r\n| where FolderPath has \"AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\PowerShell\\\\PSReadLine\" \r\nand FolderPath startswith @\"C:\\Users\\\"\r\n| where  FileName == \"ConsoleHost_history.txt\"\r\n| where FolderPath !has \".old\"\r\n| project  InitiatingProcessAccountName,DeviceName,ActionType,FileName,FolderPath,InitiatingProcessFileName,InitiatingProcessCommandLine,\r\nInitiatingProcessParentFileName\r\n| extend AccountName = InitiatingProcessAccountName\r\n| join kind=inner(\r\nIdentityInfo \r\n| project AccountName,Department,AccountUpn\r\n) on AccountName \r\n| summarize count() by InitiatingProcessAccountName,AccountUpn,Department,DeviceName,ActionType,FileName,FolderPath,InitiatingProcessFileName,\r\nInitiatingProcessCommandLine,InitiatingProcessParentFileName\r\n| order by count_ desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1070.003
+tags:
+    - kql
+author: Enzima45
+version: "1"

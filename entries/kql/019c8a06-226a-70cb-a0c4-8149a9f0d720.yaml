@@ -1,0 +1,19 @@
+id: 019c8a06-226a-70cb-a0c4-8149a9f0d720
+name: Suspicious Outbound Connection from Ivanti EPMM Server
+description: Detects suspicious outbound network connections from processes commonly associated with Ivanti EPMM servers. This activity is indicative of post-exploitation behavior such as establishing a reverse shell or downloading a second-stage payload, as seen in the exploitation of CVE-2026-1281 and CVE-2026-1340.
+query: "// Name: Suspicious Outbound Connection from Ivanti EPMM Server\r\n// Author: detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects suspicious outbound network connections from processes commonly associated with Ivanti EPMM servers. This activity is indicative of post-exploitation behavior such as establishing a reverse shell or downloading a second-stage payload, as seen in the exploitation of CVE-2026-1281 and CVE-2026-1340.\r\n//\r\n// MITRE ATT&CK:\r\n// - T1071.001: Application Layer Protocol: Web Protocols\r\n// - T1572: Protocol Tunneling\r\n//\r\n// References:\r\n// - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/\r\nlet suspiciousPorts = dynamic([8443, 6666, 10808, 10882, 18899, 8082]);\r\nlet suspiciousDomains = dynamic([\r\n    \"ngrok-free.app\",\r\n    \"gobygo.net\",\r\n    \"introo.sh\",\r\n    \"main.interacth3.io\",\r\n    \"ddns.1433.eu.org\",\r\n    \"oast.live\",\r\n    \"oast.me\",\r\n    \"oast.site\",\r\n    \"eyes.sh\",\r\n    \"requestrepo.com\",\r\n    \"ceye.io\",\r\n    \"interact.gateway.horizon3ai.com\"\r\n]);\r\nlet sourceProcesses = dynamic([\"httpd\", \"tomcat\", \"sh\", \"bash\", \"curl\", \"wget\", \"ncat\"]);\r\nDeviceNetworkEvents\r\n// FP Tuning: To reduce false positives, filter for known Ivanti EPMM server hostnames or IP addresses.\r\n// For example: `| where DeviceName has \"ivanti\" or DeviceId in (known_ivanti_servers)`\r\n// Port 8443 can be legitimate. Consider baselining normal traffic for your Ivanti servers and excluding known good destinations.\r\n| where InitiatingProcessFileName in~ (sourceProcesses)\r\n// Detects connections to suspicious ports or known malicious/tunneling domains.\r\n| where RemotePort in (suspiciousPorts) or RemoteUrl has_any (suspiciousDomains)\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1071.001
+    - T1572
+    - T1104
+    - T1027.009
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

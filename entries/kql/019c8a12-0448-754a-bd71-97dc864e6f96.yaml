@@ -1,0 +1,14 @@
+id: 019c8a12-0448-754a-bd71-97dc864e6f96
+name: 'Suspicious Browser Credential Access_MuddyWater Operation Olalampo Campaign '
+description: This detection identifies attempts by non-browser processes to access credential database files associated with common web browsers, including Chrome, Edge, and Brave. Such activity is commonly leveraged by threat actors to harvest stored credentials for the purpose of lateral movement and further system compromise. Notably, this technique has been observed in campaigns attributed to MuddyWater Operation Olalampo.
+query: "let credential_paths = dynamic([\r\n    @\"\\AppData\\Local\\Google\\Chrome\\User Data\\Default\\Login Data\",\r\n    @\"\\AppData\\Local\\Microsoft\\Edge\\User Data\\Default\\Login Data\",\r\n    @\"\\AppData\\Local\\BraveSoftware\\Brave-Browser\\User Data\\Default\\Login Data\"\r\n]);\r\n\r\nlet legitimate_processes = dynamic([\r\n    \"chrome.exe\",\r\n    \"msedge.exe\",\r\n    \"brave.exe\",\r\n    \"svchost.exe\"     \r\n]);\r\n\r\nDeviceFileEvents\r\n| where ActionType in (\"FileRead\", \"FileCreated\")\r\n| where FilePath has_any (credential_paths)\r\n| where not(InitiatingProcessFileName in~ (legitimate_processes))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1555.003
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.group-ib.com/blog/muddywater-operation-olalampo/

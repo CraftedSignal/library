@@ -1,0 +1,59 @@
+id: 019bc64d-b8cf-702a-9ab3-ad61b605cb30
+name: Successful Single-Factor Sign-in with Abnormal Attributes
+description: This rule detects successful sign-ins that used single-factor authentication and were flagged by Azure AD Identity Protection for having unfamiliar properties, such as a new location, device, or ASN. Single-factor authentication is inherently weaker, and when combined with anomalous sign-in properties, it can be an indicator of a compromised account.
+query: |
+    // Name: Successful Single-Factor Sign-in with Abnormal Attributes
+    // Author: detections.ai
+    // Date: 2026-01-16
+    //
+    // Description:
+    // This rule detects successful sign-ins that used single-factor authentication and were flagged by Azure AD Identity Protection
+    // for having unfamiliar properties, such as a new location, device, or ASN.
+    // Single-factor authentication is inherently weaker, and when combined with anomalous sign-in properties,
+    // it can be an indicator of a compromised account.
+    //
+    // Tactic: Credential Access
+    // Technique: T1078, Valid Accounts
+    //
+    // False Positive Sensitivity: Medium
+    // - Legitimate user activity, such as traveling, using a new device, or connecting through a new network/VPN, can trigger this alert.
+    // - Review the sign-in properties (location, device) and correlate with other user activity to determine legitimacy.
+    // - Consider excluding known corporate VPN IP ranges or trusted locations to reduce noise.
+    //
+    SigninLogs
+    // Filter for successful sign-ins within the last day
+    | where TimeGenerated > ago(1d)
+    | where ResultType == 0
+    // Filter for sign-ins that used a single authentication method. This is an alternative to 'AuthenticationRequirement'.
+    | where array_length(AuthenticationDetails) == 1
+    // Identify sign-ins flagged as risky by Identity Protection. This is a broader alternative to 'unfamiliarSign-inProperties'.
+    | where RiskState == "atRisk" and RiskLevelDuringSignIn in ("Medium", "High")
+    // To reduce potential noise from common applications, you can exclude specific AppDisplayNames.
+    // For example, some organizations might see noise from legacy mail clients.
+    // | where AppDisplayName !in ("Office 365 Exchange Online")
+    | project
+        TimeGenerated,
+        UserPrincipalName,
+        AppDisplayName,
+        IPAddress,
+        Location,
+        DeviceDetail,
+        AuthenticationDetails,
+        RiskState,
+        RiskLevelDuringSignIn,
+        ConditionalAccessStatus,
+        UserAgent,
+        CorrelationId
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+tags:
+    - kql
+version: "2"

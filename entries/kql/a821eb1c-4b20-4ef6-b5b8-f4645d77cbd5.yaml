@@ -1,0 +1,15 @@
+id: a821eb1c-4b20-4ef6-b5b8-f4645d77cbd5
+name: 'Threat Hunt: Suspicious Archive File Creation in Temporary Folders before data Exfiltration'
+description: This query detects the creation of archive files (ZIP, 7z, RAR) in common temporary or publicly writable directories (C:\Users\Public\, C:\ProgramData\, C:\Windows\Temp, C:\PerfLogs). The files are written by processes commonly abused in attacks, such as powershell.exe, cmd.exe, 7z.exe, winrar.exe, or explorer.exe.
+query: "DeviceFileEvents\r\n| where FolderPath has_any ( @\"C:\\Users\\Public\\\", @\"C:\\ProgramData\\\", @\"C:\\Windows\\Temp\", @\"C:\\PerfLogs\")\r\n| where FileName endswith \".zip\" or FileName endswith \".7z\" or FileName endswith \".rar\"\r\n| where InitiatingProcessFileName has_any (\"powershell.exe\", \"cmd.exe\", \"7z.exe\", \"winrar.exe\", \"explorer.exe\")\r\n|where FileSize > 50000000  // >50MB"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0010
+techniques:
+    - T1074
+tags:
+    - kql
+author: AwaisM
+version: "1"

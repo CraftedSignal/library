@@ -1,0 +1,25 @@
+id: ba952ac8-0c1e-412d-81d8-0c9e2abe9a94
+name: SLOW#TEMPEST ISO File Distribution
+description: This detection rule identifies the creation of ISO (.iso) files on endpoints, specifically focusing on those created by common internet browsers and email clients. This activity is associated with the SLOW#TEMPEST campaign, which is known to distribute malware payloads via ISO files, often bundled with legitimate applications and malicious DLLs. The rule aims to detect the initial delivery vector of this threat.
+query: |
+    `comment("This detection rule identifies the creation of ISO (.iso) files on endpoints. The SLOW#TEMPEST campaign is known to use ISO files to distribute its malware payload, often bundled with legitimate applications and malicious DLLs. This detection focuses on ISO files created by processes that commonly download files from the internet, which is a primary vector for this threat.")`
+    `tstats` summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Filesystem where (Filesystem.action=created) AND (Filesystem.file_name="*.iso") by Filesystem.dest Filesystem.process_name Filesystem.file_path Filesystem.file_name
+    | `drop_dm_object_name("Filesystem")`
+    | `rename` dest as host, process_name as process, file_path as path, file_name as file
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+    `comment("Focus on ISO files created by browsers or email clients to reduce noise from legitimate administrative tools.")`
+    | search process IN ("chrome.exe", "msedge.exe", "firefox.exe", "iexplore.exe", "opera.exe", "brave.exe", "outlook.exe", "thunderbird.exe")
+    `comment("FP Tuning: Legitimate software is often downloaded as an ISO. An investigation should correlate this activity with other events, such as the mounting of the ISO and subsequent execution of files from the mounted volume. The process list may need to be tuned for your environment.")`
+    | table firstTime, lastTime, host, process, path, file, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1204.002
+tags:
+    - spl
+version: "1"

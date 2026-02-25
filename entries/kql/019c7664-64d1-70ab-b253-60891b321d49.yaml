@@ -1,0 +1,18 @@
+id: 019c7664-64d1-70ab-b253-60891b321d49
+name: Ivanti EPMM RCE Exploit URI (CVE-2026-1281, CVE-2026-1340)
+description: Detects HTTP requests to vulnerable Ivanti EPMM endpoints containing URI patterns associated with active exploitation of CVE-2026-1281 and CVE-2026-1340. The rule looks for specific URI paths and the presence of a 'gPath' parameter, which is indicative of an exploitation attempt.
+query: "// Name: Ivanti EPMM RCE Exploit URI (CVE-2026-1281, CVE-2026-1340)\n// Author: tim@detections.ai\n// Date: 2026-02-19\n// Severity: High\n// Description: Detects HTTP requests to vulnerable Ivanti EPMM endpoints containing URI patterns \n//   associated with active exploitation of CVE-2026-1281 and CVE-2026-1340.\n// References:\n// - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/\n// MITRE ATT&CK:\n// - T1190: Exploit Public-Facing Application\n// - T1059.004: Command and Scripting Interpreter: Unix Shell\n// False Positives: Low - These specific URI patterns with gPath parameter are exploitation attempts.\n// Works with multiple data sources, trim to what you need. \nlet lookback = 24h;\n// Pattern 1: Web proxy/firewall logs (CommonSecurityLog)\nlet ProxyExploitAttempts = CommonSecurityLog\n    | where TimeGenerated > ago(lookback)\n    | where isnotempty(RequestURL)\n    | where RequestURL has \"/mifs/c/\" and RequestURL has \"store/fob\" and RequestURL has \"gPath\"\n    | where RequestURL matches regex @\"\\/mifs\\/c\\/(app|aft)store\\/fob\"\n    | extend \n        UriOrUrl = RequestURL,\n        SrcIp = SourceIP,\n        DstIp = DestinationIP,\n        SrcPort = SourcePort,\n        DstPort = DestinationPort,\n        LogSource = \"CommonSecurityLog\"\n    | project\n        TimeGenerated,\n        LogSource,\n        DeviceName = DeviceName,\n        DeviceVendor,\n        DeviceProduct,\n        Activity,\n        UriOrUrl,\n        SrcIp,\n        DstIp,\n        SrcPort,\n        DstPort;\n// Pattern 2: Microsoft Defender for Endpoint network events\nlet MDEExploitAttempts = DeviceNetworkEvents\n    | where Timestamp > ago(lookback)\n    | where isnotempty(RemoteUrl)\n    | where RemoteUrl has \"/mifs/c/\" and RemoteUrl has \"store/fob\" and RemoteUrl has \"gPath\"\n    | where RemoteUrl matches regex @\"\\/mifs\\/c\\/(app|aft)store\\/fob\"\n    | extend \n        UriOrUrl = RemoteUrl,\n        SrcIp = LocalIP,\n        DstIp = RemoteIP,\n        SrcPort = LocalPort,\n        DstPort = RemotePort,\n        LogSource = \"DeviceNetworkEvents\"\n    | project\n        TimeGenerated = Timestamp,\n        LogSource,\n        DeviceName,\n        DeviceVendor = \"Microsoft\",\n        DeviceProduct = \"Defender for Endpoint\",\n        Activity = ActionType,\n        UriOrUrl,\n        SrcIp,\n        DstIp,\n        SrcPort,\n        DstPort;\n// Combine\nunion ProxyExploitAttempts, MDEExploitAttempts\n| extend \n    InjectedCommand = extract(@\"gPath\\[([^\\]]+)\\]\", 1, UriOrUrl)\n| project\n    TimeGenerated,\n    LogSource,\n    DeviceName,\n    DeviceVendor,\n    DeviceProduct,\n    Activity,\n    UriOrUrl,\n    InjectedCommand,\n    SrcIp,\n    DstIp,\n    SrcPort,\n    DstPort\n| extend\n    // Sentinel entity mapping\n    IPCustomEntity = SrcIp,\n    UrlCustomEntity = UriOrUrl"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - kql
+author: tim@detections.ai
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

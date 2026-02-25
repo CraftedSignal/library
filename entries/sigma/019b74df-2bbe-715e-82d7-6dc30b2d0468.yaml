@@ -1,0 +1,73 @@
+id: 019b74df-2bbe-715e-82d7-6dc30b2d0468
+name: DarkSpectre Zoom Stealer Extension
+description: Detects malicious browser extensions associated with the DarkSpectre 'Zoom Stealer' campaign by identifying known malicious extension IDs. The campaign uses these extensions for corporate espionage by stealing meeting intelligence from various video conferencing platforms.
+query: |
+    title: DarkSpectre Zoom Stealer Extension
+    id: 69b65589-be56-47b5-9af3-f87458e303ed
+    status: experimental
+    description: Detects malicious browser extensions associated with the
+      DarkSpectre 'Zoom Stealer' campaign by identifying known malicious extension
+      IDs. The campaign uses these extensions for corporate espionage by stealing
+      meeting intelligence from various video conferencing platforms.
+    references:
+      - https://www.koi.ai/blog/darkspectre-unmasking-the-threat-actor-behind-7-8-million-infected-browsers
+    author: tim@detections.ai
+    date: 2025-12-31
+    tags:
+      - attack.t1136.002
+      - attack.ta0001
+      - attack.collection
+    logsource:
+      category: file_event
+      product: windows
+      service: sysmon
+    detection:
+      # Detects the creation of directories associated with known malicious extension IDs.
+      # These directories are typically created in the user's profile folder upon extension installation.
+      selection:
+        TargetFilename|contains:
+          # Chrome Extension IDs
+          - '\kfokdmfpdnokpmpbjhjbcabgligoelgp\'
+          - '\pdadlkbckhinonakkfkdaadceojbekep\'
+          - '\akmdionenlnfcipmdhbhcnkighafmdha\'
+          - '\pabkjoplheapcclldpknfpcepheldbga\'
+          - '\aedgpiecagcpmehhelbibfbgpfiafdkm\'
+          - '\dpdgjbnanmmlikideilnpfjjdbmneanf\'
+          - '\kabbfhmcaaodobkfbnnehopcghicgffo\'
+          - '\cphibdhgbdoekmkkcbbaoogedpfibeme\'
+          - '\ceofheakaalaecnecdkdanhejojkpeai\'
+          - '\dakebdbeofhmlnmjlmhjdmmjmfohiicn\'
+          - '\adjoknoacleghaejlggocbakidkoifle\'
+          - '\pgpidfocdapogajplhjofamgeboonmmj\'
+          - '\ifklcpoenaammhnoddgedlapnodfcjpn\'
+          - '\ebhomdageggjbmomenipfbhcjamfkmbl\'
+          - '\ajfokipknlmjhcioemgnofkpmdnbaldi\' # Edge Extension ID
+          - '\mhjdjckeljinofckdibjiojbdpapoecj\'
+      filter_main_generic_paths:
+        TargetFilename|startswith:
+          - 'C:\Users\'
+          - 'C:\Documents and Settings\'
+      condition: selection and filter_main_generic_paths
+    falsepositives:
+      - This rule detects specific malicious extension IDs. False positives are
+        highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0003
+techniques:
+    - T1176.001
+tags:
+    - attack.t1136.002
+    - attack.ta0001
+    - attack.collection
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.koi.ai/blog/darkspectre-unmasking-the-threat-actor-behind-7-8-million-infected-browsers
+data_sources:
+    - file_event
+    - windows
+    - sysmon

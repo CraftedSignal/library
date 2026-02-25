@@ -1,0 +1,58 @@
+id: 019bbccb-edcf-72d8-82be-644d5fbce205
+name: Landlock Sandbox Access Denial Attempt
+description: Detects when the Landlock Linux Security Module (LSM) denies an access request from a sandboxed application. This indicates that a process is attempting to perform an action that violates its predefined security policy, which can be a sign of misconfiguration or malicious activity such as exploitation.
+query: |
+    title: Landlock Sandbox Access Denial Attempt
+    id: 896c967a-3d67-4feb-bd1c-ccb52697e4ca
+    status: experimental
+    description: >-
+      Detects when the Landlock Linux Security Module (LSM) denies an access request
+      from a sandboxed application. This indicates that a process is attempting to
+      perform an action that violates its predefined security policy, which can be a
+      sign of misconfiguration or malicious activity such as exploitation.
+    references:
+      - https://blog.sekoia.io/leveraging-landlock-telemetry-for-linux-detection-engineering/
+    author: tim@detections.ai
+    date: 2026-01-14
+    tags:
+      - attack.defense_evasion
+      - attack.privilege_escalation
+      - attack.t1211
+      - attack.t1068
+    logsource:
+      product: linux
+      service: auditd
+    detection:
+      selection:
+        # The raw audit message type for Landlock access denial is 1423.
+        record_type: 'unknown[1423]'
+        # The 'domain' and 'blockers' fields are specific to Landlock denial events.
+        # Their presence is a strong indicator of this activity.
+        action.properties.domain: '*'
+        action.properties.blockers: '*'
+      condition: selection
+    falsepositives:
+      - Application misconfigurations or bugs might lead to legitimate actions being
+        blocked. Tuning might be required for specific applications that are not yet
+        fully compliant with their intended Landlock policies.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1211
+    - T1068
+tags:
+    - attack.defense_evasion
+    - attack.privilege_escalation
+    - attack.t1211
+    - attack.t1068
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.sekoia.io/leveraging-landlock-telemetry-for-linux-detection-engineering/
+data_sources:
+    - linux
+    - auditd

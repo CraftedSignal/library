@@ -1,0 +1,46 @@
+id: 019c9496-8b60-751c-8ff9-5619dfbcc8fc
+name: ClickFix PowerShell Execution via Run Dialog
+description: Detects PowerShell processes launched by Windows Explorer, which is characteristic of a user executing a command from the 'Run' dialog (Win+R). The detection targets command lines associated with the "ClickFix" social engineering technique, which tricks users into running malicious code. This includes looking for encoded commands or specific strings from the "reCAPTCHA Phish" toolkit.
+query: |
+    // Name: ClickFix PowerShell Execution via Run Dialog
+    // Author: detections.ai
+    // Date: 2026-02-24
+    // Description: Detects PowerShell processes launched by Windows Explorer, which is characteristic of a user executing a command from the 'Run' dialog (Win+R). The detection targets command lines associated with the "ClickFix" social engineering technique, which tricks users into running malicious code. This includes looking for encoded commands or specific strings from the "reCAPTCHA Phish" toolkit.
+    // False Positive Sensitivity: Medium
+    // References: https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape
+    // MITRE TTPs: T1059.001, T1204.002
+
+    // Define keywords for encoded/obfuscated PowerShell commands and the reCAPTCHA phish lure
+    let ObfuscationKeywords = dynamic(["-enc", "-encodedcommand", "iex ", "invoke-expression"]);
+    let RecaptchaKeywords = dynamic(["I am not a robot", "Verification ID"]);
+
+    DeviceProcessEvents
+    // Look for PowerShell processes
+    | where ProcessFileName in~ ("powershell.exe", "pwsh.exe")
+    // The process must be initiated by explorer.exe, which is common when a user uses the 'Run' dialog (Win+R) or a shortcut.
+    | where InitiatingProcessFileName =~ "explorer.exe"
+    // The command line must contain either common obfuscation techniques or keywords from the reCAPTCHA lure.
+    | where ProcessCommandLine has_any (ObfuscationKeywords) or ProcessCommandLine has_any (RecaptchaKeywords)
+    // Potential for False Positives: System administrators or power users may legitimately run encoded PowerShell commands from the Run dialog.
+    // To reduce noise, consider filtering by specific user groups or excluding known administrative scripts.
+    // For example: | where not (AccountName startswith "admin" and ProcessCommandLine contains "known_script.ps1")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        ProcessFileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape

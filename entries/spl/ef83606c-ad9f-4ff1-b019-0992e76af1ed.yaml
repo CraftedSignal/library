@@ -1,0 +1,48 @@
+id: ef83606c-ad9f-4ff1-b019-0992e76af1ed
+name: Naabu Port Scanner Activity Detected
+description: This detection identifies potential usage of the Naabu port scanner by searching for its process execution or its specific network user-agent string. Naabu is a fast port scanner that can be used for network reconnaissance.
+query: |
+    // Name: Detect Naabu Port Scanner Activity
+    // Author: detections.ai
+    // Date: 2025-08-05
+    // References:
+    // - https://github.com/projectdiscovery/naabu
+    // Description: This detection identifies potential usage of the Naabu port scanner by searching for its process execution or its specific network user-agent string. Naabu is a fast port scanner that can be used for network reconnaissance. This search leverages the Endpoint and Web CIM data models.
+
+    // Part 1: Search for Naabu process execution using the Endpoint data model.
+    | tstats `summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.process_name IN ("naabu", "naabu.exe") OR Processes.process="*naabu*") by Processes.dest Processes.user Processes.parent_process Processes.process_name Processes.process
+    | `drop_dm_object_name("Processes")`
+    | rename dest as endpoint, user as user_invoked, process as command_line
+    | eval detection_method="Process Execution"
+
+    // Part 2: Append results from searching for Naabu's User-Agent in the Web data model.
+    | append [
+        | tstats `summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Web where Web.http_user_agent="*ProjectDiscovery-Naabu*" by Web.src Web.dest Web.user Web.http_user_agent
+        | `drop_dm_object_name("Web")`
+        | rename src as source, dest as destination, user as user_invoked, http_user_agent as user_agent
+        | eval detection_method="Network User-Agent"
+    ]
+
+    // Format the results for alerting and investigation.
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+    // Potential False Positives: This tool may be used by authorized security teams for scanning.
+    // We recommend filtering by known scanning hosts or user accounts if this generates noise.
+    | table firstTime, lastTime, detection_method, endpoint, source, destination, user_invoked, parent_process, process_name, command_line, user_agent, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0043
+    - TA0007
+    - TA0002
+    - TA0011
+techniques:
+    - T1595
+    - T1046
+    - T1059
+    - T1071
+tags:
+    - spl
+version: "1"
+references:
+    - https://github.com/projectdiscovery/naabu

@@ -1,0 +1,42 @@
+id: 019a6c7a-f0a9-771c-a8b8-bb65ac409535
+name: 'Impossible Travel Logins: Potential Adversary-in-the-Middle Activity - O365'
+description: |
+    Query sign-ins with MFA success immediately following multiple failed sign-ins from different regions. Potential session hijack or AiTM (Adversary-in-the-Middle).
+
+
+    Error Code 0
+    Successful authentication
+    Normal successful login (validate carefully only when paired with suspicious failures)
+
+    Error Code 50053
+    Account locked or malicious IP
+    HIGH - Brute force attempts
+
+    Error Code 50074
+    MFA challenge not passed
+    HIGH - User failed MFA
+
+    Error Code 500121
+    MFA prompt timeout
+    MEDIUM - Possible MFA fatigue indicator
+
+    Error Code 50133
+    Session revoked or SSO artifact invalid
+    HIGH - Session hijacking indicator
+
+    Error Code 50076
+    MFA required but not provided
+    MEDIUM - Possible MFA bypass attempt
+query: "index=\"o365\" sourcetype=\"o365:management:activity\"\r\nWorkload=AzureActiveDirectory \r\n(Operation=UserLoggedIn OR Operation=UserLoginFailed)\r\n| eval auth_time=_time\r\n| eval auth_ip=ClientIP\r\n| eval user=UserId\r\n\r\n| eval event_type=case(\r\n    Operation=\"UserLoggedIn\" AND ResultStatus=\"Success\", \"success\",\r\n    Operation=\"UserLoginFailed\" AND ResultStatus=\"Success\" AND ErrorNumber=\"500121\", \"mfa_timeout\",\r\n    Operation=\"UserLoginFailed\" AND ErrorNumber=\"50074\", \"mfa_failed\",\r\n    Operation=\"UserLoginFailed\", \"auth_failed\",\r\n    true(), \"other\"\r\n)\r\n\r\n| iplocation ClientIP\r\n| eval auth_country=Country, auth_city=City, auth_lat=lat, auth_lon=lon\r\n\r\n| sort 0 user, _time\r\n| streamstats current=f last(auth_ip) as prev_ip \r\n    last(auth_country) as prev_country \r\n    last(auth_city) as prev_city\r\n    last(auth_lat) as prev_lat\r\n    last(auth_lon) as prev_lon\r\n    last(auth_time) as prev_time\r\n    last(event_type) as prev_event_type\r\n    by user\r\n\r\n| where prev_event_type IN (\"auth_failed\", \"mfa_failed\", \"mfa_timeout\") AND event_type=\"success\"\r\n\r\n| eval time_diff_seconds=auth_time - prev_time\r\n| eval time_diff_minutes=round(time_diff_seconds/60, 2)\r\n| where time_diff_seconds > 0 AND time_diff_seconds <= 600\r\n\r\n| eval location_changed=if(auth_country!=prev_country OR auth_city!=prev_city, 1, 0)\r\n| eval ip_changed=if(auth_ip!=prev_ip, 1, 0)\r\n\r\n| eval rlat1=prev_lat*3.14159265359/180, rlat2=auth_lat*3.14159265359/180\r\n| eval rlat=(auth_lat-prev_lat)*3.14159265359/180, rlon=(auth_lon-prev_lon)*3.14159265359/180\r\n| eval a=sin(rlat/2)*sin(rlat/2) + cos(rlat1)*cos(rlat2)*sin(rlon/2)*sin(rlon/2)\r\n| eval c=2*atan2(sqrt(a), sqrt(1-a))\r\n| eval distance_km=6371*c\r\n| eval travel_hours=time_diff_seconds/3600\r\n| eval speed_kph=if(travel_hours>0, round(distance_km/travel_hours, 2), 0)\r\n\r\n| where location_changed=1 AND (distance_km > 50 OR prev_country!=auth_country)\r\n\r\n| eval risk_score=0\r\n| eval risk_score=risk_score + case(\r\n    prev_event_type=\"mfa_failed\", 40,\r\n    prev_event_type=\"mfa_timeout\", 35,\r\n    prev_event_type=\"auth_failed\", 25,\r\n    true(), 0\r\n)\r\n| eval risk_score=risk_score + case(\r\n    distance_km > 5000, 40,\r\n    distance_km > 1000, 30,\r\n    distance_km > 500, 20,\r\n    distance_km > 100, 10,\r\n    true(), 0\r\n)\r\n| eval risk_score=risk_score + case(\r\n    speed_kph > 1000, 30,\r\n    speed_kph > 800, 25,\r\n    speed_kph > 600, 15,\r\n    true(), 0\r\n)\r\n| eval risk_score=risk_score + if(time_diff_minutes < 2, 20, 0)\r\n\r\n| eval threat_level=case(\r\n    risk_score >= 85, \"CRITICAL\",\r\n    risk_score >= 65, \"HIGH\",\r\n    risk_score >= 45, \"MEDIUM\",\r\n    true(), \"LOW\"\r\n)\r\n\r\n| eval prev_time_formatted=strftime(prev_time, \"%Y-%m-%d %H:%M:%S\"),\r\n       auth_time_formatted=strftime(auth_time, \"%Y-%m-%d %H:%M:%S\"),\r\n       distance_km=round(distance_km, 2)\r\n\r\n| table \r\n    threat_level\r\n    risk_score\r\n    user\r\n    prev_time_formatted\r\n    prev_event_type\r\n    prev_ip\r\n    prev_country\r\n    prev_city\r\n    auth_time_formatted\r\n    auth_ip\r\n    auth_country\r\n    auth_city\r\n    time_diff_minutes\r\n    distance_km\r\n    speed_kph\r\n    ErrorNumber\r\n    LogonError\r\n    UserAgent\r\n\r\n| rename \r\n    prev_time_formatted as \"First_Attempt_Time\"\r\n    prev_event_type as \"First_Attempt_Status\"\r\n    prev_ip as \"First_IP\"\r\n    prev_country as \"First_Country\"\r\n    prev_city as \"First_City\"\r\n    auth_time_formatted as \"Success_Time\"\r\n    auth_ip as \"Success_IP\"\r\n    auth_country as \"Success_Country\"\r\n    auth_city as \"Success_City\"\r\n    time_diff_minutes as \"Time_Difference_Min\"\r\n    distance_km as \"Distance_KM\"\r\n    speed_kph as \"Speed_KPH\"\r\n\r\n| sort - risk_score"
+query_type: spl
+severity: medium
+techniques:
+    - T1557
+    - T1078
+    - T1133
+tags:
+    - spl
+author: '@AnoozillaHunterX'
+version: "2"
+references:
+    - https://attack.mitre.org/detectionstrategies/DET0546/

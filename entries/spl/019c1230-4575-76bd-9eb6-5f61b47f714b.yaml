@@ -1,0 +1,18 @@
+id: 019c1230-4575-76bd-9eb6-5f61b47f714b
+name: AWS Cloudtrail Logging Disabled
+description: "`This rule looks for API calls that stops logging for CloudTrail Lake channels and a trail configuration. \nThese actions would prevent logging of CloudTrail logs from the time of API call. "
+query: "``` This rule looks for API calls that stops logging for CloudTrail Lake channels and a trail configuration. \nThese actions would prevent logging of CloudTrail logs from the time of API call. ```\n\n\nindex=cloudtrail eventSource=\"config.amazonaws.com\" \n(eventName=\"DeleteChannel\" OR eventName=\"DeleteTrail\" OR eventName=\"StopLogging\"))\nuserAgent!=console.amazonaws.com errorCode=success\n| eval match=if(match(userIdentity.userName, requestParameters.userName),1,0)\n| search match=0\n| eval event_time=strftime(_time, \"%Y-%m-%d%H:%M:%SZ\")\n| table event_time eventName userAgent userIdentity.userName requestParameters.userName\n\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.008
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/008/
+    - https://docs.aws.amazon.com/cli/latest/reference/cloudtrail/delete-channel.html
+    - https://docs.aws.amazon.com/awscloudtrail/latest/APIReference/API_DeleteTrail.html

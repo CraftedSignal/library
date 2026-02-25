@@ -1,0 +1,28 @@
+id: 019c5cab-3b86-70dd-8789-b9b0d6ec489c
+name: OysterLoader Scheduled Task Creation and Rundll32 Execution
+description: This rule detects the creation of scheduled tasks and the execution of rundll32.exe, both associated with the OysterLoader malware. Specifically, it looks for scheduled tasks created with specific command-line arguments including '/Create', '/SC MINUTE', '/MO 13', and known OysterLoader task names ('COPYING3', 'VisualUpdater', 'AlphaSecurity', 'DetectorSpywareSecurity'), which then execute 'rundll32' with 'DllRegisterServer'. Additionally, it identifies 'rundll32.exe' executing DLLs from the 'AppData\Roaming' directory with 'DllRegisterServer' and the same known OysterLoader names.
+query: |
+    // OysterLoader - Scheduled task creation and rundll32 from AppData
+    // Author: Daniel Jeremiah | Date: 2026/02/14
+    // Ref: https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/
+
+    // Scheduled task creation (stage 3)
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName == "schtasks.exe"
+    | where ProcessCommandLine contains "/Create" and ProcessCommandLine contains "/SC MINUTE" and ProcessCommandLine contains "/MO 13"
+    | where ProcessCommandLine has_any ("COPYING3", "VisualUpdater", "AlphaSecurity", "DetectorSpywareSecurity")
+    | where ProcessCommandLine contains "rundll32" and ProcessCommandLine contains "DllRegisterServer"
+    | project TimeGenerated, DeviceName, ProcessCommandLine, InitiatingProcessFileName
+
+    // Rundll32 executing DLL from AppData with known names
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName == "rundll32.exe"
+    | where ProcessCommandLine contains "AppData\\Roaming" and ProcessCommandLine contains "DllRegisterServer"
+    | where ProcessCommandLine has_any ("COPYING3", "VisualUpdater", "AlphaSecurity", "DetectorSpywareSecurity")
+    | project TimeGenerated, DeviceName, ProcessCommandLine, InitiatingProcessFileName
+query_type: kql
+tags:
+    - kql
+version: "2"

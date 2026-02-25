@@ -1,0 +1,25 @@
+id: 29c89306-c86f-4e7e-9eda-abbd9e5a02f0
+name: RubberDucky Stealth HID Script Execution
+description: This rule detects a potentially malicious Human Interface Device (HID) attack where a newly connected keyboard device (e.g., a USB Rubber Ducky) immediately triggers the execution of a script interpreter such as PowerShell, CMD, or MSHTA. The correlation occurs within 60 seconds of device insertion, which is characteristic of HID-based keystroke injection attacks.
+query: "let timeframe = 2m;\r\n// Detect keyboard HID connection\r\nlet hidInsert = DeviceEvents\r\n  | where Timestamp >= ago(timeframe)\r\n  | where ActionType == \"DeviceConnected\"\r\n  | where AdditionalFields contains \"Keyboard\"\r\n  | project HIDTime=Timestamp, DeviceId, DeviceName, ReportId, UserPrincipalName;\r\n// Detect immediate script interpreter launches\r\nlet suspiciousScripts = DeviceProcessEvents\r\n  | where Timestamp >= ago(timeframe)\r\n  | where FileName in~ (\"powershell.exe\", \"pwsh.exe\", \"cmd.exe\", \"wscript.exe\", \"cscript.exe\", \"mshta.exe\", \"bash.exe\")\r\n  | where ProcessCommandLine has_any (\"-enc\", \"-e\", \"-Command\", \".ps1\", \".vbs\", \"/c\", \"Invoke-Expression\", \"IEX\", \"DownloadString\")\r\n  | project ScriptTime=Timestamp, DeviceId, InitiatingProcessFileName, FileName, ProcessCommandLine, UserPrincipalName;\r\nhidInsert\r\n| join kind=inner suspiciousScripts on DeviceId, UserPrincipalName\r\n| where ScriptTime between (HIDTime .. HIDTime + 1m)\r\n| extend DelaySeconds = datetime_diff(\"second\", ScriptTime, HIDTime)\r\n| project HIDTime, ScriptTime, DelaySeconds, DeviceId, DeviceName, FileName, ProcessCommandLine, UserPrincipalName\r\n| where DelaySeconds >= 0 and DelaySeconds <= 60\r\n| sort by HIDTime desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1056.001
+    - T1204.002
+    - T1059
+    - T1059.001
+    - T1200
+tags:
+    - HIDAttack
+    - USBInjection
+    - RubberDucky
+    - ScriptAbuse
+    - PhysicalAccess
+    - SuspiciousDevice
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://medium.com/@maarten.goet/defending-against-weaponized-hardware-windows-defender-atp-microsoft-intune-to-the-rescue-80aba28067fe
+    - https://null-byte.wonderhowto.com/how-to/catch-usb-rubber-duckies-your-computer-with-usbrip-0203668/

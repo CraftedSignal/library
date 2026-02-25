@@ -1,0 +1,12 @@
+id: 019bdfb2-48f4-7028-8abc-90875258a4e8
+name: PDF Attachment Interaction
+description: This KQL script detects if end user interacted with a PDF attachment in a potential phishing/BEC incident
+query: "//###############################################################################\r\n//##  PLATFORM: Microsoft Exchange Online Protection (EOP Email Security Gateway)\r\n//##  AUTHOR: IGOR OLIVEIRA (#IO)\r\n//##  LOCATION: Microsoft Sentinel | Logs\r\n//##  TITLE: KQL script to detect when a user interacted with an attachment.\r\n//###############################################################################\r\nlet SampleTenantId = \"f1587cia-adb5-4576-3854-4768cd17d127\";//Made-up tenant\r\nlet Device_FileEvents = DeviceFileEvents\r\n    | where TimeGenerated > ago(7d) //You can change it to the amount of days you want.\r\n    | where FileName endswith \"pdf\" //This can be any extension\r\n    | where ActionType == \"FileCreated\"\r\n    | where InitiatingProcessFileName == \"outlook.exe\"\r\n    | summarize FirstSeen = max(TimeGenerated) by TimeGenerated, FileName, DeviceName, RequestAccountName\r\n    | join kind=inner (EmailAttachmentInfo) on FileName\r\n    | where SenderFromAddress contains \"SENDER_DOMAIN\"\r\n    | where SenderFromAddress !contains \"RECIPIENTS_DOMAIN.TLD\"\r\n    | where RecipientEmailAddress contains \"RECIPIENTS_DOMAIN.TLD\"\r\n    | summarize arg_max(TimeGenerated, *) by RequestAccountName, FirstSeen\r\n    | extend\r\n        EmailDetails = strcat(\r\n        \"https://security.microsoft.com/emailentity?f=summary&startTime=\",\r\n        tostring(TimeGenerated),\r\n        \"&endTime=\",\r\n        tostring(TimeGenerated),\r\n        \"&id=\",\r\n        NetworkMessageId,\r\n        \"&recipient=\",\r\n        RecipientEmailAddress,\r\n        \"&tid=\",\r\n        SampleTenantId\r\n)\r\n| summarize FirstClick = min(TimeGenerated) by SenderFromAddress, FileName, RequestAccountName, EmailDetails\r\n| order by EmailDetails desc;\r\nDevice_FileEvents"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.001
+tags:
+    - kql
+author: Igor Oliveira
+version: "9"

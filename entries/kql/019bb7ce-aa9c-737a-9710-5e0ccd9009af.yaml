@@ -1,0 +1,20 @@
+id: 019bb7ce-aa9c-737a-9710-5e0ccd9009af
+name: Azure CLI Non-Interactive Access After Interactive Login
+description: This rule detects suspicious activity where an Azure CLI session, initially interactive, is followed by non-interactive access from a different IP address. This could indicate an attacker using a stolen token or session from a legitimate user's interactive login to perform automated actions. The rule specifically looks for a pivot from interactive to non-interactive access where the non-interactive access occurs after the interactive access and from a different IP address, within a 30-day lookback window.
+query: "//Possible ConsentFix\r\nlet AzureCLI_App = \"04b07795-8ddb-461a-bbee-02f9e1bf7b46\";\r\nlet LookbackWindow = 30d;\r\n// IP Stats for enrichment\r\nlet IPStats = AADSignInEventsBeta\r\n| where Timestamp > ago(LookbackWindow)\r\n| where ApplicationId == AzureCLI_App\r\n| where ErrorCode == 0\r\n| summarize IPSigninCount = count(), IPDistinctUsers = dcount(AccountUpn) by IPAddress;\r\n// Main detection with separate interactive/non-interactive timestamps\r\nAADSignInEventsBeta\r\n| where ApplicationId == AzureCLI_App\r\n| where ErrorCode == 0\r\n| extend IsInteractive = iff(LogonType has \"interactiveUser\", 1, 0)\r\n| extend IsNonInteractive = iff(LogonType has \"nonInteractiveUser\", 1, 0)\r\n| summarize\r\n    // Track WHEN each type of logon happened\r\n    FirstInteractive = minif(Timestamp, IsInteractive == 1),\r\n    LastInteractive = maxif(Timestamp, IsInteractive == 1),\r\n    FirstNonInteractive = minif(Timestamp, IsNonInteractive == 1),\r\n    LastNonInteractive = maxif(Timestamp, IsNonInteractive == 1),\r\n    // Track WHERE each type came from\r\n    InteractiveIPs = make_set_if(IPAddress, IsInteractive == 1),\r\n    NonInteractiveIPs = make_set_if(IPAddress, IsNonInteractive == 1),\r\n    InteractiveLocations = make_set_if(Country, IsInteractive == 1),\r\n    NonInteractiveLocations = make_set_if(Country, IsNonInteractive == 1),\r\n    // Keep full lists for context\r\n    AllIPs = make_set(IPAddress),\r\n    AllLocations = make_set(Country),\r\n    UAList = make_set(UserAgent),\r\n    HasInteractive = max(IsInteractive),\r\n    HasNonInteractive = max(IsNonInteractive)\r\n    by AccountUpn, SessionId\r\n// Core filters\r\n| where HasInteractive == 1 and HasNonInteractive == 1\r\n| where array_length(AllLocations) > 1\r\n// Check if non-interactive IPs differ from interactive IPs\r\n| extend SusNonInteractiveIPs = set_difference(NonInteractiveIPs, InteractiveIPs)\r\n| where array_length(SusNonInteractiveIPs) > 0\r\n| extend PivotSeconds = datetime_diff('second', FirstNonInteractive, FirstInteractive)\r\n// Only care about non-interactive AFTER interactive (attacker uses token after victim auths)\r\n| where FirstNonInteractive > FirstInteractive\r\n// Flatten for IP enrichment\r\n| mv-expand AttackerIP = SusNonInteractiveIPs to typeof(string)\r\n| lookup IPStats on $left.AttackerIP == $right.IPAddress\r\n| project \r\n    AccountUpn, \r\n    SessionId,\r\n    FirstInteractive,\r\n    FirstNonInteractive,\r\n    PivotSeconds,\r\n    InteractiveIPs,\r\n    InteractiveLocations,\r\n    SusNonInteractiveIPs,\r\n    NonInteractiveLocations,\r\n    UAList,\r\n    AttackerIP,\r\n    AttackerIPSigninCount = IPSigninCount,\r\n    AttackerIPDistinctUsers = IPDistinctUsers\r\n| order by PivotSeconds asc, AttackerIPDistinctUsers desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0008
+    - TA0002
+    - TA0005
+    - TA0004
+    - TA0001
+techniques:
+    - T1059.009
+    - T1078.003
+tags:
+    - kql
+version: "2"

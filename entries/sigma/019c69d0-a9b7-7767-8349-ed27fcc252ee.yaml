@@ -1,0 +1,72 @@
+id: 019c69d0-a9b7-7767-8349-ed27fcc252ee
+name: Linux/Unix Shell History Tampering
+description: |
+    Detects multiple methods used by adversaries to clear or disable Linux
+    shell command history (bash, zsh) in order to cover tracks and evade investigation.
+query: |
+    title: Linux/Unix Shell History Tampering
+    id: 4c9f1087-4d5b-4e6a-b91c-8f2ad3c6e1a7
+    status: experimental
+    description: |
+      Detects multiple methods used by adversaries to clear or disable Linux
+      shell command history (bash, zsh) in order to cover tracks and evade investigation.
+    references:
+      - https://attack.mitre.org/techniques/T1070/003/
+    author: zendannyy
+    tags:
+      - attack.defense_evasion
+      - attack.t1070.003
+    logsource:
+      product: linux
+      category: process_creation
+      service: audit
+    detection:
+      selection_rm:
+        Image|endswith: /rm
+        CommandLine|contains:
+          - .bash_history
+          - .zsh_history
+      selection_export_histfilesize:
+        CommandLine|contains|all:
+          - HISTFILESIZE
+          - '=0'
+      selection_export_histsize:
+        CommandLine|contains|all:
+          - HISTSIZE
+          - '=0'
+      selection_export_histfile:
+        CommandLine|contains|all:
+          - HISTFILE
+          - '=0'
+      selection_set_history:
+        CommandLine|contains|all:
+          - set
+          - +o
+          - history
+      condition: >-
+        selection_rm or selection_export_histfilesize or selection_export_histsize
+        or selection_export_histfile or selection_set_history
+    falsepositives:
+      - Automated provisioning or configuration management scripts (Ansible, Chef,
+        Puppet) that reset HISTSIZE during provisioning
+      - CI/CD pipelines with shell cleanup steps
+      - 'selection_set_history may produce FPs: any script containing the word
+        "set", "+o", and "history" as separate terms'
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.003
+tags:
+    - attack.defense_evasion
+    - attack.t1070.003
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1070/003/
+data_sources:
+    - process_creation
+    - linux
+    - audit

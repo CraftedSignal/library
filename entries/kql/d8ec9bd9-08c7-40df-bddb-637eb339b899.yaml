@@ -1,0 +1,44 @@
+id: d8ec9bd9-08c7-40df-bddb-637eb339b899
+name: Endpoint SMB Exposed on Public Internet
+description: 'KQL Query from file: Endpoint SMB Exposed on Public Internet'
+query: |
+    // ============================================================================
+    // Endpoint SMB Exposed on Public Internet
+    // Author: KillBillKill98
+    // Last Updated: 2025-09-18
+    // ============================================================================
+    // Actor Profile: Seashell Blizzard (IRIDIUM)
+    //  - Russian cyber threat actor linked to GRU, active since 2013
+    //  - Known operations: KillDisk, NotPetya, FoxBlade
+    //  - Targets critical infrastructure using tools like Cobalt Strike & DarkCrystalRAT
+    // Exploited CVEs:
+    //  - CVE-2017-0143 (SMBv1)
+    //  - CVE-2017-0145 (SMBv1)
+    // Tactic(s): Reconnaissance (TA0043), Initial Access (TA0001)
+    // Technique(s): Exploit Public-Facing Application (T1190), Network Service Scanning (T1046)
+    // Description & Rationale:
+    //  - Detects SMB (port 445) endpoints exposed to the public Internet
+    //  - Helps defenders identify attack surface and potential IRIDIUM target vectors
+    // ============================================================================
+    DeviceNetworkEvents
+    | where Timestamp > ago(30d)
+    | where ActionType == @"InboundConnectionAccepted"
+    | where LocalPort == "445"
+    | where RemoteIPType == @"Public"
+    | where not (ipv4_is_private(LocalIP))
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+    - TA0001
+    - TA0007
+techniques:
+    - T1190
+    - T1046
+tags:
+    - kql
+author: KillBillKill98
+version: "2"
+references:
+    - CVE-2017-0143
+    - CVE-2017-0145

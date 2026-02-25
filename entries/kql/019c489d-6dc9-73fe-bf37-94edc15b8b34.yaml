@@ -1,0 +1,14 @@
+id: 019c489d-6dc9-73fe-bf37-94edc15b8b34
+name: Suspicious Chrome Extension Installation or Modification
+description: This rule detects the creation or modification of Chrome extension files (.crx) on a device, correlating it with browser extension installation/update events and file prevalence. It flags extensions that are rare, unsigned, small in size, or have suspicious IDs, indicating potential malicious activity or unauthorized installations.
+query: "let ChromeProfiles =\r\nDeviceFileEvents\r\n| where ActionType in (\"FileCreated\",\"FileModified\")\r\n| where FileName == \"Secure Preferences\" and FolderPath has \"Chrome\"\r\n| summarize by DeviceName;\r\nlet CrxWrites =\r\nDeviceFileEvents\r\n| where ActionType in (\"FileCreated\",\"FileModified\")\r\n| where FileName endswith \".crx\"\r\n| where DeviceName in (ChromeProfiles)\r\n| extend ExtId = tostring(split(FileName,\".crx\")[0])\r\n| summarize arg_max(Timestamp, DeviceName, FileName, FolderPath, SHA1, SHA256, FileSize) by ExtId;\r\nlet CrxProfile =\r\nCrxWrites\r\n| where isnotempty(SHA1)\r\n| invoke FileProfile(SHA1, 10000);\r\nlet ExtNameEvents =\r\nDeviceEvents\r\n| where ActionType in (\"BrowserExtensionInstalled\",\"BrowserExtensionUpdated\")\r\n| extend AF = parse_json(AdditionalFields)\r\n| extend ExtId = tostring(AF.ExtensionId), ExtName = tostring(AF.ExtensionName), Browser = tostring(AF.BrowserName)\r\n| where isnotempty(ExtId) and isnotempty(ExtName)\r\n| summarize arg_max(Timestamp, ExtName, Browser) by DeviceName, ExtId;\r\nlet ExtVersionFromPath =\r\nDeviceFileEvents\r\n| where FileName == \"manifest.json\" and FolderPath has @\"\\Extensions\\\"\r\n| extend Tail = split(FolderPath, @\"\\Extensions\\\")[1]\r\n| extend ExtId = tostring(split(Tail, @\"\\\")[0])\r\n| extend ExtVersion = tostring(split(Tail, @\"\\\")[1])\r\n| where isnotempty(ExtId) and isnotempty(ExtVersion)\r\n| summarize arg_max(Timestamp, ExtVersion) by DeviceName, ExtId;\r\nCrxProfile\r\n| join kind=leftouter ExtNameEvents on DeviceName, ExtId\r\n| join kind=leftouter ExtVersionFromPath on DeviceName, ExtId\r\n| extend ExtDisplayName = coalesce(ExtName, ExtId)\r\n| extend PrevalenceScore = iff(GlobalPrevalence < 50, \"Rare\", iff(GlobalPrevalence < 500, \"Uncommon\", \"Common\"))\r\n| extend RiskScore = pack_array(\r\n    iff(GlobalPrevalence < 50, \"LowPrevalence\", \"\"),\r\n    iff(Signer == \"\" or isempty(Signer), \"Unsigned\", \"\"),\r\n    iff(FileSize < 60000, \"SmallBinary\", \"\"),\r\n    iff(ExtId has \"temp\" or ExtId startswith \"aa\" or ExtId matches regex @\"^[a-z]{2,5}$\", \"SuspiciousExtensionID\", \"\")\r\n)\r\n| project Timestamp, DeviceName, FileName, FolderPath, ExtId, ExtDisplayName, ExtVersion, SHA1, GlobalPrevalence, PrevalenceScore, Signer, FileSize, RiskScore\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176
+    - T1176.001
+tags:
+    - kql
+version: "1"

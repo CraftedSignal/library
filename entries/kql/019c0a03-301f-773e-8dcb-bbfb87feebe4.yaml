@@ -1,0 +1,69 @@
+id: 019c0a03-301f-773e-8dcb-bbfb87feebe4
+name: New Office Trusted Location Registry Addition
+description: Detects the creation of a new Microsoft Office Trusted Location via registry modification. Attackers abuse this feature to add a location they control, allowing macros or other active content to run without security warnings, bypassing Mark-of-the-Web (MotW) protections.
+query: |
+    //
+    // Rule Title: New Office Trusted Location Registry Addition
+    // Description: Detects the creation of a new Microsoft Office Trusted Location via registry modification.
+    // Attackers abuse this feature to add a location they control, allowing macros or other active content
+    // to run without security warnings, bypassing Mark-of-the-Web (MotW) protections.
+    //
+    // Author: detections.ai
+    // Date: 2026-01-28
+    //
+    // MITRE ATT&CK:
+    // - T1112: Modify Registry
+    // - T1566.001: Phishing: Spearphishing Attachment
+    //
+    // References:
+    // - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations
+    //
+    // False Positive Sensitivity: Medium
+    // - Legitimate software installation or administrative scripts (e.g., Group Policy, Intune) may modify these keys.
+    // - Users can also add trusted locations manually through the Office application's Trust Center UI.
+    // - Use the 'legit_process_allowlist' to filter known administrative tools in your environment.
+    //
+    let legit_process_allowlist = dynamic([
+        "svchost.exe", // Often used by Group Policy
+        "Microsoft.Management.Services.IntuneWindowsAgent.exe", // Intune Management Extension
+        "ccmexec.exe" // SCCM/Configuration Manager
+    ]);
+    DeviceRegistryEvents
+    // Filter for registry events related to Office Trusted Locations for common versions.
+    | where RegistryKey has_all (@"Software\Microsoft\Office", @"\Security\Trusted Locations")
+    // Focus on events that create a new location key or set a path value, which defines the location.
+    | where ActionType == "RegistryKeyCreated" or (ActionType == "RegistryValueSet" and RegistryValueName =~ "Path")
+    // Exclude modifications made by known administrative tools to reduce noise.
+    | where not(InitiatingProcessFileName in~ (legit_process_allowlist))
+    // Further reduce noise by filtering out changes made via the Office UI.
+    // Comment out the line below if you wish to investigate user-initiated changes, which could be part of a social engineering attack.
+    | where not(InitiatingProcessFileName in~ ("winword.exe", "excel.exe", "powerpnt.exe", "msaccess.exe", "outlook.exe"))
+    // Exclude events where a path value is being cleared.
+    | where not(ActionType == "RegistryValueSet" and isempty(RegistryValueData))
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        RegistryKey,
+        RegistryValueName,
+        RegistryValueData,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0001
+techniques:
+    - T1112
+    - T1566.001
+    - T1553.005
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations

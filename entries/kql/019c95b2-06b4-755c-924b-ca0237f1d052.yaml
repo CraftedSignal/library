@@ -1,0 +1,22 @@
+id: 019c95b2-06b4-755c-924b-ca0237f1d052
+name: Claude Code Suspicious Child Process Execution
+description: This detection identifies the execution of suspicious shell commands (such as download cradles, reverse shells, or unexpected GUI applications like Calculator) spawned as child processes of the Claude Code CLI ('claude'). This activity is indicative of potential Remote Code Execution (RCE) through the exploitation of malicious hooks in `.claude/settings.json` or malicious MCP server commands, as described in CVE-2025-59536.
+query: "// Name: Claude Code Suspicious Child Process\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: This detection identifies the execution of suspicious shell commands (such as download cradles, reverse shells, or unexpected GUI applications like Calculator) spawned as child processes of the Claude Code CLI ('claude'). This activity is indicative of potential Remote Code Execution (RCE) through the exploitation of malicious hooks in `.claude/settings.json` or malicious MCP server commands, as described in CVE-2025-59536.\r\n// Tags: T1204.002, T1059.004, T1584.005, CVE-2025-59536\r\n// References: https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for processes created by the Claude Code CLI tool.\r\n// The parent process is 'claude' on Linux/macOS and likely 'claude.exe' on Windows.\r\n| where InitiatingProcessFileName in~ (\"claude\", \"claude.exe\")\r\n// Check for various suspicious child process command lines indicative of RCE.\r\n| where\r\n    // Detects common download and execute patterns (e.g., curl ... | bash)\r\n    (ProcessCommandLine has \"curl\" and ProcessCommandLine matches regex @'\\|\\s*bash') or\r\n    (ProcessCommandLine has \"wget\" and ProcessCommandLine matches regex @'\\|\\s*bash') or\r\n    // Detects common reverse shell techniques\r\n    ProcessCommandLine has \"nc -e\" or\r\n    ProcessCommandLine has \"/dev/tcp/\" or\r\n    // Detects Proof-of-Concept (PoC) execution of the Calculator app.\r\n    // FP-Note: While 'calc.exe' is a common PoC, real-world attacks will use different payloads.\r\n    // This part of the logic may need to be tuned or removed if it generates noise from legitimate developer testing.\r\n    FileName =~ \"calc.exe\" or\r\n    ProcessCommandLine has \"open -na Calculator\"\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    AccountCustomEntity = AccountName,\r\n    HostCustomEntity = DeviceName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0042
+techniques:
+    - T1204.002
+    - T1059.004
+    - T1584.005
+    - T1059
+    - T1204
+    - T1584
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/

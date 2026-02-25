@@ -1,0 +1,135 @@
+id: e7ae959e-358f-4f12-8eff-6aeb11724077
+name: SafePay Ransomware Detection
+description: Detects a wide range of indicators of compromise (IOCs) and tactics, techniques, and procedures (TTPs) associated with SafePay ransomware, including specific command lines, persistence mechanisms, defense evasion techniques, and host-based artifacts.
+query: |
+    title: SafePay Ransomware Detection
+    id: b1bdcb93-5f31-45bd-8469-2d422ad065d4
+    status: experimental
+    description: Detects a wide range of indicators of compromise (IOCs) and
+      tactics, techniques, and procedures (TTPs) associated with SafePay ransomware,
+      including specific command lines, persistence mechanisms, defense evasion
+      techniques, and host-based artifacts.
+    references:
+      - https://www.porthas.com/blog/safepay-ransomware-threat-profile-and-analysis/
+    author: Chaitanya B (Mr.Alien)
+    date: 2025-07-14
+    tags:
+      - attack.impact
+      - attack.t1486
+      - attack.execution
+      - attack.t1218.010
+      - attack.persistence
+      - attack.t1547.001
+      - attack.defense_evasion
+      - attack.t1490
+      - attack.t1070.004
+      - threat.ransomware.safepay
+    logsource:
+      product: windows
+      # This rule combines events from different categories. Ensure your backend supports searching across process_creation, registry_set, file_creation, file_rename, and mutex_create events.
+    detection:
+      # TTP: Execution of the ransomware DLL via regsvr32.exe
+      exec_regsvr32:
+        category: process_creation
+        Image|endswith: '\regsvr32.exe'
+        CommandLine|contains|all:
+          - '/n'
+          - '/i:'
+          - 'locker.dll'
+          - '-pass='
+
+      # TTP: Deletion of Volume Shadow Copies to inhibit system recovery
+      defense_evasion_shadow_delete:
+        category: process_creation
+        Image|endswith:
+          - '\vssadmin.exe'
+          - '\wmic.exe'
+        CommandLine|contains|all:
+          - 'delete'
+          - 'shadow' # Catches both 'shadows' and 'shadowcopy'
+        # This is a common administrative task and may generate false positives.
+        # Correlate with other activity or filter for unusual parent processes.
+
+        # TTP: Self-deletion technique using ping, fsutil, and del
+      defense_evasion_self_delete:
+        category: process_creation
+        Image|endswith: '\cmd.exe'
+        CommandLine|contains|all:
+          - '/c'
+          - 'ping 127.0.0.1'
+          - 'fsutil file setZeroData'
+          - '& del'
+          - 'locker.dll'
+
+      # IOC: Persistence via a specific Run key
+      persistence_registry:
+        category: registry_set
+        TargetObject|contains: '\Microsoft\Windows\CurrentVersion\Run\6F22-C16F-0C71-688A'
+        Details|contains|all:
+          - 'regsvr32.exe'
+          - 'locker.dll'
+
+      # IOC: Creation of specific ransomware files
+      file_artifacts:
+        category: file_creation
+        TargetFilename|endswith:
+          - 'C:\locker.dll'
+          - '\ProgramData\auto.log.safepay'
+          - '\readme_safepay.txt'
+
+      # IOC: Renaming of files with the ransomware extension
+      file_rename:
+        category: file_rename
+        TargetFilename|endswith: '.safepay'
+        # This may generate false positives if .safepay is a legitimate extension.
+        # Consider scoping to rename events and excluding known good processes.
+
+        # IOC: Creation of a specific mutex
+      mutex_creation:
+        category: mutex_create # Requires a log source that captures mutex creation (e.g., Sysmon Event ID 17)
+        MutexName: 'Global\A0D1-50A2-679B-3D55-0639-981D-8679-7A09-02EC-EF50-EA87-56A1-0D06-7A07-A14E-EEAC'
+
+      condition: 1 of them
+    falsepositives:
+      - The shadow copy deletion detection is generic and may trigger on legitimate
+        administrative activity. It is best used for hunting or when correlated with
+        other suspicious events.
+      - The file rename detection could be noisy if '.safepay' is a legitimate
+        extension in the environment. Consider adding exclusions for legitimate
+        processes that might rename files to this extension.
+      - The filename 'locker.dll' is generic
+      - but the combination with specific command-line arguments
+      - file paths
+      - and other IOCs provides high confidence.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0002
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1486
+    - T1218.010
+    - T1547.001
+    - T1490
+    - T1070.004
+tags:
+    - attack.impact
+    - attack.t1486
+    - attack.execution
+    - attack.t1218.010
+    - attack.persistence
+    - attack.t1547.001
+    - attack.defense_evasion
+    - attack.t1490
+    - attack.t1070.004
+    - threat.ransomware.safepay
+author: Chaitanya B (Mr.Alien)
+version: "1"
+references:
+    - https://www.porthas.com/blog/safepay-ransomware-threat-profile-and-analysis/
+data_sources:
+    - windows

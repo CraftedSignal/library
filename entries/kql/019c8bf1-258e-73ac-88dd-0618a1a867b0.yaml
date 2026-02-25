@@ -1,0 +1,22 @@
+id: 019c8bf1-258e-73ac-88dd-0618a1a867b0
+name: dYdX Malicious Infrastructure Connection
+description: This rule detects network connections to malicious infrastructure associated with a supply chain attack targeting dYdX npm and PyPI packages. The infrastructure is used for credential exfiltration and as a C2 for a RAT.
+query: "// Name: dYdX Malicious Infrastructure Connection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: This rule detects network connections to malicious infrastructure associated with a supply chain attack targeting dYdX npm and PyPI packages. The infrastructure is used for credential exfiltration and as a C2 for a RAT.\r\n// References: https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi\r\n// Tags: T1071.001, T1041, supply chain, dYdX, priceoracle.site\r\n// Define the Indicators of Compromise (IOCs)\r\nlet maliciousDomains = dynamic([\r\n    \"dydx.priceoracle.site\",\r\n    \"priceoracle.site\"\r\n]);\r\nlet maliciousPaths = dynamic([\r\n    \"/v4/price\",\r\n    \"/py\"\r\n]);\r\n// Search across common network log tables\r\nunion isfuzzy=true DeviceNetworkEvents, CommonSecurityLog\r\n| where\r\n    // Match on domain IOCs\r\n    (isnotempty(RemoteUrl) and RemoteUrl has_any (maliciousDomains))\r\n    or (isnotempty(RequestURL) and RequestURL has_any (maliciousDomains))\r\n    // Match on URL path IOCs\r\n    or (isnotempty(RequestURL) and parse_url(RequestURL).Path in (maliciousPaths))\r\n// FP-TUNING: The URL paths '/v4/price' and '/py' can be generic and may cause false positives if not associated with other suspicious activity.\r\n// For higher fidelity, consider combining the domain and path checks, for example:\r\n// where (RemoteUrl has_any (maliciousDomains) or RequestURL has_any (maliciousDomains)) and parse_url(RequestURL).Path in (maliciousPaths)\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Account = iff(isnotempty(SourceUserName), SourceUserName, SourceUserID),\r\n    Host = coalesce(DeviceName, SourceHostName),\r\n    Url = iff(isnotempty(RemoteUrl), RemoteUrl, RequestURL)\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    Url,\r\n    InitiatingProcessCommandLine,\r\n    ProcessName,\r\n    DestinationIP,\r\n    AdditionalFields\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0010
+    - TA0011
+techniques:
+    - T1195
+    - T1195.002
+    - T1195.001
+    - T1041
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-dydx-packages-published-to-npm-and-pypi

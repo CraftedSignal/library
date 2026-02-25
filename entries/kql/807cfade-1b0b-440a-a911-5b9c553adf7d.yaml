@@ -1,0 +1,52 @@
+id: 807cfade-1b0b-440a-a911-5b9c553adf7d
+name: KQL to check Privilege Admin failing Microsoft CA MFA enforcement
+description: KQL Query
+query: |
+    // KQL to check Privilege Admin failing Microsoft CA MFA enforcement
+
+    let PrivilegeAdmin =
+    IdentityInfo
+    | where TimeGenerated > ago(14d)
+    | where AssignedRoles != "[]" and isnotnull(AssignedRoles)
+    | distinct AccountUPN;
+    SigninLogs
+    | where UserPrincipalName has_any(PrivilegeAdmin)
+    | where ResultType == "0"
+    | where ConditionalAccessPolicies != "[]"
+    | mv-expand ConditionalAccessPolicies
+    | extend CADisplayName = tostring(ConditionalAccessPolicies.displayName)
+    | extend CAResult = tostring(ConditionalAccessPolicies.result)
+    | where CADisplayName == "Microsoft-managed: Multifactor authentication for admins accessing Microsoft Admin Portals"
+    | where CAResult == "reportOnlyFailure"
+
+    // MITRE ATT&CK Mapping
+
+    // The KQL query can be associated with the following MITRE ATT&CK techniques:
+
+    // T1078 - Valid Accounts:
+    // The query identifies privileged accounts and monitors their sign-in activities, which aligns with the use of valid accounts for persistence or privilege escalation1.
+    // T1078.003 - Valid Accounts: Cloud Accounts:
+    // Specifically focuses on cloud accounts, as it deals with Azure AD sign-in logs and conditional access policies1.
+    // T1110 - Brute Force:
+    // Monitoring failed conditional access policies can help detect brute force attempts where attackers try to bypass multi-factor authentication1.
+    // T1556 - Modify Authentication Process:
+    // The query checks for failures in multi-factor authentication policies, which could indicate attempts to modify or bypass the authentication process1.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078
+    - T1078.003
+    - T1110
+    - T1556
+    - T1556.007
+    - T1556.009
+    - T1556.006
+    - T1111
+tags:
+    - kql
+version: "1"

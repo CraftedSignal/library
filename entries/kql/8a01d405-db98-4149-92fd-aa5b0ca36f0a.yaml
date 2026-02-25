@@ -1,0 +1,18 @@
+id: 8a01d405-db98-4149-92fd-aa5b0ca36f0a
+name: Messages Delivered by Microsoft Teams Applications
+description: "This detection identifies when Microsoft Teams applications send messages to groups / users in your organization's tenant. It utilizes the 'BotAddedToTeam' and 'AppInstalled' action types from CloudAppEvents to collect all Teams applications created in the specified timeframe and then joins on MessageEvents, matching events where SenderObjectId equals AppGuid. \n\nThis activity is significant as it may uncover unverified applications being added to teams channels and communicating with users in your tenant. Teams application security, compliance, and permissions can be reviewed in the Microsoft Teams Admin portal - \nhttps://admin.teams.microsoft.com/policies/manage-apps/"
+query: "let TeamsAppLoopback = 30d;\r\nlet TeamsMessageLoopback = 30d;\r\nlet TeamsApp = materialize (\r\n    CloudAppEvents\r\n    | where Timestamp > ago(TeamsAppLoopback)\r\n    //Microsoft calls these 'bots' in the backend, but really they are the apps/add-ons that can be added to a team.\r\n    //For example, the 'Polls' or 'Workflows' app may be added to a team.\r\n    | where ActionType in ('BotAddedToTeam', 'AppInstalled')\r\n    | extend \r\n        //TeamGuid = tostring(RawEventData.TeamGuid),\r\n        //TeamName = tostring(RawEventData.TeamName),\r\n        AppGuid = tostring(RawEventData.AddOnGuid),\r\n        AppName = tostring(RawEventData.AddOnName),\r\n        AppType = tostring(RawEventData.AddOnType)\r\n    | distinct AppGuid, AppType, AppName\r\n);\r\nlet TeamsMessageSentByApp = materialize (\r\n    MessageEvents\r\n    | join kind=innerunique TeamsApp on $left.SenderObjectId == $right.AppGuid\r\n    | where Timestamp > ago(TeamsMessageLoopback)\r\n    | where DeliveryAction == 'Delivered'\r\n    | summarize \r\n        FirstTime = min(Timestamp),\r\n        LastTime = max(Timestamp),\r\n        MessageCount = dcount(TeamsMessageId),\r\n        arg_min(ReportId, Timestamp),\r\n        RecipientDetails = make_set(RecipientDetails),\r\n        Messages = make_set(pack(\r\n        'LastEditedTime', LastEditedTime,\r\n        'ParentMessageId', ParentMessageId, \r\n        'TeamsMessageId', TeamsMessageId, \r\n        'MessageType', MessageType, \r\n        'MessageSubtype', MessageSubtype, \r\n        'MessageId', MessageId, \r\n        'MessageVersion', MessageVersion)),\r\n        Threads = make_set(pack(\r\n            'ThreadId', ThreadId, \r\n            'ThreadType', ThreadType, \r\n            'ThreadSubType', ThreadSubType, \r\n            'ThreadName', ThreadName, \r\n            'IsOwnedThread', IsOwnedThread, \r\n            'IsExternalThread', IsExternalThread)),\r\n        Groups = make_set(pack('GroupId', GroupId, 'GroupName', GroupName))\r\n        by Timewindow = bin(Timestamp, 1d), DeliveryAction, SenderType, SenderObjectId, SenderDisplayName, SenderEmailAddress, AppGuid, AppType, AppName\r\n        | extend \r\n            Recipients = toint(array_length(RecipientDetails)),\r\n            Timespan = strcat(format_timespan(totimespan(LastTime - FirstTime), \"hh:mm:ss\"), \"s\")\r\n);\r\nTeamsMessageSentByApp\r\n| project Timestamp, Timespan, DeliveryAction, SenderType, SenderObjectId, SenderDisplayName, SenderEmailAddress,\r\n    AppGuid, AppType, AppName, Groups, Recipients, RecipientDetails,\r\n    Threads, MessageCount, Messages, ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0008
+    - TA0001
+techniques:
+    - T1525
+    - T1210
+    - T1566.002
+tags:
+    - kql
+author: ramz
+version: "1"

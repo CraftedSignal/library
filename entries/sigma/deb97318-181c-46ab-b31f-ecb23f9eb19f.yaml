@@ -1,0 +1,58 @@
+id: deb97318-181c-46ab-b31f-ecb23f9eb19f
+name: NightEagle APT Chisel Malware Execution
+description: Detects the execution of the NightEagle APT group's Chisel-based malware, SynologyUpdate.exe, with specific command-line arguments indicating C2 communication and proxy functionality. This malware is used for internal network penetration and data exfiltration.
+query: |-
+    title: NightEagle APT Chisel Malware Execution
+    id: 2f4a7b8c-1d2e-3f4a-5b6c-7d8e9f0a1b2c
+    status: experimental
+    description: Detects the execution of the NightEagle APT group's Chisel-based malware, SynologyUpdate.exe, with specific command-line arguments indicating C2 communication and proxy functionality. This malware is used for internal network penetration and data exfiltration.
+    author: Aaron Mog - detections.ai
+    date: 2025-07-06
+    references:
+        - https://github.com/RedDrip7/NightEagle_Disclose
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\SynologyUpdate.exe'
+            CommandLine|contains|all:
+                - 'client'
+                - '--auth'
+                - '--tls-skip-verify'
+                - 'https://synologyupdates.com:443'
+                - 'R:1090:socks'
+        condition: selection
+    falsepositives:
+        - Legitimate Synology update processes without the specific malicious command-line arguments. The combination of the executable name and the unique command-line parameters should minimize false positives.
+    level: high
+    tags:
+        - attack.execution
+        - attack.t1059.003 # Command and Scripting Interpreter: Windows Command Shell
+        - attack.command_and_control
+        - attack.t1071.001 # Application Layer Protocol: Web Protocols (HTTPS C2)
+        - attack.t1090.002 # Proxy: SOCKS Proxy
+        - apt.nighteagle
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.003
+    - T1071.001
+    - T1090.002
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.t1090.002
+    - apt.nighteagle
+author: Detections.ai
+version: "1"
+references:
+    - https://github.com/RedDrip7/NightEagle_Disclose
+data_sources:
+    - process_creation
+    - windows

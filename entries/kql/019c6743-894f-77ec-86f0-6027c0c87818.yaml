@@ -1,0 +1,19 @@
+id: 019c6743-894f-77ec-86f0-6027c0c87818
+name: ClickFix DNS Payload Execution via NSLookup
+description: Detects a command-line pattern where nslookup is used to query a DNS server, and its output is piped to other commands to parse and execute a payload. This is a technique used by ClickFix campaigns to deliver malware via DNS.
+query: "// Name: ClickFix DNS Payload Execution via NSLookup\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-16\r\n// Mitre: T1071.004, T1059.001, T1059.003\r\n// References: https://www.bleepingcomputer.com/news/security/new-clickfix-attack-abuses-nslookup-to-retrieve-powershell-payload-via-dns/\r\n// Description: Detects a command-line pattern where nslookup is used to query a DNS server, and its output is piped to other commands to parse and execute a payload. This is a technique used by ClickFix campaigns to deliver malware via DNS.\r\nDeviceProcessEvents\r\n// Look for command prompt executions, which is the parent process for this attack chain.\r\n| where FileName =~ \"cmd.exe\"\r\n// This combination of commands is highly indicative of the ClickFix technique.\r\n// 'nslookup' is used for the DNS query, 'findstr' to parse the response, 'for /f' to process it, and it's piped to 'cmd' for execution.\r\n| where ProcessCommandLine has \"nslookup\"\r\n    and ProcessCommandLine has \"findstr\"\r\n    and ProcessCommandLine has \"for /f\"\r\n    and ProcessCommandLine has \"| cmd\"\r\n// FP Tuning: Legitimate administrative scripts could potentially use a similar combination of commands, though it is rare.\r\n// You can add further filters based on the parent process or user context if false positives occur.\r\n// For example, filtering for parent processes like 'explorer.exe' or a browser could indicate a user was tricked into running the command.\r\n// | where InitiatingProcessFileName in~ (\"explorer.exe\", \"msedge.exe\", \"chrome.exe\", \"firefox.exe\")\r\n| extend Account_0_Name = AccountName\r\n| extend Host_0_HostName = DeviceName\r\n| extend Process_0_CommandLine = ProcessCommandLine\r\n| extend File_0_Name = FileName\r\n| extend File_0_Directory = FolderPath\r\n| extend Process_1_CommandLine = InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1071.004
+    - T1059.003
+    - T1204.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/new-clickfix-attack-abuses-nslookup-to-retrieve-powershell-payload-via-dns/

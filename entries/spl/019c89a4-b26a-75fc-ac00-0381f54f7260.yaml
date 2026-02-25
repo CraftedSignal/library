@@ -1,0 +1,17 @@
+id: 019c89a4-b26a-75fc-ac00-0381f54f7260
+name: 'CVE‑2025‑55182: Node spawning LOLBins/tools'
+description: |-
+    This detection identifies Node.js (node) processes spawning Living‑off‑the‑Land Binaries (LOLBins) or native system tools, such as cmd, bash, sh, powershell, curl, wget, nc, ssh, certutil, or bitsadmin. While Node.js applications may legitimately execute child processes, invoking shells or built‑in administration/network utilities is atypical for most production workloads.
+    This behavior is commonly observed during post‑exploitation, where attackers abuse a compromised Node.js application to execute arbitrary commands using trusted system binaries. Leveraging LOLBins allows adversaries to download payloads, perform reconnaissance, establish command‑and‑control, or move laterally while evading traditional signature‑based detections.
+    The activity is especially concerning when seen in environments affected by Node.js–related vulnerabilities (e.g., CVE‑2025‑55182), where successful exploitation can lead directly to this execution pattern. Node spawning LOLBins should therefore be treated as a high‑confidence indicator of malicious activity and investigated for evidence of exploitation or follow‑on compromise.
+query: "index=sysmon EventCode=1 Image=\"\\node.exe\"\r\n| search (CommandLine=\"\\cmd.exe\" OR CommandLine=\"\\powershell.exe\" OR CommandLine=\"\\pwsh.exe\" OR CommandLine=\"\\wscript.exe\" OR CommandLine=\"\\cscript.exe\" OR CommandLine=\"\\mshta.exe\" OR CommandLine=\"\\rundll32.exe\" OR CommandLine=\"\\regsvr32.exe\" OR CommandLine=\"\\msiexec.exe\" OR CommandLine=\"\\wmic.exe\" OR CommandLine=\"\\schtasks.exe\" OR CommandLine=\"\\sc.exe¨C117C\\certutil.exe¨C118C\\bitsadmin.exe¨C119C\\curl.exe¨C120C\\wget.exe¨C121C\\ftp.exe¨C122C\\tftp.exe*\")\r\n| table _time, host, User, Image, ParentImage, CommandLine\r\n| sort - _time"
+query_type: spl
+severity: medium
+techniques:
+    - T1059
+    - T1106
+    - T1218
+tags:
+    - spl
+author: Adarsh Pandey
+version: "1"

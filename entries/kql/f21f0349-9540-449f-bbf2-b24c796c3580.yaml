@@ -1,0 +1,26 @@
+id: f21f0349-9540-449f-bbf2-b24c796c3580
+name: Perimeter Defense - Attack Surface Reduction
+description: 'KQL Query from file: Perimeter Defense - Attack Surface Reduction'
+query: "// Perimeter Defense - Attack Surface Reduction\n// https://www.linkedin.com/posts/activity-7188046653184991232-JLS6/\n\n// In these days cyberattacks are mostly conducted through email attacks, adversary would spray your tenant and if one of your users who happened to click on the link and with vulnerable endpoint then threat actor would probably start to gain a foothold in your environment. The below KQL checks for your organization top 10 most attack email users and query their corporate endpoints for list of vulnerabilities. I believe if you addressed those critical & high vulnerabilities of these endpoints, potentially this will help you reduce your attack surface. \U0001FAE1 \n\nlet Top10AttackEmailUsers=\nEmailEvents\n| where Timestamp > ago(30d)\n| where EmailDirection == \"Inbound\" and DeliveryAction == \"Blocked\"\n| summarize Count=count() by RecipientEmailAddress\n| sort by Count desc\n| take 10\n| project RecipientEmailAddress;\nlet Top10AttackUserDevices=\nAADSignInEventsBeta\n| where Timestamp > ago(7d)\n| where DeviceTrustType == \"Azure AD registered\" or DeviceTrustType == \"Hybrid Azure AD joined\"\n| where AccountUpn has_any(Top10AttackEmailUsers)\n| distinct DeviceName;\nDeviceTvmSoftwareVulnerabilities\n| where DeviceName has_any(Top10AttackUserDevices)\n| sort by VulnerabilitySeverityLevel asc \n\n// MITRE ATT&CK Mapping\n\n// T1566: Phishing - The blocked emails likely contain phishing attempts.\n// Top10AttackUserDevices:\n// Purpose: Finds devices associated with the top 10 email recipients from the previous query, focusing on devices that are either Azure AD registered or Hybrid Azure AD joined, within the last 7 days.\n// MITRE ATT&CK Techniques:\n// T1078: Valid Accounts - Identifying devices that might be used by compromised accounts.\n// T1082: System Information Discovery - Gathering information about devices.\n// DeviceTvmSoftwareVulnerabilities:\n// Purpose: Lists software vulnerabilities on the identified devices, sorted by severity.\n// MITRE ATT&CK Techniques:\n// T1203: Exploitation for Client Execution - Exploiting software vulnerabilities.\n// T1190: Exploit Public-Facing Application - Potential exploitation of known vulnerabilities.\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0007
+    - TA0002
+    - TA0043
+    - TA0006
+techniques:
+    - T1566
+    - T1078
+    - T1082
+    - T1203
+    - T1190
+    - T1595.002
+    - T1595.003
+    - T1212
+tags:
+    - kql
+version: "1"

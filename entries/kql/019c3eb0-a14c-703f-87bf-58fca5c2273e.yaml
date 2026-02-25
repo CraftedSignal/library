@@ -1,0 +1,55 @@
+id: 019c3eb0-a14c-703f-87bf-58fca5c2273e
+name: VoidLink Fileless Execution via Kernel Thread Masquerading
+description: Detects the VoidLink malware's initial dropper behavior, where a process masquerading as a kernel thread executes a payload from memory. This is indicative of the memfd_create and execveat fileless execution technique used by VoidLink, characterized by a process created with no FolderPath or FileName, initiated by a process named like a kernel thread.
+query: |-
+    // Name: VoidLink Fileless Execution
+    // Author: Nomit Vyas
+    // Date: 2026-02-09
+    // Description: Detects the VoidLink malware's initial dropper behavior, where a process masquerading as a kernel thread executes a payload from memory. This is indicative of the memfd_create and execveat fileless execution technique used by VoidLink.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits
+    // Tags: T1620, T1036.004
+    DeviceProcessEvents
+    // Define the list of kernel thread names VoidLink is known to masquerade as.
+    | extend kernelThreadNames = dynamic([
+        "[kworker/0:0]",
+        "[kworker/0:1]",
+        "[kworker/u8:0]",
+        "[kworker/u16:0]",
+        "migration/0",
+        "watchdog/0",
+        "rcu_sched"
+    ])
+    // Look for process creation events.
+    | where ActionType == "ProcessCreated"
+    // Check for evidence of fileless execution, where the created process has no file on disk.
+    // This is a common artifact of using memfd_create followed by execveat.
+    | where isempty(FolderPath) and isempty(FileName)
+    // The parent process (InitiatingProcess) name matches one of the known masqueraded kernel thread names.
+    | where InitiatingProcessFileName in (kernelThreadNames)
+    // FP Tuning: This behavior is highly anomalous. Legitimate kernel threads do not spawn fileless user-mode processes.
+    // However, if any custom or unusual legitimate applications are found to trigger this, consider excluding them by InitiatingProcessFileName or other specific attributes.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        MasqueradingParent = InitiatingProcessFileName,
+        MasqueradingParentCommandLine = InitiatingProcessCommandLine,
+        MasqueradingParentPID = InitiatingProcessId,
+        FilelessChildPID = ProcessId,
+        FilelessChildCommandLine = ProcessCommandLine,
+        AccountName,
+        AccountDomain
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1620
+    - T1036.004
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits

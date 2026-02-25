@@ -1,0 +1,15 @@
+id: 0199edf7-051e-746f-8631-a878b6b457d5
+name: Fake ‘LastPass Hack’ Emails Trying to Trick Users Into Installing Malware
+description: Detects the creation of an MSI (Microsoft Installer) file on a device where the file's origin referrer URL indicates it was downloaded from a ZIP archive that was originally an email attachment. This could indicate a user opening a malicious ZIP file from an email, leading to the execution of an installer.
+query: "let EmailZips = EmailAttachmentInfo\r\n| where FileType == \"zip\"\r\n| distinct FileName;\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".msi\"\r\n| where isnotempty(FileOriginReferrerUrl) and FileOriginReferrerUrl endswith \".zip\"\r\n| extend OriginZipFileName = tostring(parse_path(FileOriginReferrerUrl).filename)\r\n| join kind=inner EmailZips on $left.OriginZipFileName == $right.FileName\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    MsiFilesCreated = make_set(FileName),\r\n    MsiSha256s = make_set(SHA256),\r\n    MsiFilePaths = make_set(FolderPath)\r\n    by\r\n    DeviceName,\r\n    DeviceId,\r\n    AccountUpn = InitiatingProcessAccountUpn,\r\n    InitiatingProcessCommandLine,\r\n    OriginZipFileName,\r\n    FileOriginReferrerUrl\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1204.002
+tags:
+    - kql
+version: "1"

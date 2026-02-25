@@ -1,0 +1,55 @@
+id: 019a0d20-d5b3-723d-b8de-6e65d19557a0
+name: Jingle Thief - Rogue Device Registration from Morocco
+description: Detects the registration of a new device or MFA authentication method in Microsoft Entra ID from an IP address geolocated to Morocco. This is a persistence tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539).
+query: |
+    // Name: Jingle Thief - Rogue Device Registration from Morocco
+    // Description: Detects the registration of a new device or MFA authentication method in Microsoft Entra ID from an IP address geolocated to Morocco. This is a persistence tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539).
+    //
+    // MITRE ATT&CK: T1078.004, T1098.005
+    //
+    // Reference: https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/
+    //
+    // False Positives: Legitimate users who reside in or are traveling to Morocco may trigger this alert when registering a new device or MFA method. It is recommended to investigate the context of the user's activity and baseline their typical locations. Exclusions for known travelers or residents may be necessary.
+    //
+    // Data Source: AuditLogs
+    //
+    // Version: 1.0
+    // Author: detections.ai
+    // Date: 2025-10-22
+    AuditLogs
+    // Key detection component: Filter for successful device or MFA method registration events.
+    | where Category == "UserManagement"
+      and OperationName in ("User registered security info", "Register device")
+      and Result == "success"
+    // Key detection component: Focus on activity originating from Morocco, a key indicator for the Jingle Thief group.
+    | where tostring(LocationDetails.countryOrRegion) == "MA"
+    // For higher fidelity, consider enriching the IPAddress with ASN information and filtering for ASNs specifically mentioned in the threat intelligence (e.g., MT-MPLS, ASMedi, MAROCCONNECT).
+    | extend TargetUser = tostring(TargetResources[0].userPrincipalName),
+               Actor = tostring(Identity),
+               RegisteredMethod = tostring(TargetResources[0].modifiedProperties[0].newValue)
+    | project
+        TimeGenerated,
+        OperationName,
+        Actor,
+        TargetUser,
+        RegisteredMethod,
+        IPAddress,
+        Location,
+        UserAgent,
+        Result,
+        ResultDescription
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1098.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cloud-based-gift-card-fraud-campaign/

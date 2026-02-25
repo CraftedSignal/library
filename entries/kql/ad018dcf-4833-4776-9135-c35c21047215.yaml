@@ -1,0 +1,249 @@
+id: ad018dcf-4833-4776-9135-c35c21047215
+name: 'FileFix Attack Detection: Browser Spawns CLI'
+description: KQL Query
+query: |-
+    // Hypothesis 1: Broad Detection - Any Browser Spawning Any Suspicious CLI/Script Host
+    // Description: This query identifies any instance where a common web browser directly spawns a known command-line interpreter or scripting host. This is a broad indicator and may require further investigation or tuning.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1059.001 (Command and Scripting Interpreter: PowerShell), T1059.003 (Command and Scripting Interpreter: Windows Command Shell), T1218.005 (Signed Binary Proxy Execution: Mshta), T1218.010 (Signed Binary Proxy Execution: Rundll32), T1059.005 (Command and Scripting Interpreter: Visual Basic Script)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName in ("cmd.exe", "powershell.exe", "pwsh.exe", "mshta.exe", "cscript.exe", "wscript.exe", "rundll32.exe")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Broad Detection - Any Browser Spawning Any Suspicious CLI/Script Host"
+
+    // Hypothesis 2: Browser Spawning cmd.exe with Execution Arguments
+    // Description: This query specifically looks for web browsers spawning 'cmd.exe' with command-line arguments commonly used for direct command execution.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1059.003 (Command and Scripting Interpreter: Windows Command Shell)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName == "cmd.exe"
+    | where ProcessCommandLine has_any ("/c", "/k", "start", "powershell", "mshta", "cscript", "wscript", "rundll32")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Browser Spawning cmd.exe with Execution Arguments"
+
+    // Hypothesis 3: Browser Spawning PowerShell with Suspicious Execution Arguments
+    // Description: This query focuses on web browsers spawning 'powershell.exe' or 'pwsh.exe' with arguments indicative of script execution, encoded commands, or web requests.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1059.001 (Command and Scripting Interpreter: PowerShell)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName in ("powershell.exe", "pwsh.exe")
+    | where ProcessCommandLine has_any ("-c", "-command", "-enc", "-encodedcommand", "-nop", "-noprofile", "iex", "invoke-expression", "downloadstring", "invoke-webrequest", "new-object system.net.webclient")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Browser Spawning PowerShell with Suspicious Execution Arguments"
+
+    // Hypothesis 4: Browser Spawning mshta.exe for Script Execution
+    // Description: This query detects web browsers spawning 'mshta.exe' with command-line arguments that indicate execution of JavaScript or VBScript, a common LOLBIN for execution.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1218.005 (Signed Binary Proxy Execution: Mshta)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName == "mshta.exe"
+    | where ProcessCommandLine has_any ("javascript:", "vbscript:", "hta")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Browser Spawning mshta.exe for Script Execution"
+
+    // Hypothesis 5: Browser Spawning Script Hosts (cscript.exe, wscript.exe)
+    // Description: This query identifies web browsers spawning 'cscript.exe' or 'wscript.exe', which are direct script execution hosts.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1059.005 (Command and Scripting Interpreter: Visual Basic Script)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName in ("cscript.exe", "wscript.exe")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Browser Spawning Script Hosts (cscript.exe, wscript.exe)"
+
+    // Hypothesis 6: Browser Spawning rundll32.exe for Suspicious Execution
+    // Description: This query detects web browsers spawning 'rundll32.exe' with arguments commonly used for DLL or script execution, often bypassing direct executable calls.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1218.010 (Signed Binary Proxy Execution: Rundll32)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName == "rundll32.exe"
+    | where ProcessCommandLine has_any ("url.dll", "javascript:", "shell32.dll", "control.exe")
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Browser Spawning rundll32.exe for Suspicious Execution"
+
+    // Consolidated Rule: FileFix Attack - Browser Spawns CLI (Original Rule with Hypothesis Tag)
+    // Description: This consolidated query combines all specific hypotheses into a single rule for comprehensive detection of the "FileFix" attack technique.
+    // Author: Detections.ai
+    // Date: 2025-07-07
+    // Severity: High
+    // Tactics: Execution, Initial Access
+    // Techniques: T1204.001 (User Execution: Malicious Link), T1059.001 (Command and Scripting Interpreter: PowerShell), T1059.003 (Command and Scripting Interpreter: Windows Command Shell), T1218.005 (Signed Binary Proxy Execution: Mshta), T1218.010 (Signed Binary Proxy Execution: Rundll32), T1059.005 (Command and Scripting Interpreter: Visual Basic Script)
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe")
+    | where FileName in ("cmd.exe", "powershell.exe", "pwsh.exe", "mshta.exe", "cscript.exe", "wscript.exe", "rundll32.exe")
+    // Filter for command line arguments typical for direct command execution or script execution
+    | where (FileName == "cmd.exe" and ProcessCommandLine has_any ("/c", "/k", "start", "powershell", "mshta", "cscript", "wscript", "rundll32"))
+       or (FileName == "powershell.exe" and ProcessCommandLine has_any ("-c", "-command", "-enc", "-encodedcommand", "-nop", "-noprofile", "iex", "invoke-expression", "downloadstring", "invoke-webrequest", "new-object system.net.webclient"))
+       or (FileName == "pwsh.exe" and ProcessCommandLine has_any ("-c", "-command", "-enc", "-encodedcommand", "-nop", "-noprofile", "iex", "invoke-expression", "downloadstring", "invoke-webrequest", "new-object system.net.webclient"))
+       or (FileName == "mshta.exe" and ProcessCommandLine has_any ("javascript:", "vbscript:", "hta"))
+       or (FileName == "cscript.exe" or FileName == "wscript.exe") // These are often directly executed with a script path
+       or (FileName == "rundll32.exe" and ProcessCommandLine has_any ("url.dll", "javascript:", "shell32.dll", "control.exe"))
+    // Exclude known legitimate scenarios or common false positives if applicable.
+    // This rule is designed to be broad enough to catch the attack described,
+    // and may require further tuning based on environment-specific legitimate activities.
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        AccountName,
+        InitiatingProcessParentFileName,
+        InitiatingProcessIntegrityLevel,
+        ReportId,
+        InitiatingProcessId,
+        ProcessId,
+        InitiatingProcessCreationTime,
+        ProcessCreationTime
+    | extend Hypothesis = "Consolidated Rule - FileFix Attack"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.001
+    - T1059.001
+    - T1059.003
+    - T1218.005
+    - T1218.010
+    - T1059.005
+tags:
+    - kql
+version: "1"

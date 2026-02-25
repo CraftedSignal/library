@@ -1,0 +1,55 @@
+id: ea8a5a31-d255-4274-8451-1b65a166322c
+name: PowerShell Obfuscated Download of install.mp3
+description: This rule detects instances of PowerShell using heavy obfuscation and attempting to download a file named "install.mp3", indicative of malware activity.
+query: |-
+    # PowerShell Obfuscation and Malware Download Detection
+
+    ## Description
+    This detection identifies a specific pattern of PowerShell execution that uses heavy obfuscation techniques and attempts to download a file named "install.mp3". This pattern is consistent with malware downloaders that use obfuscation to evade detection.
+
+    ## Detection Logic
+    The query looks for:
+    - CMD launching PowerShell
+    - Specific obfuscated strings using mixed case:
+      - `wiNd` (Window)
+      - `hiddeN` (Hidden)
+      - `Bypass` (Execution Policy Bypass)
+      - `NoNi` (NonInteractive)
+      - `IeX` (Invoke-Expression)
+      - `DowNloadStriNg` (DownloadString)
+    - Reference to `install.mp3` (likely malicious payload)
+
+    ## Query
+    ```kusto
+    DeviceProcessEvents
+    | where ((InitiatingProcessFolderPath endswith @"\cmd.exe")
+    and (FolderPath endswith @"\powershell.exe")
+    and ProcessCommandLine contains "wiNd"
+    and ProcessCommandLine contains "hiddeN"
+    and ProcessCommandLine contains "Bypass"
+    and ProcessCommandLine contains "NoNi"
+    and ProcessCommandLine contains "IeX"
+    and ProcessCommandLine contains "DowNloadStriNg"
+    and ProcessCommandLine contains "install.mp3")
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Defense Evasion, Execution
+    - **Technique**: T1027 - Obfuscated Files or Information
+    - **Technique**: T1059.001 - Command and Scripting Interpreter: PowerShell
+    - **Technique**: T1105 - Ingress Tool Transfer
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Immediately isolate the affected system
+    2. Capture the full PowerShell command for analysis
+    3. Check if install.mp3 was successfully downloaded
+    4. Analyze the downloaded file (likely not an MP3)
+    5. Review network logs for the download source
+    6. Check for persistence mechanisms
+    7. Scan for additional malware
+    8. Review user activity that led to this execution
+query_type: kql
+version: "1"

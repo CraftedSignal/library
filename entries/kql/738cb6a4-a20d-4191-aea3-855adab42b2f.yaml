@@ -1,0 +1,28 @@
+id: 738cb6a4-a20d-4191-aea3-855adab42b2f
+name: 'Exposure Management: Cloud or On-Prem VDI Platform Blast Radius'
+description: KQL Query
+query: "// Exposure Management: Cloud or On-Prem VDI Blast Radius\n// https://www.linkedin.com/posts/0x534c_defenderxdr-exposuremanagement-attackpath-activity-7228066647335387137-dDBd/\n// The following KQL query leverages the DefenderXDR ExposureGraphEdges schema to analyze workstations that permit multiple user logons. After identifying cloud or on-premises virtual desktop infrastructure (VDI), it scans the DeviceTvmSoftwareVulnerabilities for critical and high CVEs linked to these multi-user logons. Remember, unpatched workstations with numerous users significantly increase your attack surface. This KQL query helps you assess the associated blast radius of your VDI attack surface if not managed properly.\U0001F3AF\n\nlet AVDs =\nExposureGraphEdges\n| where EdgeLabel == \"can authenticate as\"\n| summarize UserLogonCount=count() by SourceNodeName\n| where UserLogonCount > 3\n| distinct SourceNodeName;\nDeviceTvmSoftwareVulnerabilities\n| where VulnerabilitySeverityLevel == \"Critical\" \nor VulnerabilitySeverityLevel == \"High\"\n| where DeviceName has_any (AVDs)\n\n// #DefenderXDR #ExposureManagement #AttackPath #BlastRadius\n\n// MITRE ATT&CK Mapping\n\n// T1078 - Valid Accounts:\n// The query looks for users who can authenticate as other users, which aligns with the use of valid accounts for lateral movement or persistence.\n// T1078.001 - Valid Accounts: Local Accounts:\n// If the accounts identified are local accounts, this sub-technique is relevant.\n// T1078.002 - Valid Accounts: Domain Accounts:\n// If the accounts identified are domain accounts, this sub-technique is relevant.\n// T1078.003 - Valid Accounts: Cloud Accounts:\n// If the accounts identified are cloud accounts, this sub-technique is relevant.\n// T1087 - Account Discovery:\n// The process of identifying accounts that can authenticate as other users can be seen as account discovery.\n// T1087.001 - Account Discovery: Local Account:\n// If the accounts are local, this sub-technique is relevant.\n// T1087.002 - Account Discovery: Domain Account:\n// If the accounts are domain accounts, this sub-technique is relevant.\n// T1087.003 - Account Discovery: Cloud Account:\n// If the accounts are cloud accounts, this sub-technique is relevant.\n// T1210 - Exploitation of Remote Services:\n// The query identifies devices with critical or high vulnerabilities, which could be exploited for remote access.\n// T1069 - Permission Groups Discovery:\n// Identifying users with specific permissions can be related to discovering permission groups.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0008
+    - TA0043
+techniques:
+    - T1078
+    - T1078.001
+    - T1078.002
+    - T1078.003
+    - T1087
+    - T1087.001
+    - T1087.002
+    - T1087.003
+    - T1210
+    - T1069
+    - T1595.002
+tags:
+    - kql
+version: "1"

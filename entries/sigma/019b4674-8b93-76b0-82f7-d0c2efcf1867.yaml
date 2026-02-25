@@ -1,0 +1,56 @@
+id: 019b4674-8b93-76b0-82f7-d0c2efcf1867
+name: PCPcat Persistence via Systemd Service Creation
+description: Detects the creation of systemd services used by the PCPcat malware for persistence on Linux systems.
+query: |
+    title: PCPcat Persistence via Systemd Service Creation
+    id: 2c16b282-5cc5-4322-9a65-ff298f2f183c
+    status: experimental
+    description: >-
+      Detects the creation of systemd services used by the PCPcat malware for
+      persistence on Linux systems.
+    references:
+      - >-
+        https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/
+    author: tim@detections.ai
+    date: 2025-12-22T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1543.002
+    logsource:
+      category: file_create
+      product: linux
+      service: audit
+    detection:
+      selection:
+        TargetDirectory|endswith:
+          - /etc/systemd/system
+          - /run/systemd/system
+          - /usr/lib/systemd/system
+          - /lib/systemd/system
+        TargetFilename:
+          - pcpcat-gost.service
+          - pcpcat-frp.service
+          - pcpcat-scanner.service
+          - pcpcat-react.service
+      condition: selection
+    falsepositives:
+      - This rule is highly specific to the PCPcat malware campaign's naming
+        convention. False positives are considered unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.002
+tags:
+    - attack.persistence
+    - attack.t1543.002
+author: tim@detections.ai
+version: "3"
+references:
+    - https://beelzebub.ai/blog/threat-huntinga-analysis-of-a-nextjs-exploit-campaign/
+data_sources:
+    - file_create
+    - linux

@@ -1,0 +1,41 @@
+id: 019a73ef-096b-72db-b538-ebe7d61ce561
+name: Gootloader Persistence via 8.3 Short Filename
+description: Detects the execution of a JavaScript file via wscript.exe or cscript.exe where the file path in the command line contains a tilde (~). This is indicative of the Gootloader malware, which leverages Windows 8.3 short filenames (e.g., "ADAPTI~1.JS" for "Adaptive Algorithms.js") as part of its persistence mechanism to evade simple string-based detections. The persistence scripts are typically dropped in subfolders under the user's AppData\Roaming directory.
+query: |
+    // Name: Gootloader Persistence via 8.3 Short Filename
+    // Description: Detects the execution of a JavaScript file via wscript.exe or cscript.exe where the file path in the command line contains a tilde (~). This is indicative of the Gootloader malware, which leverages Windows 8.3 short filenames (e.g., "ADAPTI~1.JS" for "Adaptive Algorithms.js") as part of its persistence mechanism to evade simple string-based detections.
+    // False Positive Sensitivity: Medium. While uncommon, some legacy applications or scripts might use 8.3 short filenames. Tuning may be required if legitimate software in your environment exhibits this behavior.
+    // Reference: https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
+    DeviceProcessEvents
+    // Gootloader uses wscript.exe or cscript.exe to run its JavaScript-based persistence payloads.
+    | where FileName in~ ("wscript.exe", "cscript.exe")
+    // The core of the detection is looking for the tilde character "~" in the command line, which is characteristic of 8.3 short filenames.
+    // Gootloader combines this with a .js file extension for its payload.
+    | where ProcessCommandLine has ".js" and ProcessCommandLine contains "~"
+    // As per threat intelligence, these persistence scripts are typically dropped in subfolders under the user's AppData\Roaming directory.
+    | where ProcessCommandLine has @"\AppData\Roaming\"
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059.007
+    - T1547.001
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation

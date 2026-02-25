@@ -1,0 +1,29 @@
+id: 09b1bd3b-f907-42ef-b412-473773ab0d98
+name: Windows Security Log Enumeration Detection
+description: |-
+    This query is designed to identify any attempts to list or enumerate Windows Security Logs using the command-line tool "wevtutil." It focuses on detecting a specific technique known as "Log Collection" (T1654). Here's a simple breakdown of what the query does:
+
+    Time Frame: It looks at data from the past 7 days.
+    Source: It examines events related to processes on devices (DeviceProcessEvents).
+    Filter Criteria:
+    It checks for events where a process was created (ActionType contains "ProcessCreated").
+    It specifically looks for instances where the process involved is "wevtutil.exe" and the command line used includes "enum-logs."
+    Output: The query extracts and displays specific details about these events, including:
+    The name of the device where the event occurred (DeviceName).
+    The type of action that was recorded (ActionType).
+    The name of the file involved (FileName).
+    The full command line that was executed (ProcessCommandLine).
+    The domain and name of the account that executed the command (AccountDomain, AccountName).
+    The user principal name and command line of the initiating process (InitiatingProcessAccountUpn, InitiatingProcessCommandLine).
+    In summary, this query helps security analysts detect and investigate potential unauthorized attempts to access or list Windows Security Logs using the "wevtutil" tool.
+query: "//This query detects attempts to enumerate Windows Security Logs using wevtutil\r\n//Part of T1654 - Log Collection technique\r\nlet TimeFrame = 7d;\r\nDeviceProcessEvents\r\n| where ActionType contains \"ProcessCreated\"\r\nand FileName contains \"wevtutil.exe\" and ProcessCommandLine contains \"enum-logs\"\r\n| project DeviceName, ActionType, FileName, ProcessCommandLine, AccountDomain,\r\nAccountName, InitiatingProcessAccountUpn, InitiatingProcessCommandLine "
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1654
+tags:
+    - kql
+author: Andre Zeemering
+version: "1"

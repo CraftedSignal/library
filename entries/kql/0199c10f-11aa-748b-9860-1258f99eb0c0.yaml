@@ -1,0 +1,16 @@
+id: 0199c10f-11aa-748b-9860-1258f99eb0c0
+name: Akira ransomware abuses CPU tuning tool to disable Microsoft Defender
+description: This rule detects the presence of known malicious drivers (hlpdrv.sys, rwdrv.sys) by their SHA256 hash or file path. It also identifies attempts to install these drivers via service creation commands and monitors for modifications to Windows Defender registry keys that could disable its functionality, indicating defense evasion.
+query: "let MaliciousDrivers = dynamic([\r\n    \"bd1f381e5a3db22e88776b7873d4d2835e9a1ec620571d2b1da0c58f81c84a56\",  // hlpdrv.sys\r\n    \"16f83f056177c4ec24c7e99d01ca9d9d6713bd0497eeedb777a3ffefa99c97f0\"   // rwdrv.sys\r\n]);\r\nlet SuspiciousPaths = dynamic([\r\n    @\"\\hlpdrv.sys\",\r\n    @\"\\rwdrv.sys\"\r\n]);\r\nDeviceFileEvents\r\n| where SHA256 in~ (MaliciousDrivers)\r\nor FolderPath has_any (SuspiciousPaths)\r\n| project TimeGenerated, DeviceName, FolderPath, FileName, SHA256, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId\r\n| union (\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has_any (\"sc create\", \"CreateService\") and ProcessCommandLine has_any (\"hlpdrv.sys\", \"rwdrv.sys\", \"KMHLPSVC\", \"mgdsrv\")\r\n    | project TimeGenerated, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId\r\n)\r\n| union (\r\n    DeviceRegistryEvents\r\n    | where RegistryKey has_any (\r\n        @\"HKLM\\SYSTEM\\CurrentControlSet\\Services\\WinDefend\", \r\n        @\"HKLM\\SOFTWARE\\Policies\\Microsoft\\Windows Defender\"\r\n    )\r\n    | where RegistryValueName in~ (\"Start\", \"DisableAntiSpyware\", \"DisableRealtimeMonitoring\")\r\n    | project TimeGenerated, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n)\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1014
+    - T1562.001
+    - T1068
+tags:
+    - kql
+version: "1"

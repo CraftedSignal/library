@@ -1,0 +1,16 @@
+id: 019b3123-00fc-7584-95e7-e9c504bc1f37
+name: Potential Inbound Web Traffic Accepted by IIS Processes on Endpoints
+description: |
+    This query identifies devices that have accepted inbound web traffic (ports 80/443) where the accepting process is IIS worker (w3wp.exe) or IIS Express (iisexpress.exe). It focuses on public IPv4 sources (excluding RFC1918/private, loopback, and IPv6), helping you surface internet-exposed web servers that are actively receiving external connections.
+query: "let WebPorts = dynamic([80, 443]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"InboundConnectionAccepted\" or ActionType == \"ConnectionSuccess\"\r\n| where LocalPort in (WebPorts)\r\n| where InitiatingProcessFileName in~ (\"w3wp.exe\", \"iisexpress.exe\") or InitiatingProcessParentFileName in~ (\"w3wp.exe\", \"iisexpress.exe\")\r\n| where RemoteIP !has \":\"  // IPv4\r\n| where ipv4_is_private(RemoteIP) == false\r\n      and RemoteIP !in (\"127.0.0.1\")\r\n| summarize\r\n    FirstSeen = min(Timestamp),\r\n    LastSeen = max(Timestamp),\r\n    InboundConnCount = count(),\r\n    SampleExternalIPs = make_set(RemoteIP, 5)\r\n  by DeviceName, DeviceId, LocalIP, LocalPort, InitiatingProcessFileName\r\n| join kind=leftouter (\r\n    DeviceInfo\r\n    | project DeviceId, OSPlatform, OSVersion, PublicIP, DeviceManualTags\r\n) on DeviceId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1190
+    - T1071.001
+tags:
+    - kql
+version: "3"

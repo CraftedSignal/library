@@ -1,0 +1,50 @@
+id: 019c90c2-d1ff-766a-a71c-94a741a17a63
+name: ActiveMQ Exploit Leads to LockBit-style Ransomware Activity
+description: This rule detects various stages of an attack chain, starting from an Apache ActiveMQ exploit (CVE-2023-46604) leading to LockBit-style ransomware. It identifies process creation anomalies (java.exe spawning certutil.exe for downloads), network connections to known Metasploit C2 infrastructure, the presence of specific ransomware file hashes, and attempts to clear Windows event logs, all indicative of the described attack scenario.
+query: |+
+    ## ActiveMQ CVE-2023-46604 -> Metasploit -> AnyDesk -> LockBit-style ransomware (DFIR Report)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+
+    ### Process creation: java.exe spawning certutil.exe download (high fidelity)
+    (index=endpoint OR index=wineventlog) (EventCode=4688 OR EventCode=1)
+    | eval ParentImage=coalesce(ParentImage, parent_process_path, ParentProcessName)
+    | eval Image=coalesce(Image, NewProcessName, process_path, ProcessName)
+    | eval CommandLine=coalesce(CommandLine, process_command_line, cmdline)
+    | where match(lower(ParentImage), "\\\\java(w)?\\.exe$") AND match(lower(Image), "\\\\certutil\\.exe$")
+    | where like(lower(CommandLine), "%-urlcache%") AND like(lower(CommandLine), "%http%")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines by Computer, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Network/proxy: Metasploit C2 IPs + port 2460 (if you have netflow/proxy)
+    (index=netflow OR index=firewall OR index=proxy) (dest_ip=166.62.100.52 OR dest_ip=166.62.100.62) dest_port=2460
+    | stats count min(_time) as first_seen max(_time) as last_seen values(action) as actions by src_ip, dest_ip, dest_port
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### File hash sweep: ransomware hashes from report (computed)
+    (index=edr OR index=endpoint) (sha256="c8646cfb574ff2c6f183c3c3951bf6b2c6cf16ff8a5e949a118be27f15962fae" OR sha256="8ceee89550c521ba43f59d24ba53a22a3b69ead0fce118508d0a87a383d6a7b6")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(file_name) as filenames values(file_path) as paths by host, user, sha256
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Windows event logs cleared
+    (index=wineventlog OR index=endpoint) (EventCode=1102 OR EventCode=104)
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Message) as examples by Computer, user, EventCode
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0011
+techniques:
+    - T1070.001
+    - T1059
+    - T1105
+    - T1071
+tags:
+    - spl
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/

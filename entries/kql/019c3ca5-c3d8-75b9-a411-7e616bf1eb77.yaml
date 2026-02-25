@@ -1,0 +1,18 @@
+id: 019c3ca5-c3d8-75b9-a411-7e616bf1eb77
+name: ICONICS Configuration File Tampering
+description: Detects modification of critical ICONICS Suite configuration files by unauthorized processes. Attackers can modify these files, such as changing the SMSLogFile path in IcoSetup64.ini, to redirect privileged file writes for privilege escalation or DoS, as seen in the CVE-2025-0921 exploit chain.
+query: "// Name: ICONICS Configuration File Tampering\r\n// Author: Rudra Verma - CyberHawk\r\n// Date: 2026-02-08\r\n// Tactic: Defense Evasion, Persistence\r\n// Technique: T1565.001\r\n// Description: Detects modification of critical ICONICS Suite configuration files by unauthorized processes. Attackers can modify these files, such as changing the SMSLogFile path in IcoSetup64.ini, to redirect privileged file writes for privilege escalation or DoS, as seen in the CVE-2025-0921 exploit chain.\r\n// False Positive Sensitivity: Medium\r\n// References: https://unit42.paloaltonetworks.com/iconics-suite-cve-2025-0921/\r\n\r\nlet known_procs = dynamic([\r\n    \"GenBroker64.exe\",\r\n    \"AlarmWorX64.exe\",\r\n    \"FrameWorX.exe\",\r\n    \"FwxServer.exe\",\r\n    \"TrendWorX64.exe\",\r\n    \"PagerCfg.exe\",\r\n    \"IcoSetup.exe\"\r\n]);\r\nDeviceFileEvents\r\n// Focus on file modification events, which are the highest signal for tampering.\r\n| where ActionType == \"FileModified\"\r\n// Target the specific folder where ICONICS configurations are stored.\r\n| where FolderPath endswith \"\\\\ProgramData\\\\ICONICS\\\\\"\r\n// Monitor the key configuration files involved in the exploit chain.\r\n| where FileName in~ (\"IcoSetup64.ini\", \"IcoSetup.ini\", \"GenBroker32.ini\")\r\n// Exclude known legitimate ICONICS processes that are expected to modify these files.\r\n| where not(InitiatingProcessFileName in~ (known_procs))\r\n// Potential for False Positives: Legitimate administrative scripts or third-party tools that integrate with ICONICS might modify these files.\r\n// Tuning Suggestion: Add any legitimate management tools to the 'known_procs' list if they cause false positives in your environment.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessAccountName,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0040
+techniques:
+    - T1565.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/iconics-suite-cve-2025-0921/

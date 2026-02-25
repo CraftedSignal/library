@@ -1,0 +1,130 @@
+id: e8d81369-5991-40b4-a581-1f6216dbbef0
+name: RondoDox Botnet Activity Detection Query with IOC Hunting
+description: 'Detects host-based and network activity associated with the RondoDox botnet, including defense evasion, system sabotage, persistence, and known IOCs. '
+query: |
+    title: "RondoDox Botnet Activity Detection Query with IOC Hunting"
+    id: e13b315f-2dba-48a8-bf1a-9c4932bfbb21
+    status: experimental
+    description: "Detects host-based and network activity associated with the
+      RondoDox botnet, including defense evasion, system sabotage, persistence, and
+      known IOCs. "
+    references:
+      - https://www.fortinet.com/blog/threat-research/rondobox-unveiled-breaking-down-a-botnet-threat
+    author: Chaitanya B (Mr.Alien)
+    date: 2025-07-10
+    tags:
+      - attack.defense_evasion
+      - attack.persistence
+      - attack.impact
+      - attack.t1562
+      - attack.t1543.002
+      - attack.t1485
+      - malware.rondodox
+    logsource:
+      - category: process_creation
+        product: linux
+      - category: network_connection
+        product: linux
+    detection:
+      selection_trap:
+        # Detects the downloader script disabling common signals to evade interruption
+        CommandLine|contains|all:
+          - 'trap'
+          - 'SIGTTOU'
+          - 'SIGTTIN'
+          - 'SIGTSTP'
+          - 'SIGHUP'
+          - 'SIGPIPE'
+          - 'SIGINT'
+          - 'SIGQUIT'
+          - 'SIGTERM'
+      selection_sabotage:
+        # Detects renaming of critical system binaries to disrupt system functions
+        Image|endswith:
+          - '/mv'
+          - '/rename'
+        CommandLine|contains:
+          - '/iptables'
+          - '/ufw'
+          - '/passwd'
+          - '/chpasswd'
+          - '/shutdown'
+          - '/poweroff'
+          - '/halt'
+          - '/reboot'
+      selection_persistence:
+        # Detects creation of the persistence symlink in rc.d directories
+        Image|endswith: '/ln'
+        CommandLine|contains|all:
+          - '-s'
+          - '/etc/init.d/rondo'
+          - '/etc/rc3.d/S99rondo'
+      selection_hash:
+        # Detects known RondoDox malware hashes
+        sha256:
+          - 'c88f60dbae08519f2f81bb8efa7e6016c6770e66e58d77ab6384069a515e451c'
+          - 'eb3e2a6a50f029fc646e2c3483157ab112f4f017406c3aabedaae0c94e0969f6'
+          - 'f4cd7ab04b1744babef19d147124bfc0e9e90d557408cc2d652d7192df61bda9'
+          - 'e3c080e322862d065649c468d20f620c3670d841c30c3fe5385e37f4f10172e7'
+          - 'e62df17150fcb7fea32ff459ef47cdd452a21269efe9252bde70377fd2717c10'
+          - '53e2c2d83813d1284ddb8c68b1572b17cca95cfc36a55a7517bf45ff40828be5'
+          - '43d4847bf237c445ed2e846a106e1f55abefef5c3a8545bd5e4cad20f5deb9a4'
+          - '4c2429fc8b8ec61da41cbba1b8184ec45fa93a9841b4ca48094bba7741b826b8'
+          - '694d729d67f1b0c06702490bfab1df3a96fe040fe5d07efa5c92356c329757be'
+          - 'edae3b75deb8013bd48ac4534cca345b90938a2abb91672467c2bf9ae81ff683'
+          - '0814a0781ab30fca069a085dba201d6fd0f414498fafa4bb42859786d91d4781'
+          - '59b4deee977e9e27b60e7e179d54a1ce8e56624e73b799523416eee828bfaf76'
+          - '9f916a552efc6775367a31357a633dc0be01879830d3fddccdf3c40b26e50afd'
+          - '0a9ebbecc8ec58c253039520304ca373cfb8d1674d67993e6485e244a77d6ec9'
+          - '6c81fd73b4bef6fef379cbefdcce7f374ea7e6bf1bf0917cf4ca7b72d4cee788'
+          - 'a55a3859a203ca2bae7399295f92aeae61d845ffa173c1938f938f5c148eef99'
+          - '57573779f9a62eecb80737d41d42165af8bb9884579c50736766abb63d2835ba'
+          - '3daa53204978b7797bd53f5c964eed7a73d971517a764785ce3ab65a9423c2e7'
+          - '8bf8928bc255e73e0b5b0ce13747c64d82d5f2647da129f189138773733ac21f'
+          - '20a24b179bdbbdcc0053838c0484ea25eff6976f2b8cb5630ab4efb28b0f06b5'
+          - '42aa715573c7d2fca01914504cb7336db715d73d1e20d23e4bd37f2e4f4fe389'
+          - 'c9278ce988343606350a94156ca28ee28bd605d1d95c810a16866eee1f997598'
+          - 'a197f60d5f5641f2c56576b4c867d141612c6e00db29c512f266835510b8a62d'
+          - '8250d289c5ec87752cec1af31eed0347cf2dd54dc0fbeea645319c4dae238ee2'
+          - 'd02414a54e97ad26748812002610f1491a2a746e9ba0f9d05de3d47d7bab4f5e'
+          - 'c123a91fdacd9a4c0bcf800d6b7db5162cfd11cb71e260647ef0f2c60978ebfc'
+          - 'ef708fec1afbea4fb32b586e0dacf0d228c375a532008d81453c367256afea5a'
+          - '305507f34c14c72cab35715b7f7b25b32352a8e19b8a283003aaf539d12ca517'
+          - '937e6ab0dfcedfa23eced7b52d3899b0847df3fcb7a9c326b71027a7ab5f5b93'
+      selection_net:
+        # Detects network connections to known RondoDox C2 servers
+        DestinationIp:
+          - '45.135.194.34'
+          - '83.150.218.93'
+          - '14.103.145.202'
+          - '14.103.145.211'
+          - '154.91.254.95'
+          - '78.153.149.90'
+      condition: 1 of selection_*
+    falsepositives:
+      # The behavioral detections are specific, but legitimate administrative activity could trigger them in rare cases. Such activity should be investigated.
+      # IOC-based detections (hashes, IPs) are high-fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0040
+    - TA0005
+    - TA0004
+techniques:
+    - T1562
+    - T1543.002
+    - T1485
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.impact
+    - attack.t1562
+    - attack.t1543.002
+    - attack.t1485
+    - malware.rondodox
+author: Chaitanya B (Mr.Alien)
+version: "1"
+references:
+    - https://www.fortinet.com/blog/threat-research/rondobox-unveiled-breaking-down-a-botnet-threat

@@ -1,0 +1,16 @@
+id: 71000468-1a61-41a8-a982-30582497673a
+name: NTLM Credential Stealing via MpCmdRun
+description: Detects suspicious usage of MpCmdRun.exe, the Microsoft Defender command-line utility, to potentially steal NTLM credentials. This rule specifically looks for MpCmdRun.exe being executed with parameters related to scanning or exclusion checking, combined with attempts to access remote UNC paths (\\). This behavior can indicate an adversary attempting to force NTLM authentication to a controlled server to capture hashes.
+query: "// NTLM Credential Stealing Detection Query\r\n// ---------------------------------------------\r\n// MITRE ATT&CK Mapping\r\n// Tactic: Credential Access (TA0006)\r\n// Technique: NTLM Hash Capture – T1003.003\r\n// Tactic: Discovery (TA0007)\r\n// Technique: File and Directory Discovery – T1083\r\n// Tactic: Lateral Movement (TA0008)\r\n// Technique: Remote File Copy / Remote Execution – T1021\r\n// ---------------------------------------------\r\n\r\nDeviceProcessEvents\r\n| where FileName =~ \"MpCmdRun.exe\"\r\n// Detect suspicious scanning or exclusion checking\r\n| where ProcessCommandLine has_any (\"-Scan\", \"-CheckExclusion\")\r\n// Detect access to remote UNC paths\r\n| where ProcessCommandLine has_any (\"-File \\\\\\\\\", \"-Path \\\\\\\\\")\r\n| extend DetectionType = \"NTLM Credential Stealing via MpCmdRun\"\r\n| project Timestamp, DeviceId, DeviceName, InitiatingProcessFileName, FileName, ProcessCommandLine, ReportId, DetectionType\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+    - TA0008
+techniques:
+    - T1557.001
+    - T1021.002
+tags:
+    - kql
+version: "1"

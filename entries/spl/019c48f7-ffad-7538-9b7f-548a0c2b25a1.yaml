@@ -1,0 +1,8 @@
+id: 019c48f7-ffad-7538-9b7f-548a0c2b25a1
+name: Linux SSH Brute Force with Successful Login
+description: This rule detects a potential brute-force attack followed by a successful login attempt against a Linux host. It specifically looks for a user account that experiences at least 10 failed password attempts within a 10-minute window, immediately followed by at least one successful password attempt for the same user on the same host within that same 10-minute window. The rule extracts the user, source IP, and port for both failed and successful attempts.
+query: "index=linux sourcetype=syslog (\"Failed password\" OR \"Accepted password\")\r\n| rex field=_raw \"(?:Failed|Accepted) password for (?:invalid user )?(?<user>\\S+) from (?<src>[0-9\\.]+) port (?<src_port>\\d+)\"\r\n| eval auth_result=if(match(_raw, \"Accepted password\"), \"success\", \"failure\")\r\n| bin _time span=10m\r\n| stats count(eval(auth_result=\"failure\")) as failures,\r\n        count(eval(auth_result=\"success\")) as successes,\r\n        values(eval(if(auth_result=\"failure\", src, null()))) as failure_sources,\r\n        values(eval(if(auth_result=\"success\", src, null()))) as success_sources,\r\n        min(eval(if(auth_result=\"failure\", _time, null()))) as first_failure_time,\r\n        max(eval(if(auth_result=\"success\", _time, null()))) as last_success_time\r\n        by _time, host, user\r\n| where failures >= 10 AND successes >= 1\r\n| eval first_failure=strftime(first_failure_time, \"%Y-%m-%d %H:%M:%S\"), \r\n       last_success=strftime(last_success_time, \"%Y-%m-%d %H:%M:%S\")\r\n| table _time, host, user, failures, successes, failure_sources, success_sources, first_failure, last_success"
+query_type: spl
+tags:
+    - spl
+version: "1"

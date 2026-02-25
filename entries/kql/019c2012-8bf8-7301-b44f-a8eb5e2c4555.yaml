@@ -1,0 +1,17 @@
+id: 019c2012-8bf8-7301-b44f-a8eb5e2c4555
+name: The Exchange Admin Behavior Anomaly Detector
+description: This query uses the Machine Learning series_decompose_anomalies function to build a baseline of "normal" transport rule modification behavior. If your organization typically changes 0 rules a week, and suddenly 5 are changed at 2 AM on a Saturday, this query will catch it regardless of what the parameters are.
+query: "// KQL ML-Based Detection for Anomalous Transport Rule Activity\r\n// Uses time-series decomposition to spot spikes in rule modifications\r\nlet StartTime = ago(60d);\r\nlet EndTime = now();\r\nlet TimeBin = 1d; // Aggregation granularity\r\nOfficeActivity\r\n| where TimeGenerated between (StartTime .. EndTime)\r\n| where RecordType == \"ExchangeAdmin\"\r\n| where Operation in (\"New-TransportRule\", \"Set-TransportRule\", \"Remove-TransportRule\", \"Disable-TransportRule\")\r\n// Group by time to create the series\r\n| make-series RuleChanges = count() on TimeGenerated from StartTime to EndTime step TimeBin\r\n// Apply ML to decompose the trend and find anomalies\r\n| extend (anomalies, score, baseline) = series_decompose_anomalies(RuleChanges, 1.5, -1, 'linefit')\r\n| mv-expand TimeGenerated, RuleChanges, anomalies, score, baseline\r\n| where anomalies != 0 // Filter only for the anomalies\r\n| project \r\n    TimeGenerated, \r\n    RuleChanges, \r\n    ExpectedBaseline = baseline, \r\n    AnomalyScore = score, \r\n    Alert = \"Anomalous Volume of Transport Rule Changes\"\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0009
+techniques:
+    - T1505.002
+    - T1114.003
+    - T1505
+tags:
+    - kql
+author: Daniel Miller
+version: "1"

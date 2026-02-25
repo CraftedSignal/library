@@ -1,0 +1,65 @@
+id: af0de278-d153-4ad1-86c6-ba757067056e
+name: D-Link DIR-513 formSetWan Buffer Overflow Attempt
+description: Detects attempts to exploit multiple buffer overflow vulnerabilities (CVE-2025-8184, CVE-2025-8169, CVE-2025-8168) in D-Link DIR-513 routers via the 'curTime' parameter in formSetWan endpoints.
+query: |
+    title: D-Link DIR-513 formSetWan Buffer Overflow Attempt
+    id: 4ea913cb-aec9-41fd-9248-2ac76b5ba516
+    status: experimental
+    description: >-
+      Detects attempts to exploit multiple buffer overflow vulnerabilities
+      (CVE-2025-8184, CVE-2025-8169, CVE-2025-8168) in D-Link DIR-513 routers via
+      the 'curTime' parameter in formSetWan endpoints.
+    references:
+      - >-
+        https://community.emergingthreats.net/t/detection-exercise-d-link-dir-513-cves-2025-8184-8169-and-8168/2944
+      - https://github.com/InfiniteLin/Lin-s-CVEdb
+    author: detections.ai
+    date: 2025-08-02T00:00:00.000Z
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - attack.t1210
+      - cve.2025.8184
+      - cve.2025.8169
+      - cve.2025.8168
+      - vuln.iot
+      - vendor.d-link
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        http.method: POST
+        url.path|endswith:
+          - /goform/formSetWanPPPoE
+          - /goform/formSetWanL2TP
+          - /goform/formSetWanPPTP
+        http.request_body|re: curTime=[^&]{100,}
+      condition: selection
+    falsepositives:
+      - This detection relies on a regular expression to identify an abnormally long
+        value for the 'curTime' parameter and is scoped to an HTTP POST and specific
+        uncommon URL paths.  Alerting on legitimate traffic is extremely unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+    - T1210
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.t1210
+    - cve.2025.8184
+    - cve.2025.8169
+    - cve.2025.8168
+    - vuln.iot
+    - vendor.d-link
+author: detections.ai
+version: "1"
+references:
+    - https://community.emergingthreats.net/t/detection-exercise-d-link-dir-513-cves-2025-8184-8169-and-8168/2944
+    - https://github.com/InfiniteLin/Lin-s-CVEdb
+data_sources:
+    - webserver

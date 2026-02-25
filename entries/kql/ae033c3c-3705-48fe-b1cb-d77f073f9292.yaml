@@ -1,0 +1,27 @@
+id: ae033c3c-3705-48fe-b1cb-d77f073f9292
+name: AppSheet.com abused to send Phish
+description: 'KQL Query from file: AppSheet.com abused to send Phish'
+query: |+
+    // AppSheet.com abused to send Phish
+    // https://blog.knowbe4.com/impersonating-meta-powered-by-appsheet-a-rising-phishing-campaign-exploits-trusted-platforms-to-evade-detection
+
+    let MonitorKeywords = dynamic(["intellectual property", "campaign", "infringement", "disabled"]);
+    EmailEvents
+    | where TimeGenerated > ago(90d)
+    | where EmailDirection == "Inbound"
+    | where DeliveryAction != "Blocked"
+    | where SenderFromAddress == "noreply@appsheet.com"
+    | where SenderDisplayName has "facebook" or SenderDisplayName has "meta"
+    | where Subject has_any(MonitorKeywords)
+
+query_type: kql
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1566
+    - T1566.002
+    - T1672
+tags:
+    - kql
+version: "1"

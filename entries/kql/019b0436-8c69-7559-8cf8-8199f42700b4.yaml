@@ -1,0 +1,48 @@
+id: 019b0436-8c69-7559-8cf8-8199f42700b4
+name: Suspicious Child Process of Node.js or Next.js Server
+description: Detects the creation of suspicious child processes (e.g., shells, network tools) by a Node.js or Next.js server process. This could indicate successful remote code execution, potentially related to vulnerabilities like React2Shell (CVE-2025-55182).
+query: |
+    // Name: Suspicious Child Process of Node.js or Next.js Server
+    // Description: Detects the creation of suspicious child processes (e.g., shells, network tools) by a Node.js or Next.js server process. This could indicate successful remote code execution, potentially related to vulnerabilities like React2Shell (CVE-2025-55182).
+    // Author: detections.ai
+    // Date: 2025-12-09
+    // Mitre ATT&CK: T1059 (Command and Scripting Interpreter), T1203 React2Shell (CVE-2025-55182).
+    // Author: detections.ai
+    // Date: 2025-12-09
+    // Mitre ATT&CK: T1059 (Command and Scripting Interpreter), T1203 (Exploitation for Client Execution)
+    // References: https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/
+    // False Positive Sensitivity: Medium. Legitimate applications may occasionally spawn shell processes. Tuning may be required to exclude known benign parent-child process relationships.
+
+    let parentProcesses = dynamic(["node.exe", "next-server"]); // Parent processes for Node.js/Next.js applications. Adjust if your process has a different name.
+    let suspiciousChildren = dynamic(["cmd.exe", "powershell.exe", "pwsh.exe", "sh", "bash", "curl", "wget"]); // Suspicious child processes indicating command execution.
+
+    DeviceProcessEvents
+    // Look for Next.js or Node.js as the parent process.
+    | where InitiatingProcessFileName in~ (parentProcesses) or InitiatingProcessCommandLine has "next-server"
+    // Identify suspicious child processes being spawned.
+    | where FileName in~ (suspiciousChildren)
+    // FP-TUNING: If legitimate scripts are run by your application, you may need to add exclusions here.
+    // For example: | where not (InitiatingProcessCommandLine has "run-backup.js" and ProcessCommandLine has "bash -c")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessId,
+        ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1203
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.dynatrace.com/news/blog/cve-2025-55182-react2shell-critical-vulnerability-what-it-is-and-what-to-do/

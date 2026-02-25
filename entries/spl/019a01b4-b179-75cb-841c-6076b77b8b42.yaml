@@ -1,0 +1,12 @@
+id: 019a01b4-b179-75cb-841c-6076b77b8b42
+name: Unmasking Monsterv2 Behavioral Detection From The Clickfix Campaign
+description: This rule detects potential command and control (C2) activity by identifying devices that first query 'api.ipify.org' (often used by malware to determine external IP addresses) and then subsequently establish an outbound network connection to a non-private IP address on port 7712. This sequence of events can indicate a compromised host attempting to beacon out to a C2 server after initial reconnaissance.
+query: "(index=proxy sourcetype=proxy) earliest=-1h latest=now (url=\"*api.ipify.org*\") OR (dest_port=7712)\r\n| stats \r\n    dc(eval(if(match(url, \"api\\\\.ipify\\\\.org\"), 1, null()))) as ip_check_found,\r\n    values(eval(if(dest_port=7712, dest_ip, null()))) as c2_ips,\r\n    values(eval(if(dest_port=7712, url, null()))) as c2_urls,\r\n    earliest(_time) as first_event,\r\n    latest(_time) as last_event\r\n    by src_ip\r\n| where ip_check_found > 0 AND mvcount(c2_ips) > 0\r\n| mvexpand c2_ips\r\n| where isnotnull(c2_ips)\r\n| eval is_internal_ip = if(\r\n    cidrmatch(\"10.0.0.0/8\", c2_ips)\r\n    OR cidrmatch(\"172.16.0.0/12\", c2_ips)\r\n    OR cidrmatch(\"192.168.0.0/16\", c2_ips)\r\n    OR cidrmatch(\"127.0.0.0/8\", c2_ips)\r\n    OR cidrmatch(\"224.0.0.0/4\", c2_ips),\r\n    1,\r\n    0\r\n)\r\n| where is_internal_ip = 0\r\n| convert ctime(first_event) ctime(last_event)\r\n| table src_ip, first_event, last_event, c2_ips, c2_urls"
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+author: Steven Lim
+version: "2"

@@ -1,0 +1,97 @@
+id: 019c473f-af97-7142-8082-53eddbb66dfc
+name: Suspicious Process Execution from SolarWinds Web Help Desk
+description: Detects suspicious child processes spawned by the SolarWinds Web Help Desk (WHD) service. This behavior was observed during the active exploitation of vulnerable WHD instances as reported by Microsoft.
+query: |
+    title: Suspicious Process Execution from SolarWinds Web Help Desk
+    description: >-
+      Detects suspicious child processes spawned by the SolarWinds Web Help Desk
+      (WHD) service. This behavior was observed during the active exploitation of
+      vulnerable WHD instances as reported by Microsoft.
+    references:
+      - >-
+        https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/
+    author: Akshay Gaikwad
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1203
+      - attack.t1059.001
+      - attack.t1059.003
+      - cve.2025.40551
+      - cve.2025.40536
+      - cve.2025.26399
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent:
+        ParentImage|contains: \WebHelpDesk\bin\
+        ParentImage|endswith:
+          - java.exe
+          - javaw.exe
+      selection_child:
+        Image|endswith:
+          - bitsadmin.exe
+          - certutil.exe
+          - curl.exe
+          - hostname.exe
+          - net.exe
+          - net1.exe
+          - netsh.exe
+          - nltest.exe
+          - nslookup.exe
+          - powershell.exe
+          - quser.exe
+          - sc.exe
+          - systeminfo.exe
+          - tasklist.exe
+          - wget.exe
+          - whoami.exe
+          - wmic.exe
+        CommandLine|contains:
+          - 'iwr '
+          - 'irm '
+          - 'iex '
+          - Invoke-Expression
+          - Invoke-RestMethod
+          - Invoke-WebRequest
+          - ' -Enc '
+          - ' -EncodedCommand '
+      filter_legit:
+        Image|endswith:
+          - conhost.exe
+          - java.exe
+          - pg_dump.exe
+          - reg.exe
+          - WerFault.exe
+      condition: all of selection_parent and 1 of selection_child and not filter_legit
+    falsepositives:
+      - Legitimate administrative activity or custom scripts running from the Web
+        Help Desk server might trigger this rule.
+      - The filter section includes known legitimate child processes but may need to
+        be expanded based on the specific environment and WHD usage.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1203
+    - T1059.001
+    - T1059.003
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1203
+    - attack.t1059.001
+    - attack.t1059.003
+    - cve.2025.40551
+    - cve.2025.40536
+    - cve.2025.26399
+author: Akshay Gaikwad
+version: "4"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/
+data_sources:
+    - process_creation
+    - windows

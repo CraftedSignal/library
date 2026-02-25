@@ -1,0 +1,68 @@
+id: 2a8e82bd-f3b9-4b58-9a44-a403a1da53b0
+name: Malicious NPM Package Download Detection
+description: This rule detects attempts to download known malicious NPM packages from the public npm registry (registry.npmjs.org) by monitoring network connection logs. It specifically looks for tarball (.tgz) downloads of packages and versions that have been identified as compromised or malicious. The rule extracts the package name and version from the download URL and compares it against a predefined list of malicious packages for high-fidelity detection.
+query: |
+    // Define the list of known malicious NPM packages and their specific compromised versions
+    let maliciousPackages = datatable(MaliciousPackageName:string, MaliciousPackageVersion:string) [
+        "backslash", "0.2.1",
+        "chalk-template", "1.1.1",
+        "supports-hyperlinks", "4.1.1",
+        "has-ansi", "6.0.1",
+        "simple-swizzle", "0.2.3",
+        "color-string", "2.1.1",
+        "error-ex", "1.3.3",
+        "color-name", "2.0.1",
+        "is-arrayish", "0.3.3",
+        "slice-ansi", "7.1.1",
+        "color-convert", "3.1.1",
+        "wrap-ansi", "9.0.1",
+        "ansi-regex", "6.2.1",
+        "supports-color", "10.2.1",
+        "strip-ansi", "7.1.1",
+        "chalk", "5.6.1",
+        "debug", "4.4.2",
+        "ansi-styles", "6.2.2",
+        "proto-tinker-wc", "0.1.87"
+    ];
+    // Search across common network log sources for connections to the NPM registry
+    (union isfuzzy=true CommonSecurityLog, DeviceNetworkEvents)
+    // Filter for requests to the public NPM registry that appear to be package downloads.
+    // FP Tuning: Consider adding internal/private NPM registry hostnames if your organization uses them.
+    | where ((isnotempty(RequestURL) and RequestURL has "registry.npmjs.org") or (isnotempty(RemoteUrl) and RemoteUrl has "registry.npmjs.org")) and (RequestURL has ".tgz" or RemoteUrl has ".tgz")
+    // Normalize the URL field from different tables
+    | extend Url = iif(isnotempty(RequestURL), RequestURL, RemoteUrl)
+    // Parse the package name and version from the URL for accurate matching.
+    // This assumes the standard npm tarball download URL format: .../registry.npmjs.org/{pkg-name}/-/{pkg-name}-{version}.tgz
+    | parse kind=relaxed Url with * "registry.npmjs.org/" PackageAndVersionInfo
+    | extend PkgPathComponents = split(PackageAndVersionInfo, "/-/")
+    | extend PackageName = tostring(PkgPathComponents[0])
+    | extend TarballName = tostring(PkgPathComponents[1])
+    | extend PackageVersion = extract("(\\d+\\.\\d+\\.\\d+[\\w.-]*)", 0, TarballName)
+    // Join with the list of malicious packages on exact name and version match for high fidelity.
+    | where isnotempty(PackageName) and isnotempty(PackageVersion)
+    | join kind=inner (
+        maliciousPackages
+    ) on $left.PackageName == $right.MaliciousPackageName and $left.PackageVersion == $right.MaliciousPackageVersion
+    // Normalize other relevant fields for consistent output
+    | extend
+        AccountName = iif(isnotempty(SourceUserName), SourceUserName, InitiatingProcessAccountName),
+        SrcIp = iif(isnotempty(SourceIP), SourceIP, RemoteIP)
+    // Project the relevant fields for investigation
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        SrcIp,
+        DestinationIP,
+        Url,
+        MaliciousPackageName,
+        MaliciousPackageVersion
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1195
+    - T1195.001
+tags:
+    - kql
+version: "1"

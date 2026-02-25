@@ -1,0 +1,38 @@
+id: 019c669a-818d-767e-a8e4-c60c26b800f5
+name: OpenClaw Install Script Execution via Bash/Sh
+description: This rule detects the execution of bash or sh scripts that contain specific keywords associated with the OpenClaw installation process. It looks for command lines that include "openclaw" along with other distinctive strings such as "run_remote_bash", "OPENCLAW_INSTALL_SH_NO_RUN", "OPENCLAW_USE_GUM", "All your chats, one OpenClaw", ".openclaw/openclaw.json", or "openclaw.ai/install.sh". This aims to identify potential OpenClaw installation attempts, even if the script itself has been renamed.
+query: |
+    // OpenClaw install script - execution by content (script may be renamed)
+    // Author: Daniel Jeremiah | Date: 2026/02/16
+    // Detects bash/sh with command line containing distinctive script content.
+    //reference1 = "https://www.zscaler.com/blogs/product-insights/guide-openclaw-and-securing-it-zscaler "
+    // reference2 = "https://www.kaspersky.com/blog/openclaw-vulnerabilities-exposed/55263 "
+    //
+
+    DeviceProcessEvents
+    | where Timestamp >= ago(30d)
+    | where FileName in~ ("bash", "sh")
+    | where ProcessCommandLine contains "openclaw"
+        and (
+            ProcessCommandLine contains "run_remote_bash"
+            or ProcessCommandLine contains "OPENCLAW_INSTALL_SH_NO_RUN"
+            or ProcessCommandLine contains "OPENCLAW_USE_GUM"
+            or ProcessCommandLine contains "All your chats, one OpenClaw"
+            or ProcessCommandLine contains ".openclaw/openclaw.json"
+            or ProcessCommandLine contains "openclaw.ai/install.sh"
+        )
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.004
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://www.zscaler.com/blogs/product-insights/guide-openclaw-and-securing-it-zscaler
+    - https://www.kaspersky.com/blog/openclaw-vulnerabilities-exposed/55263

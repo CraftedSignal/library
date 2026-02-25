@@ -1,0 +1,81 @@
+id: d33a4bfc-6d52-442c-98f2-7bab40b7c956
+name: Dell ControlVault 'ReVault' Exploitation Activity
+description: Detects potential exploitation of Dell ControlVault vulnerabilities (dubbed 'ReVault') by monitoring for related service crashes or the abnormal loading of the `bcmbipdll.dll` module. An attacker with local access can exploit these vulnerabilities for privilege escalation or persistence.
+query: |
+    // title: Dell ControlVault 'ReVault' Exploitation Activity
+    // id: 606f26ae-82e1-455b-9e09-e4867b7060a7
+    // status: experimental
+    // description: >-
+    //   Detects potential exploitation of Dell ControlVault vulnerabilities (dubbed 'ReVault') by monitoring for related service crashes or the abnormal loading of the `bcmbipdll.dll` module. An attacker with local access can exploit these vulnerabilities for privilege escalation or persistence.
+    // references:
+    //   - https://blog.talosintelligence.com/revault-when-your-soc-turns-against-you/
+    // author: detections.ai/Sumanth
+    // date: 2025-08-07
+    // tags:
+    //   - attack.persistence
+    //   - attack.privilege_escalation
+    //   - attack.t1068
+    //   - cve.2025.24311
+    //   - cve.2025.25050
+    //   - cve.2025.25215
+    //   - cve.2025.24922
+    //   - cve.2025.24919
+    // level: high
+    //
+    // Query parts are combined using a union operator.
+    //
+    // Part 1: Detects crashes of services related to Dell ControlVault.
+    let crashEvents =
+        Event
+        | where Source == "Application Error" and EventID == 1000
+        // Look for crashes related to the ControlVault service executable or the Windows Biometric Service DLL.
+        // Note: Service crashes can occur for non-malicious reasons. Correlate with other activity or look for repeated crashes.
+        | where (RenderedDescription has "Faulting application name:" and RenderedDescription has "CVHSVC.exe")
+            or (RenderedDescription has "Faulting module name:" and RenderedDescription has "wbiosrvc.dll")
+        | project
+            TimeGenerated,
+            Computer,
+            DetectionMethod = "Service Crash",
+            SuspiciousProcess = "N/A",
+            SuspiciousModuleOrApplication = coalesce(
+                extract(@"Faulting module name: ([\w\.\\]+)", 1, RenderedDescription),
+                extract(@"Faulting application name: ([\w\.\\]+)", 1, RenderedDescription)
+                ),
+            Details = RenderedDescription;
+    //
+    // Part 2: Detects the loading of a key ControlVault DLL by an abnormal process.
+    let abnormalDllLoads =
+        DeviceImageLoadEvents
+        | where FileName endswith "\\bcmbipdll.dll"
+        // Filter for legitimate processes known to load this DLL.
+        // Tuning: You may need to add other Dell-specific or third-party application processes
+        // that legitimately use ControlVault features in your environment to this list.
+        | where not(InitiatingProcessFileName endswith @"\svchost.exe"
+            or InitiatingProcessFileName endswith @"\lsass.exe"
+            or InitiatingProcessFileName endswith @"\CVHSVC.exe"
+            or InitiatingProcessFileName endswith @"\Dell.ControlVault.exe"
+            or InitiatingProcessFileName endswith @"\Dell.ControlVault.Host.exe"
+            or InitiatingProcessFileName endswith @"\Dell.ControlVault.UI.exe")
+        | project
+            TimeGenerated,
+            Computer = DeviceName,
+            DetectionMethod = "Abnormal DLL Load",
+            SuspiciousProcess = InitiatingProcessFileName,
+            SuspiciousModuleOrApplication = FileName,
+            Details = strcat("Process '", InitiatingProcessFileName, "' loaded module '", FileName, "'");
+    //
+    // Combine results from both detection methods.
+    union crashEvents, abnormalDllLoads
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1068
+tags:
+    - kql
+author: Sumanth
+version: "1"
+references:
+    - https://blog.talosintelligence.com/revault-when-your-soc-turns-against-you/

@@ -1,0 +1,18 @@
+id: 019c7142-62ca-75fb-8822-b5bb3e226c7b
+name: Suspicious Randomized Jira Subdomains
+description: Detects potential spam campaigns originating from disposable or trial Jira Cloud instances with randomized subdomain names. The rule identifies emails from '.atlassian.net' domains where the subdomain is longer than 12 characters and contains a mix of letters and numbers, indicating a potentially randomized or disposable instance. It then alerts if more than 5 emails with the same subject are sent from such a suspicious subdomain.
+query: "// Name: Suspicious Randomized Jira Subdomains\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// MITRE TTPs: T1583.001\r\n// References:\r\n// - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html\r\n// Description: Detects potential spam campaigns originating from disposable or trial Jira Cloud instances with randomized subdomain names.\r\nEmailEvents\r\n// Filter for emails originating from the atlassian.net domain.\r\n| where SenderFromDomain endswith \".atlassian.net\"\r\n// FP Tuning: Exclude known legitimate Jira instances used by your organization or partners.\r\n// For example: | where SenderFromDomain !in~ (\"mycompany.atlassian.net\", \"partner-jira.atlassian.net\")\r\n| extend Subdomain = tostring(split(SenderFromDomain, '.')[0])\r\n// Filter for subdomains that appear randomized, a common tactic for disposable accounts.\r\n// This looks for subdomains longer than 12 characters containing a mix of letters and numbers.\r\n| where strlen(Subdomain) > 12 and Subdomain matches regex @\"[a-z]{5,}[0-9]+\"\r\n// Summarize to identify potential bulk sending campaigns from a single suspicious instance.\r\n| summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), MessageCount = count(), RecipientCount = dcount(RecipientEmailAddress) by SenderFromDomain, Subject\r\n// Alert if a suspicious subdomain sends more than 5 emails with the same subject.\r\n| where MessageCount > 5\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    SenderFromDomain,\r\n    Subject,\r\n    MessageCount,\r\n    RecipientCount\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0042
+    - TA0001
+techniques:
+    - T1583.001
+    - T1566
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html

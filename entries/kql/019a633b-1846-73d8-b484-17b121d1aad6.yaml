@@ -1,0 +1,71 @@
+id: 019a633b-1846-73d8-b484-17b121d1aad6
+name: Sensitive AWS Configuration Modification
+description: Detects various sensitive configuration modifications in AWS that could indicate malicious activity, such as privilege escalation, defense evasion, or data exposure. This rule looks for a curated list of API calls related to changes in IAM, EC2 security groups, S3 bucket policies, and logging configurations.
+query: |
+    // Author: detections.ai
+    // Date: 2025-11-08
+    // Name: Sensitive AWS Configuration Modification
+    // Description: Detects various sensitive configuration modifications in AWS that could indicate malicious activity, such as privilege escalation, defense evasion, or data exposure. This rule looks for a curated list of API calls related to changes in IAM, EC2 security groups, S3 bucket policies, and logging configurations.
+    // Tactics: Privilege Escalation, Defense Evasion, Impact, Persistence
+    // Techniques: T1098, T1562, T1484, T1078
+
+    AWSCloudTrail
+    // Filter for successful API calls only.
+    | where isempty(errorCode) and isempty(errorMessage) and eventType == "AwsApiCall"
+    // Focus on a curated list of sensitive modification events.
+    | where eventName in (
+        // IAM Changes (Identity and Access Management)
+        "AttachGroupPolicy", "AttachRolePolicy", "AttachUserPolicy", "CreateAccessKey", "CreateLoginProfile",
+        "CreatePolicyVersion", "CreateRole", "CreateUser", "DeleteGroupPolicy", "DeleteRole", "DeleteRolePolicy",
+        "DeleteUser", "DeleteUserPolicy", "DetachGroupPolicy", "DetachRolePolicy", "DetachUserPolicy",
+        "PutGroupPolicy", "PutRolePolicy", "PutUserPolicy", "UpdateAssumeRolePolicy", "UpdateLoginProfile", "UpdateUser",
+        // EC2 Changes (Networking and Security)
+        "AuthorizeSecurityGroupIngress", "AuthorizeSecurityGroupEgress", "CreateNetworkAclEntry", "CreateRoute",
+        "CreateVpcPeeringConnection", "DeleteNetworkAcl", "DeleteNetworkAclEntry", "DeleteRoute", "DeleteSecurityGroup",
+        "DeleteVpcPeeringConnection", "ModifyVpcAttribute", "ReplaceNetworkAclAssociation", "ReplaceRoute",
+        // S3 Changes (Data Storage)
+        "DeleteBucketPolicy", "PutBucketAcl", "PutBucketPolicy", "PutBucketPublicAccessBlock",
+        // CloudTrail Changes (Logging and Monitoring)
+        "DeleteTrail", "StopLogging", "UpdateTrail",
+        // KMS Changes (Key Management)
+        "DisableKey", "ScheduleKeyDeletion", "PutKeyPolicy",
+        // GuardDuty Changes (Threat Detection)
+        "DeleteDetector", "StopMonitoringMembers", "DisassociateMembers", "UpdateDetector"
+    )
+    // FP Tuning: Exclude known legitimate automation roles or administrative users.
+    // For example, you might exclude roles used by your CI/CD pipeline or specific admin accounts performing routine tasks.
+    // where userIdentity.arn !has "your-automation-role-name"
+    // Summarize the actions performed by a user from a specific IP address to reduce alert volume.
+    | summarize makeset(eventName), min(TimeGenerated), max(TimeGenerated) by
+        actorArn = tostring(userIdentity.arn),
+        actorType = tostring(userIdentity.type),
+        actorAccountId = tostring(userIdentity.accountId),
+        sourceIPAddress,
+        userAgent
+    // Project relevant fields for investigation.
+    | project
+        StartTime = min_TimeGenerated,
+        EndTime = max_TimeGenerated,
+        ActorArn = actorArn,
+        ActorType = actorType,
+        ActorAccountId = actorAccountId,
+        SourceIPAddress = sourceIPAddress,
+        UserAgent = userAgent,
+        Actions = set_eventName
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+techniques:
+    - T1098
+    - T1562
+    - T1562.008
+    - T1484
+    - T1078
+tags:
+    - kql
+author: AJ
+version: "4"

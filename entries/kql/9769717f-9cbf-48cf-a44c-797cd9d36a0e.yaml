@@ -1,0 +1,30 @@
+id: 9769717f-9cbf-48cf-a44c-797cd9d36a0e
+name: CVE-2025-33073 Detection
+description: 'KQL Query from file: CVE-2025-33073 Detection'
+query: |
+    // CVE-2025-33073 Detection
+    // https://www.synacktiv.com/publications/ntlm-reflection-is-dead-long-live-ntlm-reflection-an-in-depth-analysis-of-cve-2025
+
+    let QueryPeriod = 1h;
+    let HostList =
+        DeviceInfo
+        | extend Hostname = tostring(split(DeviceName, '.')[0])
+        | distinct Hostname;
+    DnsEvents
+    | where TimeGenerated > ago(QueryPeriod)
+    | extend DNSQuery = tolower(Name)
+    | where DNSQuery startswith "localhost" or DNSQuery has_any(HostList)
+    | where not (DNSQuery has ".")
+    | where DNSQuery matches regex @"[A-Za-z0-9+\/]{20,}={0,2}"
+query_type: kql
+tactics:
+    - TA0040
+    - TA0043
+    - TA0011
+techniques:
+    - T1498.002
+    - T1590.002
+    - T1071.004
+tags:
+    - kql
+version: "1"

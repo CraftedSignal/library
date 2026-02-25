@@ -1,0 +1,27 @@
+id: 01997e93-a106-7148-b70f-40a08294e874
+name: High Volume Web Requests from Search Engine Referrers (Operation Rewrite)
+description: This detection rule identifies potential SEO poisoning activity associated with the Operation Rewrite campaign. It looks for a high volume of web requests from a single source IP where the HTTP referrer indicates the traffic originated from a search engine. This pattern can indicate a compromised host being used for malicious purposes or a user interacting with multiple poisoned search results.
+query: |
+    `comment("This detection rule identifies potential SEO poisoning activity associated with the Operation Rewrite campaign. It looks for a high volume of web requests from a single source IP where the HTTP referrer indicates the traffic originated from a search engine. This pattern can indicate a compromised host being used for malicious purposes or a user interacting with multiple poisoned search results.")`
+    | tstats `summariesonly` count from datamodel=Web where (Web.http_referrer IN ("*google*", "*yahoo*", "*bing*", "*viet*", "*coccoc*", "*timkhap*", "*tuugo*")) by _time, Web.src, Web.dest, Web.http_referrer span=10m
+    `comment("--- Efficiently search accelerated web data for requests containing specific search engine keywords in the referrer header, as identified in the Operation Rewrite campaign.")`
+    | stats values(Web.dest) as destinations, values(Web.http_referrer) as referrers, dc(Web.dest) as distinct_dest_count, count by Web.src
+    `comment("--- Aggregate results by source IP, counting total requests and the number of unique destination hosts visited after coming from a search engine.")`
+    | where count > 30 AND distinct_dest_count > 5
+    `comment("--- Filter for source IPs that have made a high number of requests to multiple destinations. High values could indicate a compromised host being used to test redirections or a victim clicking numerous poisoned links. These thresholds are a starting point and may require tuning based on your environment's baseline.")`
+    `comment("--- Potential False Positives: This query might trigger on legitimate traffic from behind a large NAT or proxy. Consider adding '...| search NOT Web.src IN (<known_proxy_ips>)' to filter out known safe sources.")`
+    | rename Web.src as src
+    | fields src, count, distinct_dest_count, destinations, referrers
+query_type: spl
+severity: medium
+tactics:
+    - TA0042
+    - TA0001
+    - TA0011
+techniques:
+    - T1608.006
+    - T1189
+    - T1071.001
+tags:
+    - spl
+version: "2"

@@ -1,0 +1,98 @@
+id: 019ab6c5-0f60-72bd-b455-078132508c6a
+name: Sha1-Hulud Compromised NPM Package File Creation IOC Search
+description: 'Detects the creation of files associated with NPM packages compromised in the "Sha1-Hulud: The Second Coming" campaign. This is a broad query intended for hunting and requires manual verification of package versions.'
+query: |
+    // Name: Sha1-Hulud Compromised NPM Package File Creation
+    // Author: detections.ai
+    // Date: 2025-11-24
+    // Severity: Medium
+    // Description: Detects the creation of files associated with NPM packages compromised in the "Sha1-Hulud: The Second Coming" campaign. This is a broad query intended for hunting and requires manual verification of package versions.
+    // References: https://www.stepsecurity.io/blog/sha1-hulud-the-second-coming-zapier-ens-domains-and-other-prominent-npm-packages-compromised
+    // False Positives: High. This query only detects the presence of a package name, not a specific malicious version. Legitimate projects may use these packages. Manual investigation is required to check the version in package.json or package-lock.json against the compromised versions listed in the reference article.
+
+    let compromisedPackages = dynamic([
+        "@zapier/zapier-sdk", "zapier-platform-core", "zapier-platform-cli", "zapier-platform-schema",
+        "@zapier/mcp-integration", "@zapier/secret-scrubber", "@zapier/ai-actions-react", "@zapier/stubtree",
+        "@zapier/babel-preset-zapier", "@zapier/eslint-plugin-zapier", "@zapier/ai-actions",
+        "zapier-platform-legacy-scripting-runner", "@zapier/spectral-api-ruleset", "@zapier/browserslist-config-zapier",
+        "zapier-scripts", "posthog-node", "@posthog/wizard", "@postman/aether-icons", "@postman/csv-parse",
+        "@postman/final-node-keytar", "@postman/mcp-ui-client", "@postman/node-keytar", "@postman/pm-bin-linux-x64",
+        "@postman/pm-bin-macos-arm64", "@postman/pm-bin-macos-x64", "@postman/pm-bin-windows-x64",
+        "@postman/postman-collection-fork", "@postman/postman-mcp-cli", "@postman/postman-mcp-server",
+        "@postman/pretty-ms", "@postman/secret-scanner-wasm", "@postman/tunnel-agent", "@postman/wdio-allure-reporter",
+        "@postman/wdio-junit-reporter", "@posthog/hedgehog-mode", "@posthog/nuxt", "@posthog/piscina",
+        "@posthog/plugin-server", "@posthog/rrdom", "@posthog/rrweb", "@posthog/rrweb-player",
+        "@posthog/rrweb-record", "@posthog/rrweb-replay", "@posthog/rrweb-snapshot", "@posthog/siphash",
+        "@posthog/twitter-followers-plugin", "@posthog/web-dev-server", "@ensdomains/ens-validation",
+        "@ensdomains/content-hash", "ethereum-ens", "@ensdomains/react-ens-address", "@ensdomains/ens-contracts",
+        "@ensdomains/ensjs", "@ensdomains/ens-archived-contracts", "@ensdomains/dnssecoraclejs",
+        "@ensdomains/address-encoder", "@ensdomains/name-wrapper", "@ensdomains/offchain-resolver-contracts",
+        "@ensdomains/ens-avatar", "@ensdomains/ensjs-react", "@ensdomains/unicode-confusables",
+        "@ensdomains/durin-middleware", "@ensdomains/hardhat-toolbox-viem-extended", "@ensdomains/curvearithmetics",
+        "@ensdomains/unruggable-gateways", "@ensdomains/web3modal", "@ensdomains/subdomain-registrar",
+        "@ensdomains/op-resolver-contracts", "@ensdomains/buffer", "@ensdomains/eth-ens-namehash",
+        "@ensdomains/ccip-read-worker-viem", "@ensdomains/hardhat-chai-matchers-viem", "@ensdomains/ccip-read-router",
+        "@ensdomains/mock", "@ensdomains/test-utils", "@ensdomains/ui", "@ensdomains/server-analytics",
+        "@ensdomains/solsha1", "@ensdomains/hackathon-registrar", "@ensdomains/renewal-widget",
+        "@ensdomains/ens-test-env", "@ensdomains/reverse-records", "@ensdomains/ccip-read-cf-worker",
+        "@ensdomains/dnssec-oracle-anchors", "@ensdomains/ccip-read-dns-gateway", "@ensdomains/dnsprovejs",
+        "@ensdomains/thorin", "@ensdomains/cypress-metamask", "@ensdomains/durin",
+        "@ensdomains/vite-plugin-i18next-loader", "@ensdomains/blacklist", "@ensdomains/renewal",
+        "@asyncapi/generator-react-sdk", "@asyncapi/html-template", "@asyncapi/java-spring-template",
+        "@asyncapi/modelina", "@asyncapi/nodejs-template", "@asyncapi/nunjucks-filters",
+        "@asyncapi/python-paho-template", "@asyncapi/studio", "@asyncapi/diff", "typeorm-orbit",
+        "orbit-nebula-draw-tools", "@trigo/atrix-postgres", "@orbitgtbelgium/orbit-components",
+        "@orbitgtbelgium/time-slider", "@orbitgtbelgium/mapbox-gl-draw-cut-polygon-mode", "command-irail",
+        "@trigo/fsm", "@trigo/trigo-hapijs", "trigo-react-app", "react-element-prompt-inspector",
+        "bool-expressions", "atrix-mongoose", "orbit-nebula-editor", "orbit-boxicons", "@trigo/atrix",
+        "redux-forge", "atrix", "@trigo/atrix-acl", "crypto-addr-codec", "@trigo/atrix-swagger",
+        "@trigo/atrix-soap", "@trigo/keycloak-api", "@trigo/atrix-elasticsearch", "@trigo/hapi-auth-signedlink",
+        "@trigo/atrix-pubsub", "@trigo/bool-expressions", "@trigo/atrix-orientdb", "@trigo/node-soap",
+        "eslint-config-trigo", "@trigo/atrix-redis", "@trigo/eslint-config-trigo", "@trigo/jsdt",
+        "@trigo/pathfinder-ui-css", "@louisle2/cortex-js", "@mparpaillon/imagesloaded",
+        "@mparpaillon/connector-parse", "@louisle2/core", "react-component-taggers", "token.js-fork",
+        "@orbitgtbelgium/mapbox-gl-draw-scale-rotate-mode", "orbit-soap", "react-library-setup",
+        "exact-ticker", "jan-browser", "lite-serper-mcp-server", "cpu-instructions", "evm-checkcode-cli",
+        "bytecode-checker-cli", "gate-evm-check-code2", "devstart-cli", "@caretive/caret-cli", "mcp-use",
+        "@mcp-use/inspector", "create-mcp-use-app", "@mcp-use/cli", "@mcp-use/mcp-use", "skills-use",
+        "zuper-cli", "test-hardhat-app", "zuper-stream", "redux-router-kit", "create-hardhat3-app",
+        "test-foundry-app", "zuper-sdk", "zapier-async-storage", "gate-evm-tools-test",
+        "claude-token-updater", "@markvivanco/app-version-checker", "@hapheus/n8n-nodes-pgp",
+        "esbuild-plugin-httpfile", "open2internet", "vite-plugin-httpfile", "webpack-loader-httpfile",
+        "bun-plugin-httpfile", "poper-react-sdk", "@actbase/react-native-devtools", "discord-bot-server"
+    ]);
+    DeviceFileEvents
+    | where TimeGenerated > ago(7d)
+    // Look for file events within node_modules directories, which is where npm packages are stored.
+    | where FolderPath has "node_modules"
+    // Check if the file path contains any of the compromised package names.
+    | where FolderPath has_any (compromisedPackages)
+    // Focus on package manifest files as they are a strong indicator of installation.
+    | where FileName in ("package.json", "package-lock.json")
+    | summarize FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), FilePaths=make_set(FolderPath) by DeviceName, AccountName, InitiatingProcessCommandLine
+    | extend
+        Tactic = "Initial Access",
+        Technique = "T1195.002", // Compromise Software Supply Chain: Compromise Software Dependencies and Development Tools
+        // Extract the package name from the first file path for easier triage.
+        CompromisedPackageSample = tostring(extract(@'node_modules\\(.*?)(\\windows\\|\\linux\\|\\macos\\|\\@|\\$|\\/|$)', 1, FilePaths[0]))
+    | project
+        FirstSeen,
+        LastSeen,
+        DeviceName,
+        AccountName,
+        CompromisedPackageSample,
+        InitiatingProcessCommandLine,
+        FilePaths,
+        Tactic,
+        Technique
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.stepsecurity.io/blog/sha1-hulud-the-second-coming-zapier-ens-domains-and-other-prominent-npm-packages-compromised

@@ -1,0 +1,47 @@
+id: 51babee1-d6b7-474c-8fe1-358a96fd4b9b
+name: Skynet Malware Tor Client Setup
+description: Detects the Skynet malware's specific behavior of dropping and executing a Tor client with unique command-line arguments in the temporary directory.
+query: |-
+    title: Skynet Malware Tor Client Setup
+    id: 7e9f8d6c-5b4a-3210-fedc-ba9876543210
+    status: experimental
+    description: Detects the Skynet malware's specific behavior of dropping and executing a Tor client with unique command-line arguments in the temporary directory.
+    author: Detections.ai
+    date: 2025-06-27
+    references:
+        - https://research.checkpoint.com/2025/ai-evasion-prompt-injection/
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|contains: '\skynet\tor.exe'
+            CommandLine|contains:
+                - '--ControlPort 127.0.0.1:24616'
+                - '--SocksPort 127.0.0.1:24615'
+                - '--Log "notice stdout"'
+        condition: selection
+    falsepositives:
+        - Legitimate Tor usage (unlikely with these specific ports and temporary directory path)
+    level: high
+    tags:
+        - attack.command_and_control
+        - attack.t1090.003 # Proxy: Multi-hop Proxy (Tor)
+        - attack.defense_evasion
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1090.003
+tags:
+    - attack.command_and_control
+    - attack.t1090.003
+    - attack.defense_evasion
+author: Detections.ai
+version: "1"
+references:
+    - https://research.checkpoint.com/2025/ai-evasion-prompt-injection/
+data_sources:
+    - process_creation
+    - windows

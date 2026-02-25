@@ -1,0 +1,50 @@
+id: 130cfbd2-062d-498d-b9b6-a67f9534c937
+name: Suspicious RDP File Execution from Outlook Cache
+description: Detects the execution of a Remote Desktop Protocol (.rdp) file from a temporary directory associated with Microsoft Outlook. This behavior is a key indicator of the initial access phase of the "Rogue RDP" campaign, where attackers deliver malicious .rdp files via email to compromise systems.
+query: |
+    title: Suspicious RDP File Execution from Outlook Cache
+    id: accf265b-58d9-4c03-b1f3-61cd9c2ae39b
+    status: experimental
+    description: Detects the execution of a Remote Desktop Protocol (.rdp) file from a temporary directory associated with Microsoft Outlook. This behavior is a key indicator of the initial access phase of the "Rogue RDP" campaign, where attackers deliver malicious .rdp files via email to compromise systems.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/windows-rogue-remote-desktop-protocol
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.initial_access
+      - attack.t1566.001
+      - attack.t1219
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\mstsc.exe'
+        CommandLine|re:
+          # Detects .rdp files executed from common Outlook cache/attachment locations as seen in the Rogue RDP campaign
+          - '(?i)\\AppData\\Local\\Microsoft\\Windows\\(INetCache|Temporary Internet Files)\\Content\.Outlook\\[A-Z0-9]{8}\\[^\\]+\.rdp'
+          - '(?i)\\AppData\\Local\\Packages\\Microsoft\.Outlook_[a-zA-Z0-9]+.*\.rdp'
+          - '(?i)\\AppData\\Local\\Microsoft\\Olk\\Attachments\\.*\.rdp'
+      condition: selection
+    falsepositives:
+      - It is uncommon, but administrators may legitimately distribute .rdp files via email. Such activity from these specific cache locations is highly suspicious and should be validated.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.001
+    - T1219
+tags:
+    - attack.initial_access
+    - attack.t1566.001
+    - attack.t1219
+author: detections.ai
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/windows-rogue-remote-desktop-protocol
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: 019b22ca-a912-7508-bccb-ab46053db574
+name: '[IA] - UrlHaus Abuse.ch Hits in Microsoft Teams'
+description: This Query is oriented to identify Malicious URL sent via Microsoft Teams and detect possible hits based on online Malware sites reported by the TI Feed URL Haus.
+query: "// Sergio Albea Dec 26, 2024 ©️\n//UrlHaus Abuse.ch Hits in Microsoft Teams\nlet URLHausOnlineRAW = externaldata (UHFeed:string) [\"https://urlhaus.abuse.ch/downloads/csv_online/\"] with(format=\"txt\")\n| where UHFeed !startswith \"#\"\n| extend UHRAW=replace_string(UHFeed, '\"', '')\n| project splitted=split(UHRAW, ',')\n| mv-expand id=splitted[0], dateadded=splitted[1], UHUrl=splitted[2], UHurl_status=splitted[3], UHlast_onlin=splitted[4], UHthreat=splitted[5], UHtags=splitted[6], UHLink=splitted[7], UHReporter=splitted[8]\n| extend UHUrl = tostring(UHUrl);\n CloudAppEvents \n| where Application has \"Microsoft Teams\"\n| extend MessageURLs = tostring(todynamic(RawEventData).MessageURLs)\n| extend MessageURLs_ = substring(MessageURLs, 2, strlen(MessageURLs) - 4)\n| join kind=inner URLHausOnlineRAW on $left.MessageURLs_ == $right.UHUrl"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://urlhaus.abuse.ch/downloads/csv_online/
+    - https://medium.com/detect-fyi/hunting-malicious-oneonone-chats-via-m-teams-659c31cb8193

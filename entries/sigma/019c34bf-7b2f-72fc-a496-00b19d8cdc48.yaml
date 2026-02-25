@@ -1,0 +1,59 @@
+id: 019c34bf-7b2f-72fc-a496-00b19d8cdc48
+name: Diaoyu Loader GitHub Payload Staging
+description: Detects network traffic indicative of the Diaoyu Loader downloading second-stage payloads from GitHub. The loader masquerades these payloads as image files within a WordPress-like directory structure.
+query: |
+    title: Diaoyu Loader GitHub Payload Staging
+    id: 536591b4-fc99-4c42-b19a-28a5ef784b44
+    status: experimental
+    description: Detects network traffic indicative of the Diaoyu Loader downloading
+      second-stage payloads from GitHub. The loader masquerades these payloads as
+      image files within a WordPress-like directory structure.
+    references:
+      - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.command_and_control
+      - attack.t1102.001
+      - attack.ingress_tool_transfer
+      - attack.t1105
+    logsource:
+      category: webproxy
+      product: any
+    detection:
+      # Detects connection to GitHub's raw content domain and the specific path structure used by Diaoyu loader
+      selection_base:
+        url.original|contains|all:
+          - 'raw.githubusercontent.com'
+          - '/wp-includes/images/'
+      # Detects the specific file types being downloaded
+      selection_ext:
+        url.original|endswith:
+          - '.png'
+          - '.jpg'
+      condition: selection_base and selection_ext
+    falsepositives:
+      - Legitimate open-source projects hosted on GitHub might use a similar
+        directory structure (`/wp-includes/images/`). While the combination is
+        suspicious, it is not impossible for it to be legitimate. Tuning may be
+        required based on environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102.001
+    - T1105
+tags:
+    - attack.command_and_control
+    - attack.t1102.001
+    - attack.ingress_tool_transfer
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+data_sources:
+    - webproxy
+    - any

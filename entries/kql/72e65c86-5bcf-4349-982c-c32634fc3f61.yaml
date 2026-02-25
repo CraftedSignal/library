@@ -1,0 +1,16 @@
+id: 72e65c86-5bcf-4349-982c-c32634fc3f61
+name: C2 Traffic DNS Detection Rule
+description: Detects network connections using DNS over TLS (DoT) on port 853 or DNS over HTTPS (DoH) to known public resolvers from non-browser processes. This activity can indicate an attempt to bypass network security controls and monitoring by hiding DNS queries within encrypted traffic.
+query: "// List of known public DNS over HTTPS (DoH) resolver IP addresses.\r\nlet knownDoHResolvers = dynamic([\r\n    \"1.1.1.1\", \"1.0.0.1\", // Cloudflare\r\n    \"8.8.8.8\", \"8.8.4.4\", // Google\r\n    \"9.9.9.9\", \"149.112.112.112\", // Quad9\r\n    \"64.6.64.6\", \"64.6.65.6\", // Verisign\r\n    \"208.67.222.222\", \"208.67.220.220\" // OpenDNS\r\n]);\r\n\r\n// List of common web browser processes to exclude from DoH detection.\r\nlet browserProcesses = dynamic([\r\n    \"msedge.exe\",\r\n    \"chrome.exe\",\r\n    \"firefox.exe\",\r\n    \"iexplore.exe\",\r\n    \"opera.exe\",\r\n    \"brave.exe\",\r\n    \"safari.exe\"\r\n]);\r\n\r\nDeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where\r\n    // Detects DNS over TLS (DoT) traffic on its standard port.\r\n    RemotePort == 853\r\n    or\r\n    // Detects DNS over HTTPS (DoH) traffic from non-browser processes to known resolvers.\r\n    (RemotePort == 443 and RemoteIP in (knownDoHResolvers) and InitiatingProcessFileName !in (browserProcesses))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteIP,\r\n    RemotePort,\r\n    DetectionType = iff(RemotePort == 853, \"DNS-over-TLS (DoT)\", \"DNS-over-HTTPS (DoH)\")"
+query_type: kql
+severity: medium
+techniques:
+    - T1568
+    - T1564
+    - T1584.001
+    - T1071.004
+tags:
+    - kql
+version: "1"
+references:
+    - https://arstechnica.com/security/2025/07/hackers-exploit-a-blind-spot-by-hiding-malware-inside-dns-records/

@@ -1,0 +1,66 @@
+id: 019c05f1-8073-7203-919b-986b1079713f
+name: PowerShell Memory Check for Sandbox Evasion
+description: |
+    Detects PowerShell scripts that query the system's total physical memory and compare it against common low-resource thresholds (e.g., < 4GB). This is a known sandbox evasion technique used by malware to identify and avoid analysis environments, which are often configured with limited RAM.
+query: |
+    title: PowerShell Memory Check for Sandbox Evasion
+    id: dc84bb88-c9bc-4878-9387-415310bd9d9e
+    status: experimental
+    description: |
+      Detects PowerShell scripts that query the system's total physical memory and compare it against common low-resource thresholds (e.g., < 4GB). This is a known sandbox evasion technique used by malware to identify and avoid analysis environments, which are often configured with limited RAM.
+    references:
+      - https://www.joesandbox.com/blog/sandbox-evasion-techniques
+      - https://evasions.checkpoint.com/techniques/generic-os-queries.html#check-amount-of-ram
+      - https://attack.mitre.org/techniques/T1497/001/
+    author: "detections.ai, Aaron Beardslee"
+    date: 2026-01-28
+    tags:
+      - attack.defense_evasion
+      - attack.t1497.001
+      - attack.discovery
+      - attack.t1082
+    logsource:
+      product: windows
+      category: powershell_script # Requires PowerShell Script Block Logging (Event ID 4104)
+    detection:
+      # Detects the query for physical memory via WMI or CIM
+      selection_query:
+        ScriptBlockText|contains|all:
+          - 'Win32_ComputerSystem'
+          - 'TotalPhysicalMemory'
+      # Detects comparison operators or common memory thresholds (in bytes)
+      selection_check:
+        ScriptBlockText|contains:
+          - ' -lt ' # Less Than
+          - ' -le ' # Less Than or Equal
+          - '1073741824' # 1 GB
+          - '2147483648' # 2 GB
+          - '3221225472' # 3 GB
+          - '4294967296' # 4 GB
+      condition: selection_query and selection_check
+    falsepositives:
+      - Legitimate system inventory or asset management scripts.
+      - Software installation scripts that check for minimum system requirements.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1497.001
+    - T1082
+tags:
+    - attack.defense_evasion
+    - attack.t1497.001
+    - attack.discovery
+    - attack.t1082
+author: detections.ai, Aaron Beardslee
+version: "2"
+references:
+    - https://www.joesandbox.com/blog/sandbox-evasion-techniques
+    - https://evasions.checkpoint.com/techniques/generic-os-queries.html#check-amount-of-ram
+    - https://attack.mitre.org/techniques/T1497/001/
+data_sources:
+    - powershell_script
+    - windows

@@ -1,0 +1,16 @@
+id: 019c6aef-2681-737b-9d8d-2c3d04ff4041
+name: AgreeToSteal Infrastructure Access
+description: Detects suspicious network connections to 'outlook-one.vercel.app' or 'api.telegram.org' when initiated by common web browsers (msedge.exe, chrome.exe, firefox.exe) or Outlook (outlook.exe). This pattern can indicate phishing attempts, credential harvesting, or data exfiltration via Telegram bots.
+query: "DeviceNetworkEvents\r\n| where TimeGenerated > ago(1d)\r\n| where RemoteUrl has \"outlook-one.vercel.app\"\r\n    or (\r\n        RemoteUrl has \"api.telegram.org\"\r\n        and InitiatingProcessFileName has_any (\"outlook.exe\", \"msedge.exe\", \"chrome.exe\", \"firefox.exe\")\r\n    )\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    ProcessName = InitiatingProcessFileName,\r\n    Url = RemoteUrl,\r\n    RemoteIP\r\n| project\r\n    timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    ProcessName,\r\n    Url,\r\n    RemoteIP\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+tags:
+    - kql
+version: "1"

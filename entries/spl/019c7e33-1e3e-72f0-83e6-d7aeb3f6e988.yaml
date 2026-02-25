@@ -1,0 +1,14 @@
+id: 019c7e33-1e3e-72f0-83e6-d7aeb3f6e988
+name: GitHub Repo Webhook Created or Modified
+description: Detects the creation or modification of repository webhooks in GitHub. Attackers can use webhooks for real-time data exfiltration of code pushes, pull request comments, and workflow data. Once a webhook is established, it operates independently of the creating user; revoking the creator's credentials will NOT stop the data flow. Only deleting the webhook itself terminates the exfiltration.
+query: "````\r\nAuthor: Tayvion P (@tayontech\r\nDescription: \r\n  Detects the creation or modification of repository webhooks. Attackers use webhooks for \r\n  real-time data exfiltration of code pushes, pull request comments, and workflow data. \r\n  Crucially, once a webhook is established, it operates independently of the creating user; \r\n  revoking the creator's credentials will NOT stop the data flow. Only deleting the webhook \r\n  itself terminates the exfiltration.\r\n````\r\nindex=github action IN (\"hook.create\",\"hook.config_changed\",\"hook.events_changed\",\"hook.active_changed\")\r\n| stats \r\n    min(_time) as initial_detection_time\r\n    values(operation_type) as operation_type\r\n    values(action) as action\r\n    values(config.url) as url \r\n    values(repo) as affected_repo\r\n    values(token_scopes) as token_scopes\r\n    values(user_agent) as useragent\r\n    values(business) as business\r\n    values(org) as org\r\n    by actor token_id\r\n| eval initial_detection_time = strftime(initial_detection_time, \"%F %T %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.004
+    - T1567
+tags:
+    - spl
+version: "1"

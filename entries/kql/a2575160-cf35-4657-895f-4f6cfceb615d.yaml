@@ -1,0 +1,20 @@
+id: a2575160-cf35-4657-895f-4f6cfceb615d
+name: 'ClickFix_Registry_Related_Artefacts '
+description: 'KQL Query from file: ClickFix_Registry_Related_Artefacts '
+query: "let ClickFixLOLbin = dynamic([\"powershell\", \"cmd\",\"mshta\"]);\r\nlet LolBinCmdLine = dynamic([\"https\", \"http\", \"curl\", \"IEX\" \"-Enc\" \"-nop\", \"uri\",\"invoke\", \"iex\", \"-exec\", \"verification\",\"FromBase64String\", \"import-module\", \"add-type\", \"webclient\"]);\r\nDeviceRegistryEvents\r\n| where RegistryKey endswith \"RunMRU\" \r\n| where RegistryValueData has_any (ClickFixLOLbin)\r\n| where RegistryValueData has_any (LolBinCmdLine)\r\n| where InitiatingProcessFileName contains \"explorer\"\r\n| extend regkey_length = strlen(RegistryValueData)\r\n| where regkey_length >= 50 \r\n| project Timestamp, ReportId, DeviceId, InitiatingProcessCreationTime, RegistryValueData\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+    - T1059
+    - T1218
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+version: "1"

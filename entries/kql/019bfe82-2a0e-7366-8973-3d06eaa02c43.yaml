@@ -1,0 +1,12 @@
+id: 019bfe82-2a0e-7366-8973-3d06eaa02c43
+name: '[VL] - Microsoft Office Security Feature Bypass Vulnerability CVE-2026-21509'
+description: "Microsoft disclosed CVE-2026-21509 an important vulnerability that allows attackers to bypass Office security protections when a user opens a malicious document (\U0001F517 in the comments). Exploitation has already been observed in the wild.\nThis mainly affects Office 2016 and 2019, which are still widely used.\n\n✅ How to reduce the risk:\n\n- Install the January 2026 security updates for Office 2016 / 2019\n- If patching is delayed, apply the recommended registry mitigation to block the vulnerable COM/OLE control. (Microsoft 365 Apps and newer Office versions are protected via service-side mitigations (restart required)\n\nEven “non-critical” Office vulnerabilities matter — a single document can be enough to trigger an attack.\n\n\n\U0001F6A8Execute the following KQL query to detect the affected Version"
+query: " let Fixed_Office2016 = \"16.0.5539.1001\";\nlet Fixed_Office2019 = \"16.0.10417.20095\";\nDeviceTvmSoftwareInventory\n| where SoftwareName has_any (\"Office\")\n| extend V = tostring(SoftwareVersion)\n| extend IsOffice2016 = SoftwareName has \"2016\"\n| extend IsOffice2019 = SoftwareName has \"2019\"\n| extend IsVuln =\n    case(\n        IsOffice2016 and (parse_version(V) < parse_version(Fixed_Office2016)), true,\n        IsOffice2019 and (parse_version(V) < parse_version(Fixed_Office2019)), true,\n        false\n    )\n| where IsVuln == true and SoftwareName !contains \"language\"\n| project  DeviceName, SoftwareName, Old_Version= strcat('\U0001F6A8', SoftwareVersion), Remediation= iff(SoftwareName contains \"2016\", strcat('\U0001F4E3 Vulnerability fixed on Office 2016 since', Fixed_Office2016),strcat('\U0001F4E3 Vulnerability fixed on Office 2019 since', Fixed_Office2019))"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Sergio Albea
+version: "3"
+references:
+    - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509

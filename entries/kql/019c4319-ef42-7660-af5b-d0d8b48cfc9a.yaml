@@ -1,0 +1,24 @@
+id: 019c4319-ef42-7660-af5b-d0d8b48cfc9a
+name: Kerberos Password Spraying from Single Source
+description: Detects a high volume of Kerberos pre-authentication failures (Event ID 4771, Status 0x18) against multiple distinct user accounts originating from a single source IP address within a short time window. This behavior is characteristic of password spraying attacks where an attacker attempts a small number of common passwords across many accounts to avoid lockouts and detection in a Windows Active Directory environment.
+query: "// title: Kerberos Password Spraying from Single Source (Pre-Auth Failures)\n// description: >-\n//   Detects a high volume of Kerberos pre-authentication failures (Event ID 4771, Status 0x18)\n//   against multiple distinct user accounts originating from a single source IP address within\n//   a short time window. This behavior is characteristic of password spraying attacks where an\n//   attacker attempts a small number of common passwords across many accounts to avoid lockouts\n//   and detection in a Windows Active Directory environment.\n// author: Tishev\n// date: 2026-02-09\n// references:\n//   - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4771\n//   - https://attack.mitre.org/techniques/T1110/003/\n// tags:\n//   - attack.initial_access\n//   - attack.credential_access\n//   - attack.t1110.003\n// falsepositives:\n//   - Misconfigured applications or services generating repeated Kerberos authentication failures.\n//   - ADFS, VPN, or SSO infrastructure components performing bulk authentication.\n//   - Vulnerability scanners or security testing tools.\n// level: medium\n\nSecurityEvent\n// Look back over the last 10 minutes to detect burst authentication behavior\n| where TimeGenerated > ago(10m)\n// Select Kerberos pre-authentication failures (0x18 = valid user, wrong password)\n| where EventID == 4771 and Status == '0x18'\n// Exclude machine accounts (typically end with '$') and empty usernames\n| where isnotempty(TargetUserName) and TargetUserName !endswith \"$\"\n// Aggregate behavior per source IP over fixed 5-minute windows\n// DistinctUsers = number of unique accounts targeted (breadth of attack)\n// Attempts = total number of authentication failures (attack intensity)\n| summarize \n    DistinctUsers = dcount(TargetUserName),\n    Attempts = count()\n    by IpAddress, bin(TimeGenerated, 5m)\n// Trigger when one source targets many users with sufficient volume (typical spraying pattern)\n// Thresholds should be tuned to the environment baseline\n| where DistinctUsers >= 20 and Attempts >= 25\n// Prioritize the most aggressive sources for investigation\n| sort by Attempts desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1110
+    - T1110.001
+    - T1078
+    - T1078.002
+tags:
+    - kql
+author: Tishev
+version: "5"
+references:
+    - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4771
+    - https://attack.mitre.org/techniques/T1110/003/

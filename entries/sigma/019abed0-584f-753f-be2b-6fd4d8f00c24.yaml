@@ -1,0 +1,40 @@
+id: 019abed0-584f-753f-be2b-6fd4d8f00c24
+name: FlexibleFerret Malicious Shell Script Execution
+description: Detects execution of known FlexibleFerret shell scripts used for staging and persistence.
+query: |+
+    ---
+    title: FlexibleFerret Malicious Shell Script Execution
+    id: a1b2c3d4-2222-4e5f-8a9b-0c1d2e3f4a5b
+    status: experimental
+    description: Detects execution of known FlexibleFerret shell scripts used for staging and persistence
+    author: Claude Opus 4.5
+    date: 2025/11/26
+    references:
+        - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    tags:
+        - attack.execution
+        - attack.t1059.004
+        - attack.persistence
+        - attack.t1543.001
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_scripts:
+            CommandLine|contains:
+                - 'macpatch.sh'
+                - 'cdrivMac.sh'
+                - 'drivfixer.sh'
+        selection_paths:
+            CommandLine|contains:
+                - '/var/tmp/'
+                - '/var/tmp/CDrivers/'
+        condition: selection_scripts or (selection_paths and CommandLine|contains|all:
+            - '.sh'
+            - 'chmod')
+    falsepositives:
+        - Legitimate system patching scripts with similar names
+    level: high
+
+query_type: sigma
+version: "1"

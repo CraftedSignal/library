@@ -1,0 +1,41 @@
+id: 40af8f7d-54e6-4ef6-8908-06ec491d4af1
+name: SLOW#TEMPEST Anti-Sandbox Memory Check
+description: This detection rule identifies processes that call the 'GlobalMemoryStatusEx' Windows API. This behavior is a known sandbox evasion technique used by malware, including SLOW#TEMPEST, to check the system's physical memory size before executing a malicious payload. The rule is tuned to focus on unsigned processes or those running from non-standard locations and with low host prevalence.
+query: |
+    `comment("name: SLOW#TEMPEST Anti-Sandbox Memory Check")`
+    `comment("author: detections.ai")`
+    `comment("date: 2025-07-23")`
+    `comment("description: This detection rule identifies processes that call the 'GlobalMemoryStatusEx' Windows API. This behavior is a known sandbox evasion technique used by malware, including SLOW#TEMPEST, to check the system's physical memory size before executing a malicious payload. The rule is tuned to focus on unsigned processes or those running from non-standard locations.")`
+    `comment("references: https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/")`
+    `comment("mitre_ttp: T1497.001")`
+
+    `comment("This rule requires a data source that logs Windows API calls, such as an EDR. The index, sourcetype, and field names (e.g., api_call, process_path, signer) are placeholders and must be configured for your environment.")`
+    search index=endpoint sourcetype=edr:api_calls api_call="GlobalMemoryStatusEx"
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, process_name, process_path, process_guid, user, signer
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+
+    `comment("FP Tuning: Filter out signed processes or those in standard directories to focus on suspicious activity. Legitimate applications may perform this check, but are typically signed and run from Program Files or Windows directories.")`
+    | where isnull(signer) OR NOT (like(process_path, "C:\\Program Files\\%") OR like(process_path, "C:\\Program Files (x86)\\%") OR like(process_path, "C:\\Windows\\%"))
+
+    `comment("FP Tuning: Highlight processes that are not widespread in the environment, as malware may have a smaller footprint than legitimate software.")`
+    | eventstats dc(host) as host_prevalence by process_name
+    | where host_prevalence < 5
+
+    `comment("Analyst Note: Investigate the identified process. A positive hit on this rule is a strong indicator of sandbox evasion. Check the process's origin, subsequent network activity, and file modifications.")`
+    | table firstTime, lastTime, host, user, process_name, process_path, signer, host_prevalence, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+    - TA0002
+techniques:
+    - T1497
+    - T1497.001
+    - T1106
+tags:
+    - spl
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/

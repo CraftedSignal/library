@@ -1,0 +1,58 @@
+id: 0199c92c-77b9-75ed-8b80-ff0108d5a797
+name: Oracle EBS Post-Exploitation Suspicious Java Child Process (CVE-2025-61882)
+description: Detects suspicious child processes spawned by a Java process, which may indicate post-exploitation activity related to the Oracle E-Business Suite vulnerability CVE-2025-61882. The exploit chain often results in a reverse shell.
+query: |
+    title: Oracle EBS Post-Exploitation Suspicious Java Child Process (CVE-2025-61882)
+    id: be9fd2bb-8d77-4a4d-8f17-c49a702fc891
+    status: experimental
+    description: Detects suspicious child processes spawned by a Java process, which
+      may indicate post-exploitation activity related to the Oracle E-Business Suite
+      vulnerability CVE-2025-61882. The exploit chain often results in a reverse
+      shell.
+    references:
+      - https://labs.watchtowr.com/well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882/
+    author: detections.ai
+    date: 2025-10-09
+    tags:
+      - attack.execution
+      - attack.t1059.004
+      - cve.2025.61882
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_parent:
+        # Correlates to the Oracle EBS Java application process
+        ParentImage|endswith: '/java'
+        User: 'oracle' # The compromised process often runs as the 'oracle' user
+      selection_revshell:
+        Image|endswith:
+          - '/sh'
+          - '/bash'
+        CommandLine|contains|all:
+          # Detects command execution with network redirection, a common reverse shell pattern
+          - '-c'
+          - '/dev/tcp/'
+      condition: selection_revshell and selection_parent
+    falsepositives:
+      - Legitimate administrative scripts or applications that use Java to spawn
+        shell scripts involving network connections. The 'User' field might need to
+        be adjusted for different environments.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.004
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - cve.2025.61882
+author: detections.ai
+version: "2"
+references:
+    - https://labs.watchtowr.com/well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882well-well-well-its-another-day-oracle-e-business-suite-pre-auth-rce-chain-cve-2025-61882/
+data_sources:
+    - process_creation
+    - linux

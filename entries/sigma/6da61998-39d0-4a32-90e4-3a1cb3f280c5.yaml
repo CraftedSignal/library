@@ -1,0 +1,81 @@
+id: 6da61998-39d0-4a32-90e4-3a1cb3f280c5
+name: IP KVM Device Connection Detected
+description: Detects the connection of an IP KVM (Keyboard, Video, Mouse) device, which could be used for unauthorized remote access or data exfiltration.
+query: |
+    title: IP KVM Device Connection Detected
+    id: 4bf8682a-4861-4e81-9cb5-15b6915ac2d8
+    status: experimental
+    description: Detects the connection of an IP KVM (Keyboard, Video, Mouse)
+      device, which could be used for unauthorized remote access or data
+      exfiltration.
+    references:
+      - https://attack.mitre.org/techniques/T1200/
+      - https://cloud.google.com/blog/topics/threat-intelligence/mitigating-dprk-it-worker-threat
+    author: detections.ai
+    date: 2025-07-29
+    tags:
+      - attack.initial_access
+      - attack.t1200
+      - os.windows
+    logsource:
+      product: windows
+      category: pnp
+    detection:
+      # Detects based on device names and descriptions which can be broad
+      selection_device_name:
+        EventID:
+          - 400 # Device configured
+          - 410 # Device serviced
+        DeviceDesc|contains:
+          - 'IP-KVM'
+          - 'iDRAC'
+          - 'iLO'
+          - 'KVM over IP'
+          - 'Raritan'
+          - 'Lantronix'
+          - 'ATEN'
+          - 'Adder'
+          - 'Avocent'
+          - 'Black Box'
+          - 'Virtual Media' # Often associated with IP KVMs for remote media mounting
+      # Detects based on known Vendor IDs (VID) and Product IDs (PID) which is more specific and reliable
+      selection_hwid:
+        EventID:
+          - 400
+          - 410
+        HardwareID|contains:
+          - 'VID_0B6A' # Lantronix
+          - 'VID_1356' # Raritan
+          - 'VID_413C&PID_8501' # Dell iDRAC Virtual Media
+          - 'VID_03F0' # HP iLO
+          - 'VID_2101' # Supermicro
+          - 'VID_0557' # ATEN
+          - 'VID_0624' # Avocent/Emerson
+          - 'VID_06E1' # Adder
+          - 'VID_1A09' # Black Box
+      condition: 1 of them
+    falsepositives:
+      - Legitimate use of IP KVMs by system administrators.
+      - The term 'KVM' may trigger on legitimate non-IP KVM switches. Consider
+        tuning by excluding known hardware or focusing only on the HardwareID
+        selection for higher fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0010
+techniques:
+    - T1200
+tags:
+    - attack.initial_access
+    - attack.t1200
+    - os.windows
+author: detections.ai
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1200/
+    - https://cloud.google.com/blog/topics/threat-intelligence/mitigating-dprk-it-worker-threat
+data_sources:
+    - pnp
+    - windows

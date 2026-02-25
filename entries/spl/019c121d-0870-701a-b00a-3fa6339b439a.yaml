@@ -1,0 +1,18 @@
+id: 019c121d-0870-701a-b00a-3fa6339b439a
+name: AWS Config Logging Disabled
+description: "Looking for changes of remiving the delivery channel or configuration recorder for AWS Config.\nIndicative of defense evasion or someone covering their tracks. \nThis would stop all data such as configuration snapshots and rule compliance notifications from getting to the S3 bucket/SNS topic.\n\nNote: Before you can delete a delivery channel, you must first stop the customer-managed configuration recorder"
+query: "``` Looking for changes of remiving the delivery channel or configuration recorder for AWS Config.\nIndicative of defense evasion or someone covering their tracks. \nThis would stop all data such as configuration snapshots and rule compliance notifications from getting to the S3 bucket/SNS topic.\n\nThis rule specifically looks for a userIdentity making the API call for a userName that is not their own.\n\nNote: Before you can delete a delivery channel, you must first stop the customer-managed configuration recorder ```\n\nindex=cloudtrail eventSource=\"config.amazonaws.com\" (eventName=\"DeleteDeliveryChannel\" OR eventName=\"DeleteConfigurationRecorder\" OR eventName=\"StopConfigurationRecorder\")\nuserAgent!=console.amazonaws.com errorCode=success\n| eval match=if(match(userIdentity.userName, requestParameters.userName),1,0)\n| search match=0\n| eval event_time=strftime(_time, \"%Y-%m-%d%H:%M:%SZ\")\n| rename userIdentity.userName as source_UserName requestParameters.userName as target_UserName\n| table event_time eventName userAgent source_UserName target_UserName\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.008
+tags:
+    - spl
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1562/008/
+    - https://docs.aws.amazon.com/cli/latest/reference/configservice/delete-delivery-channel.html
+    - https://docs.aws.amazon.com/cli/latest/reference/configservice/stop-configuration-recorder.html

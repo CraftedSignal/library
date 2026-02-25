@@ -1,0 +1,32 @@
+id: 34ff2516-62c1-4bcb-9568-babadbe23e3e
+name: The Hunt for QR Phisher
+description: 'KQL Query from file: The Hunt for QR Phisher'
+query: "// The Hunt for QR Phisher\n// https://www.linkedin.com/posts/0x534c_defenderxdr-qrcode-phishing-activity-7180838667928678400-72U-/\n\n// 1. Determine the most frequently used QR-Code for phishing\n\nEmailEvents\n| where Timestamp > ago(30d)\n| where EmailDirection == \"Inbound\"\n| join EmailUrlInfo on NetworkMessageId\n| where UrlLocation == \"QRCode\"\n| where LatestDeliveryAction == \"Blocked\"\n| where ThreatTypes contains \"phish\"\n| summarize Count=count() by UrlDomain\n| sort by Count desc\n\n// 2. Determine the mail domains or IP addresses associated with QR Phisher\n\nEmailEvents\n| where Timestamp > ago(30d)\n| where EmailDirection == \"Inbound\"\n| join EmailUrlInfo on NetworkMessageId\n| where UrlLocation == \"QRCode\"\n| where LatestDeliveryAction == \"Blocked\"\n| where ThreatTypes contains \"phish\"\n| where UrlDomain contains \"wap.lovetothenations.org\"\n| distinct SenderMailFromDomain\n\n// Visualize QR-Phishing Attack with ADX Interactive Map\n\nEmailEvents\n| where Timestamp > ago(30d)\n| where EmailDirection == \"Inbound\"\n| join EmailUrlInfo on NetworkMessageId\n| where UrlLocation == \"QRCode\"\n| where LatestDeliveryAction == \"Blocked\"\n| where ThreatTypes contains \"phish\"\n| project SenderIPv4 \n\n//From ADX (Azure Data Explorer) import the IPaddress.csv into a newly created Table called QRPhish, run the below KQL query\n\nQRPhish\n| extend ip_location=geo_info_from_ip_address(SenderIPv4)\n| parse ip_location with \"latitude\\\":\" latitude \",\\\"longitude\\\":\" longitude \"}\" blank\n\n// Hunting for QR Code AiTM Phishing\n\nlet AnomalousTokenRequestId=\nSecurityAlert\n| where AlertName == \"Anomalous Token\"\n| mv-expand todynamic(Entities)\n| project Entities\n| extend RequestId = tostring(Entities.RequestId)\n| distinct RequestId;\nlet UPNAnomalousToken=\nAADUserRiskEvents\n| where RequestId has_any(AnomalousTokenRequestId)\n| where DetectionTimingType == \"realtime\"\n| where RiskLevel == \"medium\" or RiskLevel == \"high\"\n| where RiskState == \"atRisk\"\n| distinct UserPrincipalName;\nEmailUrlInfo\n| where UrlLocation == \"QRCode\"\n| join EmailEvents on NetworkMessageId\n| where EmailDirection == \"Inbound\"\n| where RecipientEmailAddress has_any(UPNAnomalousToken)\n\n// MITRE ATT&CK Mapping\n\n// T1566.002: Phishing: Spearphishing Link\n// T1204.001: User Execution: Malicious Link\n// T1590.005: Gather Victim Network Information: IP Addresses\n// T1592.001: Gather Victim Host Information: IP Address\n// T1071.001: Application Layer Protocol: Web Protocols\n// T1589.002: Gather Victim Network Information: Email Addresses\n// T1078.003: Valid Accounts: Cloud Accounts\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0002
+    - TA0043
+    - TA0011
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0006
+    - TA0009
+techniques:
+    - T1566.002
+    - T1204.001
+    - T1590.005
+    - T1592.001
+    - T1071.001
+    - T1589.002
+    - T1078.003
+    - T1593.003
+    - T1116
+    - T1553.002
+    - T1566
+    - T1598
+    - T1557
+tags:
+    - kql
+version: "1"

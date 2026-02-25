@@ -1,0 +1,73 @@
+id: 8abed489-13af-49ba-a86a-d68a7801626c
+name: Non-Standard MacOS Launchd Entry
+description: Detects potentially malicious or suspicious launchd entries that are not part of the default macOS system, often used for persistence. This rule is designed to be applied to Plaso output.
+query: |
+    title: Non-Standard MacOS Launchd Entry
+    id: 8f1e2d3c-4b5a-6c7d-8e9f-0123456789ab
+    related:
+      - >-
+        https://www.abstract.security/blog/automating-macos-incident-response-dfir-as-code-in-action-against-appleprocesshub
+    status: experimental
+    description: >-
+      Detects potentially malicious or suspicious launchd entries that are not part
+      of the default macOS system, often used for persistence. This rule is designed
+      to be applied to Plaso output.
+    author: Aaron Mog- detections.ai
+    date: 2025-07-02
+    logsource:
+      category: macos
+      product: macos
+    detection:
+      selection_base:
+        vendor: Plaso
+        agent_type: macos:launchd:entry
+      exclude_apple_defaults:
+        name|startswith: com.apple.
+      condition: selection_base and not exclude_apple_defaults
+    fields:
+      - name
+      - file_name
+      - process_command_line
+    falsepositives:
+      - >-
+        Legitimate third-party applications that install launchd entries not
+        starting with 'com.apple.' (e.g., Zoom, VirtualBox, GoogleUpdater, Adobe,
+        Microsoft, etc.). These may need to be added to an exclusion list in your
+        environment.
+      - >-
+        Custom internal applications with non-standard launchd entry naming
+        conventions.
+    level: high
+    tags:
+      - attack.persistence
+      - attack.t1543.001
+      - attack.t1543.003
+      - attack.t1547.001
+      - dfir_as_code
+    references:
+      - https://www.abstract.security/blog/automating-macos-incident-response-dfir-as-code-in-action-against-appleprocesshub
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.001
+    - T1543.003
+    - T1547.001
+    - T1543.004
+    - T1543
+    - T1547
+tags:
+    - attack.persistence
+    - attack.t1543.001
+    - attack.t1543.003
+    - attack.t1547.001
+    - dfir_as_code
+author: Detections.ai
+version: "1"
+references:
+    - https://www.abstract.security/blog/automating-macos-incident-response-dfir-as-code-in-action-against-appleprocesshub
+data_sources:
+    - macos
+    - plaso

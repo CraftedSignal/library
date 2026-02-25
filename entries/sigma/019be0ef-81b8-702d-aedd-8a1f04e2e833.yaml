@@ -1,0 +1,76 @@
+id: 019be0ef-81b8-702d-aedd-8a1f04e2e833
+name: MacSync ClickFix Terminal Command Execution
+description: Detects the execution of a piped command chain typical of 'ClickFix' lures used by the MacSync infostealer. The malware tricks users into pasting a command into the terminal which uses curl to download a payload, decodes it with base64, and pipes it directly into a shell (zsh, sh) or osascript for execution, bypassing macOS security controls like Gatekeeper.
+query: |
+    title: MacSync ClickFix Terminal Command Execution
+    id: e80f2c5e-b888-4220-aa20-7c1a91acf880
+    status: experimental
+    description: >-
+      Detects the execution of a piped command chain typical of 'ClickFix' lures
+      used by the MacSync infostealer. The malware tricks users into pasting a
+      command into the terminal which uses curl to download a payload, decodes it
+      with base64, and pipes it directly into a shell (zsh, sh) or osascript for
+      execution, bypassing macOS security controls like Gatekeeper.
+    references:
+      - >-
+        https://www.cloudsek.com/blog/inside-macsyncs-script-driven-stealer-and-hardware-wallet-app-trojanization
+    author: tim@detections.ai
+    date: 2026-01-21T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1059.002
+      - attack.t1059.004
+      - attack.t1140
+      - attack.t1204.002
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection_process:
+        Image|endswith:
+          - /zsh
+          - /sh
+          - /bash
+      selection_command:
+        CommandLine|contains|all:
+          - 'curl '
+          - base64 -D
+      selection_pipe:
+        CommandLine|contains:
+          - '|zsh'
+          - '|sh'
+          - '|osascript'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts or complex software installation
+        procedures might use similar command chains. However, this specific
+        combination is highly suspicious and characteristic of malicious
+        "curl-to-sh" style attacks.
+      - Consider tuning by excluding known safe scripts or parent processes if false
+        positives occur.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.002
+    - T1059.004
+    - T1140
+    - T1204.002
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1059.002
+    - attack.t1059.004
+    - attack.t1140
+    - attack.t1204.002
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.cloudsek.com/blog/inside-macsyncs-script-driven-stealer-and-hardware-wallet-app-trojanization
+data_sources:
+    - process_creation
+    - macos

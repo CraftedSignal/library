@@ -1,0 +1,41 @@
+id: 76a93614-a63a-4d3e-af1d-aebfbb8f83bf
+name: MSDT Follina Exploit Detection
+description: This detection identifies potential exploitation of the Microsoft Support Diagnostic Tool (MSDT) vulnerability, also known as "Follina" (CVE-2022-30190), which allows remote code execution through specially crafted Microsoft Office documents.
+query: |-
+    # MSDT Follina Vulnerability Detection
+
+    ## Description
+    This detection identifies potential exploitation of the Microsoft Support Diagnostic Tool (MSDT) vulnerability, also known as "Follina" (CVE-2022-30190). This vulnerability allows remote code execution through specially crafted Microsoft Office documents.
+
+    ## Detection Logic
+    The query looks for:
+    - Execution of `msdt.exe`
+    - Specific command line parameters used in exploitation:
+      - `IT_RebrowseForFile`
+      - `IT_BrowseForFile`
+
+    ## Query
+    ```kusto
+    DeviceProcessEvents
+    | where (FolderPath endswith @"\msdt.exe" and (ProcessCommandLine contains "IT_RebrowseForFile"
+    or ProcessCommandLine contains "IT_BrowseForFile"))
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Initial Access, Execution
+    - **Technique**: T1203 - Exploitation for Client Execution
+    - **Technique**: T1566.001 - Phishing: Spearphishing Attachment
+
+    ## Severity
+    High
+
+    ## Investigation Steps
+    1. Identify the parent process that launched msdt.exe
+    2. Check if any Office documents were opened recently
+    3. Review email attachments received by the user
+    4. Look for downloaded files with suspicious names
+    5. Check for additional payload execution after msdt.exe
+    6. Isolate the system if active exploitation is confirmed
+    7. Apply Microsoft's patches and workarounds
+query_type: kql
+version: "1"

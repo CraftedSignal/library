@@ -1,0 +1,18 @@
+id: 019c8af0-1431-71c9-9280-60e9525ebc32
+name: PowerShell Downloading Malicious Images from Remcos RAT Campaign Domains
+description: Detects a PowerShell process initiating a network connection to download an image or text file from domains associated with a Remcos RAT campaign. In this campaign, PowerShell is used to download a steganographic image containing the next stage payload.
+query: "// Name: PowerShell Downloading Malicious Images\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Description: Detects a PowerShell process initiating a network connection to download an image or text file from domains associated with a Remcos RAT campaign. In this campaign, PowerShell is used to download a steganographic image containing the next stage payload.\r\n// References: https://isc.sans.edu/diary/32738\r\n// Tactic: Command and Control, Defense Evasion\r\n// Technique: T1105, T1027.003\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceNetworkEvents\r\n// Look for network connections initiated by PowerShell.\r\n| where InitiatingProcessFileName =~ \"powershell.exe\"\r\n// The remote URL contains domains identified in the Remcos RAT campaign.\r\n| where RemoteUrl has_any (\"archive.org\", \"hotelseneca.ro\")\r\n// The URL points to an image or text file, consistent with the steganographic payload delivery method.\r\n| where RemoteUrl has_any (\".png\", \".jpg\", \".jpeg\", \".txt\")\r\n// FP Tuning: Legitimate scripts might download files from these domains. If FPs occur,\r\n// consider adding more specific process command-line filters or excluding known safe scripts/users.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1105
+    - T1027.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://isc.sans.edu/diary/32738

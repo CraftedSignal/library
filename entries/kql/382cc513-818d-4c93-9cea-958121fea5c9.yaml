@@ -1,0 +1,6 @@
+id: 382cc513-818d-4c93-9cea-958121fea5c9
+name: Excessive Windows Logon Failures Detection
+description: This rule identifies user accounts with more than 5 failed Windows logon attempts due to wrong passwords in the last 10 minutes, indicating possible brute force attempts.
+query: "#### Detection Query for mostly Domain Activity and User activity.\n#### This Detection Rule identifies user accounts which has over 5 Windows logon failures with wrong password over the previous 10 mins.\n\n## Mitre ATT&CK (Credential Access)\n### T1110 - Brute Force\n\n#### Query: \n```KQL\n// Define the threshold for excessive logon failures\nlet failureThreshold = 5;\n// Get logon failure events in the any days specified\nIdentityLogonEvents\n| where TimeGenerated >= ago(5m)\n| where ActionType == \"LogonFailed\"\n| where FailureReason == \"WrongPassword\"\n| summarize FailureCount = count()\n    by\n    AccountName,\n    Application,\n    AccountDomain,\n    AccountUpn,\n    FailureReason,\n    AccountDisplayName,\n    IPAddress, DeviceName, DestinationDeviceName, DestinationIPAddress\n    | where FailureCount >= failureThreshold\n| order by FailureCount desc\n```\n"
+query_type: kql
+version: "1"

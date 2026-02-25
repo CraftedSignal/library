@@ -1,0 +1,61 @@
+id: 019be2be-ea2a-765b-98d5-4536abc69080
+name: Visual Studio Code Spawning Suspicious Download and Execute Process
+description: Detects when a Visual Studio Code process spawns a shell that immediately downloads and executes a script using a tool like `curl` and pipes it to a runtime like `node`. This indicates the abuse of `tasks.json` for code execution, a technique used by DPRK-linked actors.
+query: |
+    title: Visual Studio Code Spawning Suspicious Download and Execute Process
+    id: aa3c2f04-6da5-4533-b3a7-f9d76162dffc
+    status: experimental
+    description: Detects when a Visual Studio Code process spawns a shell that
+      immediately downloads and executes a script using a tool like `curl` and pipes
+      it to a runtime like `node`. This indicates the abuse of `tasks.json` for code
+      execution, a technique used by DPRK-linked actors.
+    references:
+      - https://www.jamf.com/blog/threat-actors-expand-abuse-of-visual-studio-code/
+    author: detections.ai
+    date: 2026-01-21
+    tags:
+      - attack.execution
+      - attack.t1059.004
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        ParentImage|endswith:
+          - '\Code.exe' # Visual Studio Code parent process on Windows
+          - '/Code' # Visual Studio Code parent process on macOS/Linux
+        Image|endswith:
+          - '\bash.exe'
+          - '\sh.exe'
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '/bash'
+          - '/sh'
+        CommandLine|contains|all:
+          - 'curl' # Identifies download activity
+          - 'node' # Identifies execution via Node.js runtime
+      condition: selection
+    falsepositives:
+      - Legitimate but unusual developer tasks or VS Code extensions could trigger
+        this rule. It is uncommon to pipe content downloaded via 'curl' directly
+        into 'node' as part of a standard development workflow.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.004
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - attack.t1059.007
+author: detections.ai
+version: "2"
+references:
+    - https://www.jamf.com/blog/threat-actors-expand-abuse-of-visual-studio-code/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,21 @@
+id: 019970be-ebb0-7629-9dd6-c280fd5764a4
+name: EDR-Freeze - WerFaultSecure Unusual Parent Process
+description: |+
+    This rule detects instances where 'WerFaultSecure.exe' is launched by an unusual parent process. 'WerFaultSecure.exe' is a legitimate Windows error reporting tool, but its execution by non-standard parent processes can indicate malicious activity, such as process injection, credential dumping, or defense evasion. The rule assigns a suspicion score based on the parent process and command-line parameters, filtering for medium to critical risk levels. It also extracts the target PID and identifies suspicious parameters or dump types.
+
+query: "// EDR-Freeze Detection: WerFaultSecure Unusual Parent Process\r\nlet lookbackWindow = 7d;\r\nlet legitimateParents = dynamic([\r\n    \"wermgr.exe\",           // Primary legitimate parent - Windows Error Reporting Manager\r\n    \"svchost.exe\",          // Service host for WER service\r\n    \"csrss.exe\",            // System crash handling\r\n    \"WerFault.exe\"          // Standard error reporting\r\n]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(lookbackWindow)\r\n| where FileName =~ \"WerFaultSecure.exe\"\r\n| where InitiatingProcessFileName !in~ (legitimateParents)\r\n| extend \r\n    SuspicionScore = case(\r\n        InitiatingProcessFileName in~ (\"powershell.exe\", \"pwsh.exe\", \"cmd.exe\"), 5,\r\n        InitiatingProcessFileName in~ (\"explorer.exe\", \"winlogon.exe\"), 4,\r\n        InitiatingProcessFileName matches regex @\".*\\\\(Temp|AppData|Users)\\\\.*\\.exe\", 4,  \r\n        InitiatingProcessFileName matches regex @\".*\\\\[^\\\\]*\\.(exe|scr|com|bat|ps1)$\", 3,\r\n        2\r\n    ),\r\n    // Extract target PID if present in command line\r\n    TargetPID = tolong(coalesce(\r\n        extract(@\"/pid\\s+(\\d+)\", 1, ProcessCommandLine),\r\n        extract(@\"-p\\s+(\\d+)\", 1, ProcessCommandLine),\r\n        extract(@\"/p\\s+(\\d+)\", 1, ProcessCommandLine)\r\n    )),\r\n    // Check for suspicious parameters\r\n    HasSuspiciousParams = ProcessCommandLine has_any (\"/h\", \"/tid\", \"/encfile\", \"/cancel\", \"/type\"),\r\n    // Determine dump type\r\n    DumpType = case(\r\n        ProcessCommandLine has \"/type 268310\" or ProcessCommandLine contains \"268310\", \"FullDump\",\r\n        ProcessCommandLine has \"/encfile\", \"EncryptedDump\", \r\n        ProcessCommandLine has \"/type\", \"CustomDump\",\r\n        \"StandardDump\"\r\n    )\r\n| extend\r\n    // Final risk assessment\r\n    RiskLevel = case(\r\n        SuspicionScore >= 4 and isnotnull(TargetPID), \"Critical\",\r\n        SuspicionScore >= 4, \"High\", \r\n        SuspicionScore >= 3 and HasSuspiciousParams, \"High\",\r\n        SuspicionScore >= 3, \"Medium\",\r\n        \"Low\"\r\n    ),\r\n    // Create detection summary\r\n    DetectionReason = strcat(\r\n        \"Unusual parent: \", InitiatingProcessFileName, \r\n        iff(isnotnull(TargetPID), strcat(\" | Target PID: \", TargetPID), \"\"),\r\n        iff(HasSuspiciousParams, \" | Suspicious params\", \"\"),\r\n        iff(DumpType != \"StandardDump\", strcat(\" | Dump type: \", DumpType), \"\")\r\n    )\r\n| where RiskLevel in~ (\"Critical\", \"High\", \"Medium\")  // Filter for actionable alerts\r\n| project-reorder \r\n    Timestamp, \r\n    DeviceName, \r\n    InitiatingProcessFileName,      // Suspicious parent\r\n    ProcessCommandLine,             // Full command line\r\n    TargetPID,                     // PID being targeted\r\n    DumpType,                      // Type of dump operation\r\n    SuspicionScore,                // Numeric risk score\r\n    DetectionReason                // Human-readable summary\r\n| sort by SuspicionScore desc, Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0006
+techniques:
+    - T1055
+    - T1003
+tags:
+    - kql
+author: FSDR
+version: "1"
+references:
+    - https://www.zerosalarium.com/2025/09/EDR-Freeze-Puts-EDRs-Antivirus-Into-Coma.html

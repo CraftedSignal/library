@@ -1,0 +1,60 @@
+id: 019c338d-17d2-707c-ac5a-42e69d58af2b
+name: Diaoyu Loader Anti-Sandbox Integrity Check Detection
+description: Detects the creation of a zero-byte 'pic1.png' file alongside an executable in the same directory, a TTP associated with the Diaoyu Loader's anti-sandbox integrity check. This behavior indicates an attempt to evade detection by verifying the execution environment.
+query: |
+    //    Author: Ethan Andrews + detections.ai
+    //    Title: Diaoyu Loader Integrity Check Detection
+    //    Date: 2026-02-06
+    //    Description: Detects the creation of a zero-byte 'pic1.png' file alongside an executable in the same directory, a TTP associated with the Diaoyu Loader's anti-sandbox integrity check.
+    //    Tactic: Defense Evasion
+    //    Technique: T1497.001 (System Checks), T1204.002 (Malicious File)
+    //    False Positive Sensitivity: Medium
+    //    References: https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+    // Set a time window for correlation
+    let timeframe = 5m;
+    DeviceFileEvents
+    // Filter for file creation events within the specified timeframe
+    | where Timestamp > ago(timeframe)
+    | where ActionType == "FileCreated"
+    // Focus on the specific files of interest: a zero-byte 'pic1.png' or any executable.
+    | where (FileName == "pic1.png" and FileSize == 0) or FileName endswith ".exe"
+    // Group events by device and folder path within a short time bin to find related activity.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        // Count occurrences of the specific PNG file used as a sandbox evasion check.
+        Pic1Count = countif(FileName == "pic1.png" and FileSize == 0),
+        // Count occurrences of any executable file, which is the likely payload.
+        ExeCount = countif(FileName endswith ".exe"),
+        // Collect the names of the files created for context.
+        FileSet = make_set(FileName, 10),
+        InitiatingProcessFileName = take_any(InitiatingProcessFileName),
+        InitiatingProcessCommandLine = take_any(InitiatingProcessCommandLine)
+        by DeviceId, DeviceName, FolderPath, bin(Timestamp, 1m)
+    // Trigger an alert if both the specific PNG and at least one executable are found together.
+    | where Pic1Count > 0 and ExeCount > 0
+    // FP Tuning: While this specific combination is unusual, legitimate software installers could potentially create similarly named files.
+    // Consider filtering by InitiatingProcessFileName (e.g., browsers, archive utilities) or excluding known good software paths if false positives occur.
+    | project
+        StartTime,
+        EndTime,
+        DeviceName,
+        FolderPath,
+        FileSet,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+    - TA0002
+techniques:
+    - T1497.001
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/

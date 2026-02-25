@@ -1,0 +1,68 @@
+id: 7769dd54-d861-4457-b9ba-09862571e454
+name: Katz Stealer Suspicious C2 Connections
+description: This rule identifies network traffic to known Command and Control (C2) infrastructure associated with the Katz Stealer malware family. It uses a list of hardcoded IP addresses and domains from threat intelligence to detect suspicious outbound connections.
+query: |
+    --
+    -- Name: Katz Stealer C2 Communication
+    --
+    -- Date: 2025-07-23
+    --
+    -- References:
+    -- - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/
+    --
+    -- Description:
+    -- This search identifies network traffic to known Command and Control (C2) infrastructure
+    -- associated with the Katz Stealer malware family. It uses a list of hardcoded IP addresses
+    -- and domains from the provided threat intelligence.
+    --
+    -- False Positive Sensitivity: Medium
+    --
+    -- Tags:
+    -- - Tactic: Command and Control
+    -- - Technique: T1071
+    -- - Malware: Katz Stealer
+    --
+    -- Recommended Scoping:
+    -- Update the initial search line with the appropriate index and sourcetypes for your environment's
+    -- network traffic data (e.g., firewall, proxy, DNS, or EDR logs).
+    --
+    (index=*) (sourcetype=pan:traffic OR sourcetype=stream:http OR sourcetype=zeek:conn OR sourcetype=cisco:asa)
+    -- key: search for network traffic to known Katz Stealer C2 indicators
+    | where (
+        dest_host IN (
+            "katz-panel.com",
+            "katz-stealer.com",
+            "katzstealer.com",
+            "pub-ce02802067934e0eb072f69bf6427bf6.r2.dev",
+            "twist2katz.com",
+            "Zxczxczxczxc.twist2katz.com"
+        )
+        OR
+        dest_ip IN (
+            "172.67.146.103",
+            "185.107.74.40",
+            "195.182.25.71",
+            "31.177.109.39",
+            "80.64.18.219"
+        )
+    )
+    -- comment: IP addresses can be re-assigned over time. If this rule generates false positives,
+    -- consider verifying the current status of the indicators or integrating a threat intelligence feed.
+    -- key: aggregate results to create a single alert per source-destination pair
+    | stats count min(_time) as firstTime max(_time) as lastTime by src_ip, dest_ip, dest_host, user
+    -- key: convert epoch time to a human-readable format
+    | convert ctime(firstTime) ctime(lastTime)
+    -- key: rename fields for better readability in alerts
+    | rename src_ip as source, dest_ip as destination_ip, dest_host as destination_domain
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/

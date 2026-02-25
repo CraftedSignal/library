@@ -1,0 +1,91 @@
+id: 0199dda0-bb8b-7063-85fd-fe74a4926ca9
+name: Possible Oracle EBS CVE-2025-61882 Exploitation on Windows
+description: Detects potential remote code execution associated with the exploitation of Oracle E-Business Suite vulnerability CVE-2025-61882 on Windows hosts. The rule looks for a Java process spawning a command shell to execute reconnaissance commands, followed by an outbound network connection from the same Java process within a short time frame. This behavior is consistent with post-exploitation activity observed in the campaign.
+query: |
+    // Name: Possible Oracle EBS CVE-2025-61882 Exploitation on Windows
+    // Author: detections.ai
+    // Date: 2025-10-13
+    // Description: Detects potential remote code execution associated with the exploitation of Oracle E-Business Suite vulnerability CVE-2025-61882 on Windows hosts. The rule looks for a Java process spawning a command shell to execute reconnaissance commands, followed by an outbound network connection from the same Java process within a short time frame. This behavior is consistent with post-exploitation activity observed in the campaign.
+    // False Positive Sensitivity: Medium
+    // References:
+    // - https://www.crowdstrike.com/en-us/blog/crowdstrike-identifies-campaign-targeting-oracle-e-business-suite-zero-day-CVE-2025-61882/
+    let timeframe = 5m;
+    // Define a list of suspicious reconnaissance commands. This list can be tuned to reduce false positives.
+    let reconCommands = dynamic([
+        "whoami",
+        "hostname",
+        "ipconfig",
+        "systeminfo",
+        "net user",
+        "net group",
+        "netstat",
+        "tasklist",
+        "qprocess",
+        "query user",
+        "arp -a",
+        "nbtstat"
+    ]);
+    // Find Java processes spawning command shells for reconnaissance
+    let suspiciousJavaChildProc = DeviceProcessEvents
+    | where Timestamp > ago(timeframe)
+    | where InitiatingProcessFileName in~ ("java.exe", "javaw.exe")
+    | where FileName in~ ("cmd.exe", "powershell.exe")
+    | where ProcessCommandLine has_any (reconCommands)
+    | project   ProcessCreationTime = Timestamp,
+                DeviceId,
+                DeviceName,
+                JavaProcessId = InitiatingProcessId,
+                ReconCommandLine = ProcessCommandLine;
+    // Find outbound network connections from Java processes to public IPs
+    let javaOutboundNetwork = DeviceNetworkEvents
+    | where Timestamp > ago(timeframe)
+    | where InitiatingProcessFileName in~ ("java.exe", "javaw.exe")
+    | where RemoteIPType == "Public"
+    // Port 443 was observed, but other ports could be used for C2.
+    | where RemotePort == 443
+    // Potential for false positives. Consider adding known-good IPs to an exclusion list.
+    // | where not(RemoteIP has_any ("<ip1>", "<ip2>"))
+    | project   NetworkConnectionTime = Timestamp,
+                DeviceId,
+                JavaProcessId = InitiatingProcessId,
+                RemoteIP,
+                RemotePort;
+    // Join the two events to find correlated activity
+    suspiciousJavaChildProc
+    | join kind=inner (
+        javaOutboundNetwork
+    ) on DeviceId, JavaProcessId
+    // Ensure the network connection happens after the process creation, within the defined timeframe.
+    | where NetworkConnectionTime between (ProcessCreationTime .. (ProcessCreationTime + timeframe))
+    | project
+        Timestamp = ProcessCreationTime,
+        DeviceName,
+        DeviceId,
+        JavaProcessId,
+        ReconCommandLine,
+        NetworkConnectionTime,
+        RemoteIP,
+        RemotePort
+    | extend
+        RuleName = "Possible Oracle EBS CVE-2025-61882 Exploitation",
+        Tactic = "Execution, Discovery, Command and Control",
+        Technique = "T1203, T1059, T1087, T1016, T1071"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0007
+    - TA0011
+techniques:
+    - T1203
+    - T1059
+    - T1033
+    - T1087
+    - T1016
+    - T1071
+tags:
+    - kql
+author: Ramzi Zelfani (Powered by AI)
+version: "4"
+references:
+    - https://www.crowdstrike.com/en-us/blog/crowdstrike-identifies-campaign-targeting-oracle-e-business-suite-zero-day-CVE-2025-61882/

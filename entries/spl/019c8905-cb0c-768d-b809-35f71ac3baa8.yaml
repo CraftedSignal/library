@@ -1,0 +1,39 @@
+id: 019c8905-cb0c-768d-b809-35f71ac3baa8
+name: AWS Security Group Ingress Rule Modified for Broad Access to Sensitive Ports
+description: This rule detects when an AWS EC2 security group ingress rule is modified to allow broad access (0.0.0.0/0 or ::/0) to sensitive ports such as SSH (22), RDP (3389), MS SQL (1433), MySQL (3306), or PostgreSQL (5432). This activity can indicate an attempt to open up services to the internet, potentially for unauthorized access or to facilitate further compromise.
+query: |-
+    index=aws_logs sourcetype="aws:cloudtrail"
+    eventSource="ec2.amazonaws.com" eventName="AuthorizeSecurityGroupIngress"
+    NOT errorCode=*
+    | eval user=coalesce(userIdentity.userName, userIdentity.principalId, userIdentity.arn)
+    | spath path=requestParameters.groupId output=security_group_id
+    | spath path=requestParameters.ipPermissions output=perm_items
+    | mvexpand perm_items
+    | spath input=perm_items path=fromPort output=port
+    | spath input=perm_items path=ipRanges output=ipv4_items
+    | spath input=perm_items path=ipv6Ranges output=ipv6_items
+    | eval port=tonumber(port)
+    | mvexpand ipv4_items
+    | spath input=ipv4_items path=cidrIp output=cidr4
+    | mvexpand ipv6_items
+    | spath input=ipv6_items path=cidrIpv6 output=cidr6
+    | eval cidr=coalesce(cidr4,cidr6)
+    | where isnotnull(port) AND port IN (22,3389,1433,3306,5432) AND (cidr="0.0.0.0/0" OR cidr="::/0")
+    | eval timestamp=strftime(_time, "%Y-%m-%dT%H:%M:%S.%3QZ")
+    | table timestamp awsRegion user eventName security_group_id port cidr sourceIPAddress
+    | rename awsRegion as region eventName as action sourceIPAddress as actor_ip
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+techniques:
+    - T1562.007
+    - T1078
+    - T1021
+tags:
+    - spl
+version: "2"

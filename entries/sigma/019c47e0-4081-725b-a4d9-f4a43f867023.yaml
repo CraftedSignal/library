@@ -1,0 +1,57 @@
+id: 019c47e0-4081-725b-a4d9-f4a43f867023
+name: Java Bytecode Delivery in Ivanti EPMM
+description: |
+    Detects attempts to deliver a Base64-encoded Java class to an Ivanti EPMM
+    server. This is characteristic of the "Sleeper Shell" campaign where attackers
+    plant a dormant in-memory backdoor. The rule looks for the Base64 string
+    'yv66vg', which corresponds to the 'CAFEBABE' Java magic bytes, in requests
+    targeting the known vulnerable path.
+query: |
+    title: Java Bytecode Delivery in Ivanti EPMM
+    id: cf5807d2-82e2-4b27-865b-1010e326cdf2
+    status: experimental
+    description: |
+      Detects attempts to deliver a Base64-encoded Java class to an Ivanti EPMM
+      server. This is characteristic of the "Sleeper Shell" campaign where attackers
+      plant a dormant in-memory backdoor. The rule looks for the Base64 string
+      'yv66vg', which corresponds to the 'CAFEBABE' Java magic bytes, in requests
+      targeting the known vulnerable path.
+    references:
+      - https://defusedcyber.com/ivanti-epmm-sleeper-shells-403jsp
+    author: tim@detections.ai
+    date: 2026-02-10T00:00:00.000Z
+    tags:
+      - attack.t1505.003
+      - attack.t1105.001
+    logsource:
+      category: webserver
+    detection:
+      selection_path:
+        c-uri-stem|contains: '/mifs/403.jsp'
+      selection_payload_query:
+        c-uri-query|contains: 'yv66vg'
+      selection_payload_body:
+        cs-post-data|contains: 'yv66vg'
+      condition: selection_path and (selection_payload_query or selection_payload_body)
+    falsepositives: |
+      The string 'yv66vg' could legitimately appear in other Base64 encoded data,
+      but the combination with the specific URI path makes false positives
+      unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1505.003
+    - T1105
+tags:
+    - attack.t1505.003
+    - attack.t1105.001
+author: tim@detections.ai
+version: "4"
+references:
+    - https://defusedcyber.com/ivanti-epmm-sleeper-shells-403jsp
+data_sources:
+    - webserver

@@ -1,0 +1,45 @@
+id: 06ee4f55-4799-4416-acef-b657b594d7e1
+name: Composite Detection Rule for RansomHub Intrusion TTPs
+description: |
+    A composite detection rule that identifies multiple techniques, tactics, and procedures (TTPs) associated with the RansomHub intrusion detailed in "The DFIR Report". This rule focuses on process creation events and flags the execution of specific credential dumping tools, network scanners, defense evasion commands, ransomware behaviors, and exfiltration tool chains. An alert from this rule indicates a high probability of malicious activity consistent with this threat actor's methodology.
+query: "title: Composite Detection Rule for RansomHub Intrusion TTPs\r\nstatus: experimental\r\ndescription: >\r\n  A composite detection rule that identifies multiple techniques, tactics, and\r\n  procedures (TTPs) associated with the RansomHub intrusion detailed in \"The\r\n  DFIR Report\". This rule focuses on process creation events and flags the\r\n  execution of specific credential dumping tools, network scanners, defense\r\n  evasion commands, ransomware behaviors, and exfiltration tool chains. An alert\r\n  from this rule indicates a high probability of malicious activity consistent\r\n  with this threat actor's methodology.\r\nauthor: Digit Oktavianto (FPT Metrodata Indonesia)\r\ndate: 2025/07/2\r\nreferences:\r\n  - https://thedfirreport.com/2025/06/30/hide-your-rdp-password-spray-leads-to-ransomhub-deployment/\r\ntags:\r\n  - attack.initial_access\r\n  - attack.credential_access\r\n  - attack.discovery\r\n  - attack.defense_evasion\r\n  - attack.exfiltration\r\n  - attack.impact\r\n  - attack.lateral_movement\r\n  - attack.persistence\r\n  - attack.t1003\r\n  - attack.t1070.001\r\n  - attack.t1048\r\n  - attack.t1059\r\n  - attack.t1543.003\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\n  service: security\r\ndetection:\r\n  selection:\r\n    credential_access_tools:\r\n      Image|endswith:\r\n        - \\mimikatz.exe\r\n        - \\credentialsfileview.exe\r\n      Description: >-\r\n        Execution of known credential dumping tools Mimikatz or\r\n        CredentialsFileView.\r\n    cred_dump_lsass_access:\r\n      ParentImage|endswith:\r\n        - '\\cmd.exe'\r\n        - '\\powershell.exe'\r\n      CommandLine|contains|all:\r\n        - 'sekurlsa::logonpasswords'\r\n      Description: 'Mimikatz-like LSASS credential dumping via command-line.'\r\n    cred_dump_handle_lsass:\r\n      CommandLine|contains:\r\n        - 'lsass'\r\n        - 'dump'\r\n      Description: 'Any process command-line referencing lsass and dumping memory.'\r\n    cred_dump_dcsync:\r\n      CommandLine|contains:\r\n        - 'lsadump::dcsync'\r\n      Description: 'DCSync command for Active Directory credential extraction.'\r\n    discovery_tools:\r\n      Image|endswith:\r\n        - \\advanced_ip_scanner.exe\r\n        - \\netscan.exe\r\n      Description: >-\r\n        Execution of third-party network scanning tools Advanced IP Scanner or\r\n        SoftPerfect NetScan.\r\n    exfiltration_rclone:\r\n      Image|endswith: \\rclone.exe\r\n      CommandLine|contains|all:\r\n        - copy\r\n        - '--include-from'\r\n      Description: >-\r\n        Execution of Rclone with an include file, a pattern used for targeted data\r\n        exfiltration.\r\n    defense_evasion_wevtutil:\r\n      Image|endswith: \\wevtutil.exe\r\n      CommandLine|contains: cl\r\n      Description: Attempt to clear Windows Event Logs using wevtutil.\r\n    defense_evasion_vssadmin:\r\n      Image|endswith: \\vssadmin.exe\r\n      CommandLine|contains|all:\r\n        - Delete\r\n        - Shadows\r\n      Description: Deletion of shadow copies using vssadmin, typical ransomware precursor.\r\n    defense_evasion_fsutil:\r\n      Image|endswith: \\fsutil.exe\r\n      CommandLine|contains: SymlinkEvaluation\r\n      Description: >-\r\n        Modification of NTFS symlink evaluation, often seen in ransomware or\r\n        lateral movement.\r\n    ransomware_related:\r\n      Image|endswith:\r\n        - \\amd64.exe\r\n      Description: Execution of the observed ransomware binary.\r\n    impact_powershell:\r\n      Image|endswith:\r\n        - \\powershell.exe\r\n        - \\pwsh.exe\r\n      CommandLine|contains:\r\n        - Get-VM\r\n        - Stop-VM\r\n        - Get-CimInstance Win32_ShadowCopy\r\n        - Remove-CimInstance\r\n      Description: >-\r\n        Execution of PowerShell commands to inhibit system recovery by stopping\r\n        VMs or deleting shadow copies.\r\n    persistence_rmm:\r\n      Image|contains:\r\n        - \\AteraAgent.exe\r\n        - \\Splashtop.exe\r\n      Description: >-\r\n        Execution of Atera or Splashtop RMM tools, which may be abused for\r\n        persistence.\r\n    exfiltration_scripts:\r\n      Image|endswith:\r\n        - \\nocmd.vbs\r\n        - \\rcl.bat\r\n      Description: >-\r\n        Execution of helper script files used for exfiltration automation\r\n        (VBS/Batch).\r\n  condition: 1 of selection\r\nfalsepositives:\r\n  - Legitimate IT administration or backup operations.\r\n  - Penetration testing.\r\n  - Authorized use of RMM tools in managed environments.\r\n  - Legitimate maintenance scripts (rare for all these at once).\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0006
+    - TA0007
+    - TA0008
+    - TA0005
+    - TA0010
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1003
+    - T1070.001
+    - T1048
+    - T1059
+    - T1543.003
+tags:
+    - attack.initial_access
+    - attack.credential_access
+    - attack.discovery
+    - attack.defense_evasion
+    - attack.exfiltration
+    - attack.impact
+    - attack.lateral_movement
+    - attack.persistence
+    - attack.t1003
+    - attack.t1070.001
+    - attack.t1048
+    - attack.t1059
+    - attack.t1543.003
+author: Digit Oktavianto (FPT Metrodata Indonesia)
+version: "2"
+references:
+    - https://thedfirreport.com/2025/06/30/hide-your-rdp-password-spray-leads-to-ransomhub-deployment/
+data_sources:
+    - process_creation
+    - windows
+    - security

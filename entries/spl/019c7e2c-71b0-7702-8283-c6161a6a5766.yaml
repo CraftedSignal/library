@@ -1,0 +1,15 @@
+id: 019c7e2c-71b0-7702-8283-c6161a6a5766
+name: GitHub Personal Access Token Creation
+description: Detects the creation of a new Personal Access Token (PAT) in GitHub. Attackers frequently create PATs after gaining initial access to an account to maintain persistence that survives a password reset. Tokens with broad scopes (repo, admin:org) allow for full repository exfiltration and administrative manipulation of the organization.
+query: "````\r\nAuthor: Tayvion P (@tayontech)\r\nDescription: \r\nDetects the creation of a new Personal Access Token. Attackers frequently create PATs after gaining initial access to an account to maintain persistence that survives a password reset. Tokens with broad scopes (repo, admin:org) allow for full repository exfiltration and administrative manipulation of the organization.\r\n```\r\nindex=github action=\"personal_access_token.create\"\r\n| stats\r\n      min(_time) as initial_detection_time\r\n      values(actor_ip) as sourceip\r\n      values(action) as action\r\n      values(operation_type) as operation_type\r\n      values(user_programmatic_access_name) as token_name\r\n      values(hashed_token) as hashed_token\r\n      values(user_agent) as useragent\r\n      values(business) as business\r\n      values(org) as org\r\n      values(programmatic_access_type) as programmatic_access_type\r\n    by user token_id\r\n| eval initial_detection_time = strftime(initial_detection_time, \"%F %T %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+    - T1136
+tags:
+    - spl
+version: "1"

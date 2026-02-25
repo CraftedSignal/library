@@ -1,0 +1,48 @@
+id: 009b2031-f962-40bc-a0ff-977db7a9884a
+name: Madgicx Campaign - Malicious Chrome Extension Installation
+description: This detection identifies the installation of known malicious Chrome extensions associated with the "Madgicx Plus" campaign, which targets Meta advertisers to steal credentials and hijack sessions. The rule looks for registry modifications that include the specific IDs of these malicious extensions.
+query: |
+    // Name: Madgicx Campaign - Malicious Chrome Extension IDs
+    // Author: detections.ai
+    // Date: 2025-09-09
+    // Description: This detection identifies the installation of known malicious Chrome extensions associated with the "Madgicx Plus" campaign, which targets Meta advertisers to steal credentials and hijack sessions. The rule looks for registry modifications that include the specific IDs of these malicious extensions.
+    // False Positives: This detection is based on specific IOCs and is expected to have a low false-positive rate. However, review the initiating process to confirm the activity is malicious.
+    // References: https://www.cybereason.com/blog/chrome-extension-campaign-madgicx
+    // Tactics: Defense Evasion, Persistence, Privilege Escalation
+    // Techniques: T1176
+    // Version: 1.0
+    let maliciousExtensionIDs = dynamic([
+        "eoalbaojjblgndkffciljmiddhgjdldh", // madgicx-plus-the-superapp
+        "cpigbbjhchinhpamicodkkcpihjjjlia"  // meta-ads-supertool
+    ]);
+    DeviceRegistryEvents
+    // Look for registry events where the key path contains one of the malicious extension IDs.
+    | where RegistryKey has_any (maliciousExtensionIDs)
+    // Extract the 32-character extension ID from the registry key path for precise matching.
+    | extend MatchedExtensionID = extract("([a-z]{32})", 1, RegistryKey)
+    // Filter to ensure the extracted ID is one of the known malicious ones.
+    | where MatchedExtensionID in (maliciousExtensionIDs)
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        ActionType,
+        RegistryKey,
+        InitiatingProcessAccountName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessId,
+        MatchedExtensionID
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1176
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cybereason.com/blog/chrome-extension-campaign-madgicx

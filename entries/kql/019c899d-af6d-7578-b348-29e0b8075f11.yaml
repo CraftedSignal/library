@@ -1,0 +1,15 @@
+id: 019c899d-af6d-7578-b348-29e0b8075f11
+name: 'CVE‑2025‑55182: Node Spawning Shells and Network Tools (curl / wget / nc / ssh)'
+description: |-
+    This detection identifies suspicious behavior where a Node.js process spawns interactive shells or network utilities such as bash, sh, curl, wget, nc, or ssh. This activity is abnormal for typical Node.js applications and is commonly associated with post‑exploitation behavior, including remote command execution, payload retrieval, lateral movement, or establishing reverse shells.
+    The behavior is particularly relevant in the context of CVE‑2025‑55182, where a vulnerable Node.js application or dependency may be exploited to achieve arbitrary command execution. Once exploited, attackers often leverage built‑in system tools to download additional malware, beacon to command‑and‑control infrastructure, or maintain persistence without dropping obvious binaries.
+query: "DeviceProcessEvents\r\n| where OSPlatform == \"Linux\"\r\n| where InitiatingProcessFileName == \"node\" or InitiatingProcessFileName startswith \"node\"\r\n| where FileName in~ (\"sh\",\"bash\",\"dash\",\"busybox\",\"zsh\",\"ksh\",\"csh\",\"nc\",\"netcat\",\"ncat\",\"socat\",\"curl\",\"wget\",\"ssh\",\"scp\",\"rsync\")\r\n| project Timestamp, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1059
+    - T1071
+tags:
+    - kql
+author: Adarsh Pandey
+version: "1"

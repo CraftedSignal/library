@@ -1,0 +1,17 @@
+id: 019c765a-9b48-7730-bc14-5522176138a0
+name: Arkanix HVNC Startup Persistence
+description: Detects the creation of 'hvnc.py' in the Windows Startup folder, a persistence technique used by the Arkanix Stealer's HVNC module.
+query: "// Name: Arkanix HVNC Startup Persistence\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the creation of 'hvnc.py' in the Windows Startup folder, a persistence technique used by the Arkanix Stealer's HVNC module.\r\n// References: https://securelist.com/arkanix-stealer/119006/\r\n// Tactics: Persistence\r\n// Techniques: T1547.001\r\n// False Positive Sensitivity: Low\r\n// Detection Comment Level: Medium\r\nDeviceFileEvents\r\n// Filter for file creation events to be more specific\r\n| where ActionType == \"FileCreated\"\r\n// Look for the specific Python script name used by the Arkanix HVNC module\r\n| where FileName =~ \"hvnc.py\"\r\n// Ensure the file is placed in the standard Windows Startup folder to achieve persistence on logon\r\n| where FolderPath has @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"\r\n// False Positives: Extremely unlikely due to the specificity of the filename and location. A legitimate developer tool using the same name and path could trigger this, but it would be rare.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    DeviceId,\r\n    ActionType,\r\n    FolderPath,\r\n    FileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessMD5,\r\n    InitiatingProcessSHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securelist.com/arkanix-stealer/119006/

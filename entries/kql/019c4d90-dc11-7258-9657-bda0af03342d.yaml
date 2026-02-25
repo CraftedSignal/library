@@ -1,0 +1,34 @@
+id: 019c4d90-dc11-7258-9657-bda0af03342d
+name: Azure VM Run Command by Managed Identity
+description: This rule detects potential lateral movement within Azure by identifying instances where a Managed Identity of one Virtual Machine (VM) is used to execute commands on another VM. It specifically looks for Azure Activity logs where the caller is a Service Principal, the 'InitiatedBy' field (xms_mirid) contains 'resourcegroups', and the operation name indicates a 'runCommand' or a 'Microsoft.Compute' action. This combination suggests that a Managed Identity is being leveraged to perform actions across VMs, which could be indicative of an attacker moving laterally after compromising a VM with an attached Managed Identity.
+query: |
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms
+
+    /*
+    Managed Identity of one VM used to run command on another VM. AzureActivity shows ServicePrincipal caller; InitiatedBy (xms_mirid) contains resourcegroups. Correlate with AADManagedIdentitySignInLogs where UserAgent contains ImdsIdentityProvider.
+    */
+    AzureActivity
+    | where TimeGenerated > ago(24h)
+    | extend Caller = tostring(parse_json(Properties)["caller"]),
+        InitiatedBy = tostring(parse_json(Claims)["xms_mirid"]),
+        PrincipalId = tostring(parse_json(parse_json(Authorization)["evidence"])["principalId"]),
+        principalType = tostring(parse_json(parse_json(Authorization)["evidence"])["principalType"]),
+        OperationNameValue = OperationNameValue,
+        ActivityStatus = tostring(parse_json(Properties)["activityStatusValue"]),
+        Resource = tostring(parse_json(Properties)["resource"])
+    | where principalType == "ServicePrincipal" and InitiatedBy contains "resourcegroups"
+    | where OperationNameValue contains "runCommand" or OperationNameValue contains "Microsoft.Compute"
+    | project TimeGenerated, OperationNameValue, ActivityStatus, Caller, PrincipalId, InitiatedBy, Resource
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1651
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms

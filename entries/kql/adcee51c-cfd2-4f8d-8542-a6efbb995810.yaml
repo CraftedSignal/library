@@ -1,0 +1,50 @@
+id: adcee51c-cfd2-4f8d-8542-a6efbb995810
+name: Russia-Ukraine Conflict IoCs Detection
+description: This detection rule identifies cyber threats linked to the Russia-Ukraine conflict by utilizing a curated list of IoCs from Orange Cyberdefense, scanning for matches across multiple event types (network, process, file, image load).
+query: |-
+    # Russia-Ukraine Conflict IoCs Detection
+
+    ## Description
+    This detection leverages a comprehensive list of indicators of compromise (IoCs) related to cyberattacks associated with the Russia-Ukraine conflict. It imports IoCs from Orange Cyberdefense's repository and correlates them with various device events.
+
+    ## Detection Logic
+    The query:
+    1. Imports IoCs from an external CSV source
+    2. Filters for specific IoC types (URL, domain, IP, file, FQDN)
+    3. Correlates these IoCs across multiple event types:
+       - Network events
+       - Process events
+       - File events
+       - Image load events
+
+    ## Query
+    ```kusto
+    let RussiaUkraineIOCs = materialize (
+    (externaldata(report:string)
+    [@"https://raw.githubusercontent.com/Orange-Cyberdefense/russia-ukraine_IOCs/main/OCD-Datalake-russia-ukraine_IOCs-ALL.csv"]
+    with (format = "txt",ignoreFirstRecord=true))
+    | extend report = parse_csv(report)
+    | extend Type = tostring(report[0])
+    | where Type in('url','domain','ip','file','fqdn')
+    | project tostring(report[1]));
+    union
+    DeviceNetworkEvents,DeviceProcessEvents,DeviceFileEvents,DeviceImageLoadEvents
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Multiple (varies by IoC type)
+    - **Technique**: Various techniques associated with nation-state attacks
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Review all matches against the IoC list
+    2. Prioritize investigation based on IoC type and criticality
+    3. Check for patterns indicating targeted attacks
+    4. Look for lateral movement from compromised systems
+    5. Correlate with geopolitical threat intelligence
+    6. Implement immediate blocking for confirmed malicious IoCs
+    7. Share findings with relevant authorities
+query_type: kql
+version: "1"

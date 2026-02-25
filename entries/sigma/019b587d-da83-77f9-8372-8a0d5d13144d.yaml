@@ -1,0 +1,70 @@
+id: 019b587d-da83-77f9-8372-8a0d5d13144d
+name: Network Command from Suspicious Location
+description: |
+    Detects network commands executed from suspicious directories.
+
+    Loose Sigma equivalent to SPL Detection at https://detections.ai/rules/019b06c7-03a3-72ac-a9c8-11b0482d8db7
+query: |
+    title: Network Command from Suspicious Location
+    id: 19edb43f-8218-4c1a-9e85-8467bbfbc9c7
+    status: experimental
+    description: |
+      Detects network commands executed from suspicious directories.
+
+      Loose Sigma equivalent to SPL Detection at https://detections.ai/rules/019b06c7-03a3-72ac-a9c8-11b0482d8db7
+    references:
+      - https://attack.mitre.org/techniques/T1016/
+      - https://attack.mitre.org/techniques/T1059/ # Command and Scripting Interpreter
+    author: zendanny
+    date: 2025/12/16
+    tags:
+      - attack.discovery
+      - attack.execution
+      - attack.t1016
+      - attack.t1059
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_path:
+        Image|startswith:
+          - '/tmp/'
+          - '/dev/shm/'
+          - '/var/tmp/'
+          - '/home/*/.*/' # Hidden directories
+        CommandLine|contains:
+          - 'curl'
+          - 'wget'
+          - 'python'
+      selection_network:
+        CommandLine|re: '(?:https?://)?(?:[\w-]+\.)+(?:com|net|org|io|xyz|dev|app|co)'
+      condition: selection_path and selection_network
+    falsepositives:
+      - Legitimate automation that uses curl or wget for DNS resolution
+    level: medium
+    fields:
+      - User
+      - Image
+      - CommandLine
+      - ParentImage
+      - CurrentDirectory
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0007
+techniques:
+    - T1016
+tags:
+    - attack.discovery
+    - attack.execution
+    - attack.t1016
+    - attack.t1059
+author: zendanny
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1016/
+    - https://attack.mitre.org/techniques/T1059/
+data_sources:
+    - process_creation
+    - linux

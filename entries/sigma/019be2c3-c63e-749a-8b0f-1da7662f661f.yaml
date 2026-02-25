@@ -1,0 +1,55 @@
+id: 019be2c3-c63e-749a-8b0f-1da7662f661f
+name: Detached Node.js Child Process
+description: Detects a node.js process spawning another node.js process to evaluate a script from the command line or stdin. This is a key technique used by malware, as referenced in the Jamf Threat Labs report on DPRK-linked actors, to execute additional payloads received from a C2 server persistently.
+query: |
+    title: Detached Node.js Child Process
+    id: bc8a4604-c1b3-4958-955d-b8c9a10b551e
+    status: experimental
+    description: Detects a node.js process spawning another node.js process to
+      evaluate a script from the command line or stdin. This is a key technique used
+      by malware, as referenced in the Jamf Threat Labs report on DPRK-linked
+      actors, to execute additional payloads received from a C2 server persistently.
+    references:
+      - https://www.jamf.com/blog/threat-actors-expand-abuse-of-visual-studio-code/
+    author: detections.ai
+    date: 2026-01-21
+    tags:
+      - attack.execution
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        ParentImage|endswith:
+          - '\node.exe' # Parent process is node.js on Windows
+          - '/node' # Parent process is node.js on Linux/macOS
+        Image|endswith:
+          - '\node.exe' # Child process is node.js on Windows
+          - '/node' # Child process is node.js on Linux/macOS
+        CommandLine|contains:
+          - ' -e ' # The '-e' flag evaluates a string from the command line as a script.
+          - ' - ' # The '-' argument tells node to read the script from stdin, which is used by the malware to pipe in the payload.
+      condition: selection
+    falsepositives:
+      - Some complex Node.js applications, package managers (like npm), or
+        development frameworks might legitimately use child processes for parallel
+        processing or task running. This behavior, however, is suspicious enough to
+        warrant investigation.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.007
+author: detections.ai
+version: "3"
+references:
+    - https://www.jamf.com/blog/threat-actors-expand-abuse-of-visual-studio-code/
+data_sources:
+    - process_creation
+    - windows

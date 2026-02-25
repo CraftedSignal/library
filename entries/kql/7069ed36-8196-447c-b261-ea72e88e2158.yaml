@@ -1,0 +1,24 @@
+id: 7069ed36-8196-447c-b261-ea72e88e2158
+name: Analyzing Malicious Microsoft Graph API Rate Limit Count
+description: KQL Query
+query: "// Analyzing Malicious Microsoft Graph API Rate Limit Count\n// https://www.linkedin.com/posts/activity-7218488532250546178-zAMf/\n\n// Utilizing Sentinel’s BehaviourAnalytics with MicrosoftGraphActivityLogs to pinpoint Entra app IDs that are abusing the Microsoft Graph API and causing throttling due to malicious activities. Once the throttling operation resource is identified, additional KQLs can be further deployed to detect specific use case misuse. \U0001F3AF\n\nlet AttackerIPs =\nBehaviorAnalytics\n| where TimeGenerated > ago(90d)\n| extend ThreatIntelIndicatorDescription = tostring(DevicesInsights.ThreatIntelIndicatorDescription)\n| where ThreatIntelIndicatorDescription contains \"proxy\"\n| distinct SourceIPAddress;\nMicrosoftGraphActivityLogs \n| where TimeGenerated > ago(90d) \n| where IPAddress has_any(AttackerIPs)\n| extend path = replace_string(replace_string(replace_regex(tostring(parse_url(RequestUri).Path), @'(\\/)+','//'),'v1.0/',''),'beta/','') \n| extend UriSegments = extract_all(@'\\/([A-z2]+|\\$batch)($|\\/|\\(|\\$)',dynamic([1]),tolower(path))\n| extend OperationResource = strcat_array(UriSegments,'/')| summarize RateLimitedCount=count() by AppId, OperationResource, RequestMethod \n| sort by RateLimitedCount desc\n\n// MITRE ATT&CK Mapping\n\n// T1071.001 - Application Layer Protocol: Web Protocols\n// The query looks for suspicious activity in web protocols, specifically targeting proxy-related indicators.\n// T1070.004 - Indicator Removal on Host: File Deletion\n// By analyzing logs for specific IPs and paths, the query can help detect attempts to remove or hide indicators on the host.\n// T1087.001 - Account Discovery: Local Account\n// The query extends and normalizes paths to identify operations on resources, which can be related to account discovery activities.\n// T1040 - Network Sniffing\n// The use of BehaviorAnalytics to identify proxy-related activities can be linked to network sniffing techniques.\n// T1078 - Valid Accounts\n// By summarizing and sorting activities by AppId and RequestMethod, the query can help detect the use of valid accounts for malicious purposes.\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0005
+    - TA0007
+    - TA0006
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+techniques:
+    - T1071.001
+    - T1070.004
+    - T1087.001
+    - T1040
+    - T1078
+    - T1059.009
+tags:
+    - kql
+version: "1"

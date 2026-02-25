@@ -1,0 +1,65 @@
+id: 019c2417-a28b-77fe-aa93-04ea3568b672
+name: Notepad++ Supply Chain Attack C2 Infrastructure Chrysalis backdoor.
+description: Detects network connections to domains and IPs associated with the Notepad++ supply chain attack. These indicators are linked to the distribution of Cobalt Strike and the Chrysalis backdoor.
+query: |
+    // Name: Notepad++ Supply Chain Attack C2 Infrastructure
+    // Author: detections.ai
+    // Date: 2026-02-03
+    // Description: Detects network connections to domains and IPs associated with the Notepad++ supply chain attack. These indicators are linked to the distribution of Cobalt Strike and the Chrysalis backdoor.
+    // MITRE ATT&CK: T1071.001 (Application Layer Protocol), T1568.002 (Domain Generation Algorithms)
+    // References: https://securelist.com/notepad-supply-chain-attack/118708/
+    // False Positive Sensitivity: Medium. The IOCs are specific to this campaign, but infrastructure can be re-purposed. Validate the initiating process and context of the connection.
+
+    // Define the malicious indicators of compromise (IOCs)
+    let MaliciousDomains = dynamic([
+        "cdncheck.it.com",
+        "self-dns.it.com",
+        "safe-dns.it.com",
+        "api.skycloudcenter.com",
+        "api.wiresguard.com"
+    ]);
+    let MaliciousIPs = dynamic([
+        "45.76.155.202",
+        "45.32.144.255",
+        "95.179.213.0",
+        "45.77.31.210",
+        "59.110.7.32",
+        "124.222.137.114"
+    ]);
+
+    // Search across multiple network-related tables for the IOCs
+    union isfuzzy=true DeviceNetworkEvents, DnsEvents, CommonSecurityLog
+    | where
+        // Match against IP addresses in relevant fields
+        RemoteIP in (MaliciousIPs) or DestinationIP in (MaliciousIPs)
+        // Match against domain names in relevant fields
+        or RemoteUrl has_any (MaliciousDomains)
+        or RequestURL has_any (MaliciousDomains)
+        or (isnotempty(Name) and Name in~ (MaliciousDomains))
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        InitiatingProcessFileName,
+        ProcessName,
+        RemoteIP,
+        DestinationIP,
+        RemoteUrl,
+        RequestURL,
+        Name, // From DnsEvents
+        AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1071.001
+    - T1568.002
+    - T1195.002
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

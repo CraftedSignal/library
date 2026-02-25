@@ -1,0 +1,35 @@
+id: 5e75627f-e9da-4522-a076-4dbc47611a03
+name: 'Threat Hunt: PowerShell-Based Active Directory Reconnaissance'
+description: |-
+    This query detects PowerShell and command-line activities associated with Active Directory reconnaissance, focusing on:
+
+    - Account & Group Discovery (T1087, T1069)
+     -- Local/Domain user/group enumeration (Get-ADUser, net user, Get-LocalGroupMember).
+
+    - Password Policy Discovery (T1201)
+     -- Checks domain password rules (Get-ADDefaultDomainPasswordPolicy, net accounts /domain).
+
+    - Domain Trust & Network Mapping (T1482, T1135, T1016)
+     -- Trust relationships (nltest /domain_trusts), shares (net share), and DNS/IP config (ipconfig).
+
+    - Lateral Movement Prep (T1021.002, T1213.002)
+     -- SMB share access (net use), AD object/ACL dumping (Get-ADObject).
+
+    Why It Matters:
+    Adversaries use these commands to map the AD environment before attacks like:
+
+    - Brute-forcing (using password policy info from T1201).
+     - Privilege escalation (via group membership data from T1069).
+     - Lateral movement (via share/trust discovery from T1135/T1482).
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)  // Adjust timeframe as needed\r\n| where FileName =~ \"powershell.exe\" or InitiatingProcessFileName =~ \"powershell.exe\"\r\n| where ProcessCommandLine has_any(\r\n    // --- T1087: Account Discovery ---\r\n    // T1087.001 (Local Accounts)\r\n    \"Get-LocalUser\", \"Get-LocalGroup\", \"net user\", \"net localgroup\",\r\n    // T1087.002 (Domain Accounts)\r\n    \"Get-ADUser\", \"Get-ADGroup\", \"Get-NetUser\", \"Get-NetGroup\", \"Get-ADGroupMember\",\r\n    // --- T1069: Permission Groups Discovery ---\r\n    // T1069.001 (Local Groups)\r\n    \"Get-LocalGroupMember\", \"Get-NetLocalGroup\",\r\n    // T1069.002 (Domain Groups)\r\n    \"Get-ADGroupMember\", \"Get-NetGroupMember\", \"net group 'Domain Admins'\",\r\n    // --- T1615: Group Policy Discovery ---\r\n    \"Get-ADRGPO\", \"Get-ADRGPLink\", \"Get-DomainGPO\", \"Get-GPO\", \"gpresult\",\r\n    // --- T1482: Domain Trust Discovery ---\r\n    \"Get-DomainTrust\", \"Get-ForestDomain\", \"nltest /domain_trusts\",\r\n    // --- T1135: Network Share Discovery ---\r\n    \"Invoke-ShareFinder\", \"net share\", \"Get-SMBShare\",\r\n    // --- T1016: System Network Config Discovery ---\r\n    // T1016.001 (DNS/Network Settings)\r\n    \"Get-ADRDNSZone\", \"Get-DNSZone\", \"Get-DnsClientServerAddress\", \"ipconfig /all\",\r\n    // --- T1021.002: SMB/Admin Shares (Lateral Movement Prep) ---\r\n    \"net use\", \"New-PSDrive -PSProvider FileSystem\",\r\n    // --- T1213.002: Data from AD Repositories ---\r\n    \"Get-ADObject\", \"Get-ObjectAcl\", \"Get-ADReplicationAccount\"\r\n    // === NEW: T1201 (Password Policy Discovery) ===\r\n    \"Get-ADDefaultDomainPasswordPolicy\",  // PowerShell AD module\r\n    \"net accounts /domain\",               // Windows built-in\r\n    \"Get-DomainPolicy -Policy Password\",  // PowerView\r\n    \"Get-NetPasswordPolicy\",              // PowerView alternative\r\n    \"dsquery * -attr minPwdLength pwdHistory lockoutThreshold\" // Raw LDAP query\r\n    )\r\n    )\r\n// Exclude common admin/help commands to reduce noise\r\n| where not(ProcessCommandLine matches regex @\"-WhatIf|Get-Help|\\?|--help|Measure-Command\")\r\n// Filter out expected administrative tools (optional)\r\n//| where InitiatingProcessFileName !in~ (\"mmc.exe\", \"rsat.exe\", \"explorer.exe\")\r\n// Enrich with MITRE mapping (for reporting)\r\n| extend MITRE_TTP = case(\r\n    ProcessCommandLine contains \"Get-ADUser\" or ProcessCommandLine contains \"Get-ADGroup\", \"T1087.002 (Domain Account Discovery)\",\r\n    ProcessCommandLine contains \"Get-LocalUser\" or ProcessCommandLine contains \"net user\", \"T1087.001 (Local Account Discovery)\",\r\n    ProcessCommandLine contains \"Get-ADGroupMember\" or ProcessCommandLine contains \"net group\", \"T1069.002 (Domain Group Discovery)\",\r\n    ProcessCommandLine contains \"Get-ADRGPO\" or ProcessCommandLine contains \"Get-GPO\", \"T1615 (Group Policy Discovery)\",\r\n    ProcessCommandLine contains \"Get-DomainTrust\" or ProcessCommandLine contains \"nltest\", \"T1482 (Domain Trust Discovery)\",\r\n    ProcessCommandLine contains \"Invoke-ShareFinder\" or ProcessCommandLine contains \"net share\", \"T1135 (Network Share Discovery)\",\r\n    ProcessCommandLine contains \"Get-ADRDNSZone\" or ProcessCommandLine contains \"ipconfig\", \"T1016 (Network Config Discovery)\",\r\n    ProcessCommandLine contains \"net use\" or ProcessCommandLine contains \"New-PSDrive\", \"T1021.002 (SMB Lateral Movement)\",\r\n    ProcessCommandLine contains \"Get-ADObject\" or ProcessCommandLine contains \"Get-ObjectAcl\", \"T1213.002 (AD Data Collection)\",\r\n    \"Other Reconnaissance Activity\"\r\n    )\r\n| project-rename PowerShellCommand=ProcessCommandLine, Host=DeviceName, User=AccountName\r\n| project Timestamp, Host, User, PowerShellCommand, MITRE_TTP, InitiatingProcessFileName\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1087
+    - T1069
+    - T1201
+    - T1482
+tags:
+    - kql
+author: AwaisM
+version: "1"

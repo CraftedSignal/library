@@ -1,0 +1,20 @@
+id: 019c23f5-50ba-70d3-9a90-124c2524fdfa
+name: Suspicious Curl Exfiltration to temp.sh with C2 in User-Agent
+description: Detects the use of curl.exe to upload files to the temp.sh service while simultaneously passing the resulting temp.sh URL within the User-Agent string to a C2 server. This specific exfiltration and beaconing TTP was observed in the Notepad++ supply chain attack.
+query: "// Name: Suspicious Curl Exfiltration to temp.sh\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-03\r\n// Description: Detects the use of curl.exe to upload files to the temp.sh service while simultaneously passing the resulting temp.sh URL within the User-Agent string to a C2 server. This specific exfiltration and beaconing TTP was observed in the Notepad++ supply chain attack.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://securelist.com/notepad-supply-chain-attack/118708/\r\n// MITRE TTPs: T1567.002, T1071.001\r\nDeviceProcessEvents\r\n// Look for process creation events\r\n| where ActionType == \"ProcessCreated\"\r\n// Filter for curl.exe execution\r\n| where FileName endswith \"curl.exe\"\r\n// The command line must contain the user-agent flag and the temp.sh domain,\r\n// indicating a URL is being passed in the user agent string for C2 communication.\r\n| where ProcessCommandLine has \"--user-agent\" and ProcessCommandLine has \"temp.sh\"\r\n// FP Tuning: Legitimate scripts might use curl with custom user agents.\r\n// However, embedding a 'temp.sh' URL is highly irregular.\r\n// Further tuning could involve looking for the parent process (e.g., an NSIS installer)\r\n// or checking the destination IP/URL if available in the command line.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SHA1,\r\n    InitiatingProcessId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+    - TA0001
+techniques:
+    - T1567.002
+    - T1071.001
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

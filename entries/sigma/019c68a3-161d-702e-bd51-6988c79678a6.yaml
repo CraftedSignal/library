@@ -1,0 +1,59 @@
+id: 019c68a3-161d-702e-bd51-6988c79678a6
+name: APT28 GUID-like Script Files Dropped by Office
+description: Detects a Microsoft Office application creating script files with GUID-like names in the user's profile directory. This is the primary method used by the "Operation MacroMaze" macro to drop its initial set of malicious scripts onto the victim's machine.
+query: |
+    title: APT28 GUID-like Script Files Dropped by Office
+    id: f9401554-e401-4fd7-8f3e-e15fed37bb9e
+    status: experimental
+    description: Detects a Microsoft Office application creating script files with
+      GUID-like names in the user's profile directory. This is the primary method
+      used by the "Operation MacroMaze" macro to drop its initial set of malicious
+      scripts onto the victim's machine.
+    author: detections.ai
+    references:
+      - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+    date: 2026-02-16
+    tags:
+      - attack.t1566.001
+      - attack.t1059.005
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.g0007
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection:
+        # Detects a file being created by a Microsoft Office application
+        ParentImage|endswith:
+          - '\WINWORD.EXE'
+          - '\EXCEL.EXE'
+          - '\POWERPNT.EXE' # Detects a script file with a GUID-like name being created in a user's profile directory
+        TargetFilename|re: '\\Users\\[^\\]+\\[0-9a-fA-F]{8}-([0-9a-fA-F]{4}-){3}[0-9a-fA-F]{12}\.(vbs|bat|cmd)$'
+      condition: selection
+    falsepositives:
+      - Unlikely, but some legitimate software installers might exhibit similar
+        behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566.001
+    - T1059.005
+    - T1059.003
+tags:
+    - attack.t1566.001
+    - attack.t1059.005
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.g0007
+author: detections.ai
+version: "2"
+references:
+    - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+data_sources:
+    - file_event
+    - windows

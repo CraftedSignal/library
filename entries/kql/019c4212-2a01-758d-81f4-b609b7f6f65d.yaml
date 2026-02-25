@@ -1,0 +1,44 @@
+id: 019c4212-2a01-758d-81f4-b609b7f6f65d
+name: OpenClawCLI Malicious Infrastructure Network Connection
+description: This rule detects network connections to domains and IP addresses associated with the malicious OpenClawCLI campaign, which uses social engineering to trick users into running obfuscated commands.
+query: |
+    // Name: OpenClawCLI Malicious Infrastructure Network Connection
+    // Author: detections.ai
+    // Date: 2026-02-09
+    // Description: This rule detects network connections to domains and IP addresses associated with the malicious OpenClawCLI campaign, which uses social engineering to trick users into running obfuscated commands.
+    // MITRE ATT&CK: T1105 (Ingress Tool Transfer), T1583.001 (Acquire Infrastructure: Domains)
+    // References: https://cybersecuritynews.com/hackers-exploiting-clawhub-skills/
+    // False Positive Sensitivity: Medium
+
+    // Define known malicious domains and IPs for the OpenClawCLI campaign
+    let maliciousDomains = dynamic(["openclawcli.vercel.app", "install.app-distribution.net"]);
+    let maliciousIP = "91.92.242.30";
+
+    // Search for network events matching the indicators
+    DeviceNetworkEvents
+    | where RemoteUrl has_any (maliciousDomains) or RemoteIP == maliciousIP
+    // FP Tuning: The domain 'install.app-distribution.net' might be used by legitimate services.
+    // If legitimate traffic is observed, consider adding process or user-based exclusions.
+    | project
+        DeviceName,
+        ActionType,
+        RemoteIP,
+        RemoteUrl,
+        InitiatingProcessAccountName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0042
+techniques:
+    - T1105
+    - T1583.001
+tags:
+    - kql
+author: Mlohn
+version: "3"
+references:
+    - https://cybersecuritynews.com/hackers-exploiting-clawhub-skills/

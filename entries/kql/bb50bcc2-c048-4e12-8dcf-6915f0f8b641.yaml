@@ -1,0 +1,44 @@
+id: bb50bcc2-c048-4e12-8dcf-6915f0f8b641
+name: Feodo Tracker Malicious IP Connection Detection
+description: This detection identifies connections to malicious IPs from the Feodo Tracker blocklist, tracking C2 servers for banking trojans like Emotet, Dridex, and TrickBot.
+query: |-
+    # Feodo Tracker IP Blocklist Detection
+
+    ## Description
+    This detection identifies connections to known malicious IP addresses from the Feodo Tracker blocklist. Feodo Tracker tracks command and control servers for banking trojans like Emotet, Dridex, and TrickBot.
+
+    ## Detection Logic
+    The query:
+    1. Imports the recommended IP blocklist from Feodo Tracker (JSON format)
+    2. Filters for IPs with "online" status
+    3. Joins with device network events matching both IP and port
+    4. Identifies devices communicating with known C2 servers
+
+    ## Query
+    ```kusto
+    externaldata(RemoteIP: string, RemotePort: int, Status: string)
+    [
+    "https://feodotracker.abuse.ch/downloads/ipblocklist_recommended.json"
+    ]
+    with(format="MultiJSON", ingestionMapping='[{"Column":"RemoteIP","Properties":{"Path":"$.ip_address"}}, {"Column":"RemotePort","Properties":{"Path":"$.port"}}, {"Column":"Status","Properties":{"Path":"$.status"}}]')
+    | where Status == "online"
+    | join kind=inner DeviceNetworkEvents on RemoteIP, RemotePort
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Command and Control
+    - **Technique**: T1071.001 - Application Layer Protocol: Web Protocols
+    - **Technique**: T1571 - Non-Standard Port
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Immediately isolate affected devices
+    2. Check for banking trojan indicators (Emotet, Dridex, TrickBot)
+    3. Review process execution history on affected devices
+    4. Check for lateral movement from compromised devices
+    5. Scan for malware and review email attachments
+    6. Reset credentials for users on affected devices
+query_type: kql
+version: "1"

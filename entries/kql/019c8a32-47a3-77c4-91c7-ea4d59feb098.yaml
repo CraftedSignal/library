@@ -1,0 +1,21 @@
+id: 019c8a32-47a3-77c4-91c7-ea4d59feb098
+name: QEMU Virtualized Persistence via Scheduled Task
+description: Detects the creation of a scheduled task named 'TPMProfiler' that launches a QEMU virtual machine with specific command-line arguments. This technique was observed being used by attackers to establish a persistent SSH backdoor by forwarding a local port to the VM's SSH port, effectively hiding the malicious activity within a virtualized environment.
+query: "// Name: QEMU Virtualized Persistence via Scheduled Task\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects the creation of a scheduled task named 'TPMProfiler' that launches a QEMU virtual machine. This technique was observed being used by attackers to establish a persistent SSH backdoor by forwarding a local port to the VM's SSH port, effectively hiding the malicious activity within a virtualized environment.\r\n// Tactics: Persistence, Command and Control\r\n// Techniques: T1053.005, T1572\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/\r\nDeviceProcessEvents\r\n// Look for scheduled task creation events.\r\n| where FileName =~ \"schtasks.exe\"\r\n// Filter for the specific command line arguments associated with this threat.\r\n| where ProcessCommandLine has_all (\"/CREATE\", \"TPMProfiler\", \"qemu-system-x86_64.exe\", \"hostfwd=tcp::22022-:22\")\r\n// Potential for False Positives: Extremely low due to the specificity of the task name and arguments.\r\n// To broaden detection, consider looking for any scheduled task creation involving 'qemu-system' and 'hostfwd' and then baseline legitimate use cases.\r\n// For example: | where ProcessCommandLine has \"qemu-system\" and ProcessCommandLine has \"hostfwd\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+    - TA0002
+    - TA0004
+    - TA0008
+techniques:
+    - T1053.005
+    - T1572
+    - T1021.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/

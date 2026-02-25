@@ -1,0 +1,46 @@
+id: b54b5e97-f0e3-42ef-b1a5-1b09639a8481
+name: DragonForce Ransomware Detection
+description: KQL Query
+query: |-
+    // Rule Name: DragonForce Ransomware Activity
+    // Description: Detects activity associated with DragonForce ransomware, including specific file paths, filenames, and SHA256 hashes identified in recent attacks leveraging SimpleHelp vulnerabilities.
+    // Author: Detections.ai
+    // Date: 2025-07-01
+    // Severity: High
+    // Tactics: Impact, Defense Evasion
+    // Techniques: T1486 (Data Encrypted for Impact), T1562.002 (Disable or Modify Tools: Clear Windows Event Logs)
+    // References:
+    //   - https://rhisac.org/threat-intelligence/dragonforce-actors-target-simplehelp-vulnerabilities-to-attack-msp-customers/
+
+    let DragonForceRansomwareSHA256 = "cee6a7663fad90c807c9f5ea8f689afd0e4ece04f8c55d7a047a7215db6be210";
+    let DragonForceRansomwarePath = @"C:\ProgramData\JWrapper-Remote Access\JWApps\SharedConfig\working\toolbox-9759076704687761247\win.exe";
+    let DragonForceBatchScriptFileName = "PUSH PUSh PUUUUUSH.bat";
+    let DragonForceBatchScriptPathPattern = @"C:\\Users\\[^\\]+\\Videos\\PUSH PUSh PUUUUUSH.bat"; // Regex to match C:\Users\<user>\Videos\PUSH PUSh PUUUUUSH.bat
+
+    (
+        DeviceFileEvents
+        | where SHA256 == DragonForceRansomwareSHA256
+            or (FileName =~ "win.exe" and FolderPath =~ @"C:\ProgramData\JWrapper-Remote Access\JWApps\SharedConfig\working\toolbox-9759076704687761247\")
+            or (FileName =~ DragonForceBatchScriptFileName and FolderPath matches regex DragonForceBatchScriptPathPattern)
+        | project Timestamp, DeviceName, ActionType, FileName, FolderPath, FileSHA256 = SHA256, ProcessCommandLine = "", InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId, EventType = "FileEvent"
+    )
+    union
+    (
+        DeviceProcessEvents
+        | where SHA256 == DragonForceRansomwareSHA256 // Process SHA256
+            or (FileName =~ "win.exe" and FolderPath =~ @"C:\ProgramData\JWrapper-Remote Access\JWApps\SharedConfig\working\toolbox-9759076704687761247\")
+            or (FileName =~ DragonForceBatchScriptFileName and FolderPath matches regex DragonForceBatchScriptPathPattern)
+            or (ProcessCommandLine has_all ("wevtutil", "clear-log") and ProcessCommandLine has "for /F" and FileName =~ DragonForceBatchScriptFileName) // Specific to the batch script's known behavior
+        | project Timestamp, DeviceName, ActionType = "ProcessCreated", FileName, FolderPath, FileSHA256 = "", ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId, EventType = "ProcessEvent"
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1486
+    - T1562.002
+tags:
+    - kql
+version: "1"

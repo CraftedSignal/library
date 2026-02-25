@@ -1,0 +1,20 @@
+id: 019c9498-c361-7501-bf05-85458e6865c2
+name: ClickFix Infrastructure and BITS Abuse Detection
+description: This rule identifies network connections or BITS transfer jobs targeting specific IP addresses and URLs associated with recent ClickFix campaigns. It also detects the use of system utilities like bitsadmin.exe and powershell.exe to download files, a common tactic for these threats.
+query: "// Name: ClickFix Infrastructure and BITS Abuse\n// Author: detections.ai\n// Date: 2026-02-24\n// Description: Identifies network connections or BITS transfer jobs targeting specific IP addresses and URLs associated with recent ClickFix campaigns. Also detects the use of system utilities like bitsadmin.exe and powershell.exe to download files, a common tactic for these threats.\n// False Positive Sensitivity: Medium\n// References: https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape\n// MITRE TTPs: T1197, T1105\n\n// Define known malicious indicators from ClickFix campaigns\nlet MaliciousIPs = dynamic([\"185.147.124.40\", \"31.214.157.49\", \"185.91.69.119\", \"188.119.113.152\"]);\nlet MaliciousDomains = dynamic([\"github-scanner.com\", \"github-scanner.shop\", \"promtcraft.online\", \"aljiri.es\"]);\n\n(union isfuzzy=true DeviceProcessEvents, DeviceNetworkEvents)\n// Combine IOC and behavioral checks\n| where \n    // IOC Matching: Look for command lines or network events matching known bad infrastructure.\n    ProcessCommandLine has_any (MaliciousDomains)\n    or RemoteUrl has_any (MaliciousDomains)\n    or RemoteIP in (MaliciousIPs)\n    or\n    // Behavioral Detection: Look for BITS commands used by specific utilities.\n    (ProcessFileName in~ (\"bitsadmin.exe\", \"powershell.exe\", \"pwsh.exe\") and ProcessCommandLine has_any (\"transfer\", \"Start-BitsTransfer\"))\n// Potential for False Positives: BITS is a legitimate Windows service used for updates and other background transfers.\n// This detection may trigger on legitimate admin scripts or software installers. Investigate the downloaded file/URL.\n| project\n    Timestamp,\n    DeviceName,\n    AccountName,\n    EventType = TableName,\n    ProcessFileName,\n    ProcessCommandLine,\n    InitiatingProcessFileName,\n    RemoteIP,\n    RemoteUrl\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0011
+    - TA0002
+techniques:
+    - T1197
+    - T1105
+    - T1204.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.proofpoint.com/uk/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape

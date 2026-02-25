@@ -1,0 +1,50 @@
+id: 5e430b6f-e5ae-436e-9212-3e8d797d5c0b
+name: AORTA - New Forest Trust with TGT Delegation Enabled (Combined)
+description: Detects the creation or modification of an Active Directory forest trust where the CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flag is set in TdoAttributes. This includes cases where it's set alone (0x800) or in combination with the FOREST_TRANSITIVE flag (0x808), both indicative of the AORTA attack. For more comprehensive detection, consider backend-specific bitwise checks on TdoAttributes to ensure the 0x800 bit is set, regardless of other flags.
+query: |-
+    title: AORTA - New Forest Trust with TGT Delegation Enabled (Combined)
+    id: 7c9d1e3f-4a5b-6c7d-8e9f0a1b2c3d4e
+    status: experimental
+    description: Detects the creation or modification of an Active Directory forest trust where the CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flag is set in TdoAttributes. This includes cases where it's set alone (0x800) or in combination with the FOREST_TRANSITIVE flag (0x808), both indicative of the AORTA attack. For more comprehensive detection, consider backend-specific bitwise checks on TdoAttributes to ensure the 0x800 bit is set, regardless of other flags.
+    author: Detections.ai
+    date: 2025-06-29
+    references:
+        - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+    logsource:
+        product: windows
+        service: security
+        log_on_dc: true # Event 4706 is logged on Domain Controllers
+    detection:
+        selection:
+            EventID: 4706
+            TdoAttributes:
+                - '0x800' # CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION only
+                - '0x808' # CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION + FOREST_TRANSITIVE
+        condition: selection
+    falsepositives:
+        - Legitimate creation of a forest trust with TGT delegation enabled is highly unusual and discouraged by Microsoft, making false positives rare.
+    level: high
+    tags:
+        - attack.persistence
+        - attack.privilege_escalation
+        - attack.t1098.006 # Account Manipulation: Domain Trust Modification
+        - attack.defense_evasion
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.006
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098.006
+    - attack.defense_evasion
+author: Detections.ai
+version: "1"
+references:
+    - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+data_sources:
+    - windows
+    - security

@@ -1,0 +1,18 @@
+id: 019aba83-0f07-76d9-a1fb-d13cc39ca4ec
+name: MS Teams Threat Intelligence Indicator Hit for Domain or URL
+description: This rule detects when a domain or URL observed in Teams Messages matches a known threat intelligence indicator from Microsoft Defender Threat Intelligence. It specifically looks for hits against 'Domain' and 'URL' type indicators.
+query: "//https://github.com/benscha/KQLAdvancedHunting\r\n// Extract IOC details from ThreatIntelIndicators export\r\nlet IOC = ThreatIntelIndicators\r\n| where SourceSystem == \"Microsoft Defender Threat Intelligence\"\r\n| extend IOCType = case(\r\n    ObservableKey has \"ipv4\" or ObservableKey has \"network-traffic\", \"IP Address\",\r\n    ObservableKey has \"domain\", \"Domain\",\r\n    ObservableKey has \"url\", \"URL\",\r\n    ObservableKey has \"file\", \"File Hash\",\r\n    ObservableKey has \"email\", \"Email Address\",\r\n    \"Other\")\r\n| extend IOCValue = ObservableValue\r\n| extend Pattern = tostring(split(Pattern, \"=\")[1]) // Extract value from STIX pattern if needed\r\n| extend Description = tostring(parse_json(Data).description)\r\n| extend IndicatorTypes = tostring(parse_json(Data).indicator_types)\r\n| extend ValidFrom = todatetime(parse_json(Data).valid_from)\r\n| extend ValidUntil = todatetime(parse_json(Data).valid_until)\r\n| project TimeGenerated, IOCType, IOCValue, Pattern, Description, IndicatorTypes, ValidFrom, ValidUntil, Confidence\r\n| order by TimeGenerated desc;\r\nlet IOCDomain = IOC\r\n| where IOCType == \"Domain\";\r\nlet IOCUrl = IOC\r\n| where IOCType == \"URL\";\r\nlet URLHits = MessageUrlInfo\r\n| join IOCUrl on $left.Url == $right.IOCValue;\r\nlet DomainHits = MessageUrlInfo\r\n| join IOCDomain on $left.UrlDomain == $right.IOCValue;\r\nURLHits\r\n| union DomainHits\r\n| join kind=inner MessageEvents on TeamsMessageId\r\n\r\n\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.002
+    - T1071.001
+    - T1071
+    - T1566
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "3"

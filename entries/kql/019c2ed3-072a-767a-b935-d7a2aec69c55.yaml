@@ -1,0 +1,59 @@
+id: 019c2ed3-072a-767a-b935-d7a2aec69c55
+name: Automated Nginx Configuration Hijack Tooling
+description: Detects the execution of automated Nginx configuration modification scripts by identifying the use of 'csplit', 'awk', or 'sed' in close proximity to Nginx service management commands (reload, restart, or testing). This pattern is a hallmark of the 'bt.sh', 'zdh.sh', and '4zdh.sh' toolkits used to inject malicious proxy_pass directives.
+query: |
+    // Name: Automated Nginx Configuration Hijack Tooling
+    // Author: Ethan Andrews detections.ai
+    // Date: 2026-02-05
+    // Description: Detects the execution of automated Nginx configuration modification scripts by identifying the use of 'csplit', 'awk', or 'sed' in close proximity to Nginx service management commands (reload, restart, or testing). This pattern is a hallmark of the 'bt.sh', 'zdh.sh', and '4zdh.sh' toolkits used to inject malicious proxy_pass directives.
+    // MITRE TTPs: T1505.004, T1059.004
+    // References: https://securitylabs.datadoghq.com/articles/web-traffic-hijacking-nginx-configuration-malicious/
+    let timeframe = 10m;
+    let file_manipulation_tools = dynamic(["csplit", "awk", "sed"]);
+    let nginx_management_args = dynamic(["-t", "-s reload", "-s stop", "restart"]);
+    // Find file manipulation tool executions, which are used to parse and inject into config files.
+    let manipulation_events = DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    | where FileName in (file_manipulation_tools);
+    // Find Nginx service management command executions, used to test or apply the new malicious config.
+    let nginx_events = DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    | where FileName == "nginx"
+    | where ProcessCommandLine has_any (nginx_management_args);
+    // Join events that share the same parent process on the same host.
+    manipulation_events
+    | join kind=inner (
+        nginx_events
+    ) on DeviceId, InitiatingProcessId
+    // Ensure the Nginx command runs shortly after the manipulation tool, indicating scripted execution.
+    | where (TimeGenerated1 - TimeGenerated) between (0s .. 1m)
+    // Potential for false positives from legitimate administration or configuration management scripts.
+    // Consider filtering by specific parent processes (InitiatingProcessFileName) or users (AccountName) if noise occurs.
+    | project
+        Timestamp = TimeGenerated1,
+        HostName = DeviceName,
+        DeviceId,
+        AccountName,
+        ParentProcessName = InitiatingProcessFileName,
+        ParentProcessCommandLine = InitiatingProcessCommandLine,
+        ManipulationTool = FileName,
+        ManipulationToolCommandLine = ProcessCommandLine,
+        NginxCommandLine = ProcessCommandLine1
+    | extend
+        timestamp = Timestamp,
+        HostCustomEntity = HostName,
+        AccountCustomEntity = AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.004
+    - T1218
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/web-traffic-hijacking-nginx-configuration-malicious/

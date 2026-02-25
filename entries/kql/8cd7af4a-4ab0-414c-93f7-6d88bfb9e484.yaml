@@ -1,0 +1,22 @@
+id: 8cd7af4a-4ab0-414c-93f7-6d88bfb9e484
+name: '[IC] - Detect PnP Devices Connected To My Endpoint Machines'
+description: |-
+    This query look for PnP devices connected or allowed into Endpoint machines. Basically, you can use the action types "PnpDeviceConnected" / "PnpDeviceConnected" to have a list of PnP devices connected to your endpoints and it helps with some concerns such as:
+
+    1. Keeping an eye out for PnP devices like USB drives or external disks being connected to critical servers (like DC's, Exchange servers, or any machine with sensitive info).
+
+    2. If I’m handling sensitive info that shouldn’t be shared or printed, I want to make sure no printers are connected to my endpoints
+
+    3. Spotting unfamiliar devices from unknown vendors
+
+    4. Finding PnP devices that might be out of date and need attention
+query: "let connected = DeviceEvents\n| where ActionType has \"PnpDeviceConnected\"\n| extend ClassName = tostring(parse_json(AdditionalFields).ClassName),\n DeviceDescription = tostring(parse_json(AdditionalFields).DeviceDescription),\n ClassID = tostring(parse_json(AdditionalFields).ClassId),\n DevID0 = tostring(parse_json(AdditionalFields).DeviceId);\n// Case1: Identify what is connected to a device | where DeviceName has \"\"\n// Case2: Filter the type of PnP devices | where ClassName has \"\" \n// Case3 : Excluding specific PnP devices | where ClassName !in (\"Monitor\",\"Mouse\");\nDeviceEvents\n| where ActionType has \"PnpDeviceAllowed\"\n| extend DeviceInstanceId = tostring(parse_json(AdditionalFields).DeviceInstanceId),\n DriverProvider = tostring(parse_json(AdditionalFields).DriverProvider), \n DriverDate = tostring(parse_json(AdditionalFields).DriverDate),\n DeviceUpdated = tostring(parse_json(AdditionalFields).DeviceUpdated),\n DriverVersion = tostring(parse_json(AdditionalFields).DriverVersion),\n DriverName = tostring(parse_json(AdditionalFields).DriverName)\n| join kind=inner ( connected) on $left.DeviceInstanceId == $right.DevID0\n// Case 4: Identify PnP devices from untrusted providers | where DriverProvider !in (\"Microsoft\",\"Logitech\")\n// Case 5: Identify non-updated PnP devices | where DeviceUpdated == \"false\"\n| distinct DeviceName, ClassName, DeviceDescription, ClassID, DriverProvider, DriverDate, DeviceUpdated, DriverVersion, DriverName\n"
+query_type: kql
+severity: medium
+tags:
+    - KQL
+    - PNP
+    - SergioAlbea
+    - kql
+author: Sergio Albea
+version: "1"

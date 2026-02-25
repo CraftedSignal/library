@@ -1,0 +1,17 @@
+id: a65e63c7-ab6e-4f29-954b-f295670284b2
+name: Exploring M365 Accounts Investigation
+description: 'KQL Query from file: Exploring M365 Accounts Investigation'
+query: "// Exploring M365 Accounts Investigation\n\n// https://www.linkedin.com/posts/0x534c_cybersecurity-m365investigation-kql-activity-7300859391950344192-xedq/\n\nlet UserSSPR =\nAuditLogs\n| where TimeGenerated > ago(90d)\n| where OperationName has \"Self-service password reset\"\n| distinct tostring(TargetResources[0].userPrincipalName);\nlet UserEPNonManaged =\nSigninLogs\n| where TimeGenerated > ago(90d)\n| where UserPrincipalName has_any(UserSSPR)\n| extend DeviceName = tostring(DeviceDetail.displayName)\n| extend TrustType = tostring(DeviceDetail.trustType)\n| extend OS = tostring(DeviceDetail.operatingSystem)\n| where OS !has \"ios\" and OS !has \"android\"\n| where TrustType !has \"AD\"\n| distinct UserPrincipalName;\nCloudAppEvents\n| where TimeGenerated > ago(90d)\n| where IPCategory has \"VPN\" or IPTags has \"Anonymous proxy\"\n| where tostring(RawEventData.UserId) has_any(UserEPNonManaged)\n| summarize Count=count() by ActionType, UserAgent, tostring(RawEventData.UserId)\n| sort by Count desc   \n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0006
+techniques:
+    - T1090
+    - T1090.001
+    - T1188
+    - T1110.003
+    - T1110.002
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,45 @@
+id: 019c4d3c-f20a-765f-832a-bde4f9164161
+name: Azure Managed Identity VM Run Command Execution
+description: This detection identifies when a Managed Identity (Service Principal) successfully executes a 'RunCommand' on an Azure virtual machine. This activity is a key indicator of lateral movement, where an attacker, having compromised a resource with a Managed Identity, uses that identity's permissions to execute code on another VM.
+query: |
+    // Name: Azure - Managed Identity Executing VM Run Command
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-11
+    // Description: This detection identifies when a Managed Identity (Service Principal) executes a 'RunCommand' on a virtual machine. This activity is a key indicator of lateral movement, where an attacker, having compromised a resource with a Managed Identity, uses that identity's permissions to execute code on another VM.
+    // False Positive Sensitivity: Medium
+    // References: https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms
+    // MITRE TTPs: T1021.006, T1059.007, T1080.002
+    AzureActivity
+    | where OperationNameValue has "MICROSOFT.COMPUTE/VIRTUALMACHINES/RUNCOMMAND/ACTION" and ActivityStatusValue == "Success"
+    // Parse authorization details to identify the type of principal
+    | extend principalType = tostring(parse_json(Authorization).evidence.principalType)
+    // Filter for actions performed by a Service Principal, which includes Managed Identities
+    | where principalType == "ServicePrincipal"
+    // Extract the resource ID of the Managed Identity that initiated the action. This is crucial for identifying the source of the lateral movement.
+    | extend InitiatingResourceId = tostring(parse_json(Claims).xms_mirid)
+    // FP-TUNING: Legitimate automation may use a Managed Identity to run commands on VMs.
+    // To reduce false positives, consider filtering out known automation Service Principal IDs or specific source/target resource pairs.
+    // For example: | where Caller !in ("<known_automation_sp_id_1>", "<known_automation_sp_id_2>")
+    | project
+        TimeGenerated,
+        OperationName,
+        ActivityStatusValue,
+        Caller, // The Object ID of the Service Principal (Managed Identity) that executed the command
+        CallerIpAddress,
+        TargetResource = Resource, // The VM on which the command was executed
+        InitiatingResourceId, // The resource whose Managed Identity was used to perform the action
+        SubscriptionId,
+        ResourceGroup
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1651
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms

@@ -1,0 +1,61 @@
+id: 019c347a-b665-7055-a953-1ded5bacdc7d
+name: APT28 CVE-2026-21509 Microsoft Office Security Bypass Exploitation
+description: This rule detects potential exploitation of CVE-2026-21509, a Microsoft Office security bypass vulnerability. It specifically looks for Microsoft Office applications (Word, Excel, Outlook) spawning 'reg.exe', 'regsvr32.exe', 'cscript.exe', or 'wscript.exe' with command-line arguments indicative of COM object registration or manipulation, such as 'CLSID', 'InProcServer32', 'prnfldr', or 'DllInstall'.
+query: |
+    title: APT28 CVE-2026-21509 Microsoft Office Security Bypass Exploitation
+    id: a1b2c3d4-e5f6-4a5b-8c9d-apt28cve001
+    status: experimental
+    description: |
+        CVE-2026-21509: Microsoft Office security feature bypass, CVSS 7.8, CISA KEV.
+        Enables local bypass of security decisions. Trellix links to APT28 cloud C2 campaigns.
+        Office spawning reg/regsvr32/cscript with suspicious args = potential exploit.
+    references:
+        - https://www.trellix.com/blogs/research/apt28-stealthy-campaign-leveraging-cve-2026-21509-cloud-c2/
+        - https://www.sophos.com/en-us/blog/microsoft-office-vulnerability-cve-2026-21509-in-active-exploitation
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.execution
+        - attack.t1204
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_child:
+            Image|endswith|any:
+                - '\reg.exe'
+                - '\regsvr32.exe'
+                - '\cscript.exe'
+                - '\wscript.exe'
+        selection_args:
+            CommandLine|contains|any:
+                - 'CLSID'
+                - 'InProcServer32'
+                - 'prnfldr'
+                - 'DllInstall'
+        context_parent:
+            ParentImage|endswith|any:
+                - '\WINWORD.EXE'
+                - '\EXCEL.EXE'
+                - '\OUTLOOK.EXE'
+        condition: selection_child and selection_args and context_parent
+    falsepositives:
+        - Legitimate Office add-in registration
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+techniques:
+    - T1204
+tags:
+    - attack.execution
+    - attack.t1204
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.trellix.com/blogs/research/apt28-stealthy-campaign-leveraging-cve-2026-21509-cloud-c2/
+    - https://www.sophos.com/en-us/blog/microsoft-office-vulnerability-cve-2026-21509-in-active-exploitation
+data_sources:
+    - process_creation
+    - windows

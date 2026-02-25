@@ -1,0 +1,26 @@
+id: 019c6d5b-731f-77fa-9f7d-112dfaff92a5
+name: Linux Login Records Manipulation
+description: |
+    Detects adversaries directly manipulating Linux login files to remove evidence of unauthorized access. These binary files record successful logins (wtmp), current sessions (utmp), and failed attempts (btmp).
+    Sophisticated attackers target these files because they're primary forensic artifacts for login tracking. Unlike clearing logs with rm (which deletes the file), this technique involves editing to remove specific entries while leaving the file structure intact.
+    Common manipulation methods include: utmp-specific cleaners, and overwriting entries with null bytes,
+query: "title: Linux Login Records Manipulation\nid: c23fe3cf-6d3b-4fba-adad-76ea43fc05b3\nstatus: experimental\ndescription: >\n  Detects adversaries directly manipulating Linux login files to remove evidence\n  of unauthorized access. These binary files record successful logins (wtmp), current sessions (utmp), and failed attempts (btmp).\n\n  Sophisticated attackers target these files because they're primary forensic artifacts for login tracking. Unlike clearing logs with rm (which deletes the file), this technique involves editing to remove specific entries while leaving the file structure intact.\n\n  Common manipulation methods include: utmp-specific cleaners, and overwriting entries with null bytes,\nreferences:\n  - https://attack.mitre.org/techniques/T1070/002/\n  - >-\n    https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering\nauthor: zendannyy\ntags:\n  - attack.defense-evasion\n  - attack.t1070.002\nlogsource:\n  product: linux\n  category: process_creation\n  service: audit\ndetection:\n  selection_binary_edit:\n    Image|endswith:\n      - /hexedit\n      - /hexdump\n      - /xxd\n      - /od\n      - /bvi\n      - /ghex\n    CommandLine|contains:\n      - utmp\n      - wtmp\n      - btmp\n  selection_direct_edit:\n    Image|endswith:\n      - /sed\n      - /awk\n      - /vi\n    CommandLine|contains:\n      - /var/log/wtmp\n      - /var/log/btmp\n      - /var/run/utmp\n  selection_utmp_tools:\n    CommandLine|contains:\n      - utmpedit\n      - wtmpedit\n      - utmpclean\n      - wtmpclean\n      - cleanlogs\n      - zap2\n  selection_suspicious_ops:\n    Image|endswith:\n      - /dd\n      - /truncate\n      - /cp\n    CommandLine|contains:\n      - /var/log/wtmp\n      - /var/log/btmp\n      - /var/run/utmp\n      - if=/dev/null\n      - if=/dev/zero\n  selection_null_overwrite:\n    CommandLine|contains:\n      - '> /var/log/wtmp'\n      - '>/var/log/wtmp'\n      - '> /var/log/btmp'\n      - '>/var/log/btmp'\n      - '> /var/run/utmp'\n      - '>/var/run/utmp'\n  \n  condition: >-\n    selection_binary_edit or selection_direct_edit or selection_utmp_tools or\n    selection_suspicious_ops or selection_null_overwrite\nfalsepositives:\n  - System administrators performing legitimate maintenance on corrupted utmp\n    files (correlate with change management tickets)\n  - Forensic analysts examining utmp files during incident response\nlevel: high\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.002
+    - T1070
+tags:
+    - attack.defense-evasion
+    - attack.t1070.002
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1070/002/
+    - https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering
+data_sources:
+    - process_creation
+    - linux
+    - audit

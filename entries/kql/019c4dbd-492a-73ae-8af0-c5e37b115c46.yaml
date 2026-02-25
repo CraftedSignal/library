@@ -1,0 +1,74 @@
+id: 019c4dbd-492a-73ae-8af0-c5e37b115c46
+name: ClickFix Social Engineering Pattern Detection
+description: This detection identifies a pattern associated with the 'ClickFix' social engineering technique, where a user is tricked into copying a malicious command and pasting it into a PowerShell terminal. The query correlates a recent clipboard operation with a subsequent suspicious PowerShell execution by the same user on the same device.
+query: |-
+    // Name: ClickFix Social Engineering Pattern
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-11
+    // Description: This detection identifies a pattern associated with the "ClickFix" social engineering technique, where a user is tricked into copying a malicious command and pasting it into a PowerShell terminal. The query correlates a recent clipboard operation with a subsequent suspicious PowerShell execution by the same user on the same device.
+    // False Positives: This query may generate false positives for system administrators or power users who legitimately copy and paste PowerShell commands for administrative tasks. Tuning may be required to exclude known administrative accounts or specific command line patterns.
+    // References: https://www.bleepingcomputer.com/news/security/lummastealer-infections-surge-after-castleloader-malware-campaigns/
+    // MITRE ATT&CK: T1204.001 (Malicious Link), T1059.001 (PowerShell)
+    let TimeFrame = 2m; // Define the maximum time between the clipboard and process creation events.
+    let SuspiciousCommands = dynamic([
+        "IEX",
+        "Invoke-Expression",
+        "DownloadString",
+        "DownloadFile",
+        "Set-Clipboard",
+        "Get-Clipboard"
+    ]); // Keywords often found in malicious commands delivered via this technique.
+    // Capture clipboard events. The ActionType may vary between EDRs.
+    let ClipboardEvents = DeviceEvents
+    | where Timestamp > ago(TimeFrame + 1h) // Widen the lookback for the first event in the sequence.
+    | where ActionType has "Clipboard"
+    | project   ClipboardTime = Timestamp,
+                DeviceId,
+                InitiatingProcessAccountUpn;
+    // Capture suspicious PowerShell executions.
+    let PowershellExecution = DeviceProcessEvents
+    | where Timestamp > ago(TimeFrame)
+    | where FileName =~ "powershell.exe" and ProcessCommandLine has_any (SuspiciousCommands)
+    | project   PSTime = Timestamp,
+                DeviceId,
+                DeviceName,
+                InitiatingProcessAccountUpn,
+                ProcessCommandLine,
+                InitiatingProcessFileName,
+                AccountSid;
+    // Join clipboard events with subsequent PowerShell executions on the same device and by the same user.
+    ClipboardEvents
+    | join kind=inner (
+        PowershellExecution
+    ) on DeviceId, InitiatingProcessAccountUpn
+    // Ensure the PowerShell command was executed *after* the clipboard event and within the specified timeframe.
+    | where PSTime > ClipboardTime and (PSTime - ClipboardTime) < TimeFrame
+    // To reduce false positives, consider filtering for PowerShell processes spawned by common interactive shells.
+    // A user pasting into a terminal will likely have explorer.exe or cmd.exe as the parent.
+    | where InitiatingProcessFileName in~ ("explorer.exe", "cmd.exe", "pwsh.exe")
+    | project-reorder
+        PSTime,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessAccountUpn,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        ClipboardTime
+    | extend Account_0_Sid = AccountSid
+    | extend Account_0_UPNSuffix = InitiatingProcessAccountUpn
+    | extend Host_0_HostName = DeviceName
+    | extend File_0_Name = InitiatingProcessFileName
+    | extend Process_0_CommandLine = ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/lummastealer-infections-surge-after-castleloader-malware-campaigns/

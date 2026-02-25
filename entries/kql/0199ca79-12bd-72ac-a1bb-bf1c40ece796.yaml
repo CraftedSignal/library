@@ -1,0 +1,14 @@
+id: 0199ca79-12bd-72ac-a1bb-bf1c40ece796
+name: 'ClickFix detection: suspicious PowerShell commands launched from Explorer or browsers'
+description: Detects PowerShell processes launched by web browsers (Chrome, Edge, Firefox, Internet Explorer) or Windows Explorer, especially when using suspicious command-line arguments like encoded commands, Invoke-Expression, or web download functions. This behavior can indicate an attempt to execute malicious scripts, often initiated through user interaction (e.g., clicking a malicious link or opening a crafted file).
+query: "//ClickFix detection: suspicious PowerShell commands launched from Explorer or browsers\r\nDeviceProcessEvents\r\n| where FileName =~ \"powershell.exe\" or ProcessCommandLine has_cs \"powershell\"\r\n| where InitiatingProcessFileName in (\"explorer.exe\",\"chrome.exe\",\"msedge.exe\",\"firefox.exe\",\"iexplore.exe\",\"edge.exe\")\r\n| where ProcessCommandLine has_any (\"-EncodedCommand\",\"-e \",\"-Command\",\"Invoke-Expression\",\"IEX\",\"FromBase64String\",\"Invoke-WebRequest\",\"DownloadString\",\"Start-Process\",\"Expand-Archive\",\"Invoke-Item\")\r\n| project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, FileName, ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204
+tags:
+    - kql
+version: "1"

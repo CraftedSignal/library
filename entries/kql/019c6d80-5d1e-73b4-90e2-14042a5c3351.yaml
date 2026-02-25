@@ -1,0 +1,42 @@
+id: 019c6d80-5d1e-73b4-90e2-14042a5c3351
+name: CrashFix Command in RunMRU History
+description: This query detects evidence of the CrashFix malicious command being stored in the Windows Run dialog (Win+R) history. The RunMRU registry key stores commands executed via the Run dialog. This is a strong indicator that a user was prompted to and did execute the malicious command.
+query: |
+    // Name: CrashFix Command in RunMRU History
+    // Author: Subash Ghimire
+    // Date: 2026-02-17
+    // Description: This query detects evidence of the CrashFix malicious command being stored in the Windows Run dialog (Win+R) history.
+    // The RunMRU registry key stores commands executed via the Run dialog. This is a strong indicator that a user was prompted to and did execute the malicious command.
+    // Tactic: Execution
+    // Technique: T1204.002, User Execution: Malicious Link
+    // False Positive Sensitivity: Medium
+    // References: https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/
+    DeviceRegistryEvents
+    // The RunMRU key stores the history of commands executed in the Windows "Run" dialog.
+    | where RegistryKey endswith @"\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU"
+    | where isnotempty(RegistryValueData)
+    // Pre-filter for the core components of the malicious command string for performance.
+    | where RegistryValueData has_all ("cmd.exe", "copy", "finger.exe", "confirm@")
+    // Use a case-insensitive regex to match the specific command structure used by CrashFix.
+    // This pattern involves copying finger.exe to a temp location and using it to pipe content from a remote IP into cmd.
+    | where RegistryValueData matches regex @"(?i)cmd\.exe.*/c.*copy.*\\system32\\finger\.exe.*\\temp\\.*\.exe.*confirm@\d{1,3}(\.\d{1,3}){3}.*\|.*cmd"
+    | project
+        Timestamp,
+        DeviceId,
+        DeviceName,
+        RegistryKey,
+        RegistryValueData,
+        ActionType
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204
+    - T1204.002
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/

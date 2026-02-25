@@ -1,0 +1,71 @@
+id: 29feab55-baa5-407b-b7c2-0e3ab2039b6e
+name: CANONSTAGER DLL Sideloading and SOGU.SEC Payload Access (UNC6384 Campaign Hijacks Web Traffic to Target Diplomats)
+description: Detects potential DLL side-loading of the CANONSTAGER malware, which is used to deploy the SOGU.SEC backdoor. This rule identifies when the legitimate, signed Canon IJ Printer Assistant Tool (cnmpaui.exe) loads an unsigned DLL with a similar name (cnmpaui.dll) and subsequently reads a .dat file (cnmplog.dat), consistent with the TTPs of the PRC-nexus actor UNC6384.
+query: |
+    title: CANONSTAGER DLL Sideloading and SOGU.SEC Payload Access (UNC6384 Campaign
+      Hijacks Web Traffic to Target Diplomats)
+    id: 8e2e1b2d-2b7a-4e2c-9c8e-7e2b1c2d3e4f
+    status: experimental
+    description: Detects potential DLL side-loading of the CANONSTAGER malware,
+      which is used to deploy the SOGU.SEC backdoor. This rule identifies when the
+      legitimate, signed Canon IJ Printer Assistant Tool (cnmpaui.exe) loads an
+      unsigned DLL with a similar name (cnmpaui.dll) and subsequently reads a .dat
+      file (cnmplog.dat), consistent with the TTPs of the PRC-nexus actor UNC6384.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/prc-nexus-espionage-targets-diplomats/
+    author: Kaung Khant Ko
+    date: 2025-08-26
+    tags:
+      - UNC6384
+      - TEMP.HEX
+      - MUSTANG_PANDA
+      - CANONSTAGER
+      - SOGU
+      - DLL_SIDELOADING
+      - WINDOWS
+      - attack.defense-evasion
+      - attack.t1574.002
+    logsource:
+      product: windows
+      category: process_creation
+      service: sysmon
+    detection:
+      selection_module_load:
+        EventType: 'MODULE_LOAD'
+        Image|endswith: '\\cnmpaui.exe'
+        Signed: 'true'
+        LoadedModule|endswith: '\\cnmpaui.dll'
+        LoadedModuleSigned: 'false'
+      selection_file_access:
+        EventType: 'FILE_OPEN'
+        Image|endswith: '\\cnmpaui.exe'
+        TargetFilename|endswith: '\\cnmplog.dat'
+      condition: selection_module_load and selection_file_access
+    falsepositives:
+      - Legitimate behavior of the Canon IJ Printer Assistant Tool could potentially
+        trigger this rule, although the combination of loading an unsigned DLL and
+        reading a specific .dat file is highly suspicious. If false positives occur,
+        consider adding more specific path or hash conditions.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+tags:
+    - UNC6384
+    - TEMP.HEX
+    - MUSTANG_PANDA
+    - CANONSTAGER
+    - SOGU
+    - DLL_SIDELOADING
+    - WINDOWS
+    - attack.defense-evasion
+    - attack.t1574.002
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/prc-nexus-espionage-targets-diplomats/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

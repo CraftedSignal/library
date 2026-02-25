@@ -1,0 +1,63 @@
+id: 019c248f-3384-712c-a33e-3e4b69339915
+name: Evasive Panda Fake SohuVA Updater Execution
+description: The rule detects the execution of a suspicious executable named 'sohuva_update_*.exe' from user-writable or download paths (Temp, Downloads, AppData, or ProgramData\Microsoft\MF). This execution is considered suspicious if its parent process is typically a web browser or explorer.exe, or if the parent process itself originates from one of these suspicious paths. The rule explicitly excludes legitimate executions of 'sohuva_update_*.exe' from standard 'Program Files' directories associated with Sohu installations.
+query: |-
+    title: Evasive Panda Fake SohuVA Updater Execution (High Fidelity)
+    id: a1b2c3d4-e5f6-4789-a012-evasivepanda001
+    status: experimental
+    description: |
+        High-fidelity detection of Evasive Panda fake SohuVA updater. Context: executable name sohuva_update_*.exe,
+        launched from user-writable or download path (Temp, Downloads, AppData, or unsupported ProgramData\Microsoft\MF),
+        with parent typically explorer/browser (user launch) or from same suspicious path. Excludes execution from
+        legitimate Sohu install path (Program Files).
+    references:
+        - https://securelist.com/evasive-panda-apt/118576/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.execution
+        - attack.t1204
+        - attack.t1566
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_image:
+            Image|re: '.*\\sohuva_update_.*\.exe'
+        context_user_drop:
+            Image|re: '.*\\(Temp|Tmp|Downloads|AppData|Microsoft\\MF)\\.*'
+        context_parent_launch:
+            ParentImage|endswith|any:
+                - '\explorer.exe'
+                - '\msedge.exe'
+                - '\chrome.exe'
+                - '\firefox.exe'
+                - '\iexplore.exe'
+        context_same_path:
+            ParentImage|re: '.*\\(Temp|Tmp|Downloads|AppData|Microsoft\\MF)\\.*'
+        exclude_legit_sohu:
+            Image|re: '.*\\(Program Files|Program Files \\(x86\\)).*Sohu.*'
+            negate: true
+        condition: selection_image and (context_user_drop or context_parent_launch or context_same_path) and exclude_legit_sohu
+    falsepositives:
+        - Legitimate SohuVA update run from official install path (excluded by condition)
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1204
+    - T1566
+tags:
+    - attack.execution
+    - attack.t1204
+    - attack.t1566
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securelist.com/evasive-panda-apt/118576/
+data_sources:
+    - process_creation
+    - windows

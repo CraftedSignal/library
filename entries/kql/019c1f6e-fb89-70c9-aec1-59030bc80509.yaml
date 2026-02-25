@@ -1,0 +1,18 @@
+id: 019c1f6e-fb89-70c9-aec1-59030bc80509
+name: Notepad++ Reconnaissance Command Sequence (Behavioral)
+description: 'This query hunts for the specific "reconnaissance batch" behavior observed in this campaign: a process piping netstat, systeminfo, or tasklist output into a text file (specifically a.txt as seen in the report, though looking for any single-letter text file is a good heuristic).'
+query: "// KQL detection for Rapid Reconnaissance and Output Redirection\r\n// Define the specific file pattern used in the Notepad++ campaign\r\nlet SuspiciousOutputFiles = dynamic([\"a.txt\", \"b.txt\", \"out.txt\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(24h)\r\n// Look for command lines containing redirection to a text file\r\n| where ProcessCommandLine has \">>\" or ProcessCommandLine has \">\"\r\n// Filter for the specific recon commands used by the malware\r\n| where ProcessCommandLine has_any (\"netstat\", \"systeminfo\", \"tasklist\", \"whoami\")\r\n// Filter for the specific output filename pattern\r\n| where ProcessCommandLine has_any (SuspiciousOutputFiles)\r\n// Enrich for triage\r\n| extend SuspiciousActivity = strcat(\"Recon Command with Redirection: \", FileName)\r\n| project\r\n    Timestamp,\r\n    SuspiciousActivity,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine, // e.g., \"cmd /c netstat -ano >> a.txt\"\r\n    Folder = FolderPath,\r\n    ParentFileName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1195.002
+    - T1574
+    - T1059.003
+    - T1041
+    - T1082
+tags:
+    - kql
+author: Daniel Miller
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/notepad-plus-plus-update-feature-hijacked-by-chinese-state-hackers-for-months/

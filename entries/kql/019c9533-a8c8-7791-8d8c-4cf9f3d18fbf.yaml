@@ -1,0 +1,81 @@
+id: 019c9533-a8c8-7791-8d8c-4cf9f3d18fbf
+name: BeyondTrust Remote Support Client Post-Exploitation Activity
+description: This rule detects suspicious child processes spawned by the BeyondTrust Remote Support client (bomgar-scc), which could indicate post-exploitation activity following a compromise via vulnerabilities like CVE-2026-1731. It looks for high-risk command line patterns and suspicious child processes commonly used for reconnaissance and payload execution.
+query: |
+    // Name: BeyondTrust Post-Exploitation Activity
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: This rule detects suspicious child processes spawned by the BeyondTrust Remote Support client (bomgar-scc), which could indicate post-exploitation activity following a compromise via vulnerabilities like CVE-2026-1731.
+    // Tags: CVE-2026-1731, BeyondTrust, Bomgar, SparkRAT, VShell
+    // Tactics: Execution, Discovery, Persistence, Privilege Escalation
+    // Techniques: T1190, T1059.001, T1059.004, T1087.001, T1033
+    // References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/
+    // False Positive Sensitivity: Medium
+    let lookback = 1d;
+    // Define high-risk command line patterns associated with post-exploitation
+    let highRiskCommands = dynamic([
+        "*net*user* /add*",
+        "*net*localgroup*administrators* /add*",
+        "*net*group*domain admins*",
+        "*vssadmin*delete*shadows*",
+        "*ntdsutil*",
+        "*wevtutil* cl*",
+        "chmod +x",
+        "chmod 7",
+        "/dev/tcp",
+        "/dev/udp"
+    ]);
+    // Define suspicious child processes often used for reconnaissance and payload execution
+    let suspiciousProcesses = dynamic([
+        "cmd.exe", "powershell.exe", "sh", "bash", "whoami.exe", "nltest.exe", "quser.exe", "hostname.exe", "curl.exe", "wget.exe",
+        "dsquery.exe", "adfind.exe", "klist.exe", "tasklist.exe", "ipconfig.exe", "qwinsta.exe", "mshta.exe", "rundll32.exe",
+        "netstat.exe", "findstr.exe", "id", "arp", "nslookup", "whois", "nc.exe", "ncat.exe", "netcat", "base64", "uname",
+        "dmidecode", "socat", "nohup", "setsid", "python", "php", "useradd", "crontab", "certutil.exe"
+    ]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(lookback)
+    // Look for processes initiated by the BeyondTrust/Bomgar remote support client
+    | where InitiatingProcessFileName has "bomgar-scc"
+    // Filter for known suspicious child processes or command shells
+    | where FileName in (suspiciousProcesses) or ProcessCommandLine has_any (highRiskCommands)
+    // FP-TUNING: Exclude known benign command lines to reduce false positives. Add other legitimate command lines specific to your environment here.
+    | where ProcessCommandLine !has "uninstall --message-dialog-pid"
+    // Assign a risk score based on the process and command line arguments to prioritize findings
+    | extend riskScore = case(
+        ProcessCommandLine has_any (highRiskCommands), 10,
+        FileName in~ ("vssadmin.exe", "ntdsutil.exe", "certutil.exe", "wevtutil.exe", "net.exe"), 8,
+        FileName in~ ("nltest.exe", "dsquery.exe", "adfind.exe", "klist.exe", "curl.exe", "wget.exe", "nc.exe", "netcat", "socat", "useradd"), 5,
+        FileName in~ ("whoami.exe", "hostname.exe", "id", "uname", "ipconfig.exe", "netstat.exe", "tasklist.exe"), 2,
+        1
+    )
+    // Aggregate all suspicious activities within the same parent Bomgar session to create a single, context-rich alert
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        TotalRiskScore = sum(riskScore),
+        SuspiciousProcessCount = dcount(ProcessId),
+        CommandsExecuted = make_set(ProcessCommandLine, 10),
+        ProcessesSpawned = make_set(FileName, 10),
+        ParentProcessCommandLine = take_any(InitiatingProcessCommandLine)
+        by DeviceName, AccountName, InitiatingProcessId, InitiatingProcessFileName
+    // FP-TUNING: The threshold of 5 is a starting point. Raise it to reduce noise from single, low-impact commands, or lower it for broader detection.
+    | where TotalRiskScore >= 5
+    | extend timestamp = StartTime
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0007
+techniques:
+    - T1190
+    - T1059.001
+    - T1059.004
+    - T1087.001
+    - T1033
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

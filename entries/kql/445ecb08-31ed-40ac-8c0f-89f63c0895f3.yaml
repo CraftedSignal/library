@@ -1,0 +1,13 @@
+id: 445ecb08-31ed-40ac-8c0f-89f63c0895f3
+name: NTLM Coercion Detection via Comp.exe
+description: This rule detects the execution of 'comp.exe' with any command-line arguments. This activity can be indicative of NTLM coercion attempts, where an attacker forces a target machine to authenticate to a malicious server to capture and potentially crack the NTLM hash.
+query: "// NTLM Coercion Detection Query\r\n// ---------------------------------------------\r\n// MITRE ATT&CK Mapping\r\n// Tactic: Credential Access (TA0006)\r\n// Technique: Forced Authentication / NTLM Coercion – T1110.003\r\n// Tactic: Lateral Movement (TA0008)\r\n// Technique: Exploitation for Lateral Movement – T1210\r\n// ---------------------------------------------\r\n\r\nDeviceProcessEvents\r\n| where FileName =~ \"comp.exe\"\r\n// Detect any command-line execution (possible NTLM coercion)\r\n| where ProcessCommandLine matches regex \".+?\"\r\n| extend DetectionType = \"NTLM Coercion via Comp.exe\"\r\n| project Timestamp, DeviceId, DeviceName, InitiatingProcessFileName, FileName, ProcessCommandLine, ReportId, DetectionType\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1187
+tags:
+    - kql
+version: "1"

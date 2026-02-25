@@ -1,0 +1,53 @@
+id: 019c483e-24a4-73ca-a67f-c331cd304cb9
+name: Marco Stealer PowerShell Download Cradle
+description: Detects the PowerShell download cradle used by the Marco Stealer malware.
+query: |
+    title: Marco Stealer PowerShell Download Cradle
+    id: a8b6232d-4685-49cb-bcc3-91b720f8a7ef
+    status: experimental
+    description: Detects the PowerShell download cradle used by the Marco Stealer malware.
+    references:
+      - https://www.zscaler.com/blogs/security-research/technical-analysis-marco-stealer
+    author: detections.ai
+    date: 2026-02-10
+    tags:
+      - attack.execution
+      - attack.command_and_control
+      - attack.t1059.001
+      - attack.t1105
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects PowerShell execution
+        Image|endswith: '\powershell.exe' # Detects specific command-line arguments used by the Marco Stealer downloader
+        CommandLine|contains|all:
+          - 'New-Object System.Net.WebClient'
+          - '.Headers.Add(''X-Custom-Auth'','
+          - 'Zephyr-Downloader/3.7.18-zx9b'
+      condition: selection
+    falsepositives:
+      - This combination of a custom header and a specific user-agent is highly
+        unique. False positives are considered unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.execution
+    - attack.command_and_control
+    - attack.t1059.001
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/technical-analysis-marco-stealer
+data_sources:
+    - process_creation
+    - windows

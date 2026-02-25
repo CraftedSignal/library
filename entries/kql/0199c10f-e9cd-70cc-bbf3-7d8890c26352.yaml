@@ -1,0 +1,14 @@
+id: 0199c10f-e9cd-70cc-bbf3-7d8890c26352
+name: Detect DCs potentially being abused in Win-DDoS botnet attacks
+description: This rule detects an unusually high number of outbound network connections originating from the Local Security Authority Subsystem Service (LSASS) process on a Windows machine. LSASS is a critical system process responsible for enforcing security policy on the system, including user authentication, and typically does not initiate a large number of outbound connections. A high count of outbound connections from LSASS could indicate credential dumping activity, where an attacker is exfiltrating harvested credentials, or other malicious activity compromising the LSASS process.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(1d) \r\n| where EventID == 5156\r\n| where ProcessName =~ \"lsass.exe\"\r\n| summarize ConnCount = count() by Computer\r\n| where ConnCount > 500\r\n| order by ConnCount desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.001
+    - T1003
+tags:
+    - kql
+version: "1"

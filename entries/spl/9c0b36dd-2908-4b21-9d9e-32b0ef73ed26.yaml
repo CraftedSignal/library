@@ -1,0 +1,49 @@
+id: 9c0b36dd-2908-4b21-9d9e-32b0ef73ed26
+name: UNC3944 | VMware - Large File Transfer to or from ESXi Host
+description: Detects large data transfers over SSH/SCP (port 22) to or from an ESXi host. This activity is highly suspicious and could indicate an attacker delivering a ransomware payload to the hypervisor or exfiltrating sensitive data (like VMDK files).
+query: |
+    `comment("
+    name: VMware - Large File Transfer to or from ESXi Host
+    date: 2025-07-25
+    description: >
+      Detects large data transfers over SSH/SCP (port 22) to or from an ESXi host. This activity is highly suspicious and could indicate an attacker delivering a ransomware payload to the hypervisor or exfiltrating sensitive data (like VMDK files), a TTP associated with groups like UNC3944.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/
+    how_to_implement: >
+      This detection requires network traffic logs (e.g., Zeek, firewall logs) that are mapped to the Splunk Common Information Model (CIM), specifically the 'Network_Traffic' data model. The `esxi_host_list` macro must be configured with the IP addresses or subnets of your ESXi hosts for the detection to work. The transfer size threshold (`total_mb > 10`) is a starting point and may need to be tuned for your environment to balance detection with potential false positives.
+    known_false_positives: >
+      Legitimate administrative activities, such as uploading large ISO files, VIB packages for patching, or downloading large log bundles for support, can trigger this alert. These events should be rare and verifiable through change management records.
+    ")`
+
+    `comment("Use tstats to efficiently search summarized network traffic data for connections on port 22 involving an ESXi host.")`
+    | tstats `security_content_summariesonly` min(_time) as firstTime, max(_time) as lastTime, sum(All_Traffic.bytes) as total_bytes from datamodel=Network_Traffic where All_Traffic.dest_port=22 AND (`esxi_host_list(All_Traffic.src_ip)` OR `esxi_host_list(All_Traffic.dest_ip)`) by All_Traffic.src_ip, All_Traffic.dest_ip, All_Traffic.user
+    | `drop_dm_object_name("All_Traffic")`
+
+    `comment("Calculate the total data transferred in megabytes (MB).")`
+    | eval total_mb = round(total_bytes / (1024*1024), 2)
+
+    `comment("Filter for transfers greater than 10 MB. This threshold is a potential tuning point to reduce false positives from legitimate, smaller file transfers.")`
+    | where total_mb > 10
+
+    `comment("Identify which host is the ESXi host and determine the direction of the transfer.")`
+    | eval esxi_host = if(`esxi_host_list(src_ip)`, src_ip, dest_ip), remote_host = if(`esxi_host_list(src_ip)`, dest_ip, src_ip)
+    | eval direction = if(`esxi_host_list(src_ip)`, "Outbound from ESXi", "Inbound to ESXi")
+
+    `comment("Format the fields for the final alert.")`
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | fields firstTime, lastTime, esxi_host, remote_host, user, direction, total_mb
+    | `vmware_large_file_transfer_to_or_from_esxi_host_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1048
+    - T1020
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/

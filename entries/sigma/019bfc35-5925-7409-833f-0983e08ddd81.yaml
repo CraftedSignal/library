@@ -1,0 +1,53 @@
+id: 019bfc35-5925-7409-833f-0983e08ddd81
+name: GITSHELLPAD GitHub C2 Polling
+description: Detects network connections to the GitHub API attempting to fetch a 'command.txt' file. This behavior is characteristic of the GITSHELLPAD backdoor, which uses private GitHub repositories for command and control (C2) communication as seen in the Gopher Strike campaign.
+query: |
+    title: GITSHELLPAD GitHub C2 Polling
+    id: e58cf963-6831-427f-ba98-ec52766f4e80
+    status: experimental
+    description: Detects network connections to the GitHub API attempting to fetch a
+      'command.txt' file. This behavior is characteristic of the GITSHELLPAD
+      backdoor, which uses private GitHub repositories for command and control (C2)
+      communication as seen in the Gopher Strike campaign.
+    references:
+      - https://www.zscaler.com/blogs/security-research/apt-attacks-target-indian-government-using-gogitter-gitshellpad-and-goshell
+    author: tim@detections.ai
+    date: 2026-01-26
+    tags:
+      - attack.t1102.002
+      - attack.t1071.001
+      - attack.command_and_control
+    logsource:
+      category: proxy
+      product: windows
+    detection:
+      selection:
+        # Detects requests to the GitHub API domain
+        c-ares|endswith: 'api.github.com' # Detects requests for the specific command file used by GITSHELLPAD
+        Url|contains: '/command.txt' # Filters for GET requests used to retrieve the command file
+        HttpMethod: 'GET'
+      condition: selection
+    falsepositives:
+      - Legitimate developer tools or scripts might interact with GitHub
+        repositories. However, frequent, automated polling for a file named
+        'command.txt' is highly suspicious. Consider tuning this rule by baselining
+        legitimate GitHub API usage in your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1102.002
+    - T1071.001
+tags:
+    - attack.t1102.002
+    - attack.t1071.001
+    - attack.command_and_control
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.zscaler.com/blogs/security-research/apt-attacks-target-indian-government-using-gogitter-gitshellpad-and-goshell
+data_sources:
+    - proxy
+    - windows

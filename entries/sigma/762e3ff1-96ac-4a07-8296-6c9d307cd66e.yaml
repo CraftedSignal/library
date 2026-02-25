@@ -1,0 +1,65 @@
+id: 762e3ff1-96ac-4a07-8296-6c9d307cd66e
+name: Malicious NPM Package Installation Associated With XORIndex Campaign
+description: Detects the installation of specific malicious npm packages associated with the North Korean "Contagious Interview" campaign. These packages are known to deliver the XORIndex malware loader.
+query: |
+    title: Malicious NPM Package Installation Associated With XORIndex Campaign
+    id: 6eaaa665-9eb0-47ff-a7cd-2d6d1b9763ef
+    status: experimental
+    description: Detects the installation of specific malicious npm packages associated with the North Korean "Contagious Interview" campaign. These packages are known to deliver the XORIndex malware loader.
+    references:
+      - https://www.bleepingcomputer.com/news/security/north-korean-xorindex-malware-hidden-in-67-malicious-npm-packages/
+    author: detections.ai
+    date: 2025-07-20
+    tags:
+      - attack.initial_access
+      - attack.t1195.001
+      - apt.contagious_interview
+    logsource:
+      category: process_creation
+      product: default
+    detection:
+      selection_base:
+        Image|endswith:
+          - '\npm.exe'       # Windows npm executable
+          - '/npm'           # Linux/macOS npm executable
+      selection_command:
+        CommandLine|contains:
+          - ' install '       # Catches 'npm install <package>'
+          - ' i '             # Catches the shorthand 'npm i <package>'
+      selection_packages:
+        CommandLine|contains:
+                # List of malicious packages identified in the campaign
+          - 'vite-meta-plugin'
+          - 'vite-postcss-tools'
+          - 'vite-logging-tool'
+          - 'vite-proc-log'
+          - 'pretty-chalk'
+          - 'postcss-preloader'
+          - 'js-prettier'
+          - 'flowframe'
+          - 'figwrap'
+          - 'midd-js'
+          - 'middy-js'
+      condition: selection_base and selection_command and selection_packages
+    falsepositives:
+        # This detection is based on a specific list of known malicious package names.
+        # False positives are unlikely but could occur if these names are used for legitimate packages in the future.
+      - Legitimate packages that may share the same name.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1195.001
+tags:
+    - attack.initial_access
+    - attack.t1195.001
+    - apt.contagious_interview
+author: detections.ai
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/north-korean-xorindex-malware-hidden-in-67-malicious-npm-packages/
+data_sources:
+    - process_creation
+    - default

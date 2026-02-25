@@ -1,0 +1,17 @@
+id: 019c764e-1ec0-714a-947d-0275aa1e5661
+name: JWrapper SimpleHelp RAT Execution from ProgramData
+description: This rule detects the execution of processes associated with a JWrapper-packaged SimpleHelp Remote Access Trojan (RAT). The execution from the specific 'ProgramData\JWrapper-Remote Access' directory is a strong indicator of the malicious activity described in the Cofense report. The rule specifically looks for 'Remote AccessWinLauncher.exe', 'windowslauncher.exe', and 'winpty-agent64.exe' being executed from 'C:\ProgramData\JWrapper-Remote Access'.
+query: "// Name: JWrapper SimpleHelp Execution Pattern\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: This rule detects the execution of processes associated with a JWrapper-packaged SimpleHelp RAT. The execution from the specific 'ProgramData\\JWrapper-Remote Access' directory is a strong indicator of the malicious activity described in the Cofense report.\r\n// References: https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware\r\n// MITRE ATT&CK: T1219 (Remote Access Software), T1071.001 (Application Layer Protocol: Web Protocols)\r\n// False Positive Sensitivity: Medium\r\n// Define the suspicious process names associated with the JWrapper-packaged SimpleHelp RAT\r\nlet suspicious_processes = dynamic([\"Remote AccessWinLauncher.exe\", \"windowslauncher.exe\", \"winpty-agent64.exe\"]);\r\nDeviceProcessEvents\r\n// Filter for the creation of the specific processes identified in the report\r\n| where FileName in (suspicious_processes)\r\n// Filter for the specific installation path used by the malware\r\n| where FolderPath startswith @\"C:\\ProgramData\\JWrapper-Remote Access\"\r\n// Potential for False Positives: SimpleHelp is a legitimate Remote Monitoring and Management (RMM) tool.\r\n// If your organization uses SimpleHelp, this specific installation path may still be unique to the malicious variant.\r\n// However, to reduce noise, consider excluding devices or users authorized to use this software.\r\n// Example: | where DeviceName !in (\"IT_SUPPORT_01\", \"SYSADMIN_VM\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware

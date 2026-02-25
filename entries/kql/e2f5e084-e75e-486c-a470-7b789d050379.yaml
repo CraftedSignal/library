@@ -1,0 +1,47 @@
+id: e2f5e084-e75e-486c-a470-7b789d050379
+name: BlueAlpha GammaDrop Detection
+description: 'KQL Query from file: BlueAlpha GammaDrop Detection'
+query: |
+    // BlueAlpha GammaDrop Detection
+    // https://www.recordedfuture.com/research/bluealpha-abuses-cloudflare-tunneling-service
+
+    // BlueAlpha, a state-sponsored cyber threat group linked to the Russian FSB, has been active since 2014. Insikt Group has observed, via recent malware sample submissions to Recorded Future Public Sandbox, BlueAlpha abusing Cloudflare Tunnels for GammaDrop staging infrastructure. These tunnels have been leveraged by malicious .lnk files to download and execute GammaDrop.
+
+    let DeviceLNKCreation =
+    DeviceFileEvents
+    | where ActionType == @"FileCreated"
+    | where FileName endswith ".lnk"
+    | invoke FileProfile(SHA1,100)
+    | where GlobalPrevalence < 10
+    // Detect low prevalence LNK file extracted from archive
+    | distinct DeviceName;
+    DeviceNetworkEvents
+    | where ActionType == "HttpConnectionInspected"
+    | extend ConnectInfo = todynamic(AdditionalFields)
+    | extend HttpHost = ConnectInfo.host
+    | where HttpHost endswith ".trycloudflare.com"
+    | where DeviceName has_any(DeviceLNKCreation)
+    // Endpoint with new low prevalence LNK created connecting to trycloudflare
+
+    // MITRE ATT&CK
+query_type: kql
+tactics:
+    - TA0042
+    - TA0005
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1583.007
+    - T1027.012
+    - T1192
+    - T1566.002
+    - T1566.001
+    - T1059
+    - T1071.001
+    - T1572
+    - T1059.005
+    - T1204.002
+tags:
+    - kql
+version: "1"

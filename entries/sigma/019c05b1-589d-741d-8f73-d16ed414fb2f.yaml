@@ -1,0 +1,54 @@
+id: 019c05b1-589d-741d-8f73-d16ed414fb2f
+name: Aggressive File Permission Lockout (chmod 000)
+description: Detects the use of 'chmod 000' on PHP files within common web root directories. This technique is used by threats like the EncystPHP web shell to make malicious files unreadable, unwritable, and non-executable, effectively locking them to prevent inspection or removal.
+query: |
+    title: Aggressive File Permission Lockout (chmod 000)
+    id: d42f63f7-107e-41f6-a030-ccbbdbe932f0
+    status: experimental
+    description: Detects the use of 'chmod 000' on PHP files within common web root
+      directories. This technique is used by threats like the EncystPHP web shell to
+      make malicious files unreadable, unwritable, and non-executable, effectively
+      locking them to prevent inspection or removal.
+    references:
+      - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+    author: detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.defense_evasion
+      - attack.t1222.002
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # Detects the execution of the chmod command.
+        Image|endswith: '/chmod' # Detects the '000' permission set being applied to a PHP file.
+        CommandLine|contains|all:
+          - ' 000 ' # Using spaces to avoid matching parts of other numbers or PIDs.
+          - '.php' # Targets common web root directories where web shells are often placed.
+        CommandLine|contains:
+          - '/var/www/html/'
+          - '/srv/www/'
+          - '/usr/share/nginx/'
+      condition: selection
+    falsepositives:
+      - While highly unusual, a system administrator could theoretically perform
+        this action for a specific, albeit rare, purpose. Such activity should be
+        investigated as it is destructive to file accessibility.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1222.002
+tags:
+    - attack.defense_evasion
+    - attack.t1222.002
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+data_sources:
+    - process_creation
+    - linux

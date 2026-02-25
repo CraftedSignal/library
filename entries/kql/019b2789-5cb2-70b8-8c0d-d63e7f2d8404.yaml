@@ -1,0 +1,42 @@
+id: 019b2789-5cb2-70b8-8c0d-d63e7f2d8404
+name: SentinelOne DLL Sideloading from AppData by Storm-0249
+description: Detects when the legitimate SentinelAgentWorker.exe process loads 'SentinelAgentCore.dll' from a non-standard, user-writable directory like AppData\Roaming. This behavior is indicative of DLL sideloading (T1574.002), a technique used by threat actors like Storm-0249 to execute malicious code under a trusted process. The rule specifically checks for the SentinelOne agent process running from its expected installation path to increase fidelity.
+query: |
+    // Name: SentinelOne DLL Sideloading by Storm-0249
+    // Author: detections.ai
+    // Date: 2025-12-16
+    // Description: Detects when the legitimate SentinelAgentWorker.exe process loads a DLL from a non-standard, user-writable directory like AppData\Roaming. This is a key indicator of the DLL sideloading technique (T1574.002) used by the threat actor Storm-0249 to execute malicious code under a trusted process.
+    // MITRE ATT&CK: T1574.002
+    // References: https://reliaquest.com/blog/threat-spotlight-storm-0249-precision-endpoint-exploitation/
+    // False Positive Sensitivity: Medium
+    DeviceImageLoadEvents
+    // Look for the loading of the specific DLL name abused by Storm-0249.
+    | where FileName =~ "SentinelAgentCore.dll"
+    // The DLL is loaded by the legitimate SentinelOne agent process.
+    | where InitiatingProcessFileName =~ "SentinelAgentWorker.exe"
+    // The key indicator is the DLL being loaded from a user-writable directory instead of the legitimate program files path.
+    | where FolderPath contains "\\AppData\\Roaming\\"
+    // To increase fidelity, ensure the initiating process is the legitimate SentinelOne agent in its expected installation path.
+    | where InitiatingProcessFolderPath startswith "C:\\Program Files\\SentinelOne\\Sentinel Agent"
+    // FP Tuning: This is highly specific behavior. A false positive is unlikely but could occur if SentinelOne legitimately changes its architecture to load this DLL from AppData.
+    // Verify the standard installation path for SentinelOne in your environment and adjust if necessary.
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessAccountUpn,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessCommandLine,
+        FileName,
+        FolderPath,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+techniques:
+    - T1574.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-storm-0249-precision-endpoint-exploitation/

@@ -1,0 +1,21 @@
+id: 6927dd97-bc5a-4940-a9b8-72a988ae86ac
+name: Network proxy configuration changed
+description: Detects scenarios where an attacker attempts to modify proxy configuration in order to bypass network restrictions.
+query: "title: Network proxy configuration changed\ndescription: Detects scenarios where an attacker attempts to modify proxy configuration in order to bypass network restrictions.\nreferences:\n- https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack\ntags:\n- attack.command_and_control\n- attack.t1090 # proxy\n- attack.t0884 # connection proxy\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  service: proxy_configuration\ndetection:\n  selection_baseline:\n    Channel: Microsoft-Windows-WinINet-Config/ProxyConfigChanged\n    EventID: 5600\n  selection_proxy:\n    - pwszAutoConfigUrl|startswith: http\n    - pwszProxy|startswith: http\n    - pwszProxyBypass|startswith: http\n  filter:\n    - pwszAutoConfigUrl: #<http://your_company_url_proxy.lan>\n    - pwszProxy: #<http://your_company_url_proxy.lan>\n  condition: selection_baseline and selection_proxy and not filter\nfalsepositives:\n- admin proxy debugging\n- new proxy configuration applied \nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1090
+tags:
+    - attack.command_and_control
+    - attack.t1090
+    - attack.t0884
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack
+data_sources:
+    - windows
+    - proxy_configuration

@@ -1,0 +1,10 @@
+id: 49237ee5-244a-4336-9e25-b26aecc9dc3e
+name: 'External connection to High Risk Countries '
+description: 'KQL Query from file: External connection to High Risk Countries '
+query: "let RestrictedCountries = dynamic([\"China\", \"Russia\", \"Iran\", \"North Korea\", \"Syria\", \"Cuba\", \"Venezuela\", \"Belarus\"]);\r\nCommonSecurityLog\r\n| where DeviceVendor == \"Fortinet\"\r\n| where isnotempty(DeviceAction)  // Ensures we capture all actions dynamically\r\n| where isnotempty(AdditionalExtensions)\r\n| extend SrcCountry = extract(@\"FTNTFGTsrccountry=([\\w\\s]+);\", 1, AdditionalExtensions)\r\n| extend DstCountry = extract(@\"FTNTFGTdstcountry=([\\w\\s]+);\", 1, AdditionalExtensions)\r\n| extend SrcInterfaceRole = extract(@\"FTNTFGTsrcintfrole=([\\w]+);\", 1, AdditionalExtensions)\r\n| extend DstInterfaceRole = extract(@\"FTNTFGTdstintfrole=([\\w]+);\", 1, AdditionalExtensions)\r\n| where SrcInterfaceRole == \"lan\" or SrcInterfaceRole == \"internal\"  // Internal source\r\n| where DstInterfaceRole == \"wan\" or DstInterfaceRole == \"undefined\"  // External destination\r\n| where SrcCountry in (RestrictedCountries) or DstCountry in (RestrictedCountries)\r\n| summarize EventCount = count() by SrcCountry, DstCountry, SourceIP, DestinationIP, DestinationPort, DeviceAction, bin(TimeGenerated, 1h)\r\n| order by EventCount desc"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Sunny Suthar
+version: "1"

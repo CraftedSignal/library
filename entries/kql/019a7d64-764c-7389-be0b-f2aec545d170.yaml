@@ -1,0 +1,16 @@
+id: 019a7d64-764c-7389-be0b-f2aec545d170
+name: 'Suspicious unsigned File executed in User writeable Folder '
+description: This rule detects the execution of unsigned or invalidly signed executable files from user-writable folders such as \Users\ or \ProgramData\. It specifically looks for process creation events where the initiating process's signature status is not 'Valid' and the SHA256 hash of the executable is not in a predefined whitelist. Additionally, it filters for executables with a global prevalence of less than 2500 and an unsigned signature state. This aims to identify potentially malicious or unauthorized software being run from locations where users typically have write permissions, bypassing standard software deployment and security controls.
+query: "let WhitelistedHashesSHA256 = dynamic([\r\n    \"cd91d0f5560c3911710d17b6690c7c05452b7d1a14f08668e175962d022fea7c\", //ffprobe.exe\r\n    \"2b3caae67f2cd1ec3d2fca81348afcdff813db41a8a0cfd5c9126505f894afb0\", //Python Install Manager Installer.exe\r\n    \"d83db09332f423ec35e1fbf025f4045ca0baefec26e35a7e918cd6e921d12848\" //Abelssoft CheckDrive 2026\r\n    ]);\r\nDeviceProcessEvents\r\n| where ActionType == \"ProcessCreated\"\r\n| where FolderPath has_any (@\"\\Users\\\",@\"\\ProgramData\\\")\r\n| where InitiatingProcessSignatureStatus != \"Valid\"\r\n| where SHA256 !in (WhitelistedHashesSHA256)\r\n| invoke FileProfile(SHA256)\r\n| where GlobalPrevalence < 2500\r\n| where SignatureState != \"SignedValid\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059
+    - T1553.002
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

@@ -1,0 +1,24 @@
+id: 18be93ce-ac7a-4c4f-8443-90c3af9242cb
+name: CVE-2024-38475 Apache HTTP Server Improper Escaping of Output Vulnerability
+description: KQL Query
+query: |
+    // CVE-2024-38475 Apache HTTP Server Improper Escaping of Output Vulnerability
+    // https://www.cisa.gov/news-events/alerts/2025/05/01/cisa-adds-two-known-exploited-vulnerabilities-catalog
+
+    let FixedVersion = dynamic(["2.4.60","2.4.61","2.4.62","2.4.63"]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(90d)
+    | where InitiatingProcessVersionInfoProductName has "Apache HTTP Server"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where not (InitiatingProcessVersionInfoProductVersion has_any(FixedVersion))
+    | project DeviceName, InitiatingProcessVersionInfoProductName, InitiatingProcessVersionInfoProductVersion
+query_type: kql
+tactics:
+    - TA0043
+    - TA0042
+techniques:
+    - T1595.002
+    - T1588.006
+tags:
+    - kql
+version: "1"

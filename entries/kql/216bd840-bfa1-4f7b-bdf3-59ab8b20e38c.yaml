@@ -1,0 +1,75 @@
+id: 216bd840-bfa1-4f7b-bdf3-59ab8b20e38c
+name: Apache Tomcat CVE-2025-24813 RCE Trigger Attempt
+description: KQL Query
+query: |-
+    // Rule Name: Apache Tomcat CVE-2025-24813 RCE Trigger Attempt
+    // Description: Detects attempts to trigger the Apache Tomcat CVE-2025-24813 vulnerability by sending a GET request with a crafted JSESSIONID cookie containing a leading period before the session filename. This is the second stage of the exploit, aiming to deserialize a previously staged malicious payload.
+    //
+    // This rule looks for HTTP GET requests where the 'Cookie' header contains a 'JSESSIONID' value
+    // prefixed with a period (e.g., 'JSESSIONID=.[filename]'). This pattern is indicative of the
+    // exploit's trigger mechanism.
+    //
+    // Data Sources:
+    // - Web server access logs (e.g., W3CIISLog, AppServiceHTTPLogs)
+    // - Network proxy/firewall logs that capture full HTTP request details including headers (e.g., CommonSecurityLog, if configured to capture such details)
+
+    let lookback = 1h; // Define the time window for the query
+    union withsource=TableName W3CIISLog, CommonSecurityLog, AppServiceHTTPLogs
+    | where TimeGenerated > ago(lookback)
+    | extend
+        // Normalize HTTP verb field across different log sources
+        HttpVerb = case(
+            TableName == "W3CIISLog", csMethod,
+            TableName == "AppServiceHTTPLogs", RequestMethod,
+            TableName == "CommonSecurityLog", RequestVerb,
+            ""
+        ),
+        // Normalize URI path field across different log sources
+        UriPath = case(
+            TableName == "W3CIISLog", csUriStem,
+            TableName == "AppServiceHTTPLogs", Uri,
+            TableName == "CommonSecurityLog", RequestURL,
+            ""
+        ),
+        // Extract the Cookie header value based on the table schema
+        CookieHeaderValue = case(
+            TableName == "W3CIISLog", tostring(column_ifexists("csCookie", "")), // IIS logs often have a dedicated 'csCookie' field
+            TableName == "AppServiceHTTPLogs", tostring(column_ifexists("Cookie", "")), // App Service logs often have a dedicated 'Cookie' field
+            TableName == "CommonSecurityLog", extract_regex(@'(?i)Cookie:\s*([^;\r\n]+)', 1, tostring(column_ifexists("RequestHeaders", ""))), // For generic logs, extract from 'RequestHeaders' string
+            ""
+        )
+    // Filter for HTTP GET requests
+    | where HttpVerb =~ "GET"
+    // Ensure a Cookie header value was extracted
+    | where isnotempty(CookieHeaderValue)
+    // Look for the specific cookie pattern: JSESSIONID=. followed by a filename-like string
+    // The regex allows for 1 to 15 alphanumeric characters, underscores, or hyphens for the filename.
+    // This range is flexible, as the article mentions common lengths around 6-10 characters.
+    | where CookieHeaderValue matches regex @'JSESSIONID=\.([a-zA-Z0-9_-]{1,15})'
+    // Extract the filename used in the JSESSIONID
+    | extend ExtractedFilename = extract(@'JSESSIONID=\.([a-zA-Z0-9_-]{1,15})', 1, CookieHeaderValue)
+    // Ensure a filename was successfully extracted
+    | where isnotempty(ExtractedFilename)
+    // Project relevant fields for the alert
+    | project TimeGenerated, ClientIP, HttpVerb, UriPath, CookieHeaderValue, ExtractedFilename, Computer, TableName, SourceSystem
+    // Summarize results to group similar events and reduce alert volume
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), count() by ClientIP, HttpVerb, UriPath, ExtractedFilename, Computer, TableName
+    // Add alert metadata
+    | extend Name = "Apache Tomcat CVE-2025-24813 RCE Trigger Attempt",
+             Severity = "High",
+             Description = "Detects attempts to trigger the Apache Tomcat CVE-2025-24813 vulnerability by sending a GET request with a crafted JSESSIONID cookie containing a leading period before the session filename. This is the second stage of the exploit, aiming to deserialize a previously staged malicious payload.",
+             Tactics = "Execution",
+             Techniques = "T1190", // Exploit Public-Facing Application
+             References = "https://unit42.paloaltonetworks.com/apache-cve-2025-24813-cve-2025-27636-cve-2025-29891/",
+             Author = "Chaitanya Bobhate",
+             Date = "2025-07-07"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: Chaitanya B
+version: "1"

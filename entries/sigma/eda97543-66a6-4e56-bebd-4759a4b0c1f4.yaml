@@ -1,0 +1,51 @@
+id: eda97543-66a6-4e56-bebd-4759a4b0c1f4
+name: SharePoint Web Shell Creation via CVE-2025-53770
+description: Detects the creation of the "spinstall0.aspx" web shell in a SharePoint server directory, which is a known post-exploitation indicator for the SharePoint vulnerability CVE-2025-53770.
+query: |
+    title: SharePoint Web Shell Creation via CVE-2025-53770
+    id: 254e9471-86af-4a08-a4fd-4a7787ddd8f8
+    status: experimental
+    description: Detects the creation of the "spinstall0.aspx" web shell in a SharePoint server directory. This activity is a known post-exploitation indicator for the SharePoint vulnerability CVE-2025-53770.
+    references:
+      - https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/
+    author: detections.ai
+    date: 2025-07-22
+    tags:
+      - attack.t1505.003
+      - cve.2025.53770
+      - attack.persistence
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_path:
+        # Detects file creation in a SharePoint LAYOUTS directory.
+        # The path may vary slightly based on SharePoint version and installation.
+        TargetFilename|contains:
+          - '\Web Server Extensions\16\TEMPLATE\LAYOUTS\'
+          - '\WEBSER~1\16\TEMPLATE\LAYOUTS\' # 8.3 short name path variant
+      selection_filename:
+        # The filename could be exact or a variant. The 'contains' is based on Microsoft's hunting query.
+        # This could be tuned to 'TargetFilename|endswith: \spinstall0.aspx' for higher fidelity.
+        TargetFilename|contains: 'spinstall0'
+      condition: all of them
+    falsepositives:
+      - It is unlikely that a legitimate file containing 'spinstall0' would be created in this specific SharePoint directory. However, custom administrative scripts could potentially cause a false positive.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - attack.t1505.003
+    - cve.2025.53770
+    - attack.persistence
+author: detections.ai
+version: "1"
+references:
+    - https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/
+data_sources:
+    - file_event
+    - windows

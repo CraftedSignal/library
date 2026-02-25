@@ -1,0 +1,33 @@
+id: 019c48d8-5a6a-72ff-b17c-f22c27a9bc5c
+name: DocMagic Impersonation Phishing Campaign Link Click
+description: This rule detects instances where users click on URLs from emails that impersonate 'DocMagic'. It specifically looks for emails with 'docmagic' in the sender display name or address, extracts URLs from these emails, and then identifies if any of these URLs were subsequently clicked by users. This indicates a potential successful phishing attempt related to the DocMagic impersonation campaign.
+query: |-
+    //DocMagic impersonation campaign
+    let Emails =
+        EmailEvents
+        | where SenderDisplayName contains "docmagic"
+            or SenderFromAddress contains "docmagic"
+        | project NetworkMessageId, RecipientEmailAddress, Subject;
+    let Urls =
+        EmailUrlInfo
+        | extend Domain = tostring(parse_url(Url).Host)
+        | project NetworkMessageId, Url, Domain;
+    let Clicks =
+        UrlClickEvents
+        | extend Domain = tostring(parse_url(Url).Host)
+        | project ClickTime=Timestamp, AccountUpn, Url, Domain, IPAddress, AppName, AppVersion;
+    Emails
+    | join kind=inner Urls on NetworkMessageId
+    | join kind=inner (Clicks) on Url
+    | project AccountUpn, RecipientEmailAddress, Subject, Url, ClickTime, IPAddress, AppName, AppVersion
+    | order by ClickTime desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

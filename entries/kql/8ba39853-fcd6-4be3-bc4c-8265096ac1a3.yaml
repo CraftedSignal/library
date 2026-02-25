@@ -1,0 +1,26 @@
+id: 8ba39853-fcd6-4be3-bc4c-8265096ac1a3
+name: Detect anomalous external OAuthApp activity using ActorInfoString
+description: KQL Query
+query: "CloudAppEvents\r\n| where Timestamp > ago(1h)\r\n| where Application == @\"Microsoft Exchange Online\"\r\n| where isnotempty(parse_json(RawEventData)[\"ActorInfoString\"])\r\n| extend ActorInfoString = tostring(parse_json(RawEventData)[\"ActorInfoString\"])\r\n| where ActorInfoString has \"AppId\"\r\n| where UncommonForUser has \"CountryCode\" and UncommonForUser has \"UserAgent\"\r\n| where isnotempty(OAuthAppId)\r\n| join OAuthAppInfo on OAuthAppId\r\n| where AppOrigin == @\"External\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0008
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+techniques:
+    - T1528
+    - T1527
+    - T1098.003
+    - T1566.002
+    - T1087.003
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoft-security-blog/introducing-actorinfostring-a-new-era-of-audit-log-accuracy-in-exchange-online/4408093

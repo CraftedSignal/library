@@ -1,0 +1,19 @@
+id: 019c76ba-142a-7118-a334-e983ab459261
+name: CRESCENTHARVEST - Scheduled Task via NetworkProfile Event
+description: Detects the creation of a scheduled task using schtasks.exe that is triggered by a network connection event (Event ID 10000 from the NetworkProfile provider). This is an unusual persistence technique used by the CRESCENTHARVEST malware to ensure execution only when the machine is online.
+query: "// Name: CRESCENTHARVEST - Scheduled Task via NetworkProfile Event\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the creation of a scheduled task triggered by a network connection event (Event ID 10000 from the NetworkProfile provider). This is an unusual persistence technique used by the CRESCENTHARVEST malware to ensure execution only when the machine is online.\r\n// Tactics: Persistence, Execution\r\n// Techniques: T1053.005\r\n// References: https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/\r\nDeviceProcessEvents\r\n// Look for the creation of a scheduled task using schtasks.exe\r\n| where FileName =~ \"schtasks.exe\"\r\n// The command line must contain arguments for creating a task and specifying an event-based trigger\r\n| where ProcessCommandLine has_all (\"/create\", \"onevent\")\r\n// Filter for command lines that specify an event-based trigger associated with network profile changes.\r\n// This is a specific and uncommon persistence method used by CRESCENTHARVEST.\r\n| where ProcessCommandLine has \"NetworkProfile\" and ProcessCommandLine has \"10000\"\r\n// FP Tuning: While uncommon, legitimate administrative scripts might use this trigger.\r\n// Consider excluding known scripts, parent processes, or administrative accounts if false positives occur.\r\n// For example: | where InitiatingProcessParentFileName !~ \"legit_admin_tool.exe\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessParentFileName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - Intel ID def6f9fab55c0643a2e518ace3a5ba32890978a58f553af61462a6b28c851595
+    - https://www.acronis.com/en/tru/posts/crescentharvest-iranian-protestors-and-dissidents-targeted-in-cyberespionage-campaign/

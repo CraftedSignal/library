@@ -1,0 +1,19 @@
+id: 019c29b2-2bbb-759f-99d9-137186675e92
+name: Potential NTDS.dit theft activity
+description: Active Directory serves as the central repository for an organization's authentication infrastructure. Malicious actors frequently focus on obtaining the NTDS.dit database file, which holds encrypted password data and essential domain configuration. Successful acquisition of this file can lead to complete organizational compromise.
+query: "// Hunt for potential NTDS.dit theft activity as described by Trellix\r\n// This query correlates events related to Volume Shadow Copy creation, NTDS.dit access, and credential dumping tools.\r\nlet timeframe = 24h; // Adjust the lookback period as needed\r\n// Look for commands that create a Volume Shadow Copy (a common first step to access the locked NTDS.dit file)\r\nlet vssEvents = DeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ProcessCommandLine has_all (\"vssadmin\", \"create\", \"shadow\")\r\n    or ProcessCommandLine has_all (\"diskshadow\", \"/s\") \r\n    or ProcessCommandLine contains \"ntds.dit\" and ProcessCommandLine has_any (\"copy\", \"robocopy\", \"move\", \"esentutl\");\r\n// Look for processes directly accessing or manipulating the NTDS.dIT file from unexpected locations\r\nlet ntdsAccessEvents = DeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n| where (FileName =~ \"ntds.dit\" or FolderPath contains \"ntds.dit\")\r\n    and not (FolderPath startswith @\"C:\\Windows\\NTDS\\\" and InitiatingProcessFolderPath startswith @\"C:\\Windows\\system32\\\")\r\n| project Timestamp, DeviceName, FileName, FolderPath, ActionType, InitiatingProcessCommandLine, InitiatingProcessAccountName;\r\n// Look for execution of known credential dumping and extraction utilities\r\nlet dumpToolEvents = DeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ProcessCommandLine has_any (\r\n        \"ntdsutil\", \"secretsdump\", \"mimikatz\", \"pwdump\", \"lsadump\",\r\n        \"crackmapexec\", \"smbexec\", \"wmiexec\"\r\n    )\r\n    or FolderPath has_any (\"\\\\PsExec\", \"\\\\PAExec\") // Detection of lateral movement tools like PsExec\r\n    or ProcessCommandLine contains \"NTDS.dit\" and ProcessCommandLine has_any (\"-o\", \"--output\", \"dump\");\r\n// Combine all suspicious events into a single timeline\r\nunion vssEvents, ntdsAccessEvents, dumpToolEvents\r\n| project Timestamp, DeviceName, AccountName = InitiatingProcessAccountName, \r\n    ProcessCommandLine = coalesce(ProcessCommandLine, InitiatingProcessCommandLine),\r\n    FilePath = strcat(FolderPath, FileName), ActionType\r\n| sort by Timestamp desc\r\n| summarize EarliestEvent=min(Timestamp), LatestEvent=max(Timestamp), EventCount=count() \r\n    by DeviceName, AccountName, bin(Timestamp, 5m)\r\n| where EventCount > 1  // Focus on devices with multiple correlated events"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+techniques:
+    - T1003.003
+    - T1021.002
+    - T1570
+    - T1041
+    - T1070.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.trellix.com/blogs/research/the-crown-jewels-of-active-directory/

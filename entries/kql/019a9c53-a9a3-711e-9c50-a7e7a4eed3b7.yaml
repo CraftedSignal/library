@@ -1,0 +1,19 @@
+id: 019a9c53-a9a3-711e-9c50-a7e7a4eed3b7
+name: Windows Security Policy Dump and Review via Notepad
+description: Detects scenarios where a security policy is exported to a .cfg file using secedit.exe and subsequently accessed/reviewed using notepad.exe on the same Windows host. This activity may indicate reconnaissance or staging for privilege escalation or lateral movement by a threat actor.
+query: "let secedit_actions = DeviceProcessEvents\r\n  | where ProcessCommandLine has \"secedit.exe\" and ProcessCommandLine has \".cfg\"\r\n  | project HostName=DeviceName, SeceditTime=Timestamp, SeceditUser=InitiatingProcessAccountName, SeceditExe=ProcessCommandLine, ConfigFile=extract(@'[\\s\"]([^\"\\s]+\\.cfg)', 1, ProcessCommandLine);\r\nlet notepad_actions = DeviceProcessEvents\r\n  | where ProcessCommandLine has \"notepad.exe\" and ProcessCommandLine has \".cfg\"\r\n  | project HostName=DeviceName, NotepadTime=Timestamp, NotepadUser=InitiatingProcessAccountName, NotepadExe=ProcessCommandLine, ConfigFile=extract(@'[\\s\"]([^\"\\s]+\\.cfg)', 1, ProcessCommandLine);\r\nsecedit_actions\r\n| join kind=inner (\r\n    notepad_actions\r\n) on HostName\r\n| where ConfigFile == ConfigFile\r\n   and abs(datetime_diff('minute', NotepadTime, SeceditTime)) <= 60\r\n| project HostName, SeceditTime, NotepadTime, SeceditUser, NotepadUser, ConfigFile, SeceditExe, NotepadExe\r\n| order by SeceditTime desc\r\n\r\n\r\n\r\n\r\nT1552.002: Unsecured Credentials: Security Policy Files\r\nT1003: OS Credential Dumping (recon stage)\r\nT1087: Account Discovery\r\nhttps://thedfirreport.com/2025/11/17/cats-got-your-files-lynx-ransomware/"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0007
+techniques:
+    - T1552.002
+    - T1003
+    - T1087
+tags:
+    - kql
+author: Rene Kretzinger
+version: "2"
+references:
+    - https://thedfirreport.com/2025/11/17/cats-got-your-files-lynx-ransomware/

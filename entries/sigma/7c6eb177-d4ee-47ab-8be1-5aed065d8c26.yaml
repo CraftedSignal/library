@@ -1,0 +1,18 @@
+id: 7c6eb177-d4ee-47ab-8be1-5aed065d8c26
+name: COOKIE SPIDER SHAMOS Malware Campaign Targeting macOS (Persistence via LaunchDaemons Creation)
+description: Detects the creation of a .plist file in macOS LaunchAgents or LaunchDaemons directories, a technique used by SHAMOS malware for persistence. This rule looks for the specific SHAMOS plist file or for any plist created by a process running from a suspicious location.
+query: "title: COOKIE SPIDER SHAMOS Malware Campaign Targeting macOS (Persistence via LaunchDaemons Creation)\r\nid: 2981b56a-734a-4118-911c-0873456789ab\r\nstatus: experimental\r\ndescription: Detects the creation of a .plist file in macOS LaunchAgents or LaunchDaemons directories, a technique used by SHAMOS malware for persistence. This rule looks for the specific SHAMOS plist file or for any plist created by a process running from a suspicious location.\r\nreferences:\r\n    - https://www.crowdstrike.com/en-us/blog/falcon-prevents-cookie-spider-shamos-delivery-macos/\r\nauthor: Kaung Khant Ko\r\ndate: 2025-09-09\r\ntags:\r\n    - attack.persistence\r\n    - attack.t1547.001\r\nlogsource:\r\n    product: macos\r\n    category: file_creation\r\ndetection:\r\n    selection_plist_creation:\r\n        TargetFilename|endswith: '.plist'\r\n        TargetDirectory|contains:\r\n            - '/Library/LaunchAgents'\r\n            - '/Library/LaunchDaemons'\r\n            - '/Library/LaunchAgents' # For paths like /Users/user/Library/LaunchAgents\r\n    # High-confidence indicator: specific plist filename used by SHAMOS\r\n    selection_indicator:\r\n        TargetFilename: 'com.finder.helper.plist'\r\n    # Behavioral indicator: plist created by a process from a suspicious temp/download location\r\n    selection_behavior:\r\n        Image|contains: # The Image field represents the path of the process that created the file\r\n            - '/tmp/'\r\n            - '/var/tmp/'\r\n            - '/Users/Shared/'\r\n            - '/Downloads/' # Catches paths like /Users/user/Downloads/\r\n    condition: selection_plist_creation and (selection_indicator or selection_behavior)\r\nfalsepositives:\r\n    - Some legitimate software installers, especially those run manually by a user from their Downloads folder, may create Launch Agent files. It may be necessary to tune this rule by excluding known legitimate process names or signed software.\r\nlevel: High"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+tags:
+    - attack.persistence
+    - attack.t1547.001
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.crowdstrike.com/en-us/blog/falcon-prevents-cookie-spider-shamos-delivery-macos/
+data_sources:
+    - file_creation
+    - macos

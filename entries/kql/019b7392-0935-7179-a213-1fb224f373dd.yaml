@@ -1,0 +1,16 @@
+id: 019b7392-0935-7179-a213-1fb224f373dd
+name: Spearphishing Campaign Abuses npm Registry
+description: This rule detects network connections or URL click events to a list of domains known to be associated with phishing or malware distribution. The rule specifically looks for connections to these domains that also contain certain path segments like '/wlc/', '/load/', or '/success/', which are often indicative of malicious activity or payload delivery. It also broadly checks for any URL click events containing these suspicious domains.
+query: "DeviceNetworkEvents\r\n| where RemoteUrl has_any (\r\n    \"livestore.click\",\r\n    \"hexrestore.online\",\r\n    \"leoclouder.online\",\r\n    \"jigstro.cloud\",\r\n    \"extfl.roundupactions.shop\"\r\n  )\r\n  and RemoteUrl has_any (\r\n    \"/wlc/\",\r\n    \"/load/\",\r\n    \"/success/\"\r\n  )\r\n| union (\r\n    UrlClickEvents\r\n    | where Url contains \"livestore.click\"\r\n       or Url contains \"hexrestore.online\"\r\n       or Url contains \"leoclouder.online\"\r\n       or Url contains \"jigstro.cloud\"\r\n       or Url contains \"extfl.roundupactions.shop\"\r\n  )\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    NetworkMessageId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.002
+    - T1204.001
+tags:
+    - kql
+version: "1"

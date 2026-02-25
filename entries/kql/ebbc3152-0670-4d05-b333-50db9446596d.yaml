@@ -1,0 +1,49 @@
+id: ebbc3152-0670-4d05-b333-50db9446596d
+name: kkRAT Persistence via Scheduled Task to Terminate AV/EDR
+description: Detects the creation of a scheduled task designed to run with SYSTEM privileges and terminate common AV/EDR processes. This technique is used by kkRAT for persistence and defense evasion.
+query: |-
+    let targetedProcesses = dynamic([
+        "360sd.exe", "360tray.exe", "ZhuDongFangYu.exe", // 360 Total Security
+        "QQPCTray.exe", "QQPCMgr.exe", // QQ PC Manager (QQ电脑管家)
+        "kxescore.exe", "ksafe.exe", // Kingsoft Internet Security
+        "msmpeng.exe", // Microsoft Defender
+        "savservice.exe", // Sophos
+        "ccsvchst.exe", // Symantec/Norton
+        "mbam.exe" // Malwarebytes
+    ]);
+    DeviceEvents
+    // Filter for scheduled task creation events.
+    | where ActionType == "ScheduledTaskCreated"
+    // Parse the TaskContent from the AdditionalFields JSON blob.
+    | extend TaskContent = tostring(todynamic(AdditionalFields).TaskContent)
+    // The task must be configured to run as the SYSTEM account (SID S-1-5-18).
+    | where TaskContent has "<UserId>S-1-5-18</UserId>" or TaskContent has "<UserId>SYSTEM</UserId>"
+    // The task's command must involve 'taskkill' to terminate processes.
+    | where TaskContent has "taskkill"
+    // The command within the task should target one of the specified AV/EDR processes.
+    | where TaskContent has_any (targetedProcesses)
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        TaskName = FileName,
+        TaskPath = FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        TaskContent,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/technical-analysis-kkrat

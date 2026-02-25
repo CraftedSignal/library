@@ -1,0 +1,18 @@
+id: 0199f549-6642-746e-9c41-f47e2466667a
+name: WScript Executed from User Ring
+description: |
+    Detects Windows Script Host (wscript.exe) or masquerading binaries executing JavaScript (.js) files from user-writable paths such as C:\Users\ or C:\ProgramData\. This behavior is commonly associated with phishing payloads, malware droppers, or persistence mechanisms that execute user-space scripts. The rule covers both legitimate wscript.exe and renamed or spoofed variants.
+query: "title: WScript Executed from User Ring\nid: 5c2e9b3a-49e5-4a72-bf82-bc43d7a4f3c9\nstatus: stable\ndescription: |\n  Detects Windows Script Host (wscript.exe) or masquerading binaries executing JavaScript (.js) files from user-writable paths such as C:\\Users\\ or C:\\ProgramData\\. This behavior is commonly associated with phishing payloads, malware droppers, or persistence mechanisms that execute user-space scripts. The rule covers both legitimate wscript.exe and renamed or spoofed variants.\nauthor: Mlue CiDR\ndate: 2025-10-18\nlevel: high\nlogsource:\n  category: process_creation\n  product: windows\n\ndetection:\n  selection_image:\n    Image|endswith: '\\wscript.exe'\n\n  selection_displayname:\n    OriginalFileName|contains: 'wscript.exe'\n    Description|contains|all:\n      - 'Windows Script Host'\n\n  keyword_userpaths:\n    CommandLine|contains:\n      - '\\Users\\'\n      - 'C:\\Users\\'\n      - '\\ProgramData\\'\n      - 'C:\\ProgramData\\'\n\n  keyword_js:\n    CommandLine|contains:\n      - '.js'\n      - '.js\"'\n      - '.js '''\n      - '.js '\n\n  condition: (selection_image or selection_displayname) and keyword_userpaths and keyword_js\n\nfields:\n  - Image\n  - CommandLine\n  - ParentImage\n  - ParentCommandLine\n  - Description\n  - OriginalFileName\n  - User\n  - ComputerName\n  - IntegrityLevel\n  - Hashes\n\nfalsepositives:\n  - Legitimate administrative or deployment scripts launched under user profiles\n  - Managed environments using JS-based automation within approved paths\n\ntags:\n  - attack.execution\n  - attack.t1059.005   \n  - attack.t1204.002\n  - attack.t1106\n  - attack.defense_evasion\n  - attack.t1036.003\n\nreferences:\n  - https://attack.mitre.org/techniques/T1059/005/\n  - https://attack.mitre.org/techniques/T1204/002/\n  - https://attack.mitre.org/techniques/T1036/003/"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+    - T1204.002
+author: Mlue CiDR
+version: "4"
+references:
+    - https://attack.mitre.org/techniques/T1059/005/
+    - https://attack.mitre.org/techniques/T1204/002/
+    - https://attack.mitre.org/techniques/T1036/003/

@@ -1,0 +1,26 @@
+id: f0dcba86-8b7d-4584-a3fb-ac40e2175430
+name: Detect Phishing via Exchange Direct Send
+description: |-
+    In May 2025, a campaign started using the Microsoft Exchange Direct Send feature to send phishing mails to organizations. This feature is designed for use by printers, scanners, cloud services and other devices that need to send messages on behalf of the company. This detection rule tries to detect the malicious mails being send via Direct Send using a couple of indicators:
+
+        - Sender email is the same as Recipient email
+        - SPF and DMARC both failed
+        - Mail is not comming in via an Exchange connector
+        - The sender IP address country is not a country that the user is known to login from
+
+    FYI, if you remove the country check (last line of the query), you can use the query to identify if there are legitimate mails as well. If not, you can disable the Direct Send feature in Exchange Online.
+query: "let country_land_codes = (\n    externaldata (Country:string,Alpha2:string,Alpha3:string,CountryCode:string,Iso3166:string,Region:string,SubRegion:string,IntermediateRegion:string,RegionCode:string,SubRegionCode:string,IntermediateRegionCode:string) \n    ['https://raw.githubusercontent.com/lukes/ISO-3166-Countries-with-Regional-Codes/refs/heads/master/all/all.csv'] with (format='csv', ignoreFirstRecord=true)\n    | distinct Country, Alpha2\n);\nlet login_locations = (\n    SigninLogs\n    | where TimeGenerated > ago(7d)\n    | where ResultSignature == 0\n    | distinct UserId, UserPrincipalName, LandCode = tostring(LocationDetails.countryOrRegion)\n    | where isnotempty(LandCode)\n    | join kind=inner country_land_codes on $left.LandCode == $right.Alpha2\n    | summarize UsageCountries = make_set(Country) by UserId, UserPrincipalName\n);\nEmailEvents\n| where TimeGenerated > ago(30d)\n// Find Direct Send mails\n| where SenderMailFromAddress == RecipientEmailAddress\n| extend AuthenticationDetails = parse_json(AuthenticationDetails)\n| where AuthenticationDetails.SPF == \"fail\" and AuthenticationDetails.DMARC == \"fail\"\n// Only flag mails not comming in via an exchange connector (these are legit mails)\n| where isempty(Connectors)\n// Exclude if detected as phish (since it is already remediated then)\n| where DeliveryAction !in (\"Junked\", \"Blocked\")\n| extend Location = parse_json(geo_info_from_ip_address(SenderIPv4))\n| extend MailFromCountry = tostring(Location.country)\n// Find the usage countries of the users\n| join kind=leftouter login_locations on $left.SenderObjectId == $right.UserId\n// Flag when sender country is not a usage country of the user\n| where tostring(UsageCountries) !contains MailFromCountry"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1566
+    - T1672
+author: Robbe Van den Daele
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/microsoft-365-direct-send-abused-to-send-phishing-as-internal-users/
+    - https://www.jumpsec.com/guides/microsoft-direct-send-phishing-abuse-primitive/
+    - https://techcommunity.microsoft.com/blog/exchange/introducing-more-control-over-direct-send-in-exchange-online/4408790?WT.mc_id=M365-MVP-9501

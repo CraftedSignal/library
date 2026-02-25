@@ -1,0 +1,21 @@
+id: 019c3cae-7463-770c-a0f4-359efc2c34ac
+name: Direct Browser Connections to LLM APIs
+description: Detects browser processes making direct network connections to known Large Language Model (LLM) API endpoints. This activity is unusual when originating from general user web browsing, as it may indicate a malicious website is using an LLM to dynamically generate and fetch malicious code (e.g., JavaScript for a phishing page) at runtime.
+query: "// Name: Direct Browser Connections to LLM APIs\r\n// Author: Rudra Verma - CyberHawk\r\n// Date: 2026-02-08\r\n// Description: Detects browser processes making direct network connections to known Large Language Model (LLM) API endpoints. This activity is unusual when originating from general user web browsing, as it may indicate a malicious website is using an LLM to dynamically generate and fetch malicious code (e.g., JavaScript for a phishing page) at runtime.\r\n// False Positive Sensitivity: Medium\r\n// References:\r\n// - https://unit42.paloaltonetworks.com/real-time-malicious-javascript-through-llms/\r\n// Tags:\r\n// - T1566.002\r\n// - T1059.007\r\n// - T1102.002\r\n// - Phishing\r\n// - LLM\r\n// - JavaScript\r\nlet browserProcesses = dynamic([\r\n    \"chrome.exe\",\r\n    \"msedge.exe\",\r\n    \"firefox.exe\",\r\n    \"brave.exe\",\r\n    \"iexplore.exe\"\r\n]);\r\n// A list of common LLM provider API endpoints. This list should be updated as new services emerge.\r\n// This list intentionally excludes web-chat front-end domains (e.g., chat.openai.com) to focus on API-specific traffic.\r\nlet llmApiDomains = dynamic([\r\n    \"api.openai.com\",\r\n    \"generativelanguage.googleapis.com\",\r\n    \"api.deepseek.com\",\r\n    \"api.anthropic.com\",\r\n    \"api.mistral.ai\"\r\n]);\r\nlet connectionThreshold = 3;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1d)\r\n// Filter for common web browser processes initiating the network connection.\r\n| where InitiatingProcessFileName in~ (browserProcesses)\r\n// Identify connections to known LLM API domains.\r\n| where RemoteUrl has_any (llmApiDomains)\r\n// Summarize connections to reduce noise from legitimate, but chatty, web applications.\r\n| summarize ConnectionCount = count(), make_set(RemoteIP), FirstSeen=min(Timestamp), LastSeen=max(Timestamp) by DeviceName, AccountName, InitiatingProcessFileName, RemoteUrl, InitiatingProcessCommandLine\r\n// Alert only when a minimum number of connections are seen, suggesting more than a trivial interaction.\r\n| where ConnectionCount >= connectionThreshold\r\n// FP Tuning: This detection may trigger on legitimate web applications with sanctioned LLM integrations.\r\n// The 'connectionThreshold' can be raised to reduce noise.\r\n// Investigation should focus on the context of the browsing session and the reputation of the website making the calls.\r\n// Consider creating an exclusion list for sanctioned applications or developer machines that are expected to perform this activity.\r\n| project-reorder\r\n    FirstSeen,\r\n    LastSeen,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    RemoteUrl,\r\n    ConnectionCount,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1566
+    - T1566.002
+    - T1059.007
+    - T1102.002
+tags:
+    - kql
+author: Rudra Verma - CybeHawk
+version: "11"
+references:
+    - https://unit42.paloaltonetworks.com/real-time-malicious-javascript-through-llms/

@@ -1,0 +1,64 @@
+id: 019a7d91-f123-701d-8084-ec81360250a2
+name: Gootloader PowerShell Reconnaissance Script
+description: Detects a PowerShell script used by Gootloader for reconnaissance. This script collects environment variables with a specific length limit, operating system details, and information about running processes.
+query: |
+    title: Gootloader PowerShell Reconnaissance Script
+    id: 2096ebfa-4474-4693-9c12-3d49e9cf60da
+    status: experimental
+    description: Detects a PowerShell script used by Gootloader for reconnaissance.
+      This script collects environment variables with a specific length limit,
+      operating system details, and information about running processes.
+    references:
+      - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
+    author: detections.ai
+    date: 2025-11-13
+    tags:
+      - attack.t1082
+      - attack.t1059.001
+      - attack.t1007
+      - attack.t1057
+    logsource:
+      product: windows
+      category: powershell_script
+    detection:
+      selection:
+        ScriptBlockText|contains|all:
+          # Characteristic Gootloader recon: Collects environment variables with values of 99 characters or fewer.
+          - 'Get-ChildItem'
+          - 'env:'
+          - '.value -match'
+          - '.{0,99}'
+          # Collects OS information, seen in conjunction with other recon activities.
+          - 'Get-CimInstance'
+          - 'Win32_OperatingSystem'
+          # Collects running process information, often to parse window titles.
+          - 'Get-Process'
+          - 'ConvertTo-Csv'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative or asset inventory scripts might use a combination
+        of these commands. The filter for environment variable length (`.{0,99}`) is
+        the most distinct indicator. If false positives occur, consider making the
+        rule more strict or adding environment-specific exclusions.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1082
+    - T1059.001
+    - T1057
+tags:
+    - attack.t1082
+    - attack.t1059.001
+    - attack.t1007
+    - attack.t1057
+author: detections.ai
+version: "2"
+references:
+    - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
+data_sources:
+    - powershell_script
+    - windows

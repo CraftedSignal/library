@@ -1,0 +1,55 @@
+id: 22ec8b23-e1de-49f9-9576-6b8f38936dcd
+name: UNC3944 | VMware - AD Group Membership Change via WinRM
+description: Detects the addition of a member to a sensitive Active Directory group related to VMware administration (e.g., 'vSphere Admins', 'ESX Admins') using net.exe executed via WinRM (wsmprovhost.exe). This behavior is a key TTP used by threat groups like UNC3944 to escalate privileges and gain control over the vSphere environment after an initial compromise.
+query: |
+    `comment("
+    name: VMware - AD Group Membership Change via WinRM
+    date: 2025-07-25
+    description: >
+      Detects the addition of a member to a sensitive Active Directory group related to VMware administration (e.g., 'vSphere Admins', 'ESX Admins') using net.exe executed via WinRM (wsmprovhost.exe). This behavior is a key TTP used by threat groups like UNC3944 to escalate privileges and gain control over the vSphere environment after an initial compromise.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/
+    how_to_implement: >
+      This detection requires process execution logs (e.g., Sysmon Event ID 1, Windows Security Event ID 4688) ingested and mapped to the Endpoint data model. The `Processes.parent_process_name`, `Processes.process_name`, and `Processes.process` fields are required. Tune the list of sensitive group names in the `where` clause to match your organization's naming conventions for privileged VMware-related groups.
+    known_false_positives: >
+      Legitimate remote administration by system administrators may trigger this alert. If this is a common and approved administrative practice, consider creating a filter to exclude known administrator accounts or specific source/destination pairs.
+    ")`
+
+    `comment("The tstats command is used for performance, searching summarized data from the Endpoint data model for net.exe or net1.exe being run by wsmprovhost.exe, which indicates remote execution via WinRM.")`
+    | tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.parent_process_name="wsmprovhost.exe" AND Processes.process_name IN ("net.exe", "net1.exe")) by Processes.dest Processes.user Processes.parent_process Processes.process_name Processes.process
+    | `drop_dm_object_name(Processes)`
+
+    `comment("Filter for command-line arguments indicating a user is being added to a group. The wildcard search for sensitive group names is a placeholder. For better performance and accuracy, replace this with a more specific lookup or macro tailored to your environment.")`
+    | where (like(process, "% group %") AND like(process, "% /add%")) AND (like(process, "%vSphere Admins%") OR like(process, "%ESX Admins%") OR like(process, "%Veeam Administrators%"))
+
+    `comment("Potential False Positives: Legitimate remote administration may trigger this alert. Tune the sensitive group list to be as specific as possible. Consider filtering out known administrative accounts or scripts if this is a common, legitimate activity in your environment.")`
+
+    `comment("Extract the group name and the user being added from the command line for better context in the alert.")`
+    | rex field=process "group\s+(?:\"(?<modified_group>[^\"]+)\"|(?<modified_group>\S+))\s+(?<added_member>\S+)\s+\/add"
+
+    `comment("Group the results by the key fields to create a single alert for each distinct event.")`
+    | stats count values(process) as cmdline by firstTime, lastTime, dest, user, parent_process, modified_group, added_member
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | rename dest as endpoint, user as user_performing_action
+    | fields - count
+    | `vmware_ad_group_membership_change_via_winrm_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0008
+    - TA0002
+techniques:
+    - T1098.003
+    - T1021.006
+    - T1059.003
+    - DS0026
+    - DS0036
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/

@@ -1,0 +1,64 @@
+id: 50f4a58e-bfee-4ebc-89ee-0b58c605f12d
+name: Entra ID Refresh Token to PRT Transition
+description: Detects a transition from a Refresh Token (RT) to a Primary Refresh Token (PRT) for the same user and device within a 24-hour window. This sequence is a strong indicator of an adversary completing a device registration flow (e.g., using ROADtx) and escalating to persistent access with a PRT, which can bypass MFA and conditional access policies. The rule specifically looks for an initial RT authentication via the Microsoft Authentication Broker, followed by PRT usage for resources other than the Device Registration Service.
+query: |
+    // Name: Entra ID Refresh Token to PRT Transition
+    // Author: AEspejo
+    // Date: 2025-09-02
+    // References: https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    // Description: Detects a transition from a Refresh Token (RT) to a Primary Refresh Token (PRT) for the same user and device within a 24-hour window. This sequence is a strong indicator of an adversary completing a device registration flow (e.g., using ROADtx) and escalating to persistent access with a PRT, which can bypass MFA and conditional access policies. The rule specifically looks for an initial RT authentication via the Microsoft Authentication Broker, followed by PRT usage for resources other than the Device Registration Service.
+    // False Positive Sensitivity: Medium
+    // Tuning: Legitimate device enrollment or recovery scenarios might generate similar events. If false positives occur, consider adding filters for anomalous IP addresses or correlating with preceding phishing or suspicious consent grant alerts for the user.
+    let timeWindow = 1d;
+    let rt_auths = SigninLogs
+    | where TimeGenerated > ago(timeWindow)
+    // First event: A non-interactive sign-in using a Refresh Token via the Microsoft Authentication Broker.
+    | where ResultType == 0
+    | where UserType == "Member"
+    | where AppId == "29d9ed98-a469-4536-ade2-f981bc1d605e" // Microsoft Authentication Broker
+    | where IncomingTokenType == "refreshToken"
+    | where isnotempty(DeviceDetail.deviceId)
+    | where DeviceDetail.trustType == "Azure AD joined"
+    // An unbound session status is a strong indicator of token replay.
+    | where tostring(TokenProtectionStatusDetails.signInSessionStatus) == "unbound"
+    | project rt_TimeGenerated = TimeGenerated, UserPrincipalName, DeviceId = tostring(DeviceDetail.deviceId), rt_IPAddress = IPAddress, rt_Location = Location, rt_CorrelationId = CorrelationId;
+    let prt_auths = SigninLogs
+    | where TimeGenerated > ago(timeWindow)
+    // Second event: A sign-in using a Primary Refresh Token to a resource other than the Device Registration Service.
+    | where ResultType == 0
+    | where IncomingTokenType == "primaryRefreshToken"
+    | where ResourceDisplayName != "Device Registration Service"
+    | where isnotempty(DeviceDetail.deviceId)
+    | project prt_TimeGenerated = TimeGenerated, UserPrincipalName, DeviceId = tostring(DeviceDetail.deviceId), prt_IPAddress = IPAddress, prt_Location = Location, prt_ResourceDisplayName = ResourceDisplayName, prt_CorrelationId = CorrelationId;
+    rt_auths
+    | join kind=inner prt_auths on UserPrincipalName, DeviceId
+    // Ensure the PRT authentication happens after the RT authentication within the defined time window.
+    | where prt_TimeGenerated > rt_TimeGenerated and (prt_TimeGenerated - rt_TimeGenerated) <= timeWindow
+    | project
+        StartTime = rt_TimeGenerated,
+        EndTime = prt_TimeGenerated,
+        UserPrincipalName,
+        DeviceId,
+        RT_Auth_IPAddress = rt_IPAddress,
+        RT_Auth_Location = rt_Location,
+        PRT_Auth_IPAddress = prt_IPAddress,
+        PRT_Auth_Location = prt_Location,
+        PRT_Auth_Resource = prt_ResourceDisplayName,
+        RT_Auth_CorrelationId = rt_CorrelationId,
+        PRT_Auth_CorrelationId = prt_CorrelationId
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0008
+techniques:
+    - T1550
+    - T1550.001
+tags:
+    - kql
+author: AEspejo
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection

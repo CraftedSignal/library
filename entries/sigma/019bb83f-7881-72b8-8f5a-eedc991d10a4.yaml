@@ -1,0 +1,66 @@
+id: 019bb83f-7881-72b8-8f5a-eedc991d10a4
+name: Python-based APC Process Injection Execution
+description: Detects the execution of a Python script from a non-standard user directory, using command-line parameters consistent with a tool used for Asynchronous Procedure Call (APC) injection. This specific command was observed in an AsyncRAT campaign where a script named 'ne.py' was used to inject a payload ('new.bin') into the explorer.exe process.
+query: |
+    title: Python-based APC Process Injection Execution
+    id: 015c1a3e-1e6f-4b26-b765-bd5327a877ca
+    status: experimental
+    description: Detects the execution of a Python script from a non-standard user
+      directory, using command-line parameters consistent with a tool used for
+      Asynchronous Procedure Call (APC) injection. This specific command was
+      observed in an AsyncRAT campaign where a script named 'ne.py' was used to
+      inject a payload ('new.bin') into the explorer.exe process.
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+    author: detections.ai
+    date: 2026-01-13
+    tags:
+      - attack.t1055.004
+      - attack.t1059.006
+      - attack.process_injection
+      - attack.execution
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\python.exe' # Detects the Python interpreter
+        Image|contains: '\AppData\Local\' # Python running from a temp/staged location, as seen in the campaign
+        CommandLine|contains|all:
+          # Specific command line arguments from the observed injector script
+          - 'ne.py'
+          - '-i'
+          - 'new.bin'
+          - '-k'
+          - 'a.txt'
+      condition: selection
+    falsepositives:
+      - This detection is highly specific to the tool and command-line structure
+        observed in the AsyncRAT campaign and is unlikely to generate false
+        positives. Broader detection could be achieved by looking for python.exe
+        running from AppData and targeting common injection processes, but would
+        require correlation with EDR data (e.g., create_remote_thread events) to
+        maintain fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+    - TA0002
+techniques:
+    - T1055.004
+    - T1059.006
+    - T1055
+tags:
+    - attack.t1055.004
+    - attack.t1059.006
+    - attack.process_injection
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html
+data_sources:
+    - process_creation
+    - windows

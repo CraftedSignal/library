@@ -1,0 +1,16 @@
+id: 019c13a0-e3c3-707b-98ef-ef08359cd2ef
+name: Query for NTUSER.MAN Persistence
+description: Traditional Endpoint Detection and Response (EDR) tools primarily monitor live registry APIs (like RegSetValue). Since the attacker modifies the hive file offline and the OS loads it automatically during the logon process, no suspicious registry API calls are ever triggered. This makes the persistence virtually invisible to standard behavioral monitoring until the malicious payload actually executes at logon.
+query: "// 1. Detect creation or renaming of NTUSER.MAN in User Profiles\r\n// This is the primary indicator of the \"Mandatory Profile\" override technique.\r\nlet UserProfilePaths = dynamic([@\"C:\\Users\\\"]);\r\nDeviceFileEvents\r\n| where FolderPath has_any (UserProfilePaths)\r\n| where FileName =~ \"NTUSER.MAN\"\r\n| where ActionType in~ (\"FileCreated\", \"FileRenamed\")\r\n| project TimeGenerated, DeviceName, ActionType, FileName, FolderPath, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n| extend PersistenceTarget = strcat(FolderPath, FileName)\r\n\r\n// 2. Detect unexpected loading of the Offline Registry Library (offreg.dll)\r\n// This DLL is used by tools to modify hive files without using standard Registry APIs.\r\n| join kind=leftouter (\r\n    DeviceImageLoadEvents\r\n    | where FileName =~ \"offreg.dll\"\r\n    // Exclude common legitimate processes that use offreg.dll (e.g., Windows Setup, Forensics tools)\r\n    | where InitiatingProcessFileName !in~ (\"setup.exe\", \"msiexec.exe\", \"dism.exe\")\r\n    | project DeviceName, OffregLoadedBy = InitiatingProcessFileName, OffregLoadTime = TimeGenerated\r\n) on DeviceName\r\n\r\n// 3. Optional: Filter for low-privileged users if desired\r\n| where InitiatingProcessAccountName !in~ (\"system\", \"network service\", \"local service\")\r\n\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1547.001
+    - T1112
+    - T1562.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://github.com/praetorian-inc/swarmer
+    - https://www.praetorian.com/blog/corrupting-the-hive-mind-persistence-through-forgotten-windows-internals/

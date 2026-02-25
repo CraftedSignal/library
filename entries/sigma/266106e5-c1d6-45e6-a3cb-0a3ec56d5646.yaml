@@ -1,0 +1,72 @@
+id: 266106e5-c1d6-45e6-a3cb-0a3ec56d5646
+name: JDWP Exploitation - Suspicious Script Download via Java Process
+description: Detects suspicious script download attempts initiated by a Java process, indicative of potential JDWP exploitation leading to Remote Code Execution (RCE). Attackers often leverage exposed JDWP interfaces to execute commands like downloading and running malicious scripts.
+query: |
+    title: JDWP Exploitation - Suspicious Script Download via Java Process
+    id: 6a7b8c9d-e0f1-4234-a5b6-c7d8e9f0a1b2
+    status: experimental
+    description: >-
+      Detects suspicious script download attempts initiated by a Java process,
+      indicative of potential JDWP exploitation leading to Remote Code Execution
+      (RCE). Attackers often leverage exposed JDWP interfaces to execute commands
+      like downloading and running malicious scripts.
+    author: Aaron Mog - detections.ai
+    date: 2025-07-07T00:00:00.000Z
+    references:
+      - https://www.wiz.io/blog/exposed-jdwp-exploited-in-the-wild
+    logsource:
+      category: process_creation
+      product: linux
+      service: audit
+    detection:
+      selection_parent_java:
+        ParentImage|endswith:
+          - /usr/bin/java
+          - /bin/java
+          - /opt/java/bin/java
+        ParentCommandLine|contains: java
+      selection_download_tool:
+        Image|endswith:
+          - /usr/bin/curl
+          - /bin/curl
+          - /usr/bin/wget
+          - /bin/wget
+      selection_script_download:
+        CommandLine|contains:
+          - '-o /tmp/'
+          - http://
+          - https://
+          - .sh
+          - canonicalconnect.com
+          - awarmcorner.world
+      condition: all of them
+    falsepositives:
+      - >-
+        Legitimate Java applications that legitimately download scripts using
+        curl/wget (rare, but possible in CI/CD or specific dev environments).
+      - >-
+        Development/testing environments where JDWP is intentionally exposed and
+        used for debugging.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+    - TA0003
+    - TA0001
+    - TA0008
+techniques:
+    - T1105
+    - T1059
+    - T1059.004
+    - T1133
+    - T1203
+    - T1210
+author: Detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/exposed-jdwp-exploited-in-the-wild
+data_sources:
+    - process_creation
+    - linux

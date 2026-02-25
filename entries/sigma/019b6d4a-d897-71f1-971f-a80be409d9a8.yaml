@@ -1,0 +1,57 @@
+id: 019b6d4a-d897-71f1-971f-a80be409d9a8
+name: CVE-2025-50165 Windows Imaging Component Crash
+description: Detects application crashes related to the `jpeg_finish_compress` function in `WindowsCodecs.dll`. This may indicate an exploitation attempt of CVE-2025-50165, a vulnerability triggered by the re-encoding of a malicious 12-bit or 16-bit JPG image.
+query: |
+    title: CVE-2025-50165 Windows Imaging Component Crash
+    id: ef965d16-9be0-4bea-901e-dc22470389cd
+    status: experimental
+    description: >-
+      Detects application crashes related to the `jpeg_finish_compress` function in
+      `WindowsCodecs.dll`. This may indicate an exploitation attempt of
+      CVE-2025-50165, a vulnerability triggered by the re-encoding of a malicious
+      12-bit or 16-bit JPG image.
+    references:
+      - >-
+        https://www.welivesecurity.com/en/eset-research/revisiting-cve-2025-50165-critical-flaw-windows-imaging-component/
+    author: detections.ai
+    date: 2025-12-30T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.t1203
+      - cve.2025.50165
+    logsource:
+      category: process_crash
+      product: windows
+    detection:
+      selection:
+        FaultingModule|endswith: \WindowsCodecs.dll
+        CallStack|contains: jpeg_finish_compress
+      filter_process:
+        Image|endswith:
+          - \explorer.exe
+          - \Photos.exe
+          - \dllhost.exe
+      condition: selection and filter_process
+    falsepositives:
+      - Legitimate, unrelated software bugs could potentially cause crashes in
+        WindowsCodecs.dll. However, a crash involving the 'jpeg_finish_compress'
+        function is a strong indicator of this specific exploit. Consider tuning the
+        process filter for your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1203
+tags:
+    - attack.execution
+    - attack.t1203
+    - cve.2025.50165
+author: detections.ai
+version: "2"
+references:
+    - https://www.welivesecurity.com/en/eset-research/revisiting-cve-2025-50165-critical-flaw-windows-imaging-component/
+data_sources:
+    - process_crash
+    - windows

@@ -1,0 +1,39 @@
+id: 019a8b73-2512-70b9-a9a7-c3cbf3276e6b
+name: Hidden LNK File via Attrib
+description: Detects the use of the 'attrib.exe' utility to set the hidden attribute on a .lnk file. Adversaries may use this technique to hide malicious shortcuts used for persistence or initial execution.
+query: |
+    // Name: Hidden LNK File via Attrib
+    // Author: detections.ai
+    // Date: 2025-11-16
+    // Description: Detects the use of the 'attrib.exe' utility to set the hidden attribute on a .lnk file. Adversaries may use this technique to hide malicious shortcuts used for persistence or initial execution.
+    // Tactic: Defense Evasion
+    // Technique: T1564.001, Hide Artifacts: Hidden Files and Directories
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Filter for process creation events where attrib.exe is executed.
+    | where FileName =~ "attrib.exe"
+    // Filter for command lines that add the hidden attribute (+h) and target a .lnk file.
+    // This combination is suspicious as hiding shortcuts is an uncommon administrative action.
+    | where ProcessCommandLine has "+h" and ProcessCommandLine contains ".lnk"
+    // FP Tuning: Legitimate administrative scripts might perform this action.
+    // Consider filtering by InitiatingProcessFileName or specific command-line patterns if legitimate activity is flagged.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId,
+        SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.001
+tags:
+    - kql
+author: AJ
+version: "3"

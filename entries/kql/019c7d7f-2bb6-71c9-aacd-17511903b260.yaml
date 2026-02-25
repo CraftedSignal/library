@@ -1,0 +1,65 @@
+id: 019c7d7f-2bb6-71c9-aacd-17511903b260
+name: ChatGPT Stealer C2 Domains Network Connection
+description: This rule detects network connections from common web browsers to known command and control (C2) domains associated with the ChatGPT Stealer campaign. These domains are used to exfiltrate stolen AI session tokens and conversation data.
+query: |
+    // Name: ChatGPT Stealer C2 Domains
+    // Author: Nicholas Isakson
+    // Date: 2026-02-20
+    // Description: This rule detects network connections to known command and control (C2) domains associated with the ChatGPT Stealer campaign. These domains are used to exfiltrate stolen AI session tokens and conversation data.
+    // MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols), T1567 (Exfiltration Over Web Service)
+    // References:
+    // - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt/
+    // - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/
+    // - https://cybersecuritynews.com/16-malicious-chrome-extensions-as-chatgpt-enhancements/
+
+    // Define the list of known malicious C2 domains
+    let MaliciousDomains = dynamic([
+        "chataigpt.pro",
+        "chatgptsidebar.pro",
+        "deepaichats.com",
+        "chatsaigpt.com",
+        "chatgptbuddy.com",
+        "chatgptmods.com",
+        "imagents.top"
+    ]);
+    // Define common browser processes to increase fidelity
+    let BrowserProcesses = dynamic([
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe",
+        "brave.exe",
+        "opera.exe",
+        "vivaldi.exe"
+    ]);
+    DeviceNetworkEvents
+    // Filter for network connections initiated by common web browsers
+    | where InitiatingProcessFileName in~ (BrowserProcesses)
+    // Check if the remote URL matches the known malicious C2 list
+    | where RemoteUrl has_any (MaliciousDomains)
+    // Note: The domain 'deepseek.ai' was mentioned in some reports but is a legitimate AI service.
+    // It has been excluded to prevent high false positives and potential business impact.
+    // If your organization does not use this service, you may consider adding it to the MaliciousDomains list.
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        RemotePort
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1567
+tags:
+    - kql
+author: Nicholas Isakson
+version: "3"
+references:
+    - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt/
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/
+    - https://cybersecuritynews.com/16-malicious-chrome-extensions-as-chatgpt-enhancements/

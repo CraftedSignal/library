@@ -1,0 +1,14 @@
+id: 71e6bc71-328a-4858-85a9-deb280bce9e5
+name: 'Threat Hunt: Potential ADFSjacking - Redirects in Microsoft Environments'
+description: This detection identifies suspicious use of wreply or redirect_uri parameters in ADFS or Microsoft login URLs. Attackers can abuse these parameters to redirect users to non-Microsoft domains after authentication, a technique commonly referred to as ADFSjacking.
+query: "let SuspiciousDomains = dynamic([\"bluegraintours.com\", \"offirmtm.com\", \"Add more IOCs here if available\" ]);\r\nlet KnownMicrosoftDomains = dynamic([\r\n  \"microsoftonline.com\", \"office.com\", \"microsoft.com\", \"outlook.office.com\", \"Add more legit domains here if needed\"\r\n]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1d)\r\n//     Focus only on ADFS/Microsoft login-related requests \r\n| where RemoteUrl has \"login.microsoftonline.com\" or RemoteUrl has \"/adfs/ls/\"\r\n| where RemoteUrl has \"redirect_uri=\" or RemoteUrl has \"wreply=\"\r\n| extend UrlLower = tolower(RemoteUrl)\r\n| extend UrlDecoded = url_decode(UrlLower)\r\n| extend RedirectDomain = extract(@\"(wreply|redirect_uri)=(?:https?://)?([^/&?]+)\", 2, UrlDecoded)\r\n// --- Flag domains as legit, suspicious, or unknown\r\n| extend IsLegitRedirect   = RedirectDomain has_any (KnownMicrosoftDomains)\r\n| extend IsSuspiciousIOC   = RedirectDomain has_any (SuspiciousDomains)\r\n| extend RedirectSuspicious = iff(\r\n      isnotempty(RedirectDomain) \r\n      and (not(IsLegitRedirect) or IsSuspiciousIOC),\r\n      true, false\r\n  )\r\n// --- suspicious hits\r\n| where RedirectSuspicious == true\r\n| project \r\n    Timestamp, \r\n    DeviceName, \r\n    InitiatingProcessAccountName,\r\n    RemoteUrl, \r\n    UrlDecoded,\r\n    RemoteIP, \r\n    RedirectDomain, \r\n    InitiatingProcessFileName, \r\n    InitiatingProcessCommandLine\r\n| extend Detection = \"Suspicious ADFS redirect (possible ADFSjacking)\"\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1556.003
+    - T1071.001
+    - T1566
+tags:
+    - kql
+author: AwaisM
+version: "1"

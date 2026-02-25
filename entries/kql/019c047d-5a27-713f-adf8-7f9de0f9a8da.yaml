@@ -1,0 +1,142 @@
+id: 019c047d-5a27-713f-adf8-7f9de0f9a8da
+name: ScreenConnect Malware Detection
+description: Detects indicators of compromise related to trojanized ScreenConnect installers and abuse of ScreenConnect C2 configuration. This rule identifies suspicious process executions of ScreenConnect components, known malicious hashes associated with ScreenConnect malware, ScreenConnect processes launched by installer executables (msiexec), network connections to ScreenConnect relay domains, DNS resolutions for ScreenConnect relays, modifications to 'system.config' files within ScreenConnect directories indicative of C2 configuration, and malicious registry artifacts related to ScreenConnect installation.
+query: |
+    // =============================================================================
+    // ScreenConnect Malware Detection - KQL (Microsoft Defender / Sentinel)
+    // =============================================================================
+    // Description: Detects trojanized ScreenConnect installer and C2 config abuse.
+    // Author: Daniel Jeremiah
+    // Date: 2025-01-25
+    // Reference: msi_analysis - malicious system.config directs to attacker relay.
+    // Data sources: DeviceProcessEvents, DeviceNetworkEvents, DeviceFileEvents,
+    //              DeviceRegistryEvents (Microsoft 365 Defender / Sentinel).
+    // https://www.virustotal.com/gui/file/5ba4020759ca8c2c185fdd6f8c2d9e2ec7d21c860aeb0adb6c7622006eb57b6f
+    =============================================================================
+
+    // -----------------------------------------------------------------------------
+    // 1. Process: ScreenConnect components by executable name (high fidelity)
+    // -----------------------------------------------------------------------------
+    // Fires when known ScreenConnect client executables run. Correlate with
+    // parent (e.g. msiexec = install; services.exe = persistence).
+    DeviceProcessEvents
+    | where Timestamp > ago(7d)
+    | where FileName in (
+        "ScreenConnect.WindowsClient.exe",
+        "ScreenConnect.WindowsBackstageShell.exe",
+        "ScreenConnect.WindowsFileManager.exe",
+        "ServiceExeWithService",
+        "ServiceExeWithoutService"
+    )
+    | where InitiatingProcessFileName !endswith "ScreenConnect.WindowsClient.exe"  // self-launch exclude
+    | project Timestamp, DeviceName, DeviceId, FileName, FolderPath, CommandLine,
+              InitiatingProcessFileName, InitiatingProcessCommandLine, SHA256
+
+    // -----------------------------------------------------------------------------
+    // 2. Process: Known malicious hashes (MSI + components)
+    // -----------------------------------------------------------------------------
+    let malicious_hashes = dynamic([
+        "5ba4020759ca8c2c185fdd6f8c2d9e2ec7d21c860aeb0adb6c7622006eb57b6f",  // MSI installer
+        "a5c8ede4d24165797dcfbabbb85f62c44a79b058381e68249bf418a01fc67a1d",  // WindowsClient.exe
+        "a33c975b07fc9db4713b6584965dd88b143d61b99c4d699dd326374b82dcd271",  // ServiceExeWithService
+        "dbaffdb4d49e5dba309f54b1fc110c236042ac82ccde029b2917e189edaf84d3",  // Client.dll
+        "c8102fc3bda354653fc1c80b500de20d1a6bb274826334f76817f595434d2f0d"   // ClientService.dll
+    ]);
+    DeviceProcessEvents
+    | where Timestamp > ago(7d)
+    | where SHA256 in (malicious_hashes)
+    | project Timestamp, DeviceName, DeviceId, FileName, FolderPath, CommandLine,
+              InitiatingProcessFileName, SHA256
+
+    // -----------------------------------------------------------------------------
+    // 3. Process: ScreenConnect launched from installer (install-time abuse)
+    // -----------------------------------------------------------------------------
+    DeviceProcessEvents
+    | where Timestamp > ago(7d)
+    | where FileName in (
+        "ScreenConnect.WindowsClient.exe",
+        "ScreenConnect.WindowsBackstageShell.exe",
+        "ScreenConnect.WindowsFileManager.exe"
+    )
+    | where InitiatingProcessFileName in ("msiexec.exe", "Msiexec.exe")
+    | project Timestamp, DeviceName, DeviceId, FileName, FolderPath, CommandLine,
+              InitiatingProcessFileName, InitiatingProcessCommandLine, SHA256
+
+    // -----------------------------------------------------------------------------
+    // 4. Network: C2 relay domain (instance-*-relay.screenconnect.com)
+    // -----------------------------------------------------------------------------
+    DeviceNetworkEvents
+    | where Timestamp > ago(7d)
+    | where RemoteUrl contains "relay.screenconnect.com"
+       or RemoteUrl matches regex @"instance-[a-z0-9-]+-relay\.screenconnect\.com"
+    | where RemotePort == 443 or isempty(RemotePort)
+    | project Timestamp, DeviceName, DeviceId, InitiatingProcessFileName,
+              RemoteUrl, RemotePort, RemoteIP, ActionType
+
+    // -----------------------------------------------------------------------------
+    // 5. Network: DNS resolution for ScreenConnect relay (if DNS events available)
+    // -----------------------------------------------------------------------------
+    DeviceNetworkEvents
+    | where Timestamp > ago(7d)
+    | where ActionType == "DnsConnectionInspected" or ActionType == "ConnectionSuccess"
+    | where RemoteUrl contains "screenconnect.com" and RemoteUrl contains "relay"
+    | project Timestamp, DeviceName, DeviceId, InitiatingProcessFileName,
+              RemoteUrl, RemotePort, RemoteIP, ActionType
+
+    // -----------------------------------------------------------------------------
+    // 6. File: system.config containing malicious C2 (ClientLaunchParameters / h=instance-)
+    // -----------------------------------------------------------------------------
+    DeviceFileEvents
+    | where Timestamp > ago(7d)
+    | where FileName == "system.config"
+       and (FolderPath contains "ScreenConnect" or FolderPath contains "ConnectWise")
+    | where ActionType in ("FileCreated", "FileModified")
+    | project Timestamp, DeviceName, DeviceId, FileName, FolderPath, ActionType,
+              InitiatingProcessFileName, SHA256
+    // Note: File content (ClientLaunchParametersConstraint, h=instance-) is not in
+    // DeviceFileEvents. Use hunting on same path + time with process/network, or
+    // deploy custom collection for *.config in ScreenConnect install dirs.
+
+    // -----------------------------------------------------------------------------
+    // 7. Registry: Malicious URL scheme and credential provider (install artifacts)
+    // -----------------------------------------------------------------------------
+    DeviceRegistryEvents
+    | where Timestamp > ago(7d)
+    | where (
+        (RegistryKey contains "URL Protocol" and RegistryValueName contains "sc-4303286c36447fd8")
+        or (RegistryKey contains "Credential Providers" and RegistryValueData contains "6FF59A85-BC37-4CD4-926E-59C08400982A")
+        or (RegistryKey contains "shell\\open\\command" and RegistryValueData contains "ScreenConnect.WindowsClient.exe")
+    )
+    | project Timestamp, DeviceName, DeviceId, RegistryKey, RegistryValueName,
+              RegistryValueData, ActionType, InitiatingProcessFileName
+
+    // -----------------------------------------------------------------------------
+    // 8. Combined: Process + network (same device, same day – behavioral)
+    // -----------------------------------------------------------------------------
+    let process_events = DeviceProcessEvents
+    | where Timestamp > ago(7d)
+    | where FileName in (
+        "ScreenConnect.WindowsClient.exe",
+        "ScreenConnect.WindowsBackstageShell.exe",
+        "ScreenConnect.WindowsFileManager.exe"
+    )
+    | project ProcessTime = Timestamp, DeviceId, DeviceName, FileName, SHA256;
+    let network_events = DeviceNetworkEvents
+    | where Timestamp > ago(7d)
+    | where RemoteUrl contains "relay.screenconnect.com"
+    | project NetworkTime = Timestamp, DeviceId, RemoteUrl, RemotePort;
+    process_events
+    | join kind=inner network_events on DeviceId
+    | where abs(datetime_diff('day', ProcessTime, NetworkTime)) <= 1
+    | project ProcessTime, DeviceName, FileName, SHA256, RemoteUrl, RemotePort
+    | distinct *
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219.002
+    - T1071.001
+tags:
+    - kql
+version: "4"

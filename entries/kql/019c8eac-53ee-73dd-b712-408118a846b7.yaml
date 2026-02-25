@@ -1,0 +1,14 @@
+id: 019c8eac-53ee-73dd-b712-408118a846b7
+name: Password Spraying - Single IP, Multiple Failed Users
+description: This rule detects password spraying attacks where a single IP address attempts to authenticate against multiple unique user accounts within a specified time window, resulting in failed sign-in attempts. It specifically looks for a high number of unique users failing authentication from the same IP, which is characteristic of password spraying to avoid account lockouts.
+query: "// Detection: Password Spray - Single IP, Multiple Failed Users\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1110.003 - Password Spraying\r\nlet timeWindow         = 30m;\r\nlet targetUserThreshold = 10;\r\nlet sprayErrorCodes = dynamic([\r\n    \"50053\",\"50055\",\"50056\",\"50057\",\"50064\",\r\n    \"50126\",\"50144\",\"50158\",\"53003\",\"500121\"\r\n]);\r\nSigninLogs\r\n| where TimeGenerated > ago(1h)\r\n| where ResultType != \"0\"\r\n| where ResultType in (sprayErrorCodes)\r\n| summarize\r\n    UniqueUsers    = dcount(UserPrincipalName),\r\n    AttemptedUsers = make_set(UserPrincipalName, 20),\r\n    Attempts       = count(),\r\n    Apps           = make_set(AppDisplayName, 5)\r\n    by IPAddress, bin(TimeGenerated, timeWindow)\r\n| where UniqueUsers >= targetUserThreshold\r\n| extend AlertDescription = strcat(\r\n    \"Single IP \", IPAddress,\r\n    \" targeting \", UniqueUsers,\r\n    \" accounts — Password Spray indicator\")\r\n| project-reorder TimeGenerated, IPAddress, UniqueUsers,\r\n                  AttemptedUsers, Attempts, Apps, AlertDescription\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110.003
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

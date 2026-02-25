@@ -1,0 +1,26 @@
+id: 98d03154-a3e0-42cc-a174-72d54bcdac58
+name: Detect Malicious Impersonation of Deepseek Domains in Email URLs
+description: KQL Query
+query: |
+    // Detect Malicious Impersonation of Deepseek Domains in Email URLs
+
+    // Utilize this straightforward KQL tool for inbound email URL analysis to identify domains potentially impersonating Deepseek for malicious purposes. This empowers SecOps to verify domain authenticity and block threats at the tenant level.
+
+    EmailUrlInfo
+    | join EmailEvents on NetworkMessageId
+    | where UrlDomain has "deepseek" and (UrlDomain !endswith "deepseek.com" or SenderFromDomain != "deepseek.com")
+    | where EmailDirection == "Inbound" and LatestDeliveryAction != "Blocked"
+    | summarize Count=count() by UrlDomain
+    | where Count >= 3
+query_type: kql
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+    - T1598.003
+tags:
+    - kql
+version: "1"

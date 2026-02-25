@@ -1,0 +1,52 @@
+id: 89a0527d-3ba4-4bc6-9b69-c3f1255a0af9
+name: UNC3944 | VMware - ESXi execInstalledOnly Disabled
+description: Detects the disabling of the 'execInstalledOnly' kernel setting on an ESXi host, a critical security control that prevents the execution of unsigned binaries. This is often followed by a host reboot to apply the change. This TTP is used by threat groups like UNC3944 to prepare the hypervisor for custom ransomware execution.
+query: |
+    `comment("
+    name: VMware - ESXi execInstalledOnly Disabled
+    date: 2025-07-25
+    description: >
+      Detects the disabling of the 'execInstalledOnly' kernel setting on an ESXi host, a critical security control that prevents the execution of unsigned binaries. This is often followed by a host reboot to apply the change. This TTP is used by threat groups like UNC3944 to prepare the hypervisor for custom ransomware execution.
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/
+    how_to_implement: >
+      This detection requires ESXi host shell logs (e.g., sourcetype=vmware:esxlog:shell) and VMware vCenter logs (e.g., sourcetype=vmware:vclog) to be ingested. The `host` field must be consistent across both log sources to allow for correlation. The sourcetypes and index may need to be adjusted for your environment.
+    known_false_positives: >
+      Disabling this security feature is highly unusual and should be a rare event. Legitimate administrative activity during deep troubleshooting or a system rollback could trigger this, but any occurrence warrants investigation and should be correlated with change management records.
+    ")`
+
+    `comment("Find instances where the execInstalledOnly setting was disabled on an ESXi host. This is the primary indicator of compromise.")`
+    `vmware` sourcetype=vmware:esxlog:shell "*esxcli*system*settings*kernel*set*s*execInstalledOnly*v*FALSE*"
+    | rename host as esxi_host
+
+    `comment("For each host where the setting was changed, find the time of the change and the user who performed it.")`
+    | stats earliest(_time) as change_time values(user) as user by esxi_host
+
+    `comment("Use the map command to search for a subsequent reboot event (HostShutdownEvent) for each affected host. The subsearch is constrained to look for events only after the setting was changed.")`
+    | map maxsearches=100 search="search `vmware` sourcetype=vmware:vclog event_type_id=vim.event.HostShutdownEvent host=$esxi_host$ _time>$change_time$ | head 1 | eval change_time=$change_time$, user_performing_change=\"$user$\""
+
+    `comment("Filter for reboots that occur within 30 minutes of the setting change, a reasonable timeframe for an attacker to apply the change.")`
+    | where (_time - change_time) <= 1800
+
+    `comment("Format the fields for the final alert.")`
+    | rename _time as reboot_time, user as user_initiating_reboot
+    | `security_content_ctime(change_time)`
+    | `security_content_ctime(reboot_time)`
+    | fields change_time, reboot_time, esxi_host, user_performing_change, user_initiating_reboot
+    | `vmware_esxi_execinstalledonly_disabled_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0040
+techniques:
+    - T1562.001
+    - T1059
+    - T1490
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defending-vsphere-from-unc3944/

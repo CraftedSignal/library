@@ -1,0 +1,32 @@
+id: 0199c526-a3b5-7466-87db-91a825d2e727
+name: MFA Fatigue Attack Detection
+description: Detects potential Multi-Factor Authentication (MFA) fatigue attacks by identifying a high number of MFA denial events for a single user within a short timeframe. This rule specifically looks for sign-in logs where the user explicitly declined the authentication prompt, indicating a possible attempt by an attacker to bombard the user with MFA requests until they approve one.
+query: |
+    let denial_threshold = 3; // Set the threshold for the number of MFA denials before an alert is generated.
+    SigninLogs
+    // Filter for sign-in events where the user explicitly denied the MFA prompt.
+    | where ResultType == 500121
+    | extend additionalDetails = tostring(Status.additionalDetails)
+    | where additionalDetails has "MFA denied; user declined the authentication"
+    // Group events by user to count the number of denials. This helps detect MFA fatigue attacks.
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), DeniedCount = count(), IPAddressSet = make_set(IPAddress, 10), ApplicationSet = make_set(AppDisplayName, 10) by UserPrincipalName
+    // Alert if the count of denials for a single user exceeds the defined threshold within the query time window.
+    | where DeniedCount >= denial_threshold
+    // Exclude alerts where the only application involved is GlobalProtect, which can be noisy.
+    | where tostring(ApplicationSet) != '["Palo Alto Networks - GlobalProtect SSO"]'
+    // Potential for false positives: A user might legitimately deny MFA multiple times.
+    // Consider increasing the denial_threshold or adding other applications to the exclusion list if noisy.
+    | extend AccountCustomEntity = UserPrincipalName
+    // Extract the first IP for entity mapping, but keep the full set for investigation.
+    | extend IPCustomEntity = tostring(IPAddressSet[0])
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1621
+    - T1110
+tags:
+    - kql
+author: Mervin Bouah
+version: "2"

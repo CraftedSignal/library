@@ -1,0 +1,48 @@
+id: e5e2162e-3cb5-4d65-8b92-f67d4bc10843
+name: Firewall rule creation (command)
+description: Detects scenarios where an attacker attempts to create a firewall rule to allow unauthorized communications.
+query: |-
+    title: Firewall rule creation (command)
+    description: Detects scenarios where an attacker attempts to create a firewall rule to allow unauthorized communications.
+    references:
+    - https://research.checkpoint.com/2022/check-point-research-detects-crypto-miner-malware-disguised-as-google-translate-desktop-and-other-legitimate-applications/
+    - https://thedfirreport.com/2023/10/30/netsupport-intrusion-results-in-domain-compromise/
+    - https://www.sygnia.co/blog/china-nexus-threat-group-velvet-ant/
+    tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      category: process_creation
+    detection: # netsh firewall add portopening TCP 80 "Open Port 80"
+      selection_event:
+        EventID: 4688
+        NewProcessName|endswith: '\netsh.exe' # Full path "C:\Windows\system32\netsh.exe"
+        Commandline|contains|all:
+          - netsh
+          - firewall # covers also advfirewall
+          - add
+      condition: selection
+    falsepositives:
+    - Administrator activity
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.004
+tags:
+    - attack.defense_evasion
+    - attack.t1562.004
+author: mdecrevoisier
+version: "1"
+references:
+    - https://research.checkpoint.com/2022/check-point-research-detects-crypto-miner-malware-disguised-as-google-translate-desktop-and-other-legitimate-applications/
+    - https://thedfirreport.com/2023/10/30/netsupport-intrusion-results-in-domain-compromise/
+    - https://www.sygnia.co/blog/china-nexus-threat-group-velvet-ant/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,16 @@
+id: 6e7de040-0cea-4ca1-9917-6f05ef5cbe2c
+name: Suspicious Application Installation with Public IP Communication
+description: This rule detects the installation of potentially unwanted or suspicious applications, specifically looking for a sponsored version of FileZilla. It then correlates this installation with outbound network activity to public IP addresses, which could indicate telemetry, beaconing, data exfiltration, or command and control (C2) behavior.
+query: "## \U0001F50D KQL Description\n#### This query is used to:\n#### 1.Detect installation of a potentially unwanted or suspicious application (e.g., a sponsored version of FileZilla).\n#### 2.Correlate installation with network activity, especially to public IPs, which could indicate:\n#### 3.Telemetry or beaconing\n#### 4.Data exfiltration\n#### 5.Command and control (C2) behavior\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic:Execution (TA0002), Command and Control (TA0011)\n#### Technique: User Execution (T1204), Application Layer Protocol (T1071)\n#### Sub-Technique: T1071.001 (Web Protocols), T1204.002 (Malicious File)\n### Query:\n```KQL\n// Identify application events\nlet application_events = \nDeviceProcessEvents\n| where TimeGenerated >= ago(30d)\n| where ActionType in (\"Install\", \"FileCreated\", \"FileModified\")\n    or ProcessCommandLine contains \"msiexec\"\n    or ProcessCommandLine has_any (\"install\", \"setup\", \"update\", \"installer\", \".msi\", \".exe\")\n| where FileName has_any (\"FileZilla_3.69.1_win64_sponsored2-setup.exe\")\n| project TimeGenerated, DeviceName, AccountName, InitiatingProcessAccountName, FileName, ProcessCommandLine, FolderPath, ActionType, InitiatingProcessAccountUpn, InitiatingProcessCommandLine, InitiatingProcessFileName, InitiatingProcessFolderPath, ProcessId;\n// Find network connections related to the application processes\napplication_events\n| join kind=inner ( \n    DeviceNetworkEvents\n    | where RemoteIPType == \"Public\"  // Filter for public IPs\n    | project NetworkTimestamp = TimeGenerated, DeviceName, InitiatingProcessId, RemoteIP, RemoteUrl, RemotePort, Protocol\n) on $left.ProcessId == $right.InitiatingProcessId and $left.DeviceName == $right.DeviceName\n| project TimeGenerated, NetworkTimestamp, DeviceName, AccountName, InitiatingProcessAccountName, FileName, ProcessCommandLine, FolderPath, ActionType, InitiatingProcessAccountUpn, InitiatingProcessCommandLine, InitiatingProcessFileName, InitiatingProcessFolderPath, RemoteIP, RemoteUrl, RemotePort, Protocol\n| sort by TimeGenerated desc\n```\n"
+query_type: kql
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1204
+    - T1204.002
+    - T1071
+    - T1071.001
+tags:
+    - kql
+version: "1"

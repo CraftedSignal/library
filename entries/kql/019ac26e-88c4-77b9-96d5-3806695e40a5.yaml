@@ -1,0 +1,66 @@
+id: 019ac26e-88c4-77b9-96d5-3806695e40a5
+name: Sha1-Hulud behavior pattern
+description: 'This query identifies an anomalous pattern associated with behavior performed by Sha1-Hulud to perform initial access, connect to C2, and establish persistence. Ref: https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack'
+query: |-
+    id: 856a09bc-283f-4b20-b61c-9d05b78e8b00
+    name: Sha1-Hulud behavior pattern
+    description: |
+      'This query identifies an anomalous pattern associated with behavior performed using by Sha1-Hulud to perform an intial access, connect to C2 and establish persistence.
+      Ref: https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack'
+    requiredDataConnectors:
+      - connectorId: MicrosoftThreatProtection
+        dataTypes:
+        - DeviceEvents
+        - DeviceFileEvents
+        - DeviceImageLoadEvents
+        - DeviceNetworkEvents
+        - DeviceProcessEvents
+        - DeviceRegistryEvents
+    tactics:
+      - Intial Access
+    relevantTechniques:
+      - T1195.001
+    query: |
+      let starttime = datetime(2025-11-24T00:00:00.0000000);
+      let endtime = now();
+      let affectedPackages = externaldata(Package: string, Version: string) ['https://raw.githubusercontent.com/wiz-sec-public/wiz-research-iocs/refs/heads/main/reports/shai-hulud-2-packages.csv'] with(ignoreFirstRecord=true);
+      let affectedPackagesNames_Linux = affectedPackages
+          | project Package;
+      let affectedPackagesNames_Windows = affectedPackages
+          | extend Package = replace_string(Package, '/', '\\')
+          | project Package;
+      let affectedDevices = materialize(union DeviceFileEvents, DeviceProcessEvents
+        | where TimeGenerated >= starttime
+        | where TimeGenerated <= endtime
+        | where ActionType !endswith 'AggregatedReport'
+        | where (InitiatingProcessCommandLine has_any ('/npm/', '\\npm\\') or ProcessCommandLine has_any ('/npm/', '\\npm\\') or FolderPath has_any ('/npm/', '\\npm\\'))
+        | where (InitiatingProcessCommandLine has_any (affectedPackagesNames_Linux, affectedPackagesNames_Windows, '@stoplight/spectral-cli', '@stoplight\\spectral-cli') or ProcessCommandLine has_any (affectedPackagesNames_Linux, affectedPackagesNames_Windows, '@stoplight/spectral-cli', '@stoplight\\spectral-cli') or FolderPath has_any (affectedPackagesNames_Linux, affectedPackagesNames_Windows, '@stoplight/spectral-cli', '@stoplight\\spectral-cli'))
+        | summarize by DeviceName);
+      union DeviceEvents, DeviceFileEvents, DeviceImageLoadEvents, DeviceNetworkEvents, DeviceProcessEvents, DeviceRegistryEvents
+      | where TimeGenerated >= starttime
+      | where TimeGenerated <= endtime
+      | where DeviceName in~ (affectedDevices)
+      | where (InitiatingProcessCommandLine has_any ('setup_bun.js', 'bun_environment.js', 'bun.sh') or ProcessCommandLine has_any ('setup_bun.js', 'bun_environment.js', 'bun.sh') or InitiatingProcessFileName =~ 'bun.exe' or FileName =~ 'bun.exe')
+      | project-reorder TimeGenerated, Type, ActionType
+      | sort by TimeGenerated asc
+    version: 1.0.0
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.001
+tags:
+    - kql
+    - tactic:Intial Access
+    - technique:T1195.001
+version: "3"
+references:
+    - https://www.wiz.io/blog/shai-hulud-2-0-ongoing-supply-chain-attack
+data_sources:
+    - DeviceEvents
+    - DeviceFileEvents
+    - DeviceImageLoadEvents
+    - DeviceNetworkEvents
+    - DeviceProcessEvents
+    - DeviceRegistryEvents

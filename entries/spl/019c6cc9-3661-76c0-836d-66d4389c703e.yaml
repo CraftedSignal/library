@@ -1,0 +1,57 @@
+id: 019c6cc9-3661-76c0-836d-66d4389c703e
+name: Non-Browser Process Connecting to LLM API Endpoints
+description: This detection identifies network connections from non-browser processes to known Large Language Model (LLM) API endpoints. While some connections may be legitimate developer or application traffic, unexpected processes connecting to these services could indicate unauthorized data exfiltration, corporate espionage, or misuse of AI services.
+query: |
+    ##
+    ## TTP: T1567.002, T1102
+    ##
+    ##
+    ## Author: detections.ai
+    ## Date: 2024-05-21
+    ##
+    ## This detection identifies network connections from non-browser processes to known Large Language Model (LLM)
+    ## API endpoints. While some connections may be legitimate developer or application traffic, unexpected
+    ## processes connecting to these services could indicate unauthorized data exfiltration, corporate
+    ## espionage, or misuse of AI services.
+    ##
+    ## Data Source:
+    ## - Endpoint (Sysmon, Crowdstrike, etc.)
+    ## - Network Traffic / Proxy Logs
+    ##
+    ## False Positives:
+    ## - Legitimate use by developers, data scientists, or sanctioned applications (e.g., Python scripts, IDEs).
+    ## - Tuning: Filter out known legitimate processes (`process_name`), users (`user`), or source hosts (`src`) using the `llm_endpoint_connection_filter` macro.
+    ##
+
+    `tstats` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Network_Traffic where All_Traffic.dest_host IN (
+        "api.openai.com",
+        "api.anthropic.com",
+        "generativelanguage.googleapis.com",
+        "api.mistral.ai",
+        "api.cohere.ai",
+        "*.bedrock-runtime.*.amazonaws.com"
+    ) by All_Traffic.process_name, All_Traffic.user, All_Traffic.src, All_Traffic.dest_host
+    `security_content_ctime(firstTime)`
+    `security_content_ctime(lastTime)`
+    ## Filter for non-browser processes to reduce noise from web UI usage.
+    | where isnull(All_Traffic.process_name) OR lower(All_Traffic.process_name) NOT IN ("chrome.exe", "firefox.exe", "msedge.exe", "safari.exe", "iexplore.exe")
+    ## Group connections by source, user, and process
+    | stats sparkline(count) as trend, count, values(All_Traffic.dest_host) as dest_host by firstTime, lastTime, All_Traffic.src, All_Traffic.user, All_Traffic.process_name
+    ## Helper macro for custom filtering of known false positives
+    | `llm_endpoint_connection_filter`
+    ## Rename fields for clarity and present the results
+    | rename All_Traffic.process_name as process_name, All_Traffic.user as user, All_Traffic.src as src
+    | `security_content_summariesonly_authentication_format`
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1567.002
+    - T1102
+    - T1567
+tags:
+    - spl
+author: '@naveedhassan66'
+version: "2"

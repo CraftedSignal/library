@@ -1,0 +1,32 @@
+id: 019bfaa2-a17f-7564-ba01-e333f47671cb
+name: Possible CVE-2026-24061 Telnetd Auth Bypass
+description: Detects the execution of the 'login' process with the '-f' flag, which skips authentication. When spawned by 'telnetd', this is a strong indicator of exploitation of CVE-2026-24061, a critical authentication bypass vulnerability.
+query: |
+    // Name: Possible CVE-2026-24061 Telnetd Auth Bypass
+    // Author: detections.ai
+    // Date: 2026-01-26
+    // Description: Detects the execution of the 'login' process with the '-f' flag, which skips authentication. When spawned by 'telnetd', this is a strong indicator of exploitation of CVE-2026-24061, a critical authentication bypass vulnerability.
+    // False Positives: Low. Legitimate use of 'login -f' from a telnetd session is highly unusual.
+    // References: https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+    // Tags: T1190, TA0001
+    DeviceProcessEvents
+    // Filter for the 'login' process.
+    | where FileName =~ "login"
+    // The parent process should be the telnet daemon. 'in.telnetd' is another common name.
+    // FP Tuning: Add or remove parent process names based on your environment.
+    | where InitiatingProcessFileName in~ ("telnetd", "in.telnetd")
+    // The '-f' flag in the command line instructs 'login' to skip authentication.
+    // Using spaces around '-f' reduces FPs from matching other strings.
+    | where ProcessCommandLine has " -f "
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: Paul
+version: "3"
+references:
+    - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/

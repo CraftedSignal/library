@@ -1,0 +1,19 @@
+id: 019c8cfa-0da5-731d-ab08-261386310886
+name: Suspicious File Creation and Network Connection to Telegram API
+description: 'This rule detects a suspicious sequence of events: a file named ''host.exe'' being created in the Windows Startup folder, a ''runtime.zip'' file being created in the local temporary directory, and subsequent network communication to the Telegram API (api.telegram.org) from the same device. This pattern is indicative of malware establishing persistence, staging data, and exfiltrating it via Telegram, potentially associated with malware like Small Sieve.'
+query: "let lookback = 1d;\r\nlet Persistance =\r\nDeviceFileEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"FileCreated\"\r\n| where FolderPath has \"\\\\AppData\\\\Roaming\\\\Microsoft\\\\Windows\\\\Start Menu\\\\Programs\\\\Startup\"\r\n| where InitiatingProcessVersionInfoOriginalFileName has \"host.exe\"\r\n| project DeviceName;\r\nlet CompressData =\r\nDeviceFileEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"FileCreated\"\r\n| where FolderPath has \"\\\\AppData\\\\Local\\\\Temp\"\r\n| where FileName has \"runtime.zip\"\r\n| project DeviceName;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(lookback)\r\n| where RemoteUrl has \"api.telegram.org\"\r\n| where DeviceName has_any(Persistance) and DeviceName has_any(CompressData)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0009
+    - TA0010
+techniques:
+    - T1547.001
+    - T1074.001
+    - T1567.002
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"

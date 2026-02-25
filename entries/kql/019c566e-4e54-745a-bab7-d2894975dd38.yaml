@@ -1,0 +1,34 @@
+id: 019c566e-4e54-745a-bab7-d2894975dd38
+name: New Clickfix variant ‘CrashFix’ deploying Python RAT
+description: |-
+    This rule detects various activities associated with the 'CrashFix' variant of the 'Clickfix' malware, which deploys a Python-based Remote Access Trojan (RAT). The detection logic covers several stages of the attack:
+    1.  **Browser Extension Installation**: Identifies the creation of a specific malicious Chrome extension file (.crx) with a unique identifier.
+    2.  **Command and Control (C2) Traffic**: Monitors network connections to known malicious URLs and IP addresses associated with the malware's C2 infrastructure.
+    3.  **Malicious Hashes**: Detects the execution of processes with specific SHA256 hashes known to belong to the CrashFix malware.
+    4.  **LOLBIN Abuse**: Identifies the use of living-off-the-land binaries (LOLBINs) like 'finger.exe' and 'ct.exe' in suspicious command-line combinations, potentially for discovery or execution.
+    5.  **Malicious IP Communication**: Looks for network connections initiated by 'ct.exe' with the 'confirm' argument, indicating communication with potentially malicious remote IPs.
+    6.  **Python TTPs**: Detects Python execution patterns, specifically 'pythonw.exe' running 'modes.py' and making outbound network connections to non-local IPs, indicative of the Python RAT.
+    7.  **Persistence via Registry Run Key**: Monitors for registry modifications related to 'pythonw.exe modes.py', suggesting persistence mechanisms.
+    8.  **Persistence via Scheduled Task**: Identifies the creation of scheduled tasks that execute 'run.exe' and 'udp.pyw', another persistence method.
+query: "let Extension=DeviceFileEvents\r\n| where FileName endswith \".crx\" and FileName contains \"cpcdkmjddocikjdkbbeiaafnpdbdafmi\";\r\nlet C2CTraffic=DeviceNetworkEvents\r\n| where RemoteUrl has_any (\"nexsnield.com\")\r\nor \r\nRemoteIP has_any (\"144.31.221.179\",\"144.31.221.197\",\"158.247.252.178\",\"170.168.103.208\",\"199.217.98.108\",\"69.67.173.30\");\r\nlet MaliciousHash=DeviceProcessEvents\r\n| where SHA256 has_any (\"01eba1d7222c6d298d81c15df1e71a492b6a3992705883c527720e5b0bab701a\",\"37b547406735d94103906a7ade6e45a45b2f5755b9bff303ff29b9c2629aa3c5\",\"3a5a31328d0729ea350e1eb5564ec9691492407f9213f00c1dd53062e1de3959\",\"6461d8f680b84ff68634e993ed3c2c7f2c0cdc9cebb07ea8458c20462f8495aa\",\"6f7c558ab1fad134cbc0508048305553a0da98a5f2f5ca2543bc3e958b79a6a3\",\"c46af9ae6ab0e7567573dbc950a8ffbe30ea848fac90cd15860045fe7640199c\",\"c76c0146407069fd4c271d6e1e03448c481f0970ddbe7042b31f552e37b55817\");\r\nlet LolBinFinger=DeviceProcessEvents\r\n| where InitiatingProcessCommandLine has_all (\"cmd.exe\",\"start\",\"finger.exe\",\"ct.exe\") or ProcessCommandLine has_all (\"cmd.exe\",\"start\",\"finger.exe\",\"ct.exe\");\r\nlet MaliciousIP=DeviceNetworkEvents\r\n| where InitiatingProcessCommandLine has_all (\"ct.exe\",\"confirm\")\r\n| distinct RemoteIP\r\n| join kind=inner DeviceNetworkEvents on RemoteIP;\r\nlet PythonTTP=DeviceNetworkEvents\r\n| where InitiatingProcessCommandLine has_all (\"pythonw.exe\",\"modes.py\")\r\n| where RemoteIP !in (\"\", \"127.0.0.1\");\r\nlet RegistryRun=DeviceRegistryEvents\r\n| where InitiatingProcessCommandLine has_all (\"pythonw.exe\",\"modes.py\");\r\nlet Scheduletask=DeviceEvents\r\n| where ActionType == \"ScheduledTaskCreated\"\r\n| where InitiatingProcessCommandLine has_all (\"run.exe\", \"udp.pyw\");\r\nunion Extension,C2CTraffic,LolBinFinger,MaliciousIP,MaliciousHash,PythonTTP,RegistryRun,Scheduletask\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+    - TA0002
+    - TA0004
+techniques:
+    - T1176.001
+    - T1071.001
+    - T1059.006
+    - T1059.003
+    - T1547.001
+    - T1053.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.redpacketsecurity.com/new-clickfix-variant-crashfix-deploying-python-remote-access-trojan/
+    - https://www.huntress.com/blog/malicious-browser-extention-crashfix-kongtuke
+    - http://microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/

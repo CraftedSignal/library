@@ -1,0 +1,47 @@
+id: 019a0d1f-53f9-7698-a815-e0e5b2a391a9
+name: Jingle Thief Internal Phishing for Lateral Movement
+description: Detects internal phishing emails with subject lines mimicking IT service notifications, such as from ServiceNow. This is a tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) for lateral movement within a compromised organization.
+query: |
+    // Name: Jingle Thief Internal Phishing for Lateral Movement
+    // Description: Detects internal phishing emails with subject lines mimicking IT service notifications, such as from ServiceNow. This is a tactic used by the Jingle Thief group (also tracked as Atlas Lion and STORM-0539) for lateral movement within a compromised organization.
+    //
+    // MITRE ATT&CK: T1566.001
+    //
+    // False Positives: Legitimate IT service notifications, especially from ServiceNow, may trigger this rule. It is recommended to tune the rule by adding known legitimate sender addresses or domains to an exclusion list.
+    //
+    // Data Source: EmailEvents
+    //
+    // Version: 1.0
+    let subject_keywords = dynamic([
+        "ServiceNow Account Inactivity Notice",
+        "INCIDENT REQ",
+        "Incident pending your review"
+    ]);
+    // The EmailEvents table is required for this query.
+    EmailEvents
+    // Key detection component: Look for specific subject lines used as lures by the threat actor.
+    | where Subject has_any (subject_keywords)
+    // Key detection component: Focus on internal-to-internal emails, a hallmark of this lateral movement technique.
+    | where EmailDirection == "Intra-org"
+    // To reduce false positives, add legitimate sender addresses that send such notifications to this exclusion list.
+    // For example, if your actual ServiceNow notifications come from a specific address.
+    // | where SenderFromAddress !in~ ("legit-servicenow@your-domain.com")
+    | project-reorder
+        TimeGenerated,
+        Subject,
+        SenderFromAddress,
+        RecipientEmailAddress,
+        EmailDirection,
+        AuthenticationDetails,
+        NetworkMessageId,
+        InternetMessageId,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+version: "2"

@@ -1,0 +1,10 @@
+id: c4f5e9d6-fa96-432f-a3f7-d43fdcafa249
+name: SharePoint Compromise Confirmed via IIS Process Anomaly
+description: ' '
+query: "// High confidence detection involves process chains spawned from the IIS worker process\r\n// This pattern is not normal for SharePoint servers and should be treated as indicative of compromise\r\n//\r\nlet EncodedPowerShellExecution = \r\nDeviceProcessEvents\r\n| where Timestamp > ago(1h)\r\n| where InitiatingProcessCommandLine has \"powershell.exe -EncodedCommand\" \r\nand InitiatingProcessParentFileName == \"cmd.exe\"\r\n| distinct DeviceId;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1h)\r\n| where InitiatingProcessFileName == \"cmd.exe\" and InitiatingProcessParentFileName == \"w3wp.exe\"\r\n| where DeviceId has_any(EncodedPowerShellExecution)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "1"

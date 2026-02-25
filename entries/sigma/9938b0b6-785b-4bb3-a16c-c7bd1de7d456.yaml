@@ -1,0 +1,55 @@
+id: 9938b0b6-785b-4bb3-a16c-c7bd1de7d456
+name: Potential BadSuccessor dMSA Privilege Escalation
+description: Detects the simultaneous modification of 'msDS-ManagedAccountPrecededByLink' and 'msDS-DelegatedMSAState' attributes on a delegated Managed Service Account (dMSA) object. This activity is a strong indicator of the BadSuccessor privilege escalation technique, where an attacker simulates a dMSA migration to impersonate a target account.
+query: |
+    title: Potential BadSuccessor dMSA Privilege Escalation
+    id: ea542651-c3bd-4cfd-91bc-ff1b9380243c
+    status: experimental
+    description: Detects the simultaneous modification of 'msDS-ManagedAccountPrecededByLink' and 'msDS-DelegatedMSAState' attributes on a delegated Managed Service Account (dMSA) object. This activity is a strong indicator of the BadSuccessor privilege escalation technique, where an attacker simulates a dMSA migration to impersonate a target account.
+    references:
+      - https://unit42.paloaltonetworks.com/badsuccessor-attack-vector/
+    author: detections.ai
+    date: 2025-08-12
+    tags:
+      - attack.privilege_escalation
+      - attack.t1098
+    logsource:
+      product: windows
+      category: security
+    detection:
+        # Detects the modification of key dMSA attributes via Event ID 4662
+      selection:
+        EventID: 4662
+        ObjectType: 'msDS-DelegatedManagedServiceAccount'
+        AccessMask: '0x20'     # Write Property access
+        Properties|contains|all:
+          - '2f5c138a-bd38-4016-88b4-0ec87cbb4919'        # msDS-DelegatedMSAState
+          - 'a0945b2b-57a2-43bd-b327-4d112a4e8bd1'        # msDS-ManagedAccountPrecededByLink
+        # Filter for common system and machine accounts that might perform legitimate actions
+      filter_legitimate_users:
+        SubjectUserName|endswith: '$'
+        SubjectUserName:
+          - 'SYSTEM'
+          - 'LOCAL SERVICE'
+          - 'NETWORK SERVICE'
+      condition: selection and not filter_legitimate_users
+    falsepositives:
+      - Legitimate dMSA migrations performed by administrators will generate similar events. It is recommended to baseline or filter for modifications performed by non-administrative accounts or accounts not typically responsible for service account management.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1098
+tags:
+    - attack.privilege_escalation
+    - attack.t1098
+author: detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/badsuccessor-attack-vector/
+data_sources:
+    - security
+    - windows

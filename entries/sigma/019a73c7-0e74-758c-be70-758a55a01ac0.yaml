@@ -1,0 +1,57 @@
+id: 019a73c7-0e74-758c-be70-758a55a01ac0
+name: Unsigned Kernel Extension Load Attempt
+description: Detects attempts to load unsigned kernel extensions, which may indicate rootkit installation or malicious kernel-level access. All legitimate kernel extensions should be signed with a developer ID.
+query: |
+    title: Unsigned Kernel Extension Load Attempt
+    id: e5750be3-6636-4107-b606-099a410d3d65
+    status: experimental
+    description: Detects attempts to load unsigned kernel extensions, which may
+      indicate rootkit installation or malicious kernel-level access. All legitimate
+      kernel extensions should be signed with a developer ID.
+    references:
+      - https://nebulock.io/blog/coresigma-expanding-sigma-detection-for-macos
+      - https://attack.mitre.org/techniques/T1547/006/
+      - https://objective-see.com/blog/blog_0x4B.html
+    author: detections.ai
+    date: 2025-11-11
+    tags:
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1547.006
+    logsource:
+      product: macos
+      service: endpointsecurity
+      category: kernel_extension
+    detection:
+      selection:
+        # Detects the ESF event for kernel extension loading (kextload).
+        event_type: 17 # The 'kext.team_id' field being null indicates the kernel extension is not signed.
+        kext.team_id:
+          # The event_name field can provide additional context but is not strictly necessary if event_type is used.
+          # event_name: 'kextload'
+      condition: selection
+    falsepositives:
+      - Legitimate software that uses unsigned kernel extensions (e.g., some
+        virtualization software or hardware drivers in development).
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.006
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1547.006
+author: detections.ai
+version: "3"
+references:
+    - https://nebulock.io/blog/coresigma-expanding-sigma-detection-for-macos
+    - https://attack.mitre.org/techniques/T1547/006/
+    - https://objective-see.com/blog/blog_0x4B.html
+data_sources:
+    - kernel_extension
+    - macos
+    - endpointsecurity

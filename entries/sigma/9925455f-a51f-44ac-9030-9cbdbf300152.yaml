@@ -1,0 +1,68 @@
+id: 9925455f-a51f-44ac-9030-9cbdbf300152
+name: Execution of PowerDodder Persistence Tool
+description: Detects the usage of PowerDodder, a post-exploitation persistence tool that appends malicious commands to existing script files by hijacking their execution flow.
+query: |
+    title: Execution of PowerDodder Persistence Tool
+    id: 69832804-0ed1-4e64-b043-1fbdd72242cd
+    status: experimental
+    description: Detects the usage of PowerDodder, a post-exploitation persistence
+      tool that appends malicious commands to existing script files by hijacking
+      their execution flow.
+    references:
+      - https://github.com/itaymigdal/PowerDodder
+    author: detections.ai
+    date: 2025-07-31
+    tags:
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.t1574
+      - attack.t1059.001
+      - attack.t1070.006
+    logsource:
+      product: windows
+      category: ps_script
+    detection:
+      selection_load:
+        # Detects the default command to download and execute PowerDodder from its GitHub repo
+        ScriptBlockText|contains|all:
+          - 'iex'
+          - 'iwr'
+          - 'https://raw.githubusercontent.com/itaymigdal/PowerDodder'
+          - 'PowerDodder.ps1'
+      selection_functions:
+        # Detects the execution of PowerDodder's specific functions.
+        # These function names are unique but could be used in legitimate testing tools or forked repositories.
+        ScriptBlockText|contains:
+          - 'DodderHunt'
+          - 'DodderInfect'
+          - 'DodderShow'
+          - 'DodderClearCandidates'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate penetration testing or red team exercises.
+      - The tool could be forked and the function names changed, which would evade
+        this detection.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1574
+    - T1059.001
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.t1574
+    - attack.t1059.001
+    - attack.t1070.006
+author: detections.ai
+version: "1"
+references:
+    - https://github.com/itaymigdal/PowerDodder
+data_sources:
+    - powershell_script
+    - windows

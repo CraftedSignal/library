@@ -1,0 +1,25 @@
+id: aebd5269-bc3e-4162-b56f-67e798b00088
+name: Threat Hunting - MDE Network Intrusion Discovery
+description: 'KQL Query from file: Threat Hunting - MDE Network Intrusion Discovery'
+query: "// Threat Hunting - MDE Network Intrusion Discovery\n\n// Did you know that if your Microsoft Defender for Endpoint (MDE) endpoints have the endpoint firewall enabled, you can use its telemetry data to identify potential rogue hosts in your network? During the WannaCry outbreak, I used to deploy honeypots to detect infected machines via port 445 connectivity, allowing me to trace back to the source of infection.\n// With the MDE endpoint firewall enabled, any inbound firewall connection block is logged as ActionType == \"FirewallInboundConnectionBlocked\" in the DeviceEvents schema. Using this data, you can create a query to summarize the number of TargetDevices and local TargetPorts that blocked each RemoteIP. By sorting the TargetDevices and TargetPorts in descending order, you can identify the top RemoteIPs with the highest number of blocks. These RemoteIPs likely indicate port scanning activity, which warrants further investigation by your SecOps team to determine the function of the host at the RemoteIP.\n\nDeviceEvents\n| where Timestamp > ago(30d)\n| where ActionType == @\"FirewallInboundConnectionBlocked\"\n| summarize TargetDevice=dcount(DeviceName), TargetPort=dcount(LocalPort) by RemoteIP\n| where TargetDevice > 20\n| where TargetPort > 10\n| sort by TargetDevice, TargetPort desc \n\n// MITRE ATT&CK MAPPING\n// T1049 - System Network Connections Discovery\n// T1071 - Application Layer Protocol\n// T1133 - External Remote Services\n"
+query_type: kql
+tactics:
+    - TA0007
+    - TA0011
+    - TA0003
+    - TA0001
+    - TA0043
+    - TA0004
+    - TA0042
+techniques:
+    - T1049
+    - T1071
+    - T1133
+    - T1596.005
+    - T1547.010
+    - T1584.008
+    - T1135
+    - T1046
+tags:
+    - kql
+version: "1"

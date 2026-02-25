@@ -1,0 +1,9 @@
+id: 019c5467-5177-767f-bfd5-1803ece7a200
+name: Identification of User Accounts with Assigned Administrative or Privileged Roles
+description: This rule identifies user accounts that have one or more roles assigned to them. It queries the 'IdentityInfo' table, filters for entries where the 'AssignedRoles' field is not empty, and then projects relevant account details such as UPN, display name, assigned roles, and object ID. Finally, it summarizes the data to retrieve the most recent record for each unique account object ID.
+query: "IdentityInfo\r\n// Filter for accounts where the AssignedRoles field is not empty, indicating at least one role is assigned.\r\n| where isnotempty(AssignedRoles)\r\n// To reduce potential noise, you may want to filter for specific account types, like 'User'.\r\n// Example: | where AccountType == \"User\"\r\n// Project the relevant columns for review.\r\n| project TimeGenerated, AccountUPN, AccountDisplayName, AssignedRoles, AccountObjectId\r\n// Summarize to get the most recent record for each user, as IdentityInfo can have multiple entries over time.\r\n| summarize arg_max(TimeGenerated, *) by AccountObjectId\r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

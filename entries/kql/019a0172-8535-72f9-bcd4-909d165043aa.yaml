@@ -1,0 +1,81 @@
+id: 019a0172-8535-72f9-bcd4-909d165043aa
+name: 7-Zip Arbitrary File Write via Symlink (CVE-2025-11001, CVE-2025-11002)
+description: Detects potential exploitation of 7-Zip vulnerabilities CVE-2025-11001 and CVE-2025-11002. The exploit uses a malicious archive to create a symbolic link, which redirects a subsequent file write to an arbitrary, often sensitive, location on the filesystem. This detection looks for a 7-Zip process writing a potentially executable file to an unusual location such as the Desktop, Startup, or System folders.
+query: |
+    // Name: 7-Zip Arbitrary File Write via Symlink (CVE-2025-11001, CVE-2025-11002)
+    // Author: detections.ai
+    // Date: 2025-10-20
+    // References:
+    // - https://cybersecuritynews.com/poc-exploit-7-zip-vulnerabilities/
+    // - https://github.com/pacbypass/CVE-2025-11001
+    // - https://pacbypass.github.io/2025/10/16/diffing-7zip-for-cve-2025-11001.html
+    // Tactic: Initial Access, Privilege Escalation
+    // Technique: T1203 (Exploitation for Client Execution)
+    // False Positive Sensitivity: Medium
+    // Detection Comment Level: Medium
+    //
+    // Description:
+    // Detects potential exploitation of 7-Zip vulnerabilities CVE-2025-11001 and CVE-2025-11002.
+    // The exploit uses a malicious archive to create a symbolic link, which redirects a subsequent file write
+    // to an arbitrary, often sensitive, location on the filesystem. This detection looks for a 7-Zip process
+    // writing a potentially executable file to an unusual location such as the Desktop, Startup, or System folders.
+
+    // Define known 7-Zip executable names
+    let sevenZipProcesses = dynamic(["7z.exe", "7zG.exe", "7zFM.exe"]);
+
+    // Define sensitive or unusual target locations for a file extraction utility
+    let suspiciousFolders = dynamic([
+        @"\Desktop",
+        @"\Start Menu\Programs\Startup\",
+        @"\Windows\System32\",
+        @"\Windows\SysWOW64\",
+        @"\ProgramData\"
+    ]);
+
+    // Define file extensions that could lead to code execution
+    let executableExtensions = dynamic([".exe", ".dll", ".scr", ".bat", ".cmd", ".ps1", ".vbs"]);
+
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    // Look for file creation events initiated by a 7-Zip process
+    | where InitiatingProcessFileName in~ (sevenZipProcesses)
+    // Filter for potentially executable or script files being written
+    | where parse_path(FileName).Extension in~ (executableExtensions)
+    // Check if the file is written to one of the suspicious locations
+    | where FolderPath has_any (suspiciousFolders)
+    // FP Tuning: The exploit requires elevated privileges or developer mode.
+    // Filtering for elevated processes can significantly reduce FPs. This may require joining with DeviceProcessEvents.
+    // For example: `| where InitiatingProcessIntegrityLevel == "High"` (adjust field name for your schema).
+
+    // FP Tuning: Some legitimate installers use 7-Zip components to extract files to ProgramData.
+    // Exclude common installer patterns if they cause noise in your environment.
+    | where not (FolderPath startswith @"C:\ProgramData\Package Cache\" and InitiatingProcessParentFileName endswith ".exe")
+
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        MD5,
+        SHA1,
+        SHA256,
+        InitiatingProcessId,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1203
+tags:
+    - kql
+author: Ramzi Zelfani
+version: "3"
+references:
+    - https://cybersecuritynews.com/poc-exploit-7-zip-vulnerabilities/
+    - https://github.com/pacbypass/CVE-2025-11001
+    - https://pacbypass.github.io/2025/10/16/diffing-7zip-for-cve-2025-11001.html

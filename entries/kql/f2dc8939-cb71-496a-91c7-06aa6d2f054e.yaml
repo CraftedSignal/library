@@ -1,0 +1,48 @@
+id: f2dc8939-cb71-496a-91c7-06aa6d2f054e
+name: Unprotected Devices Report for Defender Onboarding
+description: This query generates a report of devices eligible for Microsoft Defender for Endpoint onboarding, aiding in identifying gaps in endpoint protection. The rule is valid.
+query: |-
+    # Device Onboarding Status Report
+
+    ## Description
+    This query generates a report of devices that can be onboarded to Microsoft Defender for Endpoint but are not yet onboarded. It helps identify security gaps in endpoint protection coverage across the organization.
+
+    ## Detection Logic
+    The query:
+    1. Gets the latest device information
+    2. Filters out non-Windows platforms (Linux, macOS, iOS, Android)
+    3. Identifies devices with "Can be onboarded" status
+    4. Summarizes by device type and OS platform
+    5. Orders by device count
+
+    ## Query
+    ```kusto
+    DeviceInfo
+    |summarize arg_max(Timestamp, *) by DeviceName
+    |where OSPlatform !in ('Linux','macOS','iOS','Android')
+    |where OnboardingStatus == 'Can be onboarded'
+    |distinct Timestamp, DeviceName, DeviceType, DeviceId, OSPlatform, OSDistribution, OSVersion, ReportId
+    |summarize DeviceCount=count() by DeviceType, OSPlatform
+    |order by DeviceCount desc
+    ```
+
+    ## Purpose
+    - **Visibility**: Identify unprotected endpoints
+    - **Compliance**: Ensure all eligible devices are protected
+    - **Security**: Close gaps in endpoint detection and response
+
+    ## Report Fields
+    - **DeviceType**: Type of device (Workstation, Server, etc.)
+    - **OSPlatform**: Operating system platform
+    - **DeviceCount**: Number of devices in each category
+
+    ## Action Items
+    1. Review the list of devices that can be onboarded
+    2. Prioritize high-risk devices (servers, domain controllers)
+    3. Create onboarding packages for different device types
+    4. Deploy onboarding scripts via Group Policy or SCCM
+    5. Monitor onboarding progress
+    6. Address any technical barriers to onboarding
+    7. Set up alerts for new devices that need onboarding
+query_type: kql
+version: "1"

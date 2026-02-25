@@ -1,0 +1,63 @@
+id: 019ad785-992e-72ac-91f2-948bf1f2234c
+name: Obfuscated PowerShell String Concatenation with Reused Quote Delimiter
+description: |-
+    Detects PowerShell command lines that use repeated, obfuscated string concatenation patterns such as "<str>"+"<str>" "<str>"+"<str>" (or the same with single quotes), which often appear in lightly obfuscated malware or LOLBins.
+
+    Often seen in dropper activity related to Clickfix.
+query: |
+    title: Obfuscated PowerShell String Concatenation with Reused Quote Delimiter
+    id: 8b4f6f4d-0f4a-4c1a-9e1e-4a4c9cb2c501
+    status: experimental
+    description: >-
+      Detects PowerShell command lines that use repeated, obfuscated string
+      concatenation patterns such as "<str>"+"<str>" "<str>"+"<str>" (or the same
+      with single quotes), which often appear in lightly obfuscated malware or
+      LOLBins.
+
+
+      Often seen in dropper activity related to Clickfix.
+    references:
+      - https://attack.mitre.org/techniques/T1027/
+    tags:
+      - attack.defense_evasion
+      - attack.obfuscation
+      - attack.t1027
+    author: Firestrike::Labs
+    date: 2025/11/30
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_regex:
+        CommandLine|re: (?i)powershell(\.exe)?.*(["'])(\w+\2\+\2\w+\2).*(\2\w+\2\+\2\w+\2)
+      condition: selection_regex
+    fields:
+      - CommandLine
+      - ParentImage
+      - Image
+      - User
+    falsepositives:
+      - Rare, but possible in heavily scripted administrative or testing
+        environments where PowerShell uses repeated string concatenation patterns.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1059
+    - T1027.010
+tags:
+    - attack.defense_evasion
+    - attack.obfuscation
+    - attack.t1027
+author: Firestrike::Labs
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1027/
+data_sources:
+    - process_creation
+    - windows
+    - security

@@ -1,0 +1,16 @@
+id: ff4f2a22-da70-4d07-9477-d7accb6d81c1
+name: Outbound Connections from Devices on Public Wi-Fi Networks
+description: This rule identifies devices connected to Wi-Fi networks with public IP addresses and correlates those connections with outbound network events. It aims to provide process-level context for connections originating from such network configurations, including geolocation of both local and remote IPs. This could indicate unusual or unauthorized network activity, potentially related to command and control or data exfiltration from devices on less secure network segments.
+query: "## \U0001F50D KQL Description\n#### This query is used to:\n#### 1.Identify devices connected to Wi-Fi networks with public IP addresses.\n#### 2.Correlate those connections with network events (e.g., outbound connections).\n#### 3.Determine geolocation of both local and remote IPs.\n#### 4.Provide process-level context (e.g., which process initiated the connection).\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic:Command and Control (TA0011)\n#### Technique: Application Layer Protocol (T1071) or Exfiltration Over C2 Channel (T1041)\n#### Sub-Technique: T1071.001 (Web Protocols), T1071.002 (DNS), etc.\n### Query:\n```KQL\nDeviceNetworkInfo\n| extend Network_Name = tostring(parse_json(ConnectedNetworks)[0][\"Name\"])\n| where isnotempty(Network_Name) and NetworkAdapterType has \"Wireless80211\"\n| extend IP_info = (todynamic(parse_json(IPAddresses)))\n| mv-expand IP_info\n| extend Ip_Received = tostring(parse_json(IP_info).IPAddress),\n           IP_Type = tostring(parse_json(IP_info).AddressType)\n| where IP_Type has \"Public\"\n| extend Network_IP_Location = tostring(geo_info_from_ip_address(Ip_Received).country), tostring(IP_info)\n| join kind=inner (DeviceNetworkEvents) on $left.Ip_Received == $right.LocalIP\n| extend Remote_IP_Location = tostring(geo_info_from_ip_address(RemoteIP).country)\n| summarize by DeviceName, Network_Name, NetworkAdapterType,LocalIP, Network_IP_Location, IP_Type, RemoteIP,Remote_IP_Location, RemotePort, RemoteUrl, ActionType, Protocol,InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName, InitiatingProcessIntegrityLevel\n```\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071
+    - T1041
+    - T1071.001
+    - T1071.002
+tags:
+    - kql
+version: "1"

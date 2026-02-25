@@ -1,0 +1,18 @@
+id: 019bb2e7-0a86-723e-90c1-f3b903b752f7
+name: AsyncRAT Python APC Injection Execution
+description: Detects the execution of a Python script characteristic of the AsyncRAT polymorphic APC injector. This involves python.exe running a script with arguments for an input binary file (-i *.bin) and a key file (-k *.txt).
+query: "// Name: AsyncRAT Python APC Injection Execution\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-12\r\n// Description: Detects the execution of a Python script characteristic of the AsyncRAT polymorphic APC injector. This involves python.exe running a script with arguments for an input binary file (-i *.bin) and a key file (-k *.txt).\r\n// Tactics: Execution, Defense Evasion, Privilege Escalation\r\n// Techniques: T1055.004\r\n// References: https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for python.exe process execution. Using OriginalFileName can help bypass simple binary renaming.\r\n| where ProcessVersionInfoOriginalFileName =~ \"python.exe\" or FileName =~ \"python.exe\"\r\n// The command line must contain a python script, an input file flag, a bin file, a key file flag, and a txt file.\r\n| where ProcessCommandLine has \".py\"\r\n    and ProcessCommandLine has \"-i\"\r\n    and ProcessCommandLine has \".bin\"\r\n    and ProcessCommandLine has \"-k\"\r\n    and ProcessCommandLine has \".txt\"\r\n// The combination of these arguments is specific to the observed AsyncRAT injector script (ne.py -i new.bin -k a.txt).\r\n// Legitimate development or data processing scripts might use a similar command-line structure.\r\n// To reduce false positives, consider adding exclusions for known developer machines, specific script paths, or parent processes (e.g., powershell.exe, cmd.exe).\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessFileName,\r\n    ProcessVersionInfoOriginalFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.004
+tags:
+    - kql
+author: Ethan Andrews + detections.ai
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/analyzing-a-a-multi-stage-asyncrat-campaign-via-mdr.html

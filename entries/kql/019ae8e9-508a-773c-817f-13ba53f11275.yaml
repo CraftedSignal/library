@@ -1,0 +1,48 @@
+id: 019ae8e9-508a-773c-817f-13ba53f11275
+name: Next.js RCE Attempt (CVE-2025-66478)
+description: Detects potential exploitation attempts against Next.js applications vulnerable to CVE-2025-66478 (React2shell). The rule looks for POST requests to Next.js Server Action endpoints with an unusually large request body, which may indicate a malicious payload designed to trigger a deserialization RCE.
+query: |
+    // Name: Next.js RCE Attempt (CVE-2025-66478)
+    // Author: detections.ai
+    // Date: 2025-12-04
+    // Description: Detects potential exploitation attempts against Next.js applications vulnerable to CVE-2025-66478 (React2shell). The rule looks for POST requests to Next.js Server Action endpoints with an unusually large request body, which may indicate a malicious payload designed to trigger a deserialization RCE.
+    // Tactic: Initial Access
+    // Technique: T1190
+    // References: https://thehackernews.com/2025/12/critical-rsc-bugs-in-react-and-nextjs.html
+    // False Positive Sensitivity: Medium
+    // ---
+    // Define thresholds for the detection.
+    let sizeThreshold = 1024; // Bytes. Threshold for an unusually large payload. Tune based on your application's normal behavior.
+    let eventThreshold = 5; // Number of attempts from a single IP before alerting.
+    // Specify the log source table. This may need to be changed to match your environment (e.g., WAFLogs, AppGatewayAccessLogs, etc.).
+    let wafLogs = CommonSecurityLog;
+    wafLogs
+    // Filter for POST requests to Next.js server action paths.
+    | where HttpMethod == "POST" and RequestUri startswith "/_next/server/"
+    // Filter for requests with a body size larger than the defined threshold.
+    | where isnotempty(RequestContentLength) and tolong(RequestContentLength) > sizeThreshold
+    // Summarize attempts by source IP to identify potential scanning or exploitation activity.
+    | summarize StartTime = min(TimeGenerated), EndTime = max(TimeGenerated), TotalAttempts = count(), DistinctUserAgents = dcount(HttpUserAgent), TargetURIs = make_set(RequestUri, 10) by SourceIp
+    // Alert if the number of attempts from a single IP exceeds the threshold.
+    | where TotalAttempts > eventThreshold
+    | project
+        StartTime,
+        EndTime,
+        SourceIp,
+        TotalAttempts,
+        DistinctUserAgents,
+        TargetURIs
+    // FP Tuning: If your application legitimately sends large POST requests to these endpoints,
+    // you may need to increase the 'sizeThreshold' or add exclusions for specific source IPs or user agents.
+    // | where SourceIp !in ("192.168.1.100")
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/12/critical-rsc-bugs-in-react-and-nextjs.html

@@ -1,0 +1,54 @@
+id: 0199e88f-5e27-72d2-8dbf-a0802207dea8
+name: SonicCrypt Payload Execution
+description: Detects the execution of executables with specific names ("WinHealth.exe", "WindowsSecurity.exe") known to be dropped by the SonicCrypt crypter. The execution is often initiated by the Task Scheduler, resulting in a parent process of 'taskhostw.exe'.
+query: |
+    title: SonicCrypt Payload Execution
+    id: 1123c371-2748-47b3-8d92-193b1ddefc15
+    status: experimental
+    description: Detects the execution of executables with specific names
+      ("WinHealth.exe", "WindowsSecurity.exe") known to be dropped by the SonicCrypt
+      crypter. The execution is often initiated by the Task Scheduler, resulting in
+      a parent process of 'taskhostw.exe'.
+    references:
+      - https://www.proofpoint.com/us/blog/threat-insight/when-monster-bytes-tracking-ta585-and-its-arsenal
+    author: detections.ai
+    date: 2025-10-15
+    tags:
+      - attack.t1497.001
+      - attack.t1497.003
+      - attack.t1053.005
+      - malware.soniccrypt
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith:
+          - '\WinHealth.exe' # Payload name used by SonicCrypt
+          - '\WindowsSecurity.exe' # Payload name used by SonicCrypt
+        ParentImage|endswith: '\taskhostw.exe' # Indicates execution via Task Scheduler
+      condition: selection
+    falsepositives:
+      - A legitimate, custom scheduled task could potentially use the executable
+        names 'WinHealth.exe' or 'WindowsSecurity.exe'.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.t1497.001
+    - attack.t1497.003
+    - attack.t1053.005
+    - malware.soniccrypt
+author: detections.ai
+version: "2"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/when-monster-bytes-tracking-ta585-and-its-arsenal
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,23 @@
+id: 8d8e27a1-a9e7-4bb8-834f-2be91fc75a76
+name: DefenderXDR LDAP Enumeration Detection
+description: 'KQL Query from file: DefenderXDR LDAP Enumeration Detection'
+query: |+
+    // DefenderXDR LDAP Enumeration Detection
+
+    let ADAdministrator = dynamic(["Jack.Sparrow@acme.org"]);
+    IdentityQueryEvents
+    | where ActionType == "LDAP query"
+    | where QueryType == "AllObjects"
+    | extend LDAPQueryCount = toint(parse_json(AdditionalFields)["Count"])
+    | where LDAPQueryCount > 500
+    | where not (TargetAccountUpn has_any(ADAdministrator))
+
+query_type: kql
+tactics:
+    - TA0007
+techniques:
+    - T1087
+    - T1087.002
+tags:
+    - kql
+version: "1"

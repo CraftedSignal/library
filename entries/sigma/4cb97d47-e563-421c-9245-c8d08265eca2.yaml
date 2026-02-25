@@ -1,0 +1,22 @@
+id: 4cb97d47-e563-421c-9245-c8d08265eca2
+name: Number of oustanding SMB requests increased
+description: Detects scenarios where an attacker (specially Blackcat) increase the number of oufstanding requests to distribute malware payloads.
+query: "title: Number of oustanding SMB requests increased\ndescription: Detects scenarios where an attacker (specially Blackcat) increase the number of oufstanding requests to distribute malware payloads.\nreferences:\n- https://www.microsoft.com/en-us/security/blog/2022/06/13/the-many-lives-of-blackcat-ransomware/\n- https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/cc960259(v=technet.10)\ntags:\n- attack.persistence\n- attack.t1021.002 # Remote Services: SMB/Windows Admin Shares \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:  # reg add HKEY_LOCAL_MACHINE\\SYSTEM\\CurrentControlSet\\Services \\LanmanServer\\Parameters /v MaxMpxCt /d 65535 /t REG_DWORD /f\n  selection:\n    NewProcessName|endswith: '\\reg.exe'\n    CommandLine|contains|all:\n      - 'REG ADD'\n      - '\\SYSTEM\\CurrentControlSet\\Services\\LanmanServer\\Parameters'\n      - 'MaxMpxCt'\n  condition: selection\nfalsepositives:\n- system administrator activity or debugging\nlevel: medium"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0008
+techniques:
+    - T1021.002
+tags:
+    - attack.persistence
+    - attack.t1021.002
+author: mdecrevoisier
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2022/06/13/the-many-lives-of-blackcat-ransomware/
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-2000-server/cc960259(v=technet.10)
+data_sources:
+    - process_creation
+    - windows

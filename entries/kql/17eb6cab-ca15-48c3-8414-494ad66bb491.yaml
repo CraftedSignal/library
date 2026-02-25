@@ -1,0 +1,13 @@
+id: 17eb6cab-ca15-48c3-8414-494ad66bb491
+name: 'Qilin Ransomware aka Agenda – Active IOCs Detection '
+description: This rule detects files associated with Qilin (aka Agenda) ransomware based on known malicious file hashes. It monitors for file creation or process execution events where the SHA1, SHA256, or MD5 hash matches a predefined list of Qilin ransomware hashes.
+query: "// Name: Qilin Ransomware aka Agenda – Active IOCs Detection \n// Author: Chaitanya Bobhate (Mr.Alien)\n// Date: 2025-08-01\n// Description: This rule detects files associated with Qilin (aka Agenda) ransomware based on known malicious file hashes.\n// Severity: High\n// Tactic: Execution\n// References: https://rewterz.com/threat-advisory/qilin-ransomware-aka-agenda-active-iocs-3\n\n// Define the list of known Qilin ransomware hashes\nlet qilin_hashes = dynamic([\n    // MD5\n    \"f6f89e070ed9be62b9ca284f2f7af9e5\",\n    \"b7190b72bc8ff87f5bddd87de01f3343\",\n    // SHA1\n    \"b7b6e89c037599c2111093fabeee04c6b9333ceb\",\n    \"fa62188bdcbfdb784665c08e57d7072511ee9465\",\n    // SHA256\n    \"d3af11d6bb6382717bf7b6a3aceada24f42f49a9489811a66505e03dd76fd1af\",\n    \"aeddd8240c09777a84bb24b5be98e9f5465dc7638bec41fb67bbc209c3960ae1\"\n]);\n// Search for file creation or process execution events matching the IOCs\nunion DeviceProcessEvents, DeviceFileEvents\n// Match against the list of known malicious hashes\n| where SHA1 in (qilin_hashes) or SHA256 in (qilin_hashes) or MD5 in (qilin_hashes)\n// FP Mitigation: Hash-based detections are high-fidelity. False positives are unlikely but could occur if a legitimate file hash is incorrectly added to the IOC list.\n| extend\n    timestamp = TimeGenerated,\n    Account = tostring(iff(isnotempty(InitiatingProcessAccountUpn), InitiatingProcessAccountUpn, InitiatingProcessAccountName)),\n    Host = tostring(DeviceName),\n    Process = tostring(iff(isnotempty(ProcessCommandLine), ProcessCommandLine, InitiatingProcessCommandLine))\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+tags:
+    - kql
+version: "1"
+references:
+    - https://rewterz.com/threat-advisory/qilin-ransomware-aka-agenda-active-iocs-3

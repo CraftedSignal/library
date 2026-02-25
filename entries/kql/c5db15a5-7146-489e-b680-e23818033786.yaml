@@ -1,0 +1,15 @@
+id: c5db15a5-7146-489e-b680-e23818033786
+name: Microsoft Defender ZAP (Zero-Hour Auto Purge) — Post-Delivery Email Remediation
+description: This rule detects and correlates Microsoft Defender's Zero-hour Auto Purge (ZAP) actions on emails. It joins original email delivery events with subsequent ZAP actions (Malware ZAP or Phish ZAP) to calculate the dwell time between an email's delivery and its removal. This helps in understanding how long a malicious or phishing email was present in a user's inbox before being remediated, which is crucial for incident response and assessing potential user interaction with the threat.
+query: "// ============================================================================\r\n// ZAP (Zero-Hour Auto Purge) — Post-Delivery Email Remediation\r\n// Author: KillBillKill98\r\n// Last Updated: 2025-09-18\r\n// ============================================================================\r\n// Tactic(s): Initial Access (TA0001)\r\n// Technique(s): Spearphishing via Link/Attachment (T1566.001 / T1566.002)\r\n// Description & Rationale:\r\n//  - Microsoft Defender ZAP (Zero-hour Auto Purge) removes malicious or phishing\r\n//    emails *after* delivery when threats are identified post-delivery.\r\n//  - This detection correlates original delivery with post-delivery ZAP actions\r\n//    to measure dwell time (time between delivery and purge).\r\n//  - Useful for incident response (how long a user could have interacted with a\r\n//    malicious message before it was removed).\r\n// ============================================================================\r\n\r\nlet OriginalEmailTime = (EmailEvents\r\n| where Timestamp > ago(30d)\r\n| extend Email_Time = Timestamp\r\n| project Email_Time, NetworkMessageId, Subject, SenderFromAddress, ThreatTypes, DeliveryAction, DeliveryLocation);\r\n\r\nEmailPostDeliveryEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType in (\"Malware ZAP\", \"Phish ZAP\")\r\n| extend ZAP_Time = Timestamp\r\n| join kind=inner OriginalEmailTime on NetworkMessageId\r\n| extend Time_Difference = ZAP_Time - Email_Time\r\n| project NetworkMessageId, Email_Time, ZAP_Time, Time_Difference, ActionType, ThreatTypes, DetectionMethods, DeliveryAction, DeliveryLocation\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.001
+    - T1566.002
+tags:
+    - kql
+author: KillBillKill98
+version: "1"

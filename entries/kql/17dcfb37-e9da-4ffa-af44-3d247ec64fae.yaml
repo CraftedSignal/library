@@ -1,0 +1,12 @@
+id: 17dcfb37-e9da-4ffa-af44-3d247ec64fae
+name: Suspicious Inbound Connection Attempts to Internet-Facing Devices
+description: This KQL query identifies potentially suspicious inbound connection attempts to internet-facing devices. It filters and correlates data from DeviceInfo (device metadata) and DeviceNetworkEvents (network activity) to pinpoint external threats based on multiple connection attempts (3+) from the same public IP address. It also provides geographical context for the source of threats.
+query: "#### This KQL query identifies potentially suspicious inbound connection attempts to internet-facing devices in the last 2 hours. It achieves this by filtering and correlating data from two tables: DeviceInfo (device metadata) and DeviceNetworkEvents (network activity).\n#### This query identifies suspicious external connection attempts to internet-facing devices:\nHelps pinpoint external threats (e.g., potential attackers) based on their activity (3+ attempts from the same IP).\nProvides geographical context for the source of threats, aiding in analysis and incident response.\nFocuses on actionable data by correlating network activity with device metadata, ensuring only relevant devices are considered.\n\n#### Query:\n```KQL\nlet InternetFacingDevice = \nDeviceInfo\n| where Timestamp > ago(2h)\n| where IsInternetFacing\n| summarize arg_max(Timestamp, *) by DeviceId, DeviceName\n| project DeviceId, DeviceName;\nDeviceNetworkEvents\n| where DeviceId has_any(InternetFacingDevice)\n| where ActionType == \"InboundConnectionAttempt\"\n| where not(ipv4_is_private(RemoteIP))  // Only external public IPs\n| extend IPLocation = geo_info_from_ip_address(RemoteIP)\n| summarize Connections = count(), Ports = make_set(RemotePort) by RemoteIP, tostring(IPLocation.country), DeviceId\n| where Connections >= 3  // Only show IPs with >= 3 attempts\n// Join DeviceInfo table with DeviceNetworkEvents\n| join kind=inner (InternetFacingDevice) on DeviceId\n| project DeviceName, DeviceId, RemoteIP, Ports, Connections, IPLocation_country\n| sort by Connections desc\n```\n"
+query_type: kql
+tactics:
+    - TA0007
+techniques:
+    - T1049
+tags:
+    - kql
+version: "1"

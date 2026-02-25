@@ -1,0 +1,15 @@
+id: 019c8a45-bb57-752e-91f9-72686ab95efc
+name: Medusa Data Staging via Robocopy to C:\Windows
+description: This rule detects the use of the 'robocopy' utility to copy files into the C:\Windows directory. This behavior is a known data staging technique used by Medusa ransomware actors prior to exfiltration.
+query: "// Name: Medusa Data Staging via Robocopy\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects the use of the 'robocopy' utility to copy files into the C:\\Windows directory. This behavior is a known data staging technique used by Medusa ransomware actors prior to exfiltration.\r\n// Tactics: Collection\r\n// Techniques: T1074\r\n// False Positive Sensitivity: Medium. While this is a specific TTP for Medusa, legitimate administrative scripts might use robocopy to move files into the Windows directory. Investigate the context of the execution, such as the parent process and user account, to determine legitimacy. Consider excluding known administrative hostnames or accounts if necessary.\r\n// References: https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns\r\nDeviceProcessEvents\r\n// Look for the execution of robocopy.exe\r\n| where ProcessFileName =~ \"robocopy.exe\"\r\n// Check if the command line contains the path to the Windows directory, which is used as a staging location.\r\n// Note: This could trigger on legitimate activity. Further tuning may be required to parse the destination argument if FPs occur.\r\n| where ProcessCommandLine has \"c:\\\\windows\"\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    Host = DeviceName,\r\n    Account = InitiatingProcessAccountName\r\n| project\r\n    timestamp,\r\n    Host,\r\n    Account,\r\n    ProcessFileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessParentFileName,\r\n    ProcessId,\r\n    ParentProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1074
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.darktrace.com/blog/under-medusas-gaze-how-darktrace-uncovers-rmm-abuse-in-ransomware-campaigns

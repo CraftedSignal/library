@@ -1,0 +1,15 @@
+id: 019c8eae-be4a-75dd-b39e-83507de76156
+name: High-Privilege Role Assigned in Azure AD
+description: This rule detects when a high-privilege role is assigned to a user in Azure Active Directory. It specifically looks for 'Add member to role', 'Add eligible member to role', or 'Add scoped member to role' operations that successfully assign one of a predefined list of privileged roles (e.g., Global Administrator, Security Administrator, Application Administrator) to a user. This activity can indicate privilege escalation or unauthorized access within an Azure AD environment.
+query: "// Detection: High-Privilege Role Assigned in Azure AD\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1098.003 - Additional Cloud Roles\r\n\r\nlet privilegedRoles = dynamic([\r\n    \"Global Administrator\",\"Privileged Role Administrator\",\r\n    \"Security Administrator\",\"Conditional Access Administrator\",\r\n    \"Exchange Administrator\",\"Application Administrator\",\r\n    \"Cloud Application Administrator\",\"User Administrator\",\r\n    \"SharePoint Administrator\",\"Hybrid Identity Administrator\"\r\n]);\r\nAuditLogs\r\n| where TimeGenerated > ago(1d)\r\n| where OperationName has_any (\r\n    \"Add member to role\",\r\n    \"Add eligible member to role\",\r\n    \"Add scoped member to role\"\r\n)\r\n| where Result =~ \"success\"\r\n| mv-apply TargetResource = TargetResources on (\r\n    where TargetResource.type =~ \"User\"\r\n    | extend TargetUser = tostring(TargetResource.userPrincipalName)\r\n)\r\n| mv-apply ModProp = TargetResources[0].modifiedProperties on (\r\n    where ModProp.displayName =~ \"Role.DisplayName\"\r\n    | extend RoleAdded = tostring(ModProp.newValue)\r\n)\r\n| where RoleAdded has_any (privilegedRoles)\r\n| extend\r\n    InitiatingUser = tostring(InitiatedBy.user.userPrincipalName),\r\n    InitiatingIP   = tostring(InitiatedBy.user.ipAddress)\r\n| project TimeGenerated, OperationName, TargetUser,\r\n          RoleAdded, InitiatingUser, InitiatingIP, CorrelationId\r\n| extend AlertDescription = strcat(\r\n    \"Privileged role '\", RoleAdded,\r\n    \"' assigned to '\", TargetUser, \"' by '\", InitiatingUser, \"'\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.003
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

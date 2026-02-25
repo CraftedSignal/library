@@ -1,0 +1,24 @@
+id: 966dc741-e3a9-49fa-b967-1de075e9f74f
+name: Malicious Office Macro with Suspicious Child Process Chain
+description: Adversaries often use malicious macros embedded in Office documents (Word, Excel) to execute payloads often spawning PowerShell, cmd, or LOLBins. This rule detects macro-triggered process chains indicative of weaponized documents.
+query: |-
+    DeviceProcessEvents
+    | where InitiatingProcessFileName in~ ("winword.exe", "excel.exe", "powerpnt.exe")
+    | where FileName in~ ("powershell.exe", "cmd.exe", "rundll32.exe", "mshta.exe", "wscript.exe", "cscript.exe", "regsvr32.exe")
+    | where ProcessCommandLine has_any ("-enc", "-EncodedCommand", "http", "https", ".dll", ".js", ".vbs")
+    | project Timestamp, DeviceName, DeviceId,InitiatingProcessAccountName, ParentProcess=InitiatingProcessFileName, SpawnedProcess=FileName, CommandLine=ProcessCommandLine, FileName, ReportId
+    | extend Reason = strcat("Office macro triggered suspicious process: ", FileName)
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1203
+    - T1566.001
+    - T1059.001
+    - T1059.005
+tags:
+    - kql
+version: "1"

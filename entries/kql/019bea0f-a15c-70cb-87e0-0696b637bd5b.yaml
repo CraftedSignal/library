@@ -1,0 +1,46 @@
+id: 019bea0f-a15c-70cb-87e0-0696b637bd5b
+name: FortiGate Generic Admin Account Persistence
+description: This rule detects the creation of a local administrative account on a FortiGate device with a generic name commonly used by threat actors for persistence following an initial compromise. The rule specifically looks for log events indicating the addition of a new system administrator account with names like 'secadmin', 'itadmin', 'support', 'backup', 'remoteadmin', or 'audit'.
+query: |
+    // Name: FortiGate Generic Admin Account Persistence
+    // Author: detections.ai
+    // Date: 2026-01-23
+    // Description: This rule detects the creation of a local administrative account on a FortiGate device with a generic name commonly used by threat actors for persistence following an initial compromise.
+    // References:
+    // - https://arcticwolf.com/resources/blog/arctic-wolf-observes-malicious-configuration-changes-fortinet-fortigate-devices-via-sso-accounts/
+    // - https://www.fortinet.com/blog/psirt-blogs/analysis-of-sso-abuse-on-fortios
+    // False Positive Sensitivity: Medium
+    // MITRE TTPs: T1136.001, T1098
+
+    let suspicious_accounts = dynamic(["secadmin", "itadmin", "support", "backup", "remoteadmin", "audit"]);
+    // The table name 'Fortinet_Log_Event' is an example. Please replace with your actual table containing Fortinet logs.
+    Fortinet_Log_Event
+    // Filter for object attribute configured events.
+    | where logid == "0100044547"
+    // Filter for the specific action of adding a new system administrator.
+    | where action == "Add" and cfgpath == "system.admin"
+    // Match on a list of generic account names used for persistence.
+    | where cfgobj in~ (suspicious_accounts)
+    // FP Tuning: A legitimate administrator could create an account with one of these names. To improve fidelity, consider correlating this activity with a preceding suspicious SSO login or an alert from an untrusted source IP.
+    | project
+        TimeGenerated,
+        devname,
+        user,
+        CreatedAccount = cfgobj,
+        ui,
+        srcip,
+        msg
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136.001
+    - T1098
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog/arctic-wolf-observes-malicious-configuration-changes-fortinet-fortigate-devices-via-sso-accounts/
+    - https://www.fortinet.com/blog/psirt-blogs/analysis-of-sso-abuse-on-fortios

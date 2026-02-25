@@ -1,0 +1,16 @@
+id: 019a24f3-99f0-77bd-8b3d-c469f3967953
+name: WSUS Service Spawning Command or PowerShell - CVE-2025-59287
+description: Detects when the Windows Server Update Services (WSUS) process (wsusservice.exe) or its associated IIS worker process (w3wp.exe with 'wsuspool' in its command line) spawns cmd.exe or powershell.exe. This activity is highly suspicious as WSUS services typically do not need to execute command-line interpreters, and could indicate an attempt to exploit a vulnerability or execute arbitrary commands on the system.
+query: "//https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability\r\nlet lookback = 14d;\r\nDeviceProcessEvents\r\n| where Timestamp >= ago(lookback)\r\n| where \r\n    InitiatingProcessFileName =~ \"wsusservice.exe\"\r\n    or\r\n    (InitiatingProcessFileName =~ \"w3wp.exe\"\r\n     and InitiatingProcessCommandLine has \"wsuspool\"\r\n)\r\n|where FileName in~ (\"cmd.exe\", \"powershell.exe\")\r\n| project Timestamp, DeviceName,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessFolderPath,\r\n          FileName, ProcessCommandLine, FolderPath,\r\n          InitiatingProcessAccountDomain, InitiatingProcessAccountName, AccountDomain, AccountName, ReportId\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability

@@ -1,0 +1,52 @@
+id: 019a8230-5b87-7479-b2ec-ecd39ed57897
+name: Potential Muddled Libra Vishing Activity via Credential or MFA Reset
+description: Detects when an administrator or help desk agent resets a user's password or deactivates/resets their MFA factors. This activity, while often legitimate, is a key tactic used by social engineering groups like Muddled Libra (aka Scattered Spider) who are known to 'vishing' (voice-phishing) IT help desks to take over accounts.
+query: |
+    title: Potential Muddled Libra Vishing Activity via Credential or MFA Reset
+    id: 2eb7069e-cebe-48b6-99f2-2938f464a656
+    status: experimental
+    description: >-
+      Detects when an administrator or help desk agent resets a user's password or deactivates/resets their MFA factors.
+      This activity, while often legitimate, is a key tactic used by social engineering groups like Muddled Libra (aka Scattered Spider)
+      who are known to 'vishing' (voice-phishing) IT help desks to take over accounts.
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.initial_access
+      - attack.t1566.004
+    logsource:
+      product: okta
+      service: okta
+    detection:
+      selection:
+        eventtype:
+          # Key events indicating an admin is resetting credentials or MFA for a user
+          - 'user.mfa.factor.deactivate'
+          - 'user.mfa.factor.reset_all'
+          - 'user.account.reset_password'
+      condition: selection
+    falsepositives:
+      # This rule detects legitimate administrative actions that are also leveraged by attackers.
+      # It should be used to trigger investigation rather than as a high-fidelity alert on its own.
+      - Legitimate password or MFA resets by IT support staff will trigger this rule.
+      - To reduce noise, filter out events where the actor and target are the same person (self-service). This is particularly relevant for the 'user.mfa.factor.deactivate' event.
+      - Consider correlating these events with subsequent anomalous login activity from the target user's account.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.004
+tags:
+    - attack.initial_access
+    - attack.t1566.004
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra/
+data_sources:
+    - okta
+    - okta

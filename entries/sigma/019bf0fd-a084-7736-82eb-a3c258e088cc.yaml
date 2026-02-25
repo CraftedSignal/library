@@ -1,0 +1,30 @@
+id: 019bf0fd-a084-7736-82eb-a3c258e088cc
+name: VoidLink C2 Persistence and Privilege Escalation Behavioral Detection
+description: This rule detects various behaviors associated with the VoidLink threat, focusing on persistence, privilege escalation, and evasion techniques. It identifies suspicious kernel module loading from temporary directories, the presence of hidden rootkit files, container escape attempts, and cloud metadata harvesting. The rule correlates these activities to reduce false positives, specifically looking for combinations such as suspicious module loads with hidden rootkit files or container escapes, container escapes with cloud metadata harvesting, hidden rootkit files with container escapes or cloud metadata harvesting, and eBPF evasion techniques combined with suspicious module loads or hidden rootkit files. The detection logic suggests an adversary attempting to establish persistence, elevate privileges, and potentially exfiltrate cloud credentials within a Linux environment, possibly involving containerized setups.
+query: "title: VoidLink C2 Persistence and Privilege Escalation Behavioral Detection\nid: 1e6f7a8b-9c0d-4e1f-2a3b-4c5d6e7f8a9b\nstatus: experimental\ndescription: |\n    Detection of VoidLink's persistence mechanisms combining \n    kernel module loading from temp directories, hidden rootkit artifacts, container \n    escape techniques, and cloud credential harvesting. Requires behavioral correlation.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits\ntags:\n    - attack.persistence\n    - attack.privilege_escalation\n    - attack.t1547.006\n    - attack.t1014\n    - attack.t1611\n    - attack.t1552.005\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    suspicious_module_load:\n        Image|endswith|any:\n            - '/insmod'\n            - '/modprobe'\n        CommandLine|re: '(?i)/(tmp|dev/shm|var/tmp|\\.font-unix)/[^\\s]*\\.ko'\n    hidden_rootkit_files:\n        CommandLine|re: '(?i)/(tmp|dev/shm|var/tmp)/\\.(vl_[a-z0-9_]+|[a-z0-9_]+\\.(ko|bpf\\.o|sh))'\n    container_escape:\n        CommandLine|re: '(?i)(/var/run/docker\\.sock|nsenter.*(-t\\s*1|--target\\s*1).*--mount)'\n    cloud_metadata_harvest:\n        CommandLine|re: '(?i)(curl|wget).*-[sS]?.*(169\\.254\\.169\\.254|100\\.100\\.100\\.200)'\n        ParentImage|re: '(?i)(/proc/[0-9]+/fd/|/memfd:|\\[kworker/)'\n    ebpf_evasion:\n        Syscall: 'bpf'\n        CommandLine|re: '(?i)(hide_ss|vl_stealth|\\.bpf\\.o)'\n    condition: >\n        (suspicious_module_load and hidden_rootkit_files) or\n        (suspicious_module_load and container_escape) or\n        (container_escape and cloud_metadata_harvest) or\n        (hidden_rootkit_files and (container_escape or cloud_metadata_harvest)) or\n        (ebpf_evasion and (suspicious_module_load or hidden_rootkit_files))\nfalsepositives:\n    - Legitimate kernel module loading should not originate from temp directories\n    - Development/testing environments with explicit justification\nlevel: critical\n"
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0006
+techniques:
+    - T1547.006
+    - T1014
+    - T1611
+    - T1552.005
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1547.006
+    - attack.t1014
+    - attack.t1611
+    - attack.t1552.005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/voidlink-threat-analysis-sysdig-discovers-c2-compiled-kernel-rootkits
+data_sources:
+    - process_creation
+    - linux

@@ -1,0 +1,58 @@
+id: 019b4f4f-7dcb-77e2-bd5a-26082b4b6d38
+name: File Creation or Deletion in Token Cache Folders
+description: This detection monitors for the creation or deletion of files within the TokenBroker and AAD Broker Plugin cache folders. These folders store authentication tokens that, if accessed or manipulated by an unauthorized process, could indicate credential theft activity.
+query: |
+    // Name: File Creation or Deletion in Token Cache Folders
+    // Author: JamesEduard / pir8g33k
+    // Date: 2025-12-23
+    // Description: This detection monitors for the creation or deletion of files within the TokenBroker and AAD Broker Plugin cache folders. These folders store authentication tokens that, if accessed or manipulated by an unauthorized process, could indicate credential theft activity.
+    // MITRE ATT&CK: T1528 (Steal Application Access Token)
+    // References: https://attack.mitre.org/techniques/T1528/
+    // False Positive Sensitivity: Medium
+    // Tags: credential-access, token-theft, t1528
+
+    // Define the file actions to monitor
+    let file_actions = dynamic(["FileCreated", "FileDeleted"]);
+
+    DeviceFileEvents
+    | where Timestamp > ago(1d)
+    // Filter for file creation or deletion events
+    | where ActionType in (file_actions)
+    // Pre-filter to reduce data before more expensive regex and string operations
+    | where FolderPath has @"\AppData\Local\" and (FolderPath has @"\Microsoft\TokenBroker\Cache\" or FolderPath has @"\Packages\Microsoft.AAD.BrokerPlugin_")
+    | extend NormalizedFolderPath = tolower(FolderPath)
+    // Filter for the specific token cache folders located in user profiles
+    | where
+        NormalizedFolderPath startswith @"c:\users\" and
+        (
+            // Token Broker cache path
+            NormalizedFolderPath contains @"\appdata\local\microsoft\tokenbroker\cache\" or
+            // AAD Broker Plugin state path (using regex to match the variable package name)
+            NormalizedFolderPath matches regex @"\\appdata\\local\\packages\\microsoft\.aad\.brokerplugin_[a-z0-9]+\\localstate\\"
+        )
+    // False Positive Tuning: Exclude known legitimate processes that are expected to interact with these files.
+    // This list may need to be customized for your environment. Consider adding other legitimate applications if they cause noise.
+    | where not(InitiatingProcessFileName in~ ('Microsoft.AAD.BrokerPlugin.exe', 'RuntimeBroker.exe', 'explorer.exe') or (InitiatingProcessFileName =~ 'svchost.exe' and InitiatingProcessCommandLine has 'TokenBroker'))
+    // Project relevant fields for investigation
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA1,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1528
+tags:
+    - kql
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1528/

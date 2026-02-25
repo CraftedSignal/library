@@ -1,0 +1,20 @@
+id: 13b716e9-2313-4ce1-ab7f-7d59908771f1
+name: Detection of Multi-Layer Redirect Tactic Used to Steal Microsoft 365 Login Credentials
+description: |-
+    Detection of advanced email-based phishing campaigns targeting users, leveraging multiple evasion techniques including:
+
+    Multiple-layer link wrapping using trusted redirectors (e.g., Proofpoint, url.emailprotection, Bitly)
+
+    Malicious SVG attachments
+
+    Phishing lures in subject lines
+
+    Redirect chains via links to credential harvesting pages
+query: "//Suspicious Wrapped Shortener URL\r\nlet WrappedShortener = \r\n    EmailUrlInfo\r\n    | where Url contains \"urldefense.proofpoint.com\" or Url contains \"url.emailprotection\"\r\n    | where Url matches regex @\"(bit\\.ly|tinyurl\\.com|t\\.co|goo\\.gl)\"\r\n    | join kind=leftouter (\r\n        EmailEvents\r\n        | project NetworkMessageId, SenderFromAddress, RecipientEmailAddress, Subject, ThreatTypes, ReportId\r\n    ) on NetworkMessageId\r\n    | project\r\n        TimeGenerated,\r\n        DetectionType = \"WrappedShortener\",\r\n        NetworkMessageId,\r\n        SenderFromAddress,\r\n        RecipientEmailAddress,\r\n        Subject,\r\n        Url,\r\n        ThreatTypes,\r\n        RedirectCount = int(null),\r\n        ReportId\r\n;\r\n//Inbound SVG Attachments\r\nlet InboundSVG =\r\n    EmailAttachmentInfo\r\n    | where FileType == \"svg\"\r\n    | join kind=leftouter (\r\n        EmailEvents\r\n        | project NetworkMessageId, SenderFromAddress, RecipientEmailAddress, Subject, ThreatTypes, ReportId\r\n    ) on NetworkMessageId\r\n    | project\r\n        TimeGenerated,\r\n        DetectionType = \"InboundSVG\",\r\n        NetworkMessageId,\r\n        SenderFromAddress,\r\n        RecipientEmailAddress,\r\n        Subject,\r\n        FileName,\r\n        FileType,\r\n        SHA256,\r\n        ThreatTypes,\r\n        RedirectCount = int(null),\r\n        ReportId\r\n;\r\n//Long Redirect Chain (click events)\r\nlet LongRedirect =\r\n    UrlClickEvents\r\n    | extend RedirectCount = arraylength(split(tostring(UrlChain), \";\"))\r\n    | where RedirectCount > 3\r\n    | join kind=leftouter (\r\n        EmailEvents\r\n        | project NetworkMessageId, SenderFromAddress, RecipientEmailAddress, Subject, ThreatTypes, ReportId\r\n    ) on NetworkMessageId\r\n    | project\r\n        TimeGenerated,\r\n        DetectionType = \"LongRedirect\",\r\n        NetworkMessageId,\r\n        SenderFromAddress,\r\n        RecipientEmailAddress,\r\n        Subject,\r\n        Url,\r\n        ThreatTypes,\r\n        AccountUpn,\r\n        RedirectCount,\r\n        ReportId\r\n;\r\n//Known Phishing Lure Subjects\r\nlet PhishingLureSubject =\r\n    EmailEvents\r\n    | where Subject has_any (\r\n        \"voicemail\", \"missed voice message\", \"document received on Microsoft Teams\", \"unread messages\", \"Zoom Meeting\", \"meeting connection timed out\")\r\n    | join kind=leftouter (\r\n        EmailUrlInfo\r\n        | project NetworkMessageId, Url\r\n    ) on NetworkMessageId\r\n    | project\r\n        TimeGenerated,\r\n        DetectionType = \"PhishingLureSubject\",\r\n        NetworkMessageId,\r\n        SenderFromAddress,\r\n        RecipientEmailAddress,\r\n        Subject,\r\n        Url,\r\n        ThreatTypes,\r\n        RedirectCount = int(null),\r\n        ReportId\r\n;\r\n// Combine all detections\r\nWrappedShortener\r\n| union InboundSVG\r\n| union LongRedirect\r\n| union PhishingLureSubject"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://thehackernews.com/2025/07/experts-detect-multi-layer-redirect.html

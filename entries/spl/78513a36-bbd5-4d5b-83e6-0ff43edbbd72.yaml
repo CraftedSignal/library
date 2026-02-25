@@ -1,0 +1,15 @@
+id: 78513a36-bbd5-4d5b-83e6-0ff43edbbd72
+name: 'Enumeration of GCP Infrastructure '
+description: 'SPL Query from file: Enumeration of GCP Infrastructure '
+query: "index=<gcp_data>  data.protoPayload.authenticationInfo.principalEmail!=\"*.gserviceaccount.com\" data.protoPayload.authorizationInfo{}.permission=\"compute.instances.get\" OR data.protoPayload.authorizationInfo{}.permission=\"compute.instances.list\" OR data.protoPayload.authorizationInfo{}.permission=\"compute.projects.get\" OR data.protoPayload.authorizationInfo{}.permission=\"resourcemanager.projects.get\" OR data.protoPayload.authorizationInfo{}.permission=\"storage.buckets.get\" OR data.protoPayload.authorizationInfo{}.permission=\"storage.buckets.list\" OR data.protoPayload.authorizationInfo{}.permission=\"cloudfunctions.functions.get\" OR data.protoPayload.authorizationInfo{}.permission=\"cloudfunctions.functions.list\" OR data.protoPayload.authorizationInfo{}.permission=\"cloudfunctions.operations.get\" OR data.protoPayload.authorizationInfo{}.permission=\"cloudfunctions.operations.list\" OR data.protoPayload.authorizationInfo{}.permission=\"compute.disks.get\" OR data.protoPayload.authorizationInfo{}.permission=\"compute.disks.list\"\n| table data.protoPayload.authenticationInfo.principalEmail, data.protoPayload.authorizationInfo{}.permission, data.protoPayload.requestMetadata.callerIp\n| rename data.protoPayload.authenticationInfo.principalEmail as principalEmail\n| rename data.protoPayload.authorizationInfo{}.permission as permission\n| rename data.protoPayload.requestMetadata.callerIp as ip\n| stats count, values(permission) by principalEmail, ip\n| where count >= 3600\n| eval is_internal=if(\n    cidrmatch(\"10.0.0.0/8\", ip) OR \n    cidrmatch(\"172.16.0.0/12\", ip) OR \n    cidrmatch(\"192.168.0.0/16\", ip), \n    \"true\", \n    \"false\"\n)\n``` <additional suppressions could be added here, with either logic or splunk macro```\n| where is_internal=\"false\" \n| eval mitreTechnique=\"T1580\" \n| eval threat_description=\"Adversaries may enumerate cloud resources to determine possible targets for further attack.\" \n| eval detection_purpose=\"To detect adversarial enumeration of cloud resources.\""
+query_type: spl
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1580
+    - T1613
+tags:
+    - spl
+author: ZeroChill
+version: "1"

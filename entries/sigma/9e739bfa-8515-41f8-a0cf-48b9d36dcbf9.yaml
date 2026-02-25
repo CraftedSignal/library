@@ -1,0 +1,73 @@
+id: 9e739bfa-8515-41f8-a0cf-48b9d36dcbf9
+name: ReadNimeLoader Java DLL Sideloading From Suspicious Directory
+description: Detects the DLL sideloading of `jli.dll` by `java.exe` from common malware staging directories. This technique was observed being used by ReadNimeLoader as part of a BlackBasta-associated campaign.
+query: |
+    title: ReadNimeLoader Java DLL Sideloading From Suspicious Directory
+    id: 12096bb8-290f-4c4f-b42a-2b26aefc4157
+    status: experimental
+    description: Detects the DLL sideloading of `jli.dll` by `java.exe` from common
+      malware staging directories. This technique was observed being used by
+      ReadNimeLoader as part of a BlackBasta-associated campaign.
+    references:
+      - https://blogs.jpcert.or.jp/en/2025/08/crossc2.html
+      - https://thehackernews.com/2025/08/researchers-warn-crossc2-expands-cobalt.html
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.defense_evasion
+      - attack.persistence
+      - attack.t1574.002
+      - CRIME
+      - LOADER
+      - BLACKBASTA
+      - READNIMELOADER
+      - SIDELOADING
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\java.exe' # The parent process is the legitimate java.exe
+        ImageLoaded|endswith: '\jli.dll' # The sideloaded DLL is jli.dll
+        ImageLoaded|contains:
+          # The DLL is loaded from a suspicious, non-standard location
+          - '\$Recycle.Bin\'
+          - '\ProgramData\'
+          - '\Users\Public\'
+          - '\Windows\Temp\'
+          - '\Windows\Tasks\'
+          - '\AppData\Local\Temp\'
+          - '\AppData\Roaming\'
+      condition: selection
+    falsepositives:
+      - Legitimate Java applications typically load `jli.dll` from their
+        installation directory. Loading from temporary, public, or user profile
+        directories is suspicious but could occur in misconfigured applications or
+        with portable Java instances. Validate the path and the `java.exe` binary.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1574.001
+    - T1562.011
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.t1574.002
+    - CRIME
+    - LOADER
+    - BLACKBASTA
+    - READNIMELOADER
+    - SIDELOADING
+author: detections.ai
+version: "1"
+references:
+    - https://blogs.jpcert.or.jp/en/2025/08/crossc2.html
+    - https://thehackernews.com/2025/08/researchers-warn-crossc2-expands-cobalt.html
+data_sources:
+    - image_load
+    - windows

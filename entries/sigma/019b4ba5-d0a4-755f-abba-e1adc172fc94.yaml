@@ -1,0 +1,65 @@
+id: 019b4ba5-d0a4-755f-abba-e1adc172fc94
+name: Batch File Launches Malicious Executable
+description: |
+    Detects the execution of a batch file from a common user directory (e.g., Downloads, Desktop) that immediately launches an executable file. This pattern was observed in a Webrat malware campaign where a `start_exp.bat` file was used to launch the primary malicious payload, `rasmanesc.exe`, tricking users into running it after extracting a fake exploit archive.
+query: |
+    title: Batch File Launches Malicious Executable
+    id: 1fb45b1b-7395-45dd-ba41-19936ab44efc
+    status: experimental
+    description: >
+      Detects the execution of a batch file from a common user directory (e.g.,
+      Downloads, Desktop) that immediately launches an executable file. This pattern
+      was observed in a Webrat malware campaign where a `start_exp.bat` file was
+      used to launch the primary malicious payload, `rasmanesc.exe`, tricking users
+      into running it after extracting a fake exploit archive.
+    references:
+      - https://securelist.com/webrat-distributed-via-github/118555/
+    author: timdetections.ai
+    date: 2025-12-23T00:00:00.000Z
+    tags:
+      - attack.t1204.002
+      - attack.t1134.002
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        ParentImage|endswith: \cmd.exe
+        Image|endswith: .exe
+        ParentCommandLine|contains:
+          - .bat
+          - .cmd
+      filter_path:
+        ParentCommandLine|contains:
+          - \Downloads\
+          - \Desktop\
+          - \ProgramData\
+          - \Temp\
+          - \Users\Public\
+      condition: selection and filter_path
+    falsepositives:
+      - Legitimate software installers, updaters, or custom user scripts may use
+        this execution pattern.
+      - Consider tuning by excluding known legitimate batch files or parent
+        processes if noise is high.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1204.002
+    - T1134.002
+tags:
+    - attack.t1204.002
+    - attack.t1134.002
+author: timdetections.ai
+version: "3"
+references:
+    - https://securelist.com/webrat-distributed-via-github/118555/
+data_sources:
+    - process_creation
+    - windows

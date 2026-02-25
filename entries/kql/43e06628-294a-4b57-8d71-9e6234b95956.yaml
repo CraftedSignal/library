@@ -1,0 +1,25 @@
+id: 43e06628-294a-4b57-8d71-9e6234b95956
+name: New URL File NTLM Hash Disclosure Vulnerability Detection (0day)
+description: KQL Query
+query: "// New URL File NTLM Hash Disclosure Vulnerability Detection (0day)\n// https://blog.0patch.com/2024/12/url-file-ntlm-hash-disclosure.html\n// A highly accurate DefenderXDR exposure management detection for URL File NTLM Hash Disclosure Vulnerability (0day):\n\n// 1. NTLM hash presence on endpoint\n// 2. New .LNK file creation\n// 3. NTLM authentication over SMB connection to Internet IP\n\n// Conditions 1 + 2 + 3 => \U0001F4A5\n\nlet EndpointWithNTLMHash = \nExposureGraphEdges\n| where EdgeLabel == @\"has credentials of\"\n| where EdgeProperties.rawData.ntlmHash.ntlmHash == \"true\"\n// Endpoint with NTLM hash stored\n| distinct SourceNodeName;\nlet DeviceLNKCreation =\nDeviceFileEvents\n| where ActionType == @\"FileCreated\"\n| where FileName endswith \".lnk\"\n| where DeviceName has_any(EndpointWithNTLMHash)\n| distinct DeviceName;\n// Endpoint with NTLM hash and LNK creation\nDeviceNetworkEvents\n// NTLM authentication over SMB connection\n| where RemotePort == \"445\" and RemoteIPType == \"Public\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (DeviceLNKCreation)\n\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0008
+    - TA0006
+    - TA0009
+    - TA0040
+    - TA0001
+techniques:
+    - T1550.003
+    - T1557.001
+    - T1097
+    - T1021.002
+    - T1496.003
+    - T1027.012
+    - T1192
+    - T1566.002
+    - T1552.001
+tags:
+    - kql
+version: "1"

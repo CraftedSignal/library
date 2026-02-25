@@ -1,0 +1,19 @@
+id: 3c9889aa-42e1-480b-9160-865ef0b07d78
+name: Potential Session/Cookie Theft
+description: 'KQL Query from file: Potential Session/Cookie Theft'
+query: "let riskyUsers = AADUserRiskEvents\r\n| where TimeGenerated >= ago(24h)\r\n| where RiskLevel != \"low\"\r\n| where RiskState !in (\"remediated\", \"dismissed\")\r\n| summarize RiskEvents = make_set(RiskEventType) by UserPrincipalName;\r\nlet suspiciousSessions = AADSignInEventsBeta\r\n| where TimeGenerated >= ago(24h)\r\n| where isnotempty(SessionId)\r\n| where ConditionalAccessStatus == \"0\" or isempty(ErrorCode)\r\n| where isnotempty(Browser) and isnotempty(OSPlatform) and isnotempty(Country) and isnotempty(IPAddress)\r\n| summarize \r\n    IPs = make_set(IPAddress),\r\n    Countries = make_set(Country),\r\n    Browsers = make_set(Browser),\r\n    OS = make_set(OSPlatform),\r\n    FirstSeen = min(TimeGenerated),\r\n    LastSeen = max(TimeGenerated),\r\n    Count = count(),\r\n    anyReportId = any(ReportId)\r\n  by SessionId, AccountUpn;\r\nsuspiciousSessions\r\n| extend \r\n    IPCount = array_length(IPs),\r\n    CountryCount = array_length(Countries),\r\n    BrowserCount = array_length(Browsers),\r\n    OSCount = array_length(OS)\r\n| where IPCount > 1 and CountryCount > 1 and (BrowserCount > 1 or OSCount > 1)\r\n| join kind=inner (riskyUsers) on $left.AccountUpn == $right.UserPrincipalName\r\n| project \r\n    Timestamp = FirstSeen,  \r\n    ReportId = anyReportId,\r\n    AccountUpn, \r\n    SessionId, \r\n    Count, \r\n    IPs, \r\n    Countries, \r\n    Browsers, \r\n    OS, \r\n    RiskEvents"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0006
+    - TA0005
+    - TA0008
+techniques:
+    - T1185
+    - T1539
+    - T1550.004
+tags:
+    - kql
+author: AnalystMC
+version: "1"

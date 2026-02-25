@@ -1,0 +1,18 @@
+id: 019c9056-56d5-768d-8d07-6c6bac56e430
+name: Obfuscated Shell Command via Base64 Pipe
+description: Detects the execution of a shell command that decodes a base64 string and pipes the output directly into another shell for execution. This is a common obfuscation technique used by malware, including the AMOS stealer dropper delivered via malicious OpenClaw skills, to hide the initial payload.
+query: "// Name: Obfuscated Shell Command via Base64 Pipe\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects the execution of a shell command that decodes a base64 string and pipes the output directly into another shell for execution. This is a common obfuscation technique used by malware, including the AMOS stealer dropper delivered via malicious OpenClaw skills, to hide the initial payload.\r\n// Tactics: Defense Evasion, Execution\r\n// Techniques: T1027.013, T1059.004\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html\r\nDeviceProcessEvents\r\n// Filter for common shell processes that would initiate this type of command.\r\n| where FileName in (\"bash\", \"zsh\", \"sh\")\r\n// Look for a command line that involves decoding a base64 string and piping it to another shell.\r\n| where ProcessCommandLine has \"base64\"\r\n  and (ProcessCommandLine has \"-d\" or ProcessCommandLine has \"-D\") // The decode flag for base64 (-d for Linux, -D for macOS).\r\n  and ProcessCommandLine contains \"|\" // The pipe character is used to redirect the decoded output.\r\n  and (\r\n    // The decoded content is piped into a new shell process for execution.\r\n    ProcessCommandLine contains \"| bash\"\r\n    or ProcessCommandLine contains \"| sh\"\r\n  )\r\n// FP Tuning: Some legitimate installation or bootstrapping scripts may use this technique.\r\n// If false positives occur, consider excluding known parent processes or specific trusted command lines.\r\n// For example: `| where not(InitiatingProcessFileName in (\"legit_installer.sh\"))`\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027.013
+    - T1059.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html

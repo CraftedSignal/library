@@ -1,0 +1,15 @@
+id: 35869895-eede-45c5-a163-b0f7443fec5b
+name: Detect CVE-2024-43572 Abuse
+description: 'KQL Query from file: Detect CVE-2024-43572 Abuse'
+query: "// Detect CVE-2024-43572 Abuse\n\n// In Microsoft’s October security update, they highlighted that attackers are actively exploiting CVE-2024-43572, a remote code execution (RCE) flaw in the Microsoft Management Console (MMC). The patch released by Microsoft aims to prevent “untrusted Microsoft Saved Console (MSC) files from being opened,” thereby protecting customers from the associated risks.\n\n// Security researchers at Elastic Security have observed threat actors using specially crafted MMC files, named GrimResource, for initial access and defense evasion. Although Microsoft did not address this specific point in their latest patch update, I took it upon myself to investigate the extent of this .msc vulnerability abuse using the SHA1 of GrimResource. To my astonishment, this .msc file has been detected in 260 organizations worldwide from June 26 to September 2. This significant number of affected organizations underscores the importance of Microsoft’s patch to block untrusted .msc files.\n\n// While waiting for the October patch to be applied to all Windows servers and workstations, here’s an MDE KQL to detect unknown .msc files created on endpoints (excluding servers and admin endpoints where MMC is frequently run):\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet AdminDevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nlet ServerDevice =\nDeviceInfo \n| where OSPlatform contains \"server\"\n| distinct DeviceName;\nDeviceFileEvents\n| where ActionType == @\"FileCreated\"\n| where FileName endswith \".msc\"\n| where not (DeviceName has_any(AdminDevices))\n| where not (DeviceName has_any (ServerDevice))\n\n// MITRE ATT&CK Technique\n// T1210 - Exploitation of Remote Services\n"
+query_type: kql
+tactics:
+    - TA0008
+    - TA0005
+    - TA0001
+techniques:
+    - T1210
+    - T1218.014
+tags:
+    - kql
+version: "1"

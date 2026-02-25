@@ -1,0 +1,44 @@
+id: 019c7b6b-a384-7287-b3ec-7704cae71d2d
+name: LunarApplication PowerShell Execution with Obfuscated Script
+description: Detects a specific obfuscated PowerShell command-line pattern used by the LunarApplication malware to execute scripts from the %TEMP% directory while bypassing execution policies. This rule looks for PowerShell processes with specific flags to bypass execution policy and accept piped input, combined with distinctive randomized script extensions (.yiz.ps1 or .unx.ps1) typically used by this malware.
+query: |-
+    // Name: LunarApplication PowerShell Execution
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-20
+    // Description: Detects a specific obfuscated PowerShell command-line pattern used by the LunarApplication malware to execute scripts from the %TEMP% directory while bypassing execution policies.
+    // MITRE ATT&CK: T1059.001, T1562.001
+    // References: https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for PowerShell processes
+    | where FileName =~ "powershell.exe"
+    // Detects specific flags used to bypass execution policy and accept piped input from stdin
+    | where ProcessCommandLine has_all ("-ExecutionPolicy Unrestricted", "-InputFormat", "Text", "-Command", "-")
+    // Looks for the specific randomized script extensions used by the malware in the temp directory
+    | where ProcessCommandLine has ".yiz.ps1" or ProcessCommandLine has ".unx.ps1"
+    // FP Tuning: This combination of flags and script extensions is distinctive. However, if legitimate administrative tools in your environment
+    // use a similar pattern, consider adding exclusions based on the parent process (InitiatingProcessFileName) or specific script paths.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets

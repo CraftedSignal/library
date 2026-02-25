@@ -1,0 +1,66 @@
+id: 0b02c111-5479-4385-8cc9-7fe995e89830
+name: Cloud Data Exfiltration by Volume
+description: Detects potential data exfiltration from cloud storage or SaaS platforms based on a large volume of data transferred or a high number of distinct files accessed by a single user or application within a one-hour window. This is a common TTP for threat actors like ShinyHunters who aim to steal large datasets.
+query: |
+    `cloud_audit`
+    # sourcetype="aws:cloudtrail" OR sourcetype="google:gcp:audit" OR sourcetype="azure:activity" OR sourcetype="salesforce:event" OR sourcetype="okta:systemlog"
+    # This detection looks for signs of bulk data exfiltration from common cloud services.
+    # It identifies users or applications that download an unusually large volume of data or access a high number of distinct files in a short time frame.
+    # This behavior is a key TTP of groups like ShinyHunters who breach cloud environments to steal sensitive data.
+
+    # Filter for events related to data access, download, or export.
+    # Note: Event names/actions vary by cloud provider. Examples: GetObject (S3), ReportExport/ApiExport (Salesforce), FileDownloaded (O365).
+    (eventName IN (GetObject, Download, FileDownloaded, Export, ReportExport, ApiExport) OR action=download)
+
+    # Summarize data transfer activity over a 1-hour window for each user, source IP, and application.
+    | bucket _time span=1h
+    | stats
+        sum(bytes) as total_bytes,
+        dc(object_path) as distinct_objects_count,
+        values(user_agent) as user_agents
+        by _time, user, src_ip, app
+
+    # Define thresholds for what is considered anomalous exfiltration.
+    # These values are starting points and should be tuned to your environment.
+    # Legitimate activities like data backups, ETL jobs, or power user reports might trigger this rule. Consider adding known service accounts or applications to an allowlist.
+    | where total_bytes > 500000000 OR distinct_objects_count > 1000
+
+    # Convert bytes to a more readable format (MB).
+    | eval total_mb = round(total_bytes / 1024 / 1024, 2)
+
+    # Structure the output for the alert.
+    | rename
+        user as "Potentially Compromised User",
+        src_ip as "Source IP",
+        app as "Application",
+        total_mb as "Total MB Transferred",
+        distinct_objects_count as "Distinct Objects Accessed",
+        user_agents as "User Agents"
+    | table "Potentially Compromised User", "Source IP", "Application", "Total MB Transferred", "Distinct Objects Accessed", "User Agents"
+
+    # --- Metadata ---
+    # title: Cloud Data Exfiltration by Volume
+    # description: |-
+    #   Detects potential data exfiltration from cloud storage or SaaS platforms based on a large volume of data transferred or a high number of distinct files accessed by a single user or application within a one-hour window. This is a common TTP for threat actors like ShinyHunters who aim to steal large datasets.
+    # author: Shadowalker
+    # date: 2025-08-11
+    # references:
+    #   - https://malpedia.caad.fkie.fraunhofer.de/actor/shinyhunters
+    #   - https://cloud.google.com/blog/topics/threat-intelligence/voice-phishing-data-extortion
+    # mitre_attack:
+    #   - technique: T1537
+    #     tactic: TA0010
+    # false_positives: |-
+    #   Legitimate bulk data downloads by administrators, automated backup processes, ETL jobs, or data analytics applications can trigger this alert. Tuning the thresholds and creating allowlists for known benign activities is recommended.
+    # level: Medium
+query_type: spl
+tactics:
+    - TA0010
+techniques:
+    - T1567.002
+tags:
+    - spl
+version: "1"
+references:
+    - https://malpedia.caad.fkie.fraunhofer.de/actor/shinyhunters
+    - https://cloud.google.com/blog/topics/threat-intelligence/voice-phishing-data-extortion

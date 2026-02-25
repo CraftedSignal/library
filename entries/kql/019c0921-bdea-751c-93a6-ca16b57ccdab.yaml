@@ -1,0 +1,78 @@
+id: 019c0921-bdea-751c-93a6-ca16b57ccdab
+name: AI Agent Shell-to-Web Exfiltration
+description: Detects a behavioral sequence where an AI agent runtime (e.g., Node.js, Python) spawns a shell to execute a web request utility like curl or wget. This pattern is a strong indicator of automated data exfiltration, often resulting from a successful prompt injection attack that instructs the agent to steal and send data to an attacker-controlled server.
+query: |
+    // Name: AI Agent Shell-to-Web Exfiltration
+    // Author: detections.ai
+    // Date: 2026-01-29
+    // Description: Detects a behavioral sequence where an AI agent runtime (e.g., Node.js, Python) spawns a shell to execute a web request utility like curl or wget. This pattern is a strong indicator of automated data exfiltration, often resulting from a successful prompt injection attack that instructs the agent to steal and send data to an attacker-controlled server.
+    // False Positives: Medium. Legitimate automation scripts or agent "skills" might perform similar actions. Tuning should focus on excluding known-good parent-child process relationships, trusted destination URLs, or specific developer systems.
+    // References: https://snyk.io/articles/clawdbot-ai-assistant/
+    // Tactic: Exfiltration, Command and Control
+    // Technique: T1041, T1071.001, T1059
+    let agentRuntimes = dynamic(["node.exe", "python.exe", "bun.exe", "node", "python", "bun"]);
+    let shellProcesses = dynamic(["cmd.exe", "powershell.exe", "pwsh.exe", "bash", "sh", "zsh"]);
+    let webUtilities = dynamic(["curl.exe", "wget.exe", "curl", "wget"]);
+
+    // Find shell processes spawned by AI agent runtimes
+    let agentSpawnsShell = DeviceProcessEvents
+    | where InitiatingProcessFileName in~ (agentRuntimes) and FileName in~ (shellProcesses)
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        AccountUpn,
+        AgentProcessId = InitiatingProcessId,
+        AgentFileName = InitiatingProcessFileName,
+        AgentCommandLine = InitiatingProcessCommandLine,
+        ShellProcessId = ProcessId,
+        ShellFileName = FileName,
+        ShellCommandLine = ProcessCommandLine;
+
+    // Find web utility processes spawned by any process
+    let shellSpawnsWebUtil = DeviceProcessEvents
+    | where InitiatingProcessFileName in~ (shellProcesses) and FileName in~ (webUtilities)
+    // Correlate with an outbound network connection to confirm exfiltration attempt
+    | join kind=inner (
+        DeviceNetworkEvents
+        | where RemoteIPType !in ("Private", "Loopback") and isnotempty(RemoteIP)
+    ) on $left.ProcessId == $right.ProcessId
+    | project
+        WebUtilInitiatingProcessId = InitiatingProcessId,
+        WebUtilFileName = FileName,
+        WebUtilCommandLine = ProcessCommandLine,
+        RemoteIP,
+        RemoteUrl,
+        NetworkTime = TimeGenerated;
+
+    // Join the two stages to find the full Agent -> Shell -> Web Utility chain
+    agentSpawnsShell
+    | join kind=inner (shellSpawnsWebUtil) on $left.ShellProcessId == $right.WebUtilInitiatingProcessId
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        AccountUpn,
+        AgentFileName,
+        AgentCommandLine,
+        ShellFileName,
+        ShellCommandLine,
+        WebUtilFileName,
+        WebUtilCommandLine,
+        RemoteIP,
+        RemoteUrl
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+    - TA0002
+techniques:
+    - T1041
+    - T1071.001
+    - T1059
+tags:
+    - kql
+version: "2"
+references:
+    - https://snyk.io/articles/clawdbot-ai-assistant/

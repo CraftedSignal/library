@@ -1,0 +1,75 @@
+id: a19d44e1-e5fe-4f01-8e8a-2eb4dd5c6bfc
+name: Havoc C2 Variant Detection - IOC and TTPs
+description: Detects Indicators of Compromise (IOCs) and Tactics, Techniques, and Procedures (TTPs) associated with a Havoc C2 variant. This includes specific file hashes, C2 network connections, and a unique command-line execution pattern involving a masqueraded conhost.exe creating a cmd.exe process for injection.
+query: |
+    title: Havoc C2 Variant Detection - IOC and TTPs
+    id: b2ff61cf-f6b7-4baf-8829-95c62e0df4ad
+    status: experimental
+    description: Detects Indicators of Compromise (IOCs) and Tactics, Techniques,
+      and Procedures (TTPs) associated with a Havoc C2 variant. This includes
+      specific file hashes, C2 network connections, and a unique command-line
+      execution pattern involving a masqueraded conhost.exe creating a cmd.exe
+      process for injection.
+    references:
+      - https://www.fortinet.com/blog/threat-research/dissecting-a-malicious-havoc-sample
+    author: Chaitanya B (Mr.Alien)
+    date: 2025-07-14
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1036.005
+      - attack.t1202
+      - malware.havoc
+    logsource:
+      - category: process_creation
+        product: windows
+      - category: dns
+        product: windows
+    detection:
+      selection_hash:
+        # Detects specific file hashes associated with the Havoc variant
+        Hashes|contains:
+          - 'SHA256:22BD09FBAB54963D4B0234585D33571A47A2DF569DBAB8B40988415AB0A3C37B'
+          - 'SHA256:9208034AF160357C99B45564FF54570B1510BAF3BC033999AE4281482617FF5B'
+      selection_c2:
+        # Detects DNS queries to the Havoc C2 domain
+        dns.question.name|contains: 'apps.gist.githubapp.net'
+      selection_ttp_execution:
+        # Detects the specific execution of the masqueraded conhost.exe from an unusual path with specific arguments
+        Image|endswith: '\drivers\conhost.exe'
+        CommandLine|contains|all:
+          - '-f'
+          - '-ER'
+          - '--ln'
+          - '--path'
+      selection_ttp_parent:
+        # Detects the creation of cmd.exe by the masqueraded conhost.exe for process injection
+        ParentImage|endswith: '\drivers\conhost.exe'
+        Image|endswith: '\cmd.exe'
+      condition: 1 of them
+    falsepositives:
+      - The command-line arguments are specific but could potentially overlap with
+        other custom tools
+      - although the combination with the unusual path significantly reduces this
+        risk.
+      - A legitimate `conhost.exe` creating `cmd.exe` from the `\drivers\` directory
+        is highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1036.005
+    - T1202
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1036.005
+    - attack.t1202
+    - malware.havoc
+author: Chaitanya B (Mr.Alien)
+version: "1"
+references:
+    - https://www.fortinet.com/blog/threat-research/dissecting-a-malicious-havoc-sample

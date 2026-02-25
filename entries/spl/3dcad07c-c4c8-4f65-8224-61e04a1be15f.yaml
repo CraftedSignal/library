@@ -1,0 +1,16 @@
+id: 3dcad07c-c4c8-4f65-8224-61e04a1be15f
+name: Suspicious Volume Shadow Copy Deletion
+description: This detection identifies attempts to delete volume shadow copies using common utilities like vssadmin, wmic, or PowerShell. This is a technique frequently used by ransomware before encryption to prevent easy restoration of files.
+query: "`#\n# DETECTION RULE METADATA\n#\n# Author:      detections.ai\n# Date:        2025-07-14\n# Name:        Suspicious Volume Shadow Copy Deletion\n# Description: This detection identifies attempts to delete volume shadow copies using common utilities like vssadmin, wmic, or PowerShell. \n#              This is a technique frequently used by ransomware before encryption to prevent easy restoration of files.\n# Reference:   https://attack.mitre.org/techniques/T1490/\n#              https://www.cisa.gov/sites/default/files/publications/Ransomware_Guide_508.pdf\n#`\n\n`#\n# DETECTION LOGIC\n#`\n\n`comment(\"This detection rule requires process execution logs (e.g., Sysmon Event ID 1, Windows Security Event ID 4688) mapped to the Endpoint.Processes CIM data model.\")`\n| tstats `summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes \n  where (\n    (Processes.process_name=\"vssadmin.exe\" AND Processes.process=\"*delete*\" AND Processes.process=\"*shadows*\") OR \n    (Processes.process_name=\"wmic.exe\" AND Processes.process=\"*shadowcopy*\" AND Processes.process=\"*delete*\") OR \n    (Processes.process_name IN (\"powershell.exe\", \"pwsh.exe\") AND Processes.process=\"*Win32_ShadowCopy*\" AND (Processes.process=\"*Delete*\" OR Processes.process=\"*Remove-CimInstance*\"))\n  )\n  by Processes.dest, Processes.user, Processes.parent_process_name, Processes.process_name, Processes.process\n| `drop_dm_object_name(\"Processes\")`\n\n`#\n# FP & Tuning\n#\n# While this activity is highly suspicious, legitimate administrators may occasionally perform it for maintenance.\n# If this generates noise from specific admin accounts or servers, consider adding them to an allow-list.\n# Example: | search NOT (user IN (\"authorized_admin_account\") AND dest IN (\"utility_server*\"))\n#`\n\n`#\n# OUTPUT FORMATTING\n#`\n| rename dest as host, user as executing_user, parent_process_name as parent_process, process_name as process, process as command_line\n| `ctime(firstTime)`\n| `ctime(lastTime)`\n| table firstTime, lastTime, host, executing_user, parent_process, process, command_line, count\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1490
+tags:
+    - spl
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1490/
+    - https://www.cisa.gov/sites/default/files/publications/Ransomware_Guide_508.pdf

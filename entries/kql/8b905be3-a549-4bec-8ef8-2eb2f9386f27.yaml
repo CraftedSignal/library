@@ -1,0 +1,11 @@
+id: 8b905be3-a549-4bec-8ef8-2eb2f9386f27
+name: External Guest Accounts Added in EntraID
+description: This detection looks for external guest accounts being added to a company EntraID, where the external guests target resource does not contain the company domain. This activity can indicate compromise and now the threat actor is looking to maintain persistence through the creation of accounts.
+query: "AuditLogs\r\n| where OperationName has_any (\"Add User\", \"Invite external user\")\r\n| where TargetResources !contains \"companydomain.com\"\r\n| extend targetResources = parse_json(tostring(TargetResources))[0]\r\n| extend modifiedProperties = parse_json(tostring(targetResources.modifiedProperties))\r\n| mv-expand modifiedProp = modifiedProperties\r\n| extend displayName = tostring(modifiedProp.displayName),\r\n         oldValue = tostring(modifiedProp.oldValue),\r\n         newValue = tostring(modifiedProp.newValue)\r\n| where displayName in (\"OtherMail\", \"ProxyAddresses\")\r\n| project TimeGenerated, OperationName, TargetUser = targetResources.userPrincipalName,\r\n          displayName, oldValue, newValue\r\n| extend TimeWindow = bin(TimeGenerated, 5m)\r\n| summarize arg_max(TimeGenerated, *)\r\n    by tostring(TargetUser), TimeWindow"
+query_type: kql
+severity: medium
+techniques:
+    - T1136.003
+tags:
+    - kql
+version: "1"

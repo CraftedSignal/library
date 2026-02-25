@@ -1,0 +1,18 @@
+id: 019aa5c8-08b3-773d-9fb1-fe8b40af1310
+name: Latrodectus Persistence and Execution Artifacts
+description: Detects persistence and execution artifacts associated with the Latrodectus malware. This includes the creation of a misspelled registry run key ('sentinelssheduler') and the execution of a payload masquerading as SentinelOne from a non-standard AppData path.
+query: "title: Latrodectus Persistence and Execution Artifacts\r\nid: ec55478f-3f20-47ce-915f-b6a1da79ff16\r\nstatus: experimental\r\ndescription: Detects persistence and execution artifacts associated with the\r\n  Latrodectus malware. This includes the creation of a misspelled registry run\r\n  key ('sentinelssheduler') and the execution of a payload masquerading as\r\n  SentinelOne from a non-standard AppData path.\r\nreferences:\r\n  - https://medium.com/@shubhandrew/analysis-of-latrodectus-variant-msi-installer-966423f32e73\r\nauthor: Subhankar H.\r\ndate: 2025-11-21\r\ntags:\r\n  - attack.persistence\r\n  - attack.t1547.001\r\n  - attack.execution\r\n  - attack.t1036.005\r\n  - attack.s1127\r\nlogsource:\r\n  product: windows\r\n  category:\r\n    - registry_set\r\n    - process_creation\r\ndetection:\r\n  selection_persistence:\r\n    category: registry_set # Detects the creation of a registry run key with a specific typo used by this malware variant.\r\n    TargetObject|contains|all:\r\n      - '\\Software\\Microsoft\\Windows\\CurrentVersion\\Run'\r\n      - '\\sentinelssheduler'\r\n    Details|contains: '\\AppData\\Roaming\\SentinelOne\\SentinelAgentWorker.exe'\r\n  selection_execution:\r\n    category: process_creation # Detects the execution of the masqueraded executable from a non-standard path.\r\n    Image|contains: '\\AppData\\Roaming\\SentinelOne\\SentinelAgentWorker.exe'\r\n  condition: 1 of them\r\nfalsepositives:\r\n  - Other software coincidentally using the file name 'SentinelAgentWorker.exe'\r\n    and path structure '\\AppData\\Roaming\\SentinelOne\\' for legitimate purposes,\r\n    though highly unlikely.\r\n  - Legitimate SentinelOne agents running from the AppData folder (highly\r\n    unlikely as legitimate agents do not run from this location).\r\nlevel: high\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0005
+techniques:
+    - T1547.001
+    - T1036.005
+author: Subhankar H.
+version: "2"
+references:
+    - https://medium.com/@shubhandrew/analysis-of-latrodectus-variant-msi-installer-966423f32e73

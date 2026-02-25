@@ -1,0 +1,97 @@
+id: 019bead4-e438-733f-ada1-20d05425042a
+name: Malicious PDF Editor Activity Detection
+description: This rule detects outbound network connections to command and control (C2) domains and identifies files by name or hash associated with malicious PDF editor campaigns (e.g., ConvertMate, PDFClick, PDFSkills). These campaigns use malicious PDF editors for C2 communication, to download additional payloads, and for initial execution.
+query: |
+    // Name: Malicious PDF Editor (ConvertMate/PDFClick/PDFSkills) - Network + File Indicators
+    // Author: detections.ai
+    // Date: 2026-01-23
+    // Description: Detects malicious PDF editor campaign indicators via outbound C2 domains and file/hash indicators.
+    // False Positives: Low-Medium. Domains/hashes are high confidence; generic filenames may require extra scoping.
+    // Tactic: Command and Control, Execution
+    // Technique: T1071.001, T1204.002
+    // References: https://www.truesec.com/hub/blog/reoccurring-use-of-highly-suspicious-pdf-editors-to-infiltrate-environments
+
+    let maliciousDomains = dynamic([
+      "confetly.com","climatcon.com","conmateapp.com","chrialletworton.com","banifuri.com","dcownil.com",
+      "takelecon.com","hamarit.com","netarlio.com","oblifagi.com","pdfclickapp.com","orliksin.com",
+      "balgonik.com","ledirno.com","pwrtail.com","skillcli.com","rani.climatcon.com","vo.takelecon.com","cbn.skillcli.com"
+    ]);
+    let maliciousFilenames = dynamic([
+      "conmate_update.ps1","ConvertMate.exe","Convert Mate.exe","UpdateRetreiver.exe","pdfclick.exe",
+      "PDFClickUpdater.exe","PDFSkillsApp.exe","Update.dll","Update.exe","update_task_ad.ps1","PDFSkills_Updater.exe"
+    ]);
+    let maliciousHashes = dynamic([
+      "372d89d7dd45b2120f45705a4aa331dfff813a4be642971422e470eb725c4646",
+      "08b9f93000512b45f8c2e8d3d6624536b366e67c40fd4b958db58e3a1d129c3d",
+      "d9f9584f4f071be9c5cf418cae91423c51d53ecf9924ed39b42028d1314a2edc",
+      "09c2af472ab86b62a702e94a39df2bef09205f4249ed871cbeece751c1e7ef4f",
+      "6bf2cc4e9d9901541214d7efc8bb8bb24ef5bddc238598333c843e421c042c6b",
+      "09474277051fc387a9b43f7f08a9bf4f6817c24768719b21f9f7163d9c5c8f74",
+      "50651ed57b60d48da11117a170241da8669bf0e6e7ea76d7f2d364db80e16d6f",
+      "bd06d788b4384dd0d8640129746aa4c0826e63f409743f65000929702a417519",
+      "7c79c2ec34e0f70cc65cb0641e7b47e68bd7412428da8f1e594d208bfe2efae9",
+      "770084c445caba3a570689148004600f8675bf6d7f0deaa45f50b258f346c1bb",
+      "749e69881eeb60720baf21178af7391cf71445fdeae0b5ca5bba53ca5ac0f787",
+      "9c9cdb1a91444dc9c99df071f2dac4791d20112e0df786da40069a1e76594803",
+      "5ad036c7f0f52bc70187b00bf92c0eb8a2fbbc34a69d4f06e313ac451387b513",
+      "c30d514b84fc5966ac118e9ecd0b2ab302c8a839b84e5cb385e88ec8226e958e",
+      "c7cbc315f533f124fd6ed468f7e333a276a1891cd4c6a5b720058d54e053ec32",
+      "186aa2c281ca7bb699ce0b48240b7559a9ac5b0ba260fb78b81ec53249548f62"
+    ]);
+    let NetworkHits =
+      DeviceNetworkEvents
+      | where isnotempty(RemoteUrl)
+      | where RemoteUrl has_any (maliciousDomains)
+      | extend MatchType = "Network", MatchValue = RemoteUrl
+      | project
+          TimeGenerated,
+          DeviceName,
+          MatchType,
+          MatchValue,
+          ActionType,
+          RemoteUrl,
+          RemoteIP,
+          FileName = tostring(""),
+          FolderPath = tostring(""),
+          SHA256 = tostring(""),
+          InitiatingProcessFileName,
+          InitiatingProcessCommandLine,
+          InitiatingProcessId,
+          ReportId;
+    let FileHits =
+      DeviceEvents
+      | where ActionType in ("FileCreated", "ProcessCreated")
+      | where FileName has_any (maliciousFilenames) or SHA256 in (maliciousHashes)
+      | extend
+          MatchType = "File",
+          MatchValue = coalesce(SHA256, FileName)
+      | project
+          TimeGenerated,
+          DeviceName,
+          MatchType,
+          MatchValue,
+          ActionType,
+          RemoteUrl = tostring(""),
+          RemoteIP = tostring(""),
+          FileName,
+          FolderPath,
+          SHA256,
+          InitiatingProcessFileName,
+          InitiatingProcessCommandLine,
+          InitiatingProcessId = tostring(""),
+          ReportId;
+    union isfuzzy=true NetworkHits, FileHits
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1071.001
+    - T1204.002
+tags:
+    - kql
+version: "6"
+references:
+    - https://www.truesec.com/hub/blog/reoccurring-use-of-highly-suspicious-pdf-editors-to-infiltrate-environments

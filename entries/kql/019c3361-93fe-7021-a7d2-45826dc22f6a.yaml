@@ -1,0 +1,19 @@
+id: 019c3361-93fe-7021-a7d2-45826dc22f6a
+name: Suspicious outbound network traffic via VPC Flow Logs for the past day
+description: The query, as constructed, is primarily focused on detecting large outbound traffic volumes to external destinations on a per source-destination pair basis within daily aggregations. Adjust the threshold and aggregation criteria based on your specific security requirements and typical network behavior patterns.
+query: |-
+    let internal_ips_prefix = "10."; //exclude internal IPs as destination, remove if not needed.
+    let threshold_bytes = 2147483648; // 2GB in bytes, you can adjust threshold depending on your environment
+    AWSVPCFlow
+    | where DstAddr !startswith internal_ips_prefix // Assuming local/internal addresses start with "10."
+    | summarize outbound_bytes_per_day = sum(Bytes) by SrcAddr, DstAddr, bin(TimeGenerated, 1d) // Summarizes outbound bytes per 1-day bin
+    | where outbound_bytes_per_day > threshold_bytes // 2GB threshold per day
+    | project TimeGenerated, SrcAddr, DstAddr, outbound_bytes_per_day, outbound_MB_per_day = outbound_bytes_per_day / 1048576, outbound_GB_per_day = outbound_bytes_per_day / 1073741824
+query_type: kql
+severity: medium
+techniques:
+    - T1048
+tags:
+    - kql
+author: Vibezsss
+version: "2"

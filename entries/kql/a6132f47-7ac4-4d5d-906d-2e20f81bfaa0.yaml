@@ -1,0 +1,36 @@
+id: a6132f47-7ac4-4d5d-906d-2e20f81bfaa0
+name: Microsoft SharePoint Possible ASPX/ASP Web Shell Activity
+description: This rule detects the creation or modification of ASPX/ASP files within specific SharePoint web server directories on devices identified as vulnerable to CVE-2025-49706 or CVE-2025-53770. It leverages vulnerability management data to narrow down the scope to only vulnerable SharePoint servers, then monitors file events in common SharePoint LAYOUTS paths for web shell indicators. The rule also uses file profiling to identify potentially novel or malicious ASPX/ASP files that lack Defender visibility.
+query: |-
+    let vulnSharePoint = (DeviceTvmSoftwareVulnerabilities
+    | where CveId has_any ("CVE-2025-49706","CVE-2025-53770") // Identify devices vulnerable to specific SharePoint CVEs linked to ASPX web shell exploitation
+    | join kind=inner (
+        DeviceInfo
+    ) on DeviceId // Enrich vulnerability data by joining with device metadata
+    //| summarize by MachineGroup, DeviceName, PublicIP, SensorHealthState, DeviceType, OSPlatform, OSBuild, CloudPlatforms, DeviceId // (Commented out) Summarization useful for reporting or grouping, not needed for current logic
+    //| sort by MachineGroup, CloudPlatforms // (Commented out) Sorting can aid readability, optional for hunt logic
+    | distinct DeviceId // Extract distinct device IDs affected by the SharePoint vulnerabilities
+    );
+    DeviceFileEvents
+    | where DeviceId has_any(vulnSharePoint) // Investigate file events only from vulnerable SharePoint systems
+    | where FolderPath has_any(@"\Microsoft Shared\Web Server Extensions\15\TEMPLATE\LAYOUTS\", @"\Microsoft Shared\Web Server Extensions\16\TEMPLATE\LAYOUTS\") // Focus on typical SharePoint LAYOUTS directories where ASPX files are deployed
+    //| where ActionType == "FileCreated" // (Commented out) Can be used to focus on newly created ASPX files suggesting web shell drop
+    | where InitiatingProcessFileName == "w3wp.exe" // (Commented out) Useful to isolate events initiated by IIS worker process
+    | where FileName endswith ".aspx" or FileName endswith ".asp" // Filter for ASPX/ASP files, often used in web shell-based exploitation of SharePoint
+    //| where not(FileName has_any ("settings.aspx", "viewlsts.aspx", "create.aspx", "upload.aspx", "default.aspx", "help.aspx", "layouts.aspx", "people.aspx", "search.aspx", "webparts.aspx", "admin.aspx", "sitemanager.aspx", "newgrp.aspx", "newdwp.aspx", "editform.aspx", "dispform.aspx", "allitems.aspx")) // (Commented out) Optionally exclude known standard SharePoint pages to reduce false positives
+    //| where FileName has_any("spinstall0") // (Commented out) Example of targeting a known web shell filename used in prior incidents
+    | invoke FileProfile(SHA1, 10000) // Use Defender’s FileProfile function to assess the reputation and known presence of .aspx files
+    | where not(ProfileAvailability has "Available") or GlobalPrevalence < 1000 // Flag files lacking Defender visibility—potential indicators of novel or malicious ASPX shells
+    | sort by GlobalPrevalence asc, GlobalFirstSeen
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+tags:
+    - kql
+author: '@AdairJCollins'
+version: "1"
+references:
+    - https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/

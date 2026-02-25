@@ -1,0 +1,15 @@
+id: 0199770f-39da-7579-94f5-28c8dafa00f4
+name: Detecting EDR-Freeze
+description: "NOTE: Big kudos to \"Steven Lim @KQLWizard\" as he developed the detection and i just adapted the extract regex. at my tests -p was not enough as the parameter was /pid is used. \nChanged timestamps into one variable as i do not see the need for a bigger lookback (e.g. 30d) if i just check for the process ids of a day. \n\nTested with https://github.com/TwoSevenOneT/EDR-Freeze, tests was not successfull as Files could not be suspended. Reason not verified.\n\n-- original description from @KQLWizard -- \nDR-Freeze abuses WerFaultSecure.exe to suspend AV/EDR via MiniDumpWriteDump — no BYOVD needed."
+query: "let lookbackTime = 1d;  // TODO: Adapt to your need\nlet MDEProcess = dynamic([\"MsSense.exe\",\"MpDefenderCoreService.exe\",\"MsMpEng.exe\"]);        // MS Processes - \nlet SuspendPID =DeviceProcessEvents\n| where Timestamp > ago(lookbackTime)\n| where FileName =~ \"WerFaultSecure.exe\" or FolderPath endswith \"WerFaultSecure.exe\"\n| extend PID=tostring(extract(@\"[/-]p[i][d]\\s+(\\d+) \", 1, ProcessCommandLine))\n| where not(isempty(PID))\n| distinct PID\n| project PID;\nDeviceProcessEvents\n| where Timestamp > ago(lookbackTime)\n| where tostring(ProcessId) has_any(SuspendPID)\n| where FileName has_any(MDEProcess)\n| sort by Timestamp desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.001
+    - T1055.001
+tags:
+    - kql
+version: "5"

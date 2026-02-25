@@ -1,0 +1,48 @@
+id: 3d5c1fae-c499-4c50-9bdf-24996fb01151
+name: LockBit Black Ransomware
+description: 'KQL Query from file: LockBit Black Ransomware'
+query: |
+    // LockBit Black Ransomware (Phorpiex botnet) KQL Detect
+    // https://www.linkedin.com/posts/activity-7196135968318353408-SN3l/
+
+    // Proofpoint has observed Phorpiex botnet sending millions of phishing emails to deliver LockBit Black ransomware beginning April 24, 2024 and continuing daily for about a week. I just checked my Defender and indeed I received 81 of them but they were all stop by my antimalware policy block by file type. You may want to check if you are impacted and any slipped through your defense.
+
+    // Security Brief: Millions of Messages Distribute LockBit Black Ransomware
+    // https://lnkd.in/dAmupJ6n
+
+    DefenderXDR KQL:
+
+    EmailEvents
+    | where Timestamp > ago(30d)
+    | where SenderDisplayName == "Jenny Green"
+    or SenderFromAddress == "Jenny@gsd.com"
+    or SenderFromAddress =="JennyBrown3422@gmail.com"
+    | summarize Count=count() by LatestDeliveryAction
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the query, the following MITRE ATT&CK techniques are relevant:
+
+    // T1566.001 - Phishing: Spearphishing Attachment:
+    // The query filters emails based on specific sender details, which could be indicative of spearphishing attempts where an attacker uses a known or trusted sender to deliver malicious content.
+    // T1071.003 - Application Layer Protocol: Mail Protocols:
+    // The use of email as a communication channel for potential malicious activity aligns with this technique, where attackers use mail protocols to communicate with their targets.
+    // T1087.002 - Account Discovery: Email Accounts:
+    // Filtering by specific email addresses can be related to discovering and targeting specific email accounts within an organization.
+    // T1114 - Email Collection:
+    // Summarizing email events by delivery action can help in identifying patterns related to email collection activities, where attackers gather information from email communications.
+query_type: kql
+tactics:
+    - TA0001
+    - TA0011
+    - TA0007
+    - TA0009
+techniques:
+    - T1566.001
+    - T1071.003
+    - T1087.002
+    - T1114
+    - T1566
+tags:
+    - kql
+version: "1"

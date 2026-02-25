@@ -1,0 +1,19 @@
+id: 019c8a83-d6a5-7498-86c0-e09e895423cb
+name: Obscura Ransomware Scheduled Task Creation
+description: Detects the creation of a scheduled task named 'SystemUpdate' that executes a file from the Windows SYSVOL or NETLOGON scripts directory. This behavior is associated with the Obscura ransomware, which uses this method for propagation and execution across a domain.
+query: "// Title: Obscura Ransomware Scheduled Task Creation\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects the creation of a scheduled task named 'SystemUpdate' that executes a file from the Windows SYSVOL or NETLOGON scripts directory. This behavior is associated with the Obscura ransomware, which uses this method for propagation and execution across a domain.\r\n// References: https://www.huntress.com/blog/obscura-ransomware-variant\r\n// MITRE ATT&CK: T1053.005, T1021.002\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for schtasks.exe process creation events\r\n| where FileName =~ \"schtasks.exe\"\r\n// Filter for command lines that create a scheduled task\r\n| where ProcessCommandLine has \"/create\"\r\n    // Specifically look for the task name \"SystemUpdate\" used by Obscura\r\n    and ProcessCommandLine has \"/tn\" and ProcessCommandLine contains \"SystemUpdate\"\r\n    // Check if the task is executing a file from a SYSVOL or scripts path, common for GPO-based deployment\r\n    and ProcessCommandLine has_any (@\"\\sysvol\\\", @\"\\scripts\\\")\r\n// FP Tuning: Legitimate administrative scripts might use the name \"SystemUpdate\".\r\n// To reduce false positives, consider excluding known administrative tools or scripts if this activity is expected in your environment.\r\n// For example: | where InitiatingProcessFileName !in (\"legit_admin_tool.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0008
+techniques:
+    - T1053.005
+    - T1021.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/obscura-ransomware-variant

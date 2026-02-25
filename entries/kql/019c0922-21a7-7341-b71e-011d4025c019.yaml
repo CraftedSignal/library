@@ -1,0 +1,45 @@
+id: 019c0922-21a7-7341-b71e-011d4025c019
+name: Exposed AI Agent Gateway Access
+description: Detects inbound network connections from external (non-loopback, non-private) IP addresses to ports commonly used by Clawdbot/Moltbot gateways (3000, 8080, 16007). An exposed gateway is a significant security risk that can allow unauthorized remote administrative control over the AI agent.
+query: |
+    // Name: Exposed AI Agent Gateway Access
+    // Author: detections.ai
+    // Date: 2026-01-29
+    // Description: Detects inbound network connections from external (non-loopback, non-private) IP addresses to ports commonly used by Clawdbot/Moltbot gateways (3000, 8080, 16007). An exposed gateway is a significant security risk that can allow unauthorized remote administrative control over the AI agent.
+    // False Positives: Medium. These ports are common and may be used by other legitimate web services. If this is too noisy, consider joining with DeviceProcessEvents to ensure the listening process is a known AI agent runtime (e.g., node, python, bun) or filtering for specific HTTP headers/payloads if available in your logs (e.g., from a web proxy).
+    // References: https://snyk.io/articles/clawdbot-ai-assistant/
+    // Tactic: Initial Access
+    // Technique: T1190
+    let gatewayPorts = dynamic([3000, 8080, 16007]);
+
+    // This query uses DeviceNetworkEvents, which is common for endpoint detection.
+    // It identifies when the device accepts an inbound connection on a gateway port from an external IP.
+    DeviceNetworkEvents
+    | where ActionType == "InboundConnectionAccepted"
+    | where LocalPort in (gatewayPorts)
+    // Filter for connections originating from outside the local network.
+    | where RemoteIPType !in ("Private", "Loopback") and isnotempty(RemoteIP)
+    // The following commented-out query is an example for firewall/proxy logs (e.g., CommonSecurityLog)
+    // which may contain HTTP-specific indicators for higher fidelity.
+    // | union (\n//     CommonSecurityLog\n//     | where DestinationPort in (gatewayPorts)\n//     | where not(ipv4_is_private(SourceIP))\n//     // Look for indicators in HTTP traffic if available in your logs\n//     | where AdditionalFields has \"Clawdbot\" or AdditionalFields has \"Moltbot\" or RequestURL has \"Clawdbot\"\n// )
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        LocalPort,
+        RemoteIP,
+        RemotePort,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://snyk.io/articles/clawdbot-ai-assistant/

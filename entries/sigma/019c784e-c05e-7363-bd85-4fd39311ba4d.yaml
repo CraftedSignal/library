@@ -1,0 +1,64 @@
+id: 019c784e-c05e-7363-bd85-4fd39311ba4d
+name: Suspicious Activity in TCC DB
+description: |
+    Detects malicious activity related to the TCC.db, commonly abused by macOS malware
+    to bypass Transparency, Consent, and Control (TCC) restrictions.
+query: |
+    title: Suspicious Activity in TCC DB
+    id: 42217646-3023-441f-8181-422176463023
+    status: experimental
+    author: zendannyy
+    description: >
+      Detects malicious activity related to the TCC.db, commonly abused by macOS
+      malware
+
+      to bypass Transparency, Consent, and Control (TCC) restrictions.
+    references:
+      - https://objective-see.org/blog/blog_0x7D.html
+    tags:
+      - attack.defense_evasion
+      - attack.t1548.006
+    logsource:
+      product: macos
+      category: file_event
+    detection:
+      selection_hidden_files:
+        TargetFilename|contains: /.
+        EventType: FileCreate
+      selection_suspicious_names:
+        TargetFilename|contains:
+          - installer
+          - update
+          - helper
+          - agent
+          - daemon
+          - TCC.db
+      filter_system:
+        Image|startswith:
+          - /System/
+          - /usr/sbin/
+      condition: (selection_hidden_files or selection_suspicious_names) and not filter_system
+    level: medium
+    falsepositives:
+      - System administration tools or scripts that create or modify files with
+        names like 'installer', 'update', 'helper', 'agent', 'daemon' during normal
+        operations.
+      - Development activities involving creation of hidden files or directories for
+        project setup or configuration.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1548.006
+tags:
+    - attack.defense_evasion
+    - attack.t1548.006
+author: zendannyy
+version: "1"
+references:
+    - https://objective-see.org/blog/blog_0x7D.html
+data_sources:
+    - file_event
+    - macos

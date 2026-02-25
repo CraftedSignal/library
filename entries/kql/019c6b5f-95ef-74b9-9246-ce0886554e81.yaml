@@ -1,0 +1,13 @@
+id: 019c6b5f-95ef-74b9-9246-ce0886554e81
+name: Kerberoasting Activity Detection
+description: This rule detects potential Kerberoasting activity by identifying an unusual number of Kerberos service ticket requests (Event ID 4769) for service principal names (SPNs) ending with '$' from a single client address within an hour. A high count (over 10) is flagged as 'High' suspicion, while a count between 5 and 10 is flagged as 'Medium'. This behavior is indicative of an attacker attempting to obtain service ticket hashes for offline cracking.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(24h)\r\n| where EventID == 4769  \r\n| where Status == \"0x0\"  \r\n| where ServiceName endswith \"$\"  \r\n| summarize TicketCount = count() by ClientAddress, ServiceName, bin(TimeGenerated, 1h)\r\n| where TicketCount > 5  \r\n| extend IsSuspicious = iff(TicketCount > 10, \"High\", \"Medium\")  \r\n| project TimeGenerated, ClientAddress, ServiceName, TicketCount, IsSuspicious\r\n| order by TicketCount desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1558.003
+tags:
+    - kql
+version: "1"

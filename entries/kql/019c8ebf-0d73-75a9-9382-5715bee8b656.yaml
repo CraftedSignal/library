@@ -1,0 +1,14 @@
+id: 019c8ebf-0d73-75a9-9382-5715bee8b656
+name: Potential Port Scan - Single Host Hitting Many Ports/Hosts
+description: This rule detects potential port scanning activity from a single host. It identifies scenarios where a device attempts to connect to a large number of unique remote ports (20 or more) or a large number of unique remote IP addresses (25 or more) within a 10-minute window. This behavior is indicative of an adversary attempting to discover open ports or active hosts on a network.
+query: "// Detection: Port Scan - Single Host Hitting Many Ports/Hosts\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1046 - Network Service Discovery\r\n\r\nlet timeWindow    = 10m;\r\nlet portThreshold = 20;\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(1h)\r\n| where ActionType in (\r\n    \"ConnectionAttempt\",\"ConnectionFailed\",\"ConnectionRequest\"\r\n)\r\n| summarize\r\n    UniqueRemotePorts = dcount(RemotePort),\r\n    UniqueRemoteIPs   = dcount(RemoteIP),\r\n    RemotePortList    = make_set(RemotePort, 30),\r\n    RemoteIPList      = make_set(RemoteIP, 10),\r\n    AttemptCount      = count()\r\n    by DeviceName, LocalIP, InitiatingProcessFileName,\r\n       bin(TimeGenerated, timeWindow)\r\n| where UniqueRemotePorts >= portThreshold\r\n    or UniqueRemoteIPs >= 25\r\n| extend AlertDescription = strcat(\r\n    \"Potential port scan from \", LocalIP,\r\n    \" targeting \", UniqueRemotePorts, \" ports on \",\r\n    UniqueRemoteIPs, \" hosts\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1046
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

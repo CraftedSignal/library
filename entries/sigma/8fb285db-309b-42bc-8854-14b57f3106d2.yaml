@@ -1,0 +1,56 @@
+id: 8fb285db-309b-42bc-8854-14b57f3106d2
+name: Remcos Masqueraded Directory Creation with Trailing Space
+description: Detects the creation of a directory with a trailing space in its name (e.g., "C:\Windows \") using the NT path prefix `\\?\`. This technique was observed in a Remcos malware campaign in June 2025 to masquerade as a legitimate system directory like `C:\Windows\SysWOW64` to evade detection.
+query: |
+    title: Remcos Masqueraded Directory Creation with Trailing Space
+    id: d8a2242c-7ac4-4014-b2b6-b6aabe0c12c6
+    status: experimental
+    description: Detects the creation of a directory with a trailing space in its name (e.g., "C:\Windows \") using the NT path prefix `\\?\`. This technique was observed in a Remcos malware campaign in June 2025 to masquerade as a legitimate system directory like `C:\Windows\SysWOW64` to evade detection.
+    references:
+      - https://www.forcepoint.com/blog/x-labs/remcos-malware-new-face
+    author: detections.ai
+    date: 2025-07-16
+    tags:
+      - attack.defense_evasion
+      - attack.t1564.004
+      - attack.t1036.005
+      - malware.remcos
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_base:
+        Image|endswith: '\cmd.exe'
+        CommandLine|contains:
+                # Detects the use of the mkdir or md command to create a directory
+          - 'mkdir'
+          - 'md'
+      selection_pattern:
+            # Detects the specific path bypass and masquerading technique
+        CommandLine|contains:
+          - '\\?\C:\Windows \'       # Note the space after Windows
+          - '\\?\C:\Windows \SysWOW64'       # Note the space after Windows
+      condition: selection_base and selection_pattern
+    falsepositives:
+      - This technique is highly unusual and unlikely to be used by legitimate applications. False positives are expected to be very low. Some administrative scripts might use unusual pathing, but creating a directory with a trailing space in the Windows directory is highly suspicious.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.005
+    - T1036.006
+tags:
+    - attack.defense_evasion
+    - attack.t1564.004
+    - attack.t1036.005
+    - malware.remcos
+author: detections.ai
+version: "1"
+references:
+    - https://www.forcepoint.com/blog/x-labs/remcos-malware-new-face
+data_sources:
+    - process_creation
+    - windows

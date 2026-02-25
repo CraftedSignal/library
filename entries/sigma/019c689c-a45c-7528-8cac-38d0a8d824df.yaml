@@ -1,0 +1,54 @@
+id: 019c689c-a45c-7528-8cac-38d0a8d824df
+name: Anomalous Network Connection from attrib.exe
+description: Detects the legitimate Windows utility 'attrib.exe' initiating outbound network connections to common SMTP ports. This behavior is highly anomalous as attrib.exe is used to modify file attributes and should not be making network connections. The Mispadu banking trojan is known to inject its code into attrib.exe and use it to self-propagate by sending phishing emails.
+query: |
+    title: Anomalous Network Connection from attrib.exe
+    id: d61fbfc6-510a-48c8-8f49-217a683d57bf
+    status: experimental
+    description: Detects the legitimate Windows utility 'attrib.exe' initiating
+      outbound network connections to common SMTP ports. This behavior is highly
+      anomalous as attrib.exe is used to modify file attributes and should not be
+      making network connections. The Mispadu banking trojan is known to inject its
+      code into attrib.exe and use it to self-propagate by sending phishing emails.
+    author: detections.ai
+    references:
+      - https://cofense.com/blog/mispadu-phishing-malware-baseline
+    date: 2026-02-16
+    tags:
+      - attack.t1114.001
+      - attack.command_and_control
+      - attack.t1071.003
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      # Detects attrib.exe making network connections to SMTP ports
+      selection:
+        Image|endswith: '\attrib.exe'
+        DestinationPort:
+          - '25'
+          - '465'
+          - '587'
+      condition: selection
+    falsepositives:
+      - This behavior is highly anomalous and false positives are not expected. A
+        custom or legitimate application could potentially be misnamed 'attrib.exe',
+        but this is unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.003
+tags:
+    - attack.t1114.001
+    - attack.command_and_control
+    - attack.t1071.003
+author: detections.ai
+version: "2"
+references:
+    - https://cofense.com/blog/mispadu-phishing-malware-baseline
+data_sources:
+    - network_connection
+    - windows

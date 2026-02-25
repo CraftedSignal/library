@@ -1,0 +1,50 @@
+id: 019c76ad-8680-7255-b899-0d739e18c6c2
+name: Ivanti EPMM Web Shell Creation
+description: This rule detects the creation of specific JSP web shell filenames (1.jsp, 401.jsp, 403.jsp) and suspicious CSS files in the Ivanti EPMM web application directory. This activity is indicative of post-exploitation persistence following the exploitation of vulnerabilities like CVE-2026-1281 or CVE-2026-1340.
+query: |
+    // Name: Ivanti EPMM Web Shell Creation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-19
+    // Description: This rule detects the creation of specific JSP web shell filenames (1.jsp, 401.jsp, 403.jsp) and suspicious CSS files in the Ivanti EPMM web application directory. This activity is indicative of post-exploitation persistence following the exploitation of vulnerabilities like CVE-2026-1281 or CVE-2026-1340.
+    // Tags: T1505.003, T1105, CVE-2026-1281, CVE-2026-1340, Ivanti, Web Shell
+    // References: https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/
+    // False Positive Sensitivity: Medium
+    let lookback = 1d;
+    // Define the list of suspicious filenames associated with Ivanti EPMM exploitation
+    let suspicious_files = dynamic(["1.jsp", "401.jsp", "403.jsp", "test.css", "poc.css", "cssaaa.css", "login.css"]);
+    DeviceFileEvents
+    | where TimeGenerated > ago(lookback)
+    // Filter for file creation events in the specific Ivanti EPMM web application directory
+    | where FolderPath startswith "/mi/tomcat/webapps/mifs/"
+    // Filter for known malicious or suspicious filenames
+    | where FileName in~ (suspicious_files)
+    // Potential for False Positives: Filenames like 'login.css' or 'test.css' could be legitimate in some environments.
+    // If false positives occur, consider adding more specific process context or removing the more generic filenames from the 'suspicious_files' list.
+    // For example: | where InitiatingProcessCommandLine has "java"
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessAccountName,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessCommandLine,
+        Activity = "Ivanti EPMM Web Shell Created"
+    | extend
+        timestamp = TimeGenerated,
+        HostCustomEntity = DeviceName,
+        FileCustomEntity = FileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1505.003
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

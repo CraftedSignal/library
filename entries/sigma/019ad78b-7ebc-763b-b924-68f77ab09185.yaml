@@ -1,0 +1,59 @@
+id: 019ad78b-7ebc-763b-b924-68f77ab09185
+name: Suspicious PowerShell HTTP Usage Writing to AppData or Temp
+description: Detects PowerShell command lines that reference HTTP/HTTPS content together with environment-backed AppData or Temp paths (e.g. %APPDATA%, $env:APPDATA, %TEMP%, $env:TEMP), a common pattern for downloading or staging payloads in user-writable directories.
+query: |-
+    title: Suspicious PowerShell HTTP Usage Writing to AppData or Temp
+    id: 9b8f5f2d-5c9b-4a1a-9e0f-3f6a7a2e7b11
+    status: experimental
+    description: >-
+      Detects PowerShell command lines that reference HTTP/HTTPS content together
+      with environment-backed AppData or Temp paths (e.g. %APPDATA%, $env:APPDATA,
+      %TEMP%, $env:TEMP), a common pattern for downloading or staging payloads in
+      user-writable directories.
+    references:
+      - https://attack.mitre.org/techniques/T1105/
+    tags:
+      - attack.command_and_control
+      - attack.execution
+      - attack.t1105
+    author: Firestrike::Labs
+    date: 2023-11-30
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_regex:
+        CommandLine|re: (?i)powershell(\.exe)?.*(https?).*[%$](env\:)?(appdata|temp)
+      condition: selection_regex
+    fields:
+      - CommandLine
+      - ParentImage
+      - Image
+      - User
+    falsepositives:
+      - Legitimate scripts that download tools or artifacts to AppData or Temp for
+        installation or upgrade workflows.
+      - Enterprise deployment or management scripts that temporarily cache files in
+        user-writable directories.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1105
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.execution
+    - attack.t1105
+author: Firestrike::Labs
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1105/
+data_sources:
+    - process_creation
+    - windows
+    - security

@@ -1,0 +1,82 @@
+id: 0199f800-10c0-70dd-870a-5e2c307fe75f
+name: MSHTA Execution from User Ring
+description: |
+    Detects mshta.exe or masquerading binaries executing HTA files (.hta) from user-writable paths such as C:\Users\.
+    Threat actors leverage mshta for proxy execution or to launch malicious HTA payloads stored under user profiles.
+query: |-
+    title: MSHTA Execution from User Ring
+    id: 07d7c29f-83b9-4b0e-9f2e-f6de2b3c091a
+    status: stable
+    description: |
+      Detects mshta.exe or masquerading binaries executing HTA files (.hta) from user-writable paths such as C:\Users\.
+      Threat actors leverage mshta for proxy execution or to launch malicious HTA payloads stored under user profiles.
+    author: Mlue CiDR
+    date: 2025-10-18
+    level: high
+
+    logsource:
+      category: process_creation
+      product: windows
+
+    detection:
+      selection_image:
+        Image|endswith: '\mshta.exe'
+
+      selection_displayname:
+        OriginalFileName|contains: 'mshta.exe'
+        Description|contains: 'HTML Application Host'
+
+      keyword_userpath:
+        CommandLine|contains:
+          - '\Users\'
+          - 'C:\Users\'
+
+      keyword_hta:
+        CommandLine|endswith:
+          - '.hta'
+        CommandLine|contains:
+          - '.hta '
+          - '.hta"'
+          - '.hta'''
+
+      condition: (selection_image or selection_displayname) and keyword_userpath and keyword_hta
+
+    fields:
+      - Image
+      - CommandLine
+      - ParentImage
+      - ParentCommandLine
+      - Description
+      - OriginalFileName
+      - User
+      - ComputerName
+      - IntegrityLevel
+      - Hashes
+
+    falsepositives:
+      - Legitimate internal apps or legacy installers packaged as HTA and launched from user profiles
+      - Software deployment systems that temporarily stage HTA files in user directories
+
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1218.005
+      - attack.t1204.002
+      - attack.t1036.003
+
+    references:
+      - https://attack.mitre.org/techniques/T1218/005/
+      - https://attack.mitre.org/techniques/T1204/002/
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218.005
+    - T1204.002
+author: Mlue CiDR
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1218/005/
+    - https://attack.mitre.org/techniques/T1204/002/

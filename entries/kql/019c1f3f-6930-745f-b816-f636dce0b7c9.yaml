@@ -1,0 +1,17 @@
+id: 019c1f3f-6930-745f-b816-f636dce0b7c9
+name: Notepad++ Masquerading Detection
+description: Detects Notepad++ installer and portable files where the file hash does not match a list of known legitimate hashes. This could indicate a malicious file masquerading as Notepad++.
+query: "// Name: Notepad++ Masquerading\r\n// Author: @jsh0x\r\n// Date: 2026-02-02\r\n// Description: Detects Notepad++ installer and portable files where the file hash does not match the list of known legitimate hashes. This could indicate a masquerading malicious file.\r\n// References:\r\n// - https://github.com/Neo23x0/notepad-plus-plus-hashes/blob/main/notepadpp_release_hashes.csv\r\n// False Positive Sensitivity: Medium\r\n// Tags: T1036.005, Masquerading, Match Legitimate Name or Location\r\nlet notepadPlusPlusHashes = externaldata(inferred_asset_name:string, version_tag:string, hash_value:string)\r\n    [\r\n        h@\"https://raw.githubusercontent.com/Neo23x0/notepad-plus-plus-hashes/main/notepadpp_release_hashes.csv\"\r\n    ]\r\n    with(format=\"csv\", ignoreFirstRecord=true);\r\nunion DeviceFileEvents, DeviceProcessEvents\r\n| where TimeGenerated > ago(30d)\r\n| where FileName startswith \"npp.\" and isnotempty(SHA256)\r\n| join kind=leftanti notepadPlusPlusHashes on $left.SHA256 == $right.hash_value\r\n| summarize count()by DeviceName,FileName,FolderPath,SHA256,InitiatingProcessFileName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.005
+tags:
+    - kql
+author: jsh0x
+version: "7"
+references:
+    - https://github.com/Neo23x0/notepad-plus-plus-hashes/blob/main/notepadpp_release_hashes.csv

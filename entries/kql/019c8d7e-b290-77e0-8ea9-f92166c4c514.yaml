@@ -1,0 +1,18 @@
+id: 019c8d7e-b290-77e0-8ea9-f92166c4c514
+name: Direct APK Download Detected (Quishing)
+description: This rule detects attempts to download Android Application Package (APK) files directly to an endpoint. This activity is often associated with 'quishing' (QR code phishing) attacks, where users are tricked into scanning a malicious QR code that leads to a direct APK download, bypassing official app store security checks. The rule specifically looks for network connection success events where the remote URL or additional fields contain '.apk'.
+query: "// Name: Quishing - Direct APK Download Observed\r\n// Author: CyberHawk Detection Engineering\r\n// Date: 2026-02-24\r\n// Description: Detects .apk downloads on endpoints (often delivered via QR code scan), which can bypass app store security controls.\r\n// Reference: https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/\r\n// MITRE ATT&CK: T1204, T1105 (Ingress Tool Transfer)\r\n// False Positive Sensitivity: Medium (developers/testers may download APKs)\r\n\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(7d)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl endswith \".apk\" or tostring(AdditionalFields) has \".apk\"\r\n| project TimeGenerated, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName,\r\n          InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort, Protocol, ReportId\r\n| extend HostCustomEntity = DeviceName, AccountCustomEntity = InitiatingProcessAccountName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1204
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/qr-codes-as-attack-vector/

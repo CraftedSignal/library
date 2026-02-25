@@ -1,0 +1,66 @@
+id: 019b9e38-aecb-71ea-babd-466217236697
+name: Generic ROT13 Obfuscated URL in Parameter
+description: Detects a URL containing common redirection or proxy parameters where the value appears to be a ROT13 obfuscated URL, indicated by the presence of 'uggcf' ('https') and common ROT13'd TLDs. This is an evolution of a TTP observed in Kimsuky campaigns.
+query: |
+    title: Generic ROT13 Obfuscated URL in Parameter
+    id: 96e3225f-b60f-48dd-b00c-7e964441aede
+    status: experimental
+    description: Detects a URL containing common redirection or proxy parameters
+      where the value appears to be a ROT13 obfuscated URL, indicated by the
+      presence of 'uggcf' ('https') and common ROT13'd TLDs. This is an evolution of
+      a TTP observed in Kimsuky campaigns.
+    references:
+      - https://www.enki.co.kr/en/media-center/blog/kimsuky-distributing-malicious-mobile-app-via-qr-code
+    author: detections.ai
+    date: 2026-01-08
+    tags:
+      - attack.g0094
+      - attack.t1566.001
+      - attack.t1140
+    logsource:
+      category: proxy
+      product: zeek
+    detection:
+      selection_params:
+        # Detects common URL parameters used for redirection or proxying
+        uri|contains:
+          - 'm='
+          - 'url='
+          - 'link='
+      selection_https:
+        # Detects the ROT13 encoded string for 'https'
+        uri|contains: 'uggcf'
+      selection_tlds:
+        # Detects common Top-Level Domains (TLDs) encoded with ROT13
+        uri|contains:
+          - '.pbz' # .com
+          - '.arg' # .net
+          - '.bet' # .org
+          - '.rqh' # .edu
+          - '.tbi' # .gov
+          - '.xe' # .kr
+      condition: selection_params and selection_https and selection_tlds
+    falsepositives:
+      - Legitimate services could use parameters like 'url=' or 'link='. However,
+        the combination with multiple ROT13 encoded strings ('https' and a TLD)
+        makes false positives unlikely.
+      - Some non-malicious content might use ROT13 for puzzles or jokes, but it is
+        rare to see it in this specific URL structure.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1140
+tags:
+    - attack.g0094
+    - attack.t1566.001
+    - attack.t1140
+author: detections.ai
+version: "3"
+references:
+    - https://www.enki.co.kr/en/media-center/blog/kimsuky-distributing-malicious-mobile-app-via-qr-code
+data_sources:
+    - proxy
+    - zeek

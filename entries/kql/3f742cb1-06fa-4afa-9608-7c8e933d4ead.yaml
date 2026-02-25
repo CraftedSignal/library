@@ -1,0 +1,13 @@
+id: 3f742cb1-06fa-4afa-9608-7c8e933d4ead
+name: Technique profile eDiscovery misuse detection
+description: 'KQL Query from file: Technique profile eDiscovery misuse detection'
+query: "// Technique profile eDiscovery misuse detection\n\n// Microsoft has recently identified multiple threat actors exploiting the eDiscovery feature, particularly targeting email data. When misused, this feature allows threat actors to swiftly export emails and other data from Microsoft services like OneDrive, SharePoint, and Teams. This enables them to analyze the data later without the risk of losing access prematurely. Although the methods of misuse can vary, organizations should vigilantly monitor eDiscovery for potential exfiltration activities. The Threat Analytics Report provided KQL detections cover standard eDiscovery activity detection via Microsoft DefenderXDR. My enhanced detections below incorporate CloudApp UEBA for more precise identification of suspicious eDiscovery activities.\n\n// Threat Analytics Report (Technique Profile: eDiscovery misuse)\n// Link: https://security.microsoft.com/threatanalytics3/28a90de8-bd26-4aa5-8597-acdffdebaeb0/analystreport\n\nlet eDiscoveryActions = pack_array(\"SearchStarted\", \"SearchExported\", \"SearchReport\", \n\"SearchResultExported\", \"SearchResultDownloaded\",\"PreviewItemDownloaded\");\nlet UEBADetection = dynamic([\"ActionType\", \"CountryCode\", \"ISP\", \"OSPlatform\", \"UserAgent\"]);\nCloudAppEvents\n| where Timestamp > ago(1h)\n| where ActionType in (eDiscoveryActions)\n| where UncommonForUser has_any (UEBADetection)\n\n// MITRE ATT&CK\n// Exfiltration Over Web Service (T1567)\n"
+query_type: kql
+tactics:
+    - TA0010
+    - TA0007
+techniques:
+    - T1567
+tags:
+    - kql
+version: "1"

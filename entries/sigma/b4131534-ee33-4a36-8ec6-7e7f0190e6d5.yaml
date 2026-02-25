@@ -1,0 +1,64 @@
+id: b4131534-ee33-4a36-8ec6-7e7f0190e6d5
+name: APT28 NotDoor Outlook Persistence
+description: Detects registry modifications associated with the NotDoor backdoor used by APT28. The malware modifies Outlook registry keys to enable macros on boot, lower security settings, and disable dialog messages to achieve persistence and evade user detection.
+query: |
+    title: APT28 NotDoor Outlook Persistence
+    id: 11ea9a33-b5f0-4df2-98d6-a4274c66c524
+    status: experimental
+    description: Detects registry modifications associated with the NotDoor backdoor
+      used by APT28. The malware modifies Outlook registry keys to enable macros on
+      boot, lower security settings, and disable dialog messages to achieve
+      persistence and evade user detection.
+    references:
+      - https://lab52.io/blog/analyzing-notdoor-inside-apt28s-expanding-arsenal/
+    author: detections.ai
+    date: 2025-09-03
+    tags:
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.t1137.002
+      - attack.t1112
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection_persistence:
+        # Detects setting LoadMacroProviderOnBoot to 1, which forces Outlook to load the VBA macro system on startup.
+        TargetObject|endswith: '\Software\Microsoft\Office\*\Outlook\LoadMacroProviderOnBoot'
+        Details:
+          - '1'
+          - '0x00000001'
+      selection_security_level:
+        # Detects setting the macro security level to 1, which enables all macros without any warning.
+        TargetObject|endswith: '\Software\Microsoft\Office\*\Outlook\Security\Level'
+        Details:
+          - '1'
+          - '0x00000001'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate Outlook add-ins or system administrators might modify these
+        settings, though it is uncommon for security settings to be lowered this
+        way.
+      - Users may also change these settings for development or specific workflow
+        purposes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0005
+techniques:
+    - T1112
+    - T1137.002
+tags:
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.t1137.002
+    - attack.t1112
+author: detections.ai
+version: "1"
+references:
+    - https://lab52.io/blog/analyzing-notdoor-inside-apt28s-expanding-arsenal/
+data_sources:
+    - registry_set
+    - windows

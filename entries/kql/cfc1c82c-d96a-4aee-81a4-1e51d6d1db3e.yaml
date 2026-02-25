@@ -1,0 +1,10 @@
+id: cfc1c82c-d96a-4aee-81a4-1e51d6d1db3e
+name: Salty 2FA Detection
+description: https://any.run/cybersecurity-blog/salty2fa-technical-analysis/
+query: "let QueryPeriod = 1h;\r\nlet S2FAUrl =\r\nThreatIntelIndicators\r\n| where TimeGenerated > ago(365d) \r\n| where Tags has \"salty 2fa\"\r\n| where ObservableKey == \"url:value\"\r\n| project ObservableValue;\r\nlet S2FADomain =\r\nThreatIntelIndicators\r\n| where TimeGenerated > ago(365d) \r\n| where Tags has \"salty 2fa\"\r\n| where ObservableKey == \"domain-name:value\"\r\n| project ObservableValue;\r\nlet S2FAIPv4 =\r\nThreatIntelIndicators\r\n| where TimeGenerated > ago(365d) \r\n| where Tags has \"salty 2fa\"\r\n| where ObservableKey == \"ipv4-addr:value\"\r\n| project ObservableValue;\r\nlet EmailScan =\r\nEmailUrlInfo\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where Url has_any(S2FAUrl) or UrlDomain has_any(S2FADomain);\r\nDeviceCustomNetworkEvents\r\n| where TimeGenerated > ago(QueryPeriod)\r\n| where RemoteIP has_any(S2FAIPv4) or RemoteUrl has_any(S2FADomain)\r\n| union EmailScan"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "1"

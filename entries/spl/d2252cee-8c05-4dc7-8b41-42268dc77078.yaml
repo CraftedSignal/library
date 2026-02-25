@@ -1,0 +1,11 @@
+id: d2252cee-8c05-4dc7-8b41-42268dc77078
+name: Remote Access of Windows Shares
+description: "The primary focus is to detect network access to administrative or system drive shares (C$, D$, E$, F$, U$, Admin$) while excluding local access (Event Code 5140). Specifically identifying remote session and other forms of login. \n\nAdversaries may use Valid Accounts to interact with a remote network share using Server Message Block (SMB). The adversary may then perform actions as the logged-on user."
+query: "index=winevents sourcetype=\"WinEventLog:Security\" LogName=\"Security\" (EventCode=1149 OR (EventCode=4624 (Logon_Type=10 OR Logon_Type=7))) OR (EventCode=5140 (Share_Name=\"*\\\\C$\" OR Share_Name=\"*D$\" OR Share_Name=\"*E$\" OR Share_Name=\"*F$\" OR Share_Name=\"*U$\" OR Share_Name=\"*Admin$\") NOT Source_Address=\"::1\") \n| rename host AS Destination \n| rename Account_Domain AS Domain \n| stats values(Destination) as Destination values(Share_Name) as \"Share Name\" values(Share_Path) as \"Share Path\" values(Source_Address) as \"SMB Source Address\" values(Source_Network_Address) as \"Login Source Address\" values(Workstation_Name) as \"Login Workstation Name\" values(EventCode) as EventCode dc(EventCode) as EventCodeCount by Account_Name Logon_ID \n| where EventCodeCount>1 "
+query_type: spl
+severity: medium
+tags:
+    - T1021
+    - T1021.002
+author: ZeroChill
+version: "1"

@@ -1,0 +1,17 @@
+id: 019a6978-2746-73ef-bcbf-fe0dea2f1b40
+name: '[LM] - Internal Threat Hunting over Routers Devices'
+description: The query below correlates device inventory, IP assignment and network events to identify internal endpoints attempting to connect to routers — including whether they succeeded and via Web or Application access. Attack traffic often aligns with failed HTTP/HTTPS attempts or unknown device names.
+query: "//Author Sergio Albea 30-10-2025\nDeviceInfo\n| where DeviceSubtype has \"Router\" \n| join kind=inner (DeviceNetworkInfo | where isnotempty(IPAddresses)) on $left.DeviceName == $right.DeviceName\n| extend d = todynamic(IPAddresses)                          // works for string or dynamic\n| extend IP = tostring(iif(array_length(d) > 0, d[0].IPAddress, \"\"))\n| join kind=inner (DeviceNetworkEvents | where isnotempty(RemoteIP) and isnotempty(RemoteUrl)) on $left.IP == $right.RemoteIP\n| where RemoteUrl contains \"IP\"  and isnotempty(Vendor)\n// If there are devices identified as valid to connect/manage your routers, you can exclude them using the next condition\n// where DeviceName2 !in (\"Device1\",\"Device2\")\n| extend Access_Type = case(RemoteUrl startswith \"http\", \"\U0001F30E Web\",\"⚙️ Application\")\n| extend Connection_Result = case(ActionType has \"ConnectionSuccess\", \"✅ ConnectionSuccess\",\"❌ ConnectionFailed\")\n| summarize make_set(OSPlatform),make_set(InitiatingProcessFileName), Total_connections=count() by  Vendor,Connection_From=DeviceName2,LocalIP,Access_Type,Connection_To=RemoteUrl, RemoteIP,DeviceSubtype=strcat(\"\U0001F6DC \",DeviceSubtype), Connection_Result"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1049
+tags:
+    - kql
+author: Sergio Albea
+version: "3"
+references:
+    - https://medium.com/detect-fyi/threat-hunting-over-internal-devices-via-kql-queries-12b607b89c93
+    - https://github.com/Sergio-Albea-Git/Threat-Hunting-KQL-Queries/blob/2028713dd1e96e68bcda2ff3aa0fda50565ee039/Microsoft_DefenderXDR/DeviceNetworkEvents/%5BLM%5D%20-%20Internal%20Threat%20Hunting%20over%20Routers%20Devices.md

@@ -1,0 +1,64 @@
+id: b566e390-aeb2-40a6-a2c8-3f23be6c2f0e
+name: Curl Used For Data Exfiltration
+description: |
+    Detects the use of curl.exe to exfiltrate data, particularly archived or disguised files, via HTTP POST requests or the '--upload-file' flag. This technique was observed being used by the 'Curly COMrades' threat actor to upload .rar archives to a compromised server.
+query: |
+    title: Curl Used For Data Exfiltration
+    id: 491d1202-c478-4eeb-924f-5f1bf3305e5f
+    status: experimental
+    description: >
+      Detects the use of curl.exe to exfiltrate data, particularly archived or disguised files, via HTTP POST requests or the '--upload-file' flag. This technique was observed being used by the 'Curly COMrades' threat actor to upload .rar archives to a compromised server.
+    references:
+      - https://www.bitdefender.com/en-us/blog/businessinsights/curly-comrades-new-threat-actor-targeting-geopolitical-hotbeds
+    author: detections.ai
+    date: 2025-08-20T00:00:00.000Z
+    tags:
+      - attack.exfiltration
+      - attack.t1041
+      - threat_actor.curly_comrades
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_curl:
+        - Image|endswith: \curl.exe
+        - OriginalFileName: curl.exe
+      selection_upload:
+        CommandLine|contains:
+          - '--upload-file'
+          - ' -T '
+          - ' -X POST'
+      selection_file_types:
+        CommandLine|contains:
+          - .rar
+          - .zip
+          - .7z
+          - .png
+          - .jpg
+          - .dmp
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate applications or scripts may use curl to upload files for
+        legitimate purposes.
+      - Developers may use curl for testing file upload functionality.
+      - Consider tuning by examining the parent process or destination URLs for
+        known-good activity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - attack.exfiltration
+    - attack.t1041
+    - threat_actor.curly_comrades
+author: detections.ai
+version: "1"
+references:
+    - https://www.bitdefender.com/en-us/blog/businessinsights/curly-comrades-new-threat-actor-targeting-geopolitical-hotbeds
+data_sources:
+    - process_creation
+    - windows

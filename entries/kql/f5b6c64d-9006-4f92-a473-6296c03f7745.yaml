@@ -1,0 +1,14 @@
+id: f5b6c64d-9006-4f92-a473-6296c03f7745
+name: Suspicious Execution via Windows Run Dialog (RunMRU)(ClickFix)
+description: This detection identifies when a user executes a potentially malicious command via the Windows Run dialog (Win+R). It monitors the RunMRU registry key for commands associated with living-off-the-land binaries (LOLBins) and scripting engines like PowerShell, MSHTA, Bitsadmin, and others. Such activity is often a sign of initial access, where an attacker has tricked a user into running a payload downloader or stager command
+query: "DeviceRegistryEvents\r\n| where \r\n    InitiatingProcessFolderPath endswith \"\\\\explorer.exe\"\r\n    and RegistryKey contains \"\\\\Software\\\\Microsoft\\\\Windows\\\\CurrentVersion\\\\Explorer\\\\RunMRU\"\r\n    and \r\n    (\r\n        // MSHTA executing remote content\r\n        (RegistryValueData contains \"mshta\" and RegistryValueData contains \"http\")\r\n        or \r\n        // Suspicious PowerShell execution strings\r\n        (\r\n            RegistryValueData startswith \"powershell\" and \r\n            RegistryValueData has_any\r\n            (\r\n                \" -e \", \" -enc \", \" -encodedcommand \", \" -W Hidden\", \r\n                \" -w h\", \" -NoP \", \"Invoke-Expression\", \"iex\", \r\n                \"DownloadString\", \"DownloadFile\", \"FromBase64String\", \r\n                \"Invoke-WebRequest\", \"iwr\", \"irm\"\r\n            )\r\n        )\r\n        or\r\n        // Other suspicious commands or script types\r\n        RegistryValueData has_any \r\n        (\r\n            \"bitsadmin\", \"forfiles\", \"curl\", \r\n            \"msiexec\", \"javascript:\", \"vbscript:\",\r\n            \"regsvr32\", \"rundll32\", \"msdt\"\r\n        )\r\n    )"
+query_type: kql
+severity: medium
+techniques:
+    - T1059
+    - T1105
+tags:
+    - clickfix
+    - kql
+author: FSDR
+version: "1"

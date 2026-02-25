@@ -1,0 +1,30 @@
+id: 019beca6-b7b8-7088-9a19-65d5d27c0522
+name: Uso Potencial de VPN No autorizadas en el Entorno Corporativo
+description: |-
+    Esta detección identifica posibles conexiones relacionadas con el uso de VPNs dentro del entorno corporativo, correlacionando puertos asociados a protocolos VPN, dominios no habituales, procesos iniciadores y adaptadores de red virtuales o tunelizados. El objetivo es descubrir actividad de VPN no autorizada, conexiones cifradas ocultas dentro de tráfico HTTPS y el uso de extensiones de navegador que actúan como túneles tipo VPN.
+    La lógica de esta consulta aplica múltiples capas de filtrado para reducir falsos positivos:
+
+    - Filtra conexiones salientes hacia puertos característicos de IPsec, OpenVPN, WireGuard, L2TP y PPTP.
+    - Detecta túneles sobre puerto 443 cuando el proceso iniciador no corresponde a aplicaciones del sistema.
+    - Excluye ruido generado por procesos de Windows y dominios legítimos asociados a Microsoft, Google y servicios cloud corporativos.
+    - Identifica adaptadores TAP, TUN, Wintun, WireGuard, Tailscale o ZeroTier presentes en el host.
+    - Clasifica el tipo probable de VPN según el puerto utilizado y el proceso que inicia la conexión.
+
+    Esta detección permite encontrar:
+
+    - Clientes VPN instalados sin autorización.
+    - Extensiones de navegador que establecen túneles SSL-VPN encubiertos.
+    - Herramientas de túneles encubiertos como WireGuard stealth, Tailscale o ZeroTier.
+    - Actividad anómala desde navegadores que podría indicar proxies cifrados o VPNs embebidas.
+query: "let LocalVPNPorts = dynamic([500, 4500, 1194, 1723, 1701, 51820]);\r\nlet Browsers = dynamic([\"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\", \"opera.exe\", \"iexplore.exe\"]);\r\n// Filtro de ruido del sistema (Microsoft y otros)\r\nlet SystemNoise = dynamic([\"svchost.exe\", \"SearchHost.exe\", \"Teams.exe\", \"Outlook.exe\", \"OneDrive.exe\", \"msmpeng.exe\", \"backgroundTaskHost.exe\", \"lsass.exe\", \"mscorsvw.exe\", \"compattelrunner.exe\", \"excel.exe\"]);\r\nlet SuspectAdapters = DeviceNetworkInfo\r\n    | where Timestamp > ago(1d)\r\n    | where NetworkAdapterName has_any (\"TAP\", \"TUN\", \"VPN\", \"WireGuard\", \"Wintun\", \"Tailscale\", \"ZeroTier\")\r\n        or NetworkAdapterType has \"Tunnel\"\r\n    | summarize hint.strategy=shuffle \r\n        AdaptersFound = make_set(NetworkAdapterName), \r\n        VirtualIPs = make_set(IPAddresses) \r\n      by DeviceId;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1d)\r\n| where ActionType == \"ConnectionSuccess\"\r\n// Filtro inicial de puertos y exclusión de procesos de sistema ruidosos\r\n| where (RemotePort in (LocalVPNPorts)) or (RemotePort == 443 and InitiatingProcessFileName !in~ (SystemNoise))\r\n| where not(ipv4_is_private(RemoteIP))\r\n| where not(RemoteIP startswith \"127.\" or RemoteIP startswith \"169.254.\")\r\n// Filtro de dominios conocidos para limpiar el tráfico de los navegadores\r\n| where RemoteUrl !endswith \"microsoft.com\" \r\n    and RemoteUrl !endswith \"windows.com\" \r\n    and RemoteUrl !endswith \"live.com\"\r\n    and RemoteUrl !endswith \"msedge.net\"\r\n    and RemoteUrl !endswith \"azure.com\"\r\n    and RemoteUrl !endswith \"office.com\"\r\n    and RemoteUrl !endswith \"google.com\" // Añadido para reducir ruido de Chrome\r\n// --- AQUÍ LA REDUCCIÓN AGRESIVA ---\r\n// Solo dejamos si es un navegador O si el nombre del proceso contiene \"vpn\", \"tunnel\", \"openvp\", etc.\r\n| where InitiatingProcessFileName in~ (Browsers) \r\n    or InitiatingProcessFileName has_any (\"vpn\", \"tunnel\", \"tap\", \"wireguard\", \"forticlient\", \"anyconnect\", \"openvp\", \"tailscale\", \"zerotier\")\r\n| extend VPN_Protocol_Suspect = case(\r\n    RemotePort == 443 and InitiatingProcessFileName in~ (Browsers), \"Browser-Based VPN/Extension\",\r\n    RemotePort == 443, \"SSL-VPN / Stealth Tunnel\",\r\n    RemotePort == 1194, \"OpenVPN\",\r\n    RemotePort == 51820, \"WireGuard\",\r\n    RemotePort == 500, \"IKEv2/ISAKMP\",\r\n    RemotePort == 4500, \"IPsec NAT-T\",\r\n    RemotePort == 1723, \"PPTP\",\r\n    \"Other VPN Protocol\"\r\n)\r\n| join kind=leftouter SuspectAdapters on DeviceId\r\n| project \r\n    Timestamp, \r\n    DeviceName, \r\n    AdaptersFound, \r\n    InitiatingProcessFileName, \r\n    InitiatingProcessCommandLine,\r\n    VPN_Protocol_Suspect, \r\n    RemoteIP, \r\n    RemotePort,\r\n    RemoteUrl\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1071.001
+    - T1090
+    - T1090.003
+    - T1572
+tags:
+    - kql
+author: Gonzalo Cerecedo
+version: "2"

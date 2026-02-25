@@ -1,0 +1,43 @@
+id: 019c4dc2-ae82-713f-bbed-23b392671110
+name: ClickFix macOS osascript Execution from Network
+description: This rule detects the execution of 'osascript' on macOS when its parent command line contains 'curl'. This pattern is indicative of a stager piping a curl response directly to osascript, often without writing a script to disk, as described in the ClickFix and MacSync/SHub delivery patterns by Datadog.
+query: |
+    title: ClickFix macOS osascript Execution from Network
+    id: f3a4b5c6-d7e8-4a5b-9708-datadog03
+    status: experimental
+    description: |
+        Stager pipes curl response to osascript (no script on disk). MacSync/SHub delivery pattern per Datadog.
+    references:
+        - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+    author: Daniel Jeremiah
+    date: 2026/02/11
+    tags:
+        - attack.t1059.002
+        - attack.execution
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_osascript:
+            Image|endswith: '/osascript'
+            ParentCommandLine|contains: 'curl'
+        condition: selection_osascript
+    falsepositives:
+        - Legitimate automation receiving script from internal server
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.002
+tags:
+    - attack.t1059.002
+    - attack.execution
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+data_sources:
+    - process_creation
+    - macos

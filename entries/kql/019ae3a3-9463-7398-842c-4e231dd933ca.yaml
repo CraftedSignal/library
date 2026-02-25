@@ -1,0 +1,37 @@
+id: 019ae3a3-9463-7398-842c-4e231dd933ca
+name: Shai-Hulud Exfiltration to Webhook.site
+description: Detects network connections to a specific webhook.site URL known to be used by the Shai-Hulud worm for data exfiltration. The rule specifically looks for the URI path 'bb8ca5f6-4175-45d2-b042-fc9ebb8170b7' on webhook.site, which is a strong indicator of this particular threat.
+query: |
+    // Name: Shai-Hulud Exfiltration to Webhook.site
+    // Author: detections.ai
+    // Date: 2025-12-03
+    // Description: Detects network connections to a specific webhook.site URL known to be used by the Shai-Hulud worm for data exfiltration.
+    // MITRE ATT&CK: T1041 (Exfiltration Over C2 Channel), T1567.002 (Exfiltration to Cloud Storage)
+    // References: https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    // False Positive Sensitivity: Medium
+    DeviceNetworkEvents
+    // Filter for network connections to the specific malicious URL.
+    | where RemoteUrl has "webhook.site/bb8ca5f6-4175-45d2-b042-fc9ebb8170b7"
+    // FP Tuning: While webhook.site is a legitimate service, the specific URI path is a strong indicator for this threat. False positives are unlikely.
+    // Investigate the initiating process to confirm malicious activity.
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        RemotePort
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1567.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

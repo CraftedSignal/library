@@ -1,0 +1,18 @@
+id: c79b0ae3-89fc-4a0b-8b40-d31b8c14c82b
+name: Fake AnyDesk Installer to MetaStealer
+description: Detects network connections to known malicious AnyDesk-related URLs and IP addresses, as well as the presence of specific malicious file hashes and filenames associated with AnyDesk-themed phishing or malware. This rule aims to identify potential compromise attempts or active infections involving remote access tools often abused by adversaries.
+query: "// KQL QUERY\r\n\r\nunion *\r\n| where RemoteUrl has_any (\"chat1.store\",\"cmqsqomiwwksmcsw.xyz\",\"macawiwmaacckuow.xyz\",\"teams-one.com\",\"verification.anydeesk.ink\",\"yeosyyyaewokgioa.xyz\",\"anydeesk.ink\")\r\n or RemoteIP =~\"38.134.148.74\"\r\n or SHA256 has_any (\"0fc76b7f06aa80a43abafc1e9b88348734e327feb306d700c877c6a210fbd5e7\",\"513992d7076984d5c5a42affc12b6a00eef820f3254af75c9958ef3310190317\",\"fd622cf73ea951a6de631063aba856487d77745dd1500adca61902b8dde56fe1\")\r\n or FileName =~\"Readme Anydesk.pdf\" or (FileName endswith @\"6.pdf\" and ((FileOriginUrl has_all (\"CAPTCHA\",\"http\") or FileOriginReferrerUrl has_all (\"CAPTCHA\",\"http\"))))\r\n\r\n // CQL QUERY (Crowdstrike Query language)\r\n |case{\r\n  in(field=\"DomainName\", values=[\"chat1.store\",\"cmqsqomiwwksmcsw.xyz\",\"macawiwmaacckuow.xyz\",\"teams-one.com\",\"verification.anydeesk.ink\",\"yeosyyyaewokgioa.xyz\",\"anydeesk.ink\"]);\r\n  in(field=\"FileName\", values=[\"Readme Anydesk.pdf\"]);\r\n  in(field=\"SHA256HashData\", values=[\"0fc76b7f06aa80a43abafc1e9b88348734e327feb306d700c877c6a210fbd5e7\",\"513992d7076984d5c5a42affc12b6a00eef820f3254af75c9958ef3310190317\",\"fd622cf73ea951a6de631063aba856487d77745dd1500adca61902b8dde56fe1\"]);\r\n  in(field=\"RemoteIP\", values=[\"38.134.148.74\"]);\r\n  FileName=/6.pdf$/iF (ReffererUrl=/CAPTCHA/iF or HostUrl=/CAPTCHA/iF);\r\n  CommandLine=/http/iF CommandLine=/pdf/iF CommandLine=/-sLo/iF CommandLine=/curl/iF;\r\n  CommandLine=/msiexec/iF  CommandLine=/pdf/iF\r\n}"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1219.002
+    - T1071.001
+    - T1566.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.huntress.com/blog/fake-anydesk-clickfix-metastealer-malware

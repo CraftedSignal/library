@@ -1,0 +1,39 @@
+id: aed15e18-e036-4e5f-9bb2-2bf1f451866d
+name: 'Threat Hunt: ClickFix | FileFix - Explorer | Browser Spawning Suspicious Process'
+description: |-
+    Detects potential FileFix attacks where a web browser spawns a suspicious child process (e.g., command prompt, PowerShell, MSHTA) via the file upload dialog's address bar.
+    Enhancement:
+    This query correlates two queries to find cases where a user accessed RunMRU and then executed a suspicious PowerShell command.
+
+    RMU flags are added to get more close records mapped with Registry Access to RunMRU (Clipboard Paste via Run Dialog) Copy Clipboard data.
+query: |-
+    let suspiciousRegistry = DeviceRegistryEvents
+    | where RegistryKey has "RunMRU"
+    | where RegistryValueData has_any ("powershell", "curl", "Invoke-WebRequest", "IEX")
+    | project DeviceName, RegistryValueData, RegistryTimestamp = Timestamp;
+
+    DeviceProcessEvents
+    | where FileName in ("cmd.exe", "powershell.exe", "pwsh.exe", "mshta.exe")
+    | where ProcessCommandLine has_any ("Invoke-WebRequest", "curl", "DownloadFile", "IEX", "Net.WebClient", "DownloadString")
+    | where InitiatingProcessFileName in~ ("explorer.exe", "iexplore.exe", "chrome.exe", "msedge.exe", "brave.exe", "opera.exe", "cmd.exe")
+    | project DeviceName, ProcessCommandLine, ProcessTimestamp = Timestamp
+
+    | join kind=inner (suspiciousRegistry) on DeviceName
+    | where ProcessTimestamp > RegistryTimestamp
+
+    // References: https://mrd0x.com/filefix-clickfix-alternative/
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059
+    - T1204.001
+    - T1566.001
+tags:
+    - kql
+author: AwaisMunir
+version: "4"
+references:
+    - https://mrd0x.com/filefix-clickfix-alternative/

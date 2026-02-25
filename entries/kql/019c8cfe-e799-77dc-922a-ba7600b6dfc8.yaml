@@ -1,0 +1,33 @@
+id: 019c8cfe-e799-77dc-922a-ba7600b6dfc8
+name: OpenClaw Domain Resolution
+description: This rule detects DNS lookups to domains associated with OpenClaw, Moltbot, or Clawdbot infrastructure. It specifically looks for DNS requests containing "clawhub.ai", "openclaw.ai", "open-claw.me", "molt.bot", "openclaw.bot", "onlycrabs.ai", "moltbook.com", or "thecolony.cc". To reduce noise, it excludes DNS requests originating from known mail or DNS resolver processes such as "perl", "surgemail", "named", "smtpd", "MailService", "pdns_recursor", "unbound", "systemd-resolved", "MailEnable SMTP Connector", and "opendkim".
+query: |
+    /*
+     * Title: OpenClaw Domain Resolution
+     * Author: Emil Stahl / team.blue
+     * Date: 2026-02-24
+     * Description: Detects DNS lookups to known OpenClaw/Moltbot/Clawdbot infrastructure domains. Note: will fire on users browsing these domains directly. Exclude known mail/DNS resolver processes to reduce noise.
+     * MITRE ATT&CK: T1071.004, T1568
+     * References: https://www.sentinelone.com/blog/how-sentinelone-secures-the-ai-tools-that-act-like-users/
+     */
+    NOT (
+      src.process.displayName in:anycase (
+        "perl","surgemail","named","smtpd","MailService",
+        "pdns_recursor","unbound","systemd-resolved",
+        "MailEnable SMTP Connector","opendkim"
+      )
+    ) AND
+    event.dns.request contains:anycase (
+      "clawhub.ai","openclaw.ai","open-claw.me",
+      "molt.bot","openclaw.bot","onlycrabs.ai",
+      "moltbook.com","thecolony.cc"
+    )
+query_type: kql
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+    - T1568
+tags:
+    - kql
+version: "2"

@@ -1,0 +1,24 @@
+id: ef8f7506-17fc-4292-b482-8d26c79d0602
+name: ATP Detection for Critical Identities
+description: 'KQL Query from file: ATP Detection for Critical Identities'
+query: "// ATP Detection for Critical Identities\n// https://www.linkedin.com/posts/activity-7190937404625584128-hgdO/\n\n// Custom DefenderXDR detection for CloudApp Advanced Threat Protection for Tier 0 Critical Identities giving you a comprehensive all-round threat monitoring. \n\nlet HighlyPrivilegedAdmins =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and \nNodeProperties.rawData.criticalityLevel.criticalityLevel==0 \n| extend EntraObjectID = NodeProperties.rawData.accountObjectId\n| project EntraObjectID;\nCloudAppEvents\n| where ActionType == \"AtpDetection\"\n| extend DetectionMethod = tostring(RawEventData.DetectionMethod)\n| extend AccountUpn = RawEventData.UserId\n| where AccountUpn has_any(HighlyPrivilegedAdmins)\n\n//MITRE ATT&CK Mapping\n//Based on the KQL code, the following MITRE ATT&CK techniques are relevant:\n\n// T1078 - Valid Accounts:\n// The query is identifying and monitoring highly privileged accounts, which aligns with the technique of using valid accounts for persistence and privilege escalation1.\n// T1071 - Application Layer Protocol:\n// The CloudAppEvents table and the AtpDetection action type suggest monitoring for suspicious activities in cloud applications, which can involve the use of application layer protocols2.\n// T1087 - Account Discovery:\n// The query involves discovering highly privileged accounts, which aligns with the technique of account discovery3.\n// T1057 - Process Discovery:\n// The detection method and user ID extensions indicate monitoring for specific processes or actions taken by privileged accounts4.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0007
+techniques:
+    - T1078
+    - T1071
+    - T1087
+    - T1057
+    - T1538
+    - T1136
+    - T1098
+    - T1070
+tags:
+    - kql
+version: "1"

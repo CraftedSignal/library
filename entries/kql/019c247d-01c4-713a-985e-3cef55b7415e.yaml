@@ -1,0 +1,17 @@
+id: 019c247d-01c4-713a-985e-3cef55b7415e
+name: Malicious Chrome Extension IDs
+description: Detects file activity under Chrome Extensions folder where the extension ID matches a known malicious ID list pulled from a GitHub markdown feed. Flags devices that may have installed or loaded malicious browser extensions.
+query: "let MaliciousExtensionIds =\r\n    externaldata(Line:string)\r\n    [\r\n      @\"https://raw.githubusercontent.com/toborrm9/malicious_extension_sentry/refs/heads/main/Malicious-Extensions.md\"\r\n    ]\r\n    with (format=\"txt\")\r\n    | extend ExtensionId = tolower(extract(@\"\\b[a-p]{32}\\b\", 0, Line))\r\n    | where isnotempty(ExtensionId)\r\n    | summarize by ExtensionId;\r\n\r\nDeviceFileEvents\r\n| where TimeGenerated > ago(90d)\r\n| where FolderPath has @\"Chrome\\User Data\\Default\\Extensions\"\r\n| extend ExtractedExtensionId = extract(@\"\\\\Extensions\\\\([a-p]{32})\\\\\", 1, FolderPath)\r\n| where isnotempty(ExtractedExtensionId)\r\n| join kind=inner (MaliciousExtensionIds) on $left.ExtractedExtensionId == $right.ExtensionId\r\n| project TimeGenerated, DeviceName, ActionType, InitiatingProcessAccountName,\r\n          ExtensionId=ExtractedExtensionId, FileName, FolderPath, SHA1, SHA256\r\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176
+    - T1176.001
+tags:
+    - kql
+author: Matthew Metcalf
+version: "1"
+references:
+    - https://github.com/toborrm9/malicious_extension_sentry

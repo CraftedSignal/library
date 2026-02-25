@@ -1,0 +1,64 @@
+id: 0199da4b-2fff-74b7-a096-a7e6765bc151
+name: Stealit Component Execution from AppData
+description: Detects the execution of game_cache.exe, stats_db.exe, or save_data.exe from a randomly named subdirectory within specific AppData\Local folders (like SystemCache, WindowsCache, AppCache, etc.).
+query: |
+    title: Stealit Component Execution from AppData
+    id: 6a55a11f-85cc-4ada-a8f6-6234d7cf1576
+    status: experimental
+    description: Detects the execution of game_cache.exe, stats_db.exe, or
+      save_data.exe from a randomly named subdirectory within specific AppData\Local
+      folders (like SystemCache, WindowsCache, AppCache, etc.).
+    references:
+      - https://www.fortinet.com/blog/threat-research/stealit-campaign-abuses-nodejs-single-executable-application
+    author: detections.ai
+    date: 2025-10-11
+    tags:
+      - attack.execution
+      - attack.t1059
+      - malware.stealit
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects specific Stealit executable names
+      selection_filenames:
+        Image|endswith:
+          - '\game_cache.exe'
+          - '\stats_db.exe'
+          - '\save_data.exe'
+      # Detects execution from specific parent directories used by Stealit
+      selection_paths:
+        Image|contains:
+          - '\AppData\Local\SystemCache\'
+          - '\AppData\Local\WindowsCache\'
+          - '\AppData\Local\AppCache\'
+          - '\AppData\Local\SystemData\'
+          - '\AppData\Local\AppData\'
+          - '\AppData\Local\CacheData\'
+          - '\AppData\Local\SystemTemp\'
+          - '\AppData\Local\AppTemp\'
+          - '\AppData\Local\DataCache\'
+          - '\AppData\Local\TempData\'
+      condition: selection_filenames and selection_paths
+    falsepositives:
+      - It is unlikely that legitimate software will use this combination of file
+        names and paths, but it is possible. Investigate the parent process and the
+        executable's properties.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+    - malware.stealit
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/stealit-campaign-abuses-nodejs-single-executable-application
+data_sources:
+    - process_creation
+    - windows

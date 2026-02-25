@@ -1,0 +1,107 @@
+id: 019adafc-1f73-70ab-b5fa-453ca2221e80
+name: Suspicious Windows Script Host HTTP Call to Non-RFC1918 Dot-Quad or Hex-Encoded IPv4 Address
+description: Detects Windows Script Host (wscript.exe or cscript.exe) execution where an HTTP/HTTPS URL points directly to a dot-quad IPv4 address or a hex-encoded IPv4 address, excluding RFC1918 private ranges, APIPA, and local loopback. Threat actors frequently use raw or hex IP literals to bypass domain-based filtering and deliver payloads via script-based loaders.
+query: |-
+    title: Suspicious Windows Script Host HTTP Call to Non-RFC1918 Dot-Quad or Hex-Encoded IPv4 Address
+    id: 8e0b9f8c-6c9a-4f5b-9c32-2e9bf0b3a7d2
+    status: experimental
+    description: >-
+      Detects Windows Script Host (wscript.exe or cscript.exe) execution where an
+      HTTP/HTTPS URL points directly to a dot-quad IPv4 address or a hex-encoded
+      IPv4 address, excluding RFC1918 private ranges, APIPA, and local loopback.
+      Threat actors frequently use raw or hex IP literals to bypass domain-based
+      filtering and deliver payloads via script-based loaders.
+    references:
+      - https://attack.mitre.org/techniques/T1105/
+      - https://attack.mitre.org/techniques/T1059/005/
+    tags:
+      - attack.command_and_control
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1105
+      - attack.t1059.005
+    author: Mëngøh (Firestrike::Labs)
+    date: 2025-12-01
+
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+
+    detection:
+      #
+      # Main detection: WSH calling a URL with a direct IP literal (decimal or hex)
+      #
+      selection_regex:
+        CommandLine|re: |
+          (?ix)
+          (wscript|cscript) (\.exe)?      # Windows Script Host executable
+          .* https?://                        # URL prefix
+          (
+            (0x[0-9a-f]+|\d{1,3})             # octet 1 (hex or decimal)
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 2
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 3
+            \.
+            (0x[0-9a-f]+|\d{1,3})             # octet 4
+          )
+
+      #
+      # Exclusions: RFC1918, APIPA, loopback
+      # (dot-quad only; hex-encoded RFC1918 is intentionally NOT excluded)
+      #
+      selection_private_ip:
+        CommandLine|re: |
+          (?ix)
+          (wscript|cscript) (\.exe)?
+          .* https?://
+          (
+            10\.\d{1,3}\.\d{1,3}\.\d{1,3}                     # RFC1918 10.0.0.0/8
+            |
+            172\.(1[6-9]|2[0-9]|3[0-1])\.\d{1,3}\.\d{1,3}      # RFC1918 172.16–31
+            |
+            192\.168\.\d{1,3}\.\d{1,3}                         # RFC1918 192.168/16
+            |
+            127\.\d{1,3}\.\d{1,3}\.\d{1,3}                     # Loopback 127/8
+            |
+            169\.254\.\d{1,3}\.\d{1,3}                         # APIPA 169.254/16
+          )
+
+      condition: selection_regex and not selection_private_ip
+
+    fields:
+      - CommandLine
+      - ParentImage
+      - Image
+      - User
+
+    falsepositives:
+      - Rare; legitimate diagnostics, scripting, or automation using direct IP
+        URLs via wscript or cscript, especially in lab environments.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059
+    - T1059.005
+tags:
+    - attack.command_and_control
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1105
+    - attack.t1059.005
+author: Mëngøh (Firestrike::Labs)
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1105/
+    - https://attack.mitre.org/techniques/T1059/005/
+data_sources:
+    - process_creation
+    - windows
+    - security

@@ -1,0 +1,71 @@
+id: 807d943d-bf5a-4f88-b53c-c63ec5825887
+name: Anomalous System Behavior
+description: Detects anomalous system behavior that could indicate sophisticated threats deviating from normal activity. This includes unusual process-parent relationships, unexpected network connections from scripting engines, and attempts to modify registry keys related to AMSI or ETW configuration.
+query: |
+    // Name: Anomalous System Behavior
+    // Author: detections.ai
+    // Date: 2025-08-11
+    // Description: Detects anomalous system behavior that could indicate sophisticated threats deviating from normal activity. This includes unusual process-parent relationships, unexpected network connections from scripting engines, and attempts to modify registry keys related to AMSI or ETW configuration.
+    // MITRE ATT&CK: TA0002 (Execution), T1070 (Indicator Removal)
+    // References: https://github.com/BC-SECURITY/Obfuscation-Reloaded
+
+    // This detection is composed of three parts, each requiring a specific data source.
+    // Ensure you have process creation (e.g., Sysmon Event ID 1), network connection (e.g., Sysmon Event ID 3),
+    // and registry modification (e.g., Sysmon Event IDs 12, 13, 14) logs, preferably mapped to the CIM.
+    // The macros `process_creation`, `network_connections`, and `registry_changes` should be defined to point to these data sources.
+
+    // Part 1: Detects scripting engines spawned by unusual parent processes.
+    `process_creation`
+    | where process_name IN ("powershell.exe", "pwsh.exe", "cscript.exe", "wscript.exe", "mshta.exe")
+      AND parent_process_name IN ("winword.exe", "excel.exe", "powerpnt.exe", "outlook.exe", "chrome.exe", "msedge.exe", "firefox.exe", "acrord32.exe")
+    // FP Tuning: Some applications or login scripts may legitimately launch scripts from these parents.
+    // Exclude known good parent-child relationships to reduce noise.
+    // Example: | search NOT (parent_process_name="outlook.exe" AND process_command_line="*MyLoginScript.ps1*")
+    | eval AnomalyType="Unusual Parent-Process Relationship", Details="Parent: " . parent_process_name . ", Process: " . process_name
+    | table _time, dest, user, AnomalyType, Details, parent_process_name, process_name, process_command_line
+
+    | append [
+        // Part 2: Detects network connections initiated by scripting engines to non-private IP addresses.
+        `network_connections`
+        | where process_name IN ("powershell.exe", "pwsh.exe", "cscript.exe", "wscript.exe", "mshta.exe")
+        | where NOT (cidrmatch("10.0.0.0/8", dest_ip) OR cidrmatch("172.16.0.0/12", dest_ip) OR cidrmatch("192.168.0.0/16", dest_ip) OR dest_ip IN ("127.0.0.1", "::1"))
+        // FP Tuning: Legitimate scripts may connect to internal servers or vendor APIs.
+        // Exclude known good destination IPs or domains.
+        // Example: | search NOT dest_ip="1.2.3.4" OR dest_url="*mycompany.sharepoint.com*"
+        | eval AnomalyType="Unexpected Network Connection from Scripting Engine", Details="Process " . process_name . " connected to " . dest_ip . ":" . dest_port
+        | table _time, dest, user, AnomalyType, Details, process_name, dest_ip, dest_port, url
+    ]
+
+    | append [
+        // Part 3: Detects modification of registry keys related to AMSI or ETW logging.
+        `registry_changes`
+        | where (registry_path LIKE "%\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ScriptBlockLogging%" OR registry_path LIKE "%\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\ModuleLogging%" OR registry_path LIKE "%\\SOFTWARE\\Policies\\Microsoft\\Windows\\PowerShell\\Transcription%" OR registry_path LIKE "%\\SOFTWARE\\Microsoft\\AMSI\\Providers\\%")
+        // FP Tuning: Group Policy updates (gpupdate) can legitimately modify these keys, often via svchost.exe.
+        // Consider excluding known legitimate processes that manage these settings.
+        // Example: | search NOT process_name="svchost.exe"
+        | eval AnomalyType="AMSI/ETW Configuration Tampering", Details="Action: " . action . ", Key: " . registry_path . ", Value: " . registry_value_data
+        | table _time, dest, user, AnomalyType, Details, process_name, action, registry_path, registry_value_data
+    ]
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.003
+    - T1059.005
+    - T1059.007
+    - T1071
+    - T1071.001
+    - T1562
+    - T1562.001
+    - T1070
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://github.com/BC-SECURITY/Obfuscation-Reloaded

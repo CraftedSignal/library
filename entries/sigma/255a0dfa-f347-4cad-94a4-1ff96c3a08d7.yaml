@@ -1,0 +1,61 @@
+id: 255a0dfa-f347-4cad-94a4-1ff96c3a08d7
+name: S1ngularity Malware Shell Profile Modification for System Lockout
+description: Detects the s1ngularity malware attempting to add a shutdown command to shell configuration files (`.bashrc`, `.zshrc`) for persistence and system lockout.
+query: |
+    title: S1ngularity Malware Shell Profile Modification for System Lockout
+    id: 16610c7c-b6e8-49f8-8a0b-afce2c115cfc
+    status: experimental
+    description: Detects the s1ngularity malware attempting to add a shutdown
+      command to shell configuration files (`.bashrc`, `.zshrc`) for persistence and
+      system lockout.
+    references:
+      - https://www.wiz.io/blog/s1ngularity-supply-chain-attack
+    author: detections.ai
+    date: 2025-08-29
+    tags:
+      - attack.impact
+      - attack.t1499
+      - attack.persistence
+      - attack.t1546.004
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      # Detects the core command components used to append the shutdown command
+      selection_base:
+        CommandLine|contains|all:
+          - 'echo'
+          - 'sudo shutdown -h 0'
+          - '>>'
+        # Detects the target shell configuration files
+      selection_file:
+        CommandLine|contains:
+          - '.bashrc'
+          - '.zshrc'
+      condition: selection_base and selection_file
+    falsepositives:
+      - This activity is highly unusual and unlikely to be legitimate. However, a
+        system administrator could theoretically perform this action for a specific,
+        albeit strange, purpose.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0040
+    - TA0004
+techniques:
+    - T1546.004
+    - T1499
+tags:
+    - attack.impact
+    - attack.t1499
+    - attack.persistence
+    - attack.t1546.004
+author: detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/s1ngularity-supply-chain-attack
+data_sources:
+    - process_creation
+    - linux

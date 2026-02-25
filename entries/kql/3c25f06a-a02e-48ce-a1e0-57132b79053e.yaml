@@ -1,0 +1,17 @@
+id: 3c25f06a-a02e-48ce-a1e0-57132b79053e
+name: Detect privilege escalation to Global Admin role via compromised service principal
+description: KQL Query
+query: "// Detect privilege escalation to Global Admin role via compromised service principal\n// https://www.linkedin.com/posts/activity-7223370832763351040-TieO/\n\n// The below Sentinel KQL analytics rule is able to detect potential privilege escalation to Global Admin role via compromised service principal in view of the recent blog from Emilien Socchi (Abusing PIM-related application permissions in Microsoft Graph - Part 1)\nLink: https://lnkd.in/gmFqY4Hm\n\n//Hourly Sentinel Analytics Rule:\n\nlet GA = dynamic(['GA1@acme.com', 'GA2@acme.com', 'GA3@acme.com']);\nAuditLogs \n| where TimeGenerated > ago(1h)\n| where Category == \"RoleManagement\"\n| where ActivityDisplayName == \"Add member to role\"\n| where TargetResources contains \"Global Administrator\"\n| extend UPN = tostring(TargetResources[0].userPrincipalName)\n| where not (UPN has_any(GA))\n\n// MITRE ATT&CK Mapping\n\n// Based on the operations and objectives of the KQL code, the following MITRE ATT&CK techniques are relevant:\n\n// T1078.004 - Valid Accounts: Cloud Accounts:\n// This technique involves adversaries gaining access to cloud accounts to perform actions such as adding new members to privileged roles1.\n// T1098 - Account Manipulation:\n// This technique includes actions like adding users to privileged groups or roles, which is exactly what this query is designed to detect2.\n// T1078 - Valid Accounts:\n// More generally, this technique involves the use of valid accounts to maintain access to systems, which can include adding new accounts to privileged roles3.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1098
+    - T1078
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,17 @@
+id: 019c89be-7b66-7405-8a78-bd84b0ad08ec
+name: Low‑Frequency Inbound RDP Connections from Public IPs
+description: |-
+    This detection identifies inbound Remote Desktop Protocol (RDP) connections (TCP/3389) accepted by an endpoint where the local IP is private and the remote IP is public. It focuses specifically on low‑frequency inbound connections, which are often overlooked but commonly associated with targeted access attempts, manual attacker activity, or initial foothold establishment.
+    The detection also accounts for legitimate RDP service behavior by validating the TermService process (svchost.exe -k termsvcs -s TermService), ensuring visibility into native RDP handling. Unlike brute‑force detections, this rule highlights stealthy or one‑off connection attempts that may indicate reconnaissance, credential testing, or successful access using previously compromised credentials.
+    This signal is especially useful during incident investigations, exposure reviews, or threat hunting, where understanding who connected and how often is more valuable than detecting noisy attack patterns.
+query: "DeviceNetworkEvents\r\n| where ActionType == \"InboundConnectionAccepted\"\r\n| where LocalIPType == \"Private\" and RemoteIPType == \"Public\"\r\n| where LocalPort == 3389 \r\n   or InitiatingProcessCommandLine =~ \"svchost.exe -k termsvcs -s TermService\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    DeviceId,\r\n    LocalIP,\r\n    LocalPort,\r\n    RemoteIP,\r\n    InitiatingProcessCommandLine\r\n| summarize count() by RemoteIP\r\n| where count_ <= 10"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.001
+tags:
+    - kql
+author: Adarsh Pandey
+version: "1"

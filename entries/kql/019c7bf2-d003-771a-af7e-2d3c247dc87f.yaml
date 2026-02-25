@@ -1,0 +1,76 @@
+id: 019c7bf2-d003-771a-af7e-2d3c247dc87f
+name: LNK Post-Execution Self-Repair Detection
+description: Detects when explorer.exe modifies a .lnk file immediately after a suspicious process (e.g., LOLBAS) is launched by explorer.exe on the same host. This behavior is a forensic artifact of advanced LNK spoofing techniques (Variants 3 and 4 from the referenced research) where Windows "self-repairs" an internally inconsistent shortcut file after its first execution.
+query: |
+    // Name: LNK Post-Execution Self-Repair
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-20
+    // Description: Detects when explorer.exe modifies a .lnk file immediately after a suspicious process (e.g., LOLBAS) is launched by explorer.exe on the same host. This behavior is a forensic artifact of advanced LNK spoofing techniques (Variants 3 and 4 from the referenced research) where Windows "self-repairs" an internally inconsistent shortcut file after its first execution.
+    // False Positive Sensitivity: Medium
+    // References: https://www.wietzebeukema.nl/blog/trust-me-im-a-shortcut?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools
+    // MITRE TTPs: T1547.009, T1027.010
+    let timeWindow = 5s; // Time window to correlate the process launch and file modification.
+    let suspicious_processes = dynamic([ // Focus on processes commonly used as payloads for malicious LNKs
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "mshta.exe",
+        "cscript.exe",
+        "wscript.exe",
+        "certutil.exe",
+        "rundll32.exe"
+    ]);
+    let excluded_paths = dynamic([ // Exclude common paths where LNK files are legitimately managed.
+        "\\AppData\\Roaming\\Microsoft\\Windows\\Recent\\",
+        "\\AppData\\Roaming\\Microsoft\\Office\\Recent\\",
+        "\\AppData\\Roaming\\Microsoft\\Windows\\Start Menu\\",
+        "\\ProgramData\\Microsoft\\Windows\\Start Menu\\"
+    ]);
+    let process_launches =
+        DeviceProcessEvents
+        // Filter for suspicious processes launched by the user via Windows Explorer.
+        | where InitiatingProcessFileName =~ "explorer.exe" and FileName in~ (suspicious_processes)
+        | project LaunchTime = Timestamp, DeviceName, LaunchedProcess = FileName, CommandLine = ProcessCommandLine, ReportId, InitiatingProcessAccountName;
+    DeviceFileEvents
+    // An overwrite of an existing file is often logged as a FileCreated event.
+    | where ActionType == "FileCreated"
+    // The process modifying the LNK file must be explorer.exe.
+    | where InitiatingProcessFileName =~ "explorer.exe"
+    | where FileName endswith ".lnk"
+    // FP Tuning: Exclude paths where LNK files are frequently and legitimately created or modified.
+    | where not(FolderPath has_any (excluded_paths))
+    | project RepairTime = Timestamp, DeviceName, LnkPath = FolderPath, RepairingProcess = InitiatingProcessFileName
+    // Correlate the LNK file modification with a recent suspicious process launch on the same device.
+    | join kind=inner (
+        process_launches
+    ) on DeviceName
+    // The repair must happen after the launch, but within the defined time window.
+    | where RepairTime > LaunchTime and (RepairTime - LaunchTime) < timeWindow
+    // For each file repair event, find the single process launch that occurred immediately before it.
+    // This reduces noise from multiple explorer-launched processes happening in the same window.
+    | summarize arg_min(LaunchTime, LaunchedProcess, CommandLine, ReportId, InitiatingProcessAccountName) by RepairTime, DeviceName, LnkPath, RepairingProcess
+    | project-reorder
+        RepairTime,
+        DeviceName,
+        InitiatingProcessAccountName,
+        LnkPath,
+        LaunchTime,
+        LaunchedProcess,
+        CommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1547.009
+    - T1027.010
+    - T1059
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.wietzebeukema.nl/blog/trust-me-im-a-shortcut?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools

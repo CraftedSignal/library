@@ -1,0 +1,19 @@
+id: 019a49b6-fdf4-733e-93f3-c1fd6c20742a
+name: Potential RomCom group post-exploitation attempts
+description: |-
+    Detecting post-exploitation attempts based on RomCom group adversary activity and the following malware/backdoor signatures: Mythic agent, SnipBot and MeltingClaw.
+
+    Based on the following threat reports after the WinRAR CVE-2025–8088 exploitation.
+    1. ESET: https://www.welivesecurity.com/en/eset-research/update-winrar-tools-now-romcom-and-others-exploiting-zero-day-vulnerability/
+    2. Talos: https://blog.talosintelligence.com/uat-5647-romcom/
+query: "//whitelisting common or expected entries. Define more entries depending on your environment.\r\nlet exclusions = dynamic([@\"\\AppData\\Local\\Microsoft\\\"]); \r\nDeviceRegistryEvents\r\n| where not (RegistryValueData has_any (exclusions))\r\n| where RegistryKey has_all (\"InprocServer32\",\"CLSID\") \r\nand RegistryValueData has_any (@\"AppData\\Local\\Temp\",@\"AppData\\Local\\\",@\"%TEMP%\",@\"%LOCALAPPDATA%\") \r\nor RegistryKey has @\"SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RecentDocs\\\" \r\nand RegistryValueName == 68\r\n| project-reorder TimeGenerated, DeviceName, InitiatingProcessAccountName, ActionType, RegistryKey, RegistryValueData, RegistryValueType"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+tags:
+    - kql
+author: Bastradamus
+version: "3"
+references:
+    - https://bastradamus.com/detecting-winrar-zero-day-exploitation-cve-2025-8088-eac533120a91

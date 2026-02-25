@@ -1,0 +1,47 @@
+id: fc8f6c31-2829-4ca7-a0d3-7ea9334eb30a
+name: Group Managed Service Accounts password dump - GoldenGMSA
+description: Detects scenarios where an attacker attempts to dump Group Managed Services account (GMSA) passwords stored on writable domain controllers.
+query: |-
+    title: Group Managed Service Accounts password dump - GoldenGMSA
+    description: Detects scenarios where an attacker attempts to dump Group Managed Services account (GMSA) passwords stored on writable domain controllers.
+    correlation: correlate TargetLogonId from ID 4624 with SubjectLogonId from ID 4662 to identify the source of the dump.
+    requirements: extended rights auditing enabled
+    references:
+    - https://www.semperis.com/blog/golden-gmsa-attack/
+    - https://twitter.com/cnotin/status/1498952017263353858?t=PX9bWqa2SZLOZnpXbOScUg&s=09
+    tags:
+    - attack.credential_access
+    - attack.t1003
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection:
+        EventID: 4662
+        ObjectServer: DS
+        ObjectType: msKds-ProvRootKey
+      filter:
+        SubjectUserSid: 'S-1-5-18'
+      condition: selection and not filter
+    falsepositives:
+    - None
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1003
+tags:
+    - attack.credential_access
+    - attack.t1003
+author: mdecrevoisier
+version: "1"
+references:
+    - https://www.semperis.com/blog/golden-gmsa-attack/
+    - https://twitter.com/cnotin/status/1498952017263353858?t=PX9bWqa2SZLOZnpXbOScUg&s=09
+data_sources:
+    - windows
+    - security

@@ -1,0 +1,29 @@
+id: baf02c76-ac77-403b-b227-d982d4de8b1c
+name: 'Threat Hunt: RoKRAT Malware - Injection and Steganography'
+description: |-
+    A new RoKRAT variant tied to APT37 delivers payloads via oversized LNK shortcuts, executing a two‑stage encrypted shellcode loader that uses steganography to conceal content. The malware achieves fileless execution by injecting into trusted processes (e.g., mspaint.exe, notepad.exe) and hides C2 activity within legitimate cloud storage services such as pCloud, Yandex Disk, and Dropbox, often leveraging hardcoded API tokens.
+
+    High‑level TTPs:
+
+    Initial Access: Malicious LNK files in compressed archives.
+    Execution & Persistence: PowerShell/BAT‑driven staged loaders with XOR decryption.
+    Defense Evasion: Process injection into signed Windows binaries; steganography for payload concealment.
+    Command & Control: Use of trusted cloud service APIs with embedded tokens to obfuscate malicious traffic.
+query: "//ROKRAT Malware Campaign by APT 37\r\nlet sha256_iocs = dynamic([\r\n  \"3fa06c290c477c133ca58512c7852fc998632721f2dc3a0984f18fbe86451e18\",\r\n  \"ccb6ca4cb385db50dad2e3b7c68a90ddee62398edb0fd41afdb793287cfbe8e6\",\r\n  \"9eca7ab62e3ad40b79116ad713462e3ae4d9610345952e5dd279f0b481870d4f\",\r\n  \"7ee4326c5d0e6a30c1a9bdec045d670758fa1b36477992d61b03cb270113b196\",\r\n  \"e27467f7fdfa721e917384542ce10cc6108dfd78df14e23872cf8df916e0b8c6\",\r\n  \"7d514021c472e6e17f587ed30555d3f120653e6c7f8dc25d2331514b92ffd7bc\",\r\n  \"41d9b6d8cf0fff85bf35327d4b94db629cd9f754c487672911b7f701fe8c5539\",\r\n  \"6a2d984ef3fa0de9b9feb5f558381201e6dff42ef5efe4867fb24e47c6a2aade\",\r\n  \"bf7d5020dcd7777509b7b542255814cd61bfb1599d532dd2fdbb50de2ad70bc5\",\r\n  \"90bf1f20f962d04f8ae3f936d0f9046da28a75fa2fb37f267ff0453f272c60a0\",\r\n  \"ca56720610400d6da773ffa4cce5b2447d4a665087604c9c6e1c9e71c048ccfc\"\r\n]);\r\nlet domain_patterns = dynamic([\r\n  \"api.pcloud.com\",\r\n  \"cloud-api.yandex.net\",\r\n  \"dropboxapi.com\"\r\n]);\r\nlet process_matches =\r\nDeviceProcessEvents\r\n| where\r\n    (tolower(FileName) in~ (\"mspaint.exe\")  and tolower(InitiatingProcessFileName) in~ (\"cmd.exe\",\"powershell.exe\") and ProcessCommandLine !contains @\"C:\\Program Files\\BGInfo\\hostname.bgi\")\r\n    or\r\n    (tolower(SHA256) in~ (sha256_iocs))\r\n    or \r\n    (tolower(InitiatingProcessFileName) =~ \"powershell.exe\" and ProcessCommandLine matches regex @\"ttf0.*\\.dat\");\r\nlet dns_matches =\r\nDeviceNetworkEvents\r\n| where\r\n    (tolower(InitiatingProcessFileName) in~ (\"mspaint.exe\",\"notepad.exe\")\r\n      and isnotempty(RemoteUrl)\r\n      and (\r\n        RemoteUrl has \"api.dropboxapi.com\"\r\n        or RemoteUrl has \"dropboxapi.com\"\r\n        or RemoteUrl has \"cloud-api.yandex.net\"\r\n      ));\r\nlet file_matches =\r\nDeviceFileEvents\r\n| where ActionType in (\"FileCreated\",\"FileModified\",\"FileRenamed\")\r\n| where (tolower(InitiatingProcessFileName) =~ \"rundll32.exe\" and tolower(FileName) =~ \"version1.0.tmp\")\r\n    or \r\n    (FileName endswith \".lnk\" and FileSize >= 50000000);\r\nunion process_matches,dns_matches,file_matches\r\n| project-reorder Timestamp, DeviceName, ActionType,FileName, FolderPath, SHA256,InitiatingProcessFileName, InitiatingProcessCommandLine,InitiatingProcessParentFileName,\r\n          RemoteUrl, RemoteIP, RemotePort, ProcessId, InitiatingProcessId\r\n| order by Timestamp desc\r\n\r\n//https://www.genians.co.kr/en/blog/threat_intelligence/rokrat_shellcode_steganographic\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1567.002
+    - T1059.001
+    - T1059.003
+tags:
+    - ROKRAT
+    - APT37
+    - MALWARE
+    - kql
+author: Aamir Muhammad
+version: "1"
+references:
+    - https://www.genians.co.kr/en/blog/threat_intelligence/rokrat_shellcode_steganographic

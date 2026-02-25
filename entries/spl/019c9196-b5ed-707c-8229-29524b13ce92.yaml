@@ -1,0 +1,41 @@
+id: 019c9196-b5ed-707c-8229-29524b13ce92
+name: 'RenEngine Campaign: HijackLoader, Lumma'
+description: 'This rule detects activity associated with the RenEngine campaign, which utilizes HijackLoader to deliver Lumma Stealer and ACR Stealer. It identifies malicious activity through three main methods: 1) Endpoint detection of known MD5 hashes associated with the malware, 2) Network traffic (proxy/DNS/netflow) to distribution sites used by the campaign, and 3) Network traffic (proxy/DNS/netflow) to known Lumma Stealer C2 domains.'
+query: |+
+    ## RenEngine → HijackLoader → Lumma/ACR hunts (hashes + distro/C2)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://securelist.com/renengine-campaign-with-hijackloader-lumma-and-acr-stealer/118891/
+
+    ### 1) Endpoint: published MD5 matches
+    (index=edr OR index=os OR index=sysmon) (
+      md5="12ec3516889887e7bcf75d7345e3207a" OR
+      md5="d3cf36c37402d05f1b7aa2c444dc211a" OR
+      md5="1e0bf40895673fcd96a8ea3ddfab0ae2" OR
+      md5="2e70eca2191c79ad15da2d4c25eb66b9"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(process_name) as process values(file_path) as paths values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Proxy/DNS: distribution sites (subset from report)
+    (index=proxy OR index=dns OR index=netflow) (
+      dest_domain IN ("hentakugames.com","dodi-repacks.site","artistapirata.fit","artistapirata.vip","awdescargas.pro","fullprogramlarindir.me","gamesleech.com","parapcc.com","saglamindir.vip","zdescargas.pro","filedownloads.store","go.zovo.ink")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Proxy/DNS: Lumma C2 domains (subset from report)
+    (index=proxy OR index=dns OR index=netflow) (
+      dest_domain IN ("localfxement.live","explorebieology.run","agroecologyguide.digital","moderzysics.top","seedsxouts.shop","codxefusion.top","farfinable.top","techspherxe.top","cropcircleforum.today")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://securelist.com/renengine-campaign-with-hijackloader-lumma-and-acr-stealer/118891/

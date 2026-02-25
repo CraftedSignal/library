@@ -1,0 +1,29 @@
+id: c3e6e2a6-bdf3-4b5f-89ee-ef6e7541b2f9
+name: Hunting IngressNightmare (CVSS 9.8)
+description: 'KQL Query from file: Hunting IngressNightmare (CVSS 9.8)'
+query: |
+    // https://www.wiz.io/blog/ingress-nginx-kubernetes-vulnerabilities
+
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    DeviceProcessEvents
+    | where InitiatingProcessCommandLine has "nginx-ingress"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where DeviceId has_any(InternetFacing)
+query_type: kql
+tactics:
+    - TA0011
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0006
+techniques:
+    - T1105
+    - T1053.007
+    - T1552.007
+    - T1098.006
+tags:
+    - kql
+version: "1"

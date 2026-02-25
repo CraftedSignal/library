@@ -1,0 +1,17 @@
+id: 019abb77-f3e9-775c-95c2-a7763f331bd4
+name: ClickFix PowerShell Loader Detection
+description: Detects PowerShell execution patterns consistent with the ClickFix malware campaign, which uses obfuscated scripts to decrypt and reflectively load a .NET assembly in memory. This activity is detailed in Stage 2 of the infection chain. The query identifies command lines with combinations of keywords used for decoding, decryption, and in-memory execution, specifically looking for 'FromBase64String' combined with 'Reflection.Assembly' and 'Load' for reflective loading, 'FromBase64String' and '-bxor' for XOR decryption, or 'FromBase64String' and 'Invoke-Expression'/'IEX' for executing decoded scripts in memory.
+query: "// Name: ClickFix PowerShell Loader\n// Author: detections.ai\n// Date: 2025-11-25\n// Description: Detects PowerShell execution patterns consistent with the ClickFix malware campaign, which uses obfuscated scripts to decrypt and reflectively load a .NET assembly in memory. This activity is detailed in Stage 2 of the infection chain.\n// False Positive Sensitivity: Medium\n// Tactics: Execution, Defense Evasion\n// Techniques: T1059.001, T1027\n// References: https://www.huntress.com/blog/clickfix-malware-buried-in-images\n\nDeviceProcessEvents\n// Target PowerShell processes\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\n// The query identifies command lines with combinations of keywords used for decoding, decryption, and in-memory execution.\n| where \n    // This combination is highly indicative of reflectively loading a .NET assembly from a Base64 encoded string.\n    (ProcessCommandLine has \"FromBase64String\" and ProcessCommandLine has \"Reflection.Assembly\" and ProcessCommandLine has \"Load\")\n    or\n    // This combination indicates a payload is being decrypted using a bitwise XOR operation, as seen in the ClickFix loader.\n    (ProcessCommandLine has \"FromBase64String\" and ProcessCommandLine has \"-bxor\")\n    or\n    // This is a common pattern for executing a decoded script in memory.\n    (ProcessCommandLine has \"FromBase64String\" and (ProcessCommandLine has \"Invoke-Expression\" or ProcessCommandLine has \"IEX\"))\n// FP Tuning: Legitimate administrative scripts may occasionally use these techniques for complex tasks.\n// Consider excluding known safe scripts by command line, parent process (InitiatingProcessFileName), or user account.\n// For example: | where InitiatingProcessFileName !in~ (\"legit_admin_tool.exe\")\n| project\n    TimeGenerated,\n    DeviceName,\n    AccountName,\n    FileName,\n    ProcessCommandLine,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    ReportId,\n    SensorId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/clickfix-malware-buried-in-images

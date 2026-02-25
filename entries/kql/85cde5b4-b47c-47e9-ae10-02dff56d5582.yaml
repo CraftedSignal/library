@@ -1,0 +1,16 @@
+id: 85cde5b4-b47c-47e9-ae10-02dff56d5582
+name: 'Threat Hunt: Suspicious Firewall Rule Modification via Command Line'
+description: |-
+    This query identifies the creation, modification, or deletion of Windows Firewall rules or profiles using netsh.exe or PowerShell. Adversaries frequently manipulate firewall rules to disable defenses, allow inbound/outbound communication for their tools, or remove restrictions on command-and-control (C2) traffic.
+    The exclusion of "System" integrity level processes helps to filter out typical legitimate system-level firewall operations, focusing on user-level or elevated process activities that might indicate malicious intent.
+query: "DeviceProcessEvents\r\n| where FileName in~ (\"netsh.exe\", \"powershell.exe\")\r\n| where ProcessCommandLine has_any (\"New-NetFirewallRule\", \"Set-NetFirewallRule\", \"Remove-NetFirewallRule\",\r\n\"Set-NetFirewallProfile\", \"Set-NetFirewallProfile\", \"Disable-NetFirewallRule\", \"Enable-NetFirewallRule\", \"Delete rule name=\")\r\n// Excluding the Noice - pay attention if its required for your hypothesis\r\n| where ProcessIntegrityLevel != @\"System\"\r\n| project DeviceName, AccountName, FileName, InitiatingProcessFileName, InitiatingProcessParentFileName, ProcessCommandLine, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+techniques:
+    - T1562.004
+tags:
+    - kql
+author: AwaisM
+version: "1"
+references:
+    - AwaisM

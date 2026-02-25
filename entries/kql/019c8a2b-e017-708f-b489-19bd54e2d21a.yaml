@@ -1,0 +1,49 @@
+id: 019c8a2b-e017-708f-b489-19bd54e2d21a
+name: Suspicious GUP.exe Child Process
+description: Detects the Notepad++ updater process (GUP.exe) spawning suspicious child processes. This behavior was observed in the Notepad++ supply chain attack where the legitimate updater was used to execute discovery commands (via cmd.exe) and launch second-stage payloads from specific AppData directories.
+query: |
+    // Name: Suspicious GUP.exe Child Process
+    // Author: detections.ai
+    // Date: 2026-02-23
+    // Description: Detects the Notepad++ updater process (GUP.exe) spawning suspicious child processes. This behavior was observed in the Notepad++ supply chain attack where the legitimate updater was used to execute discovery commands (via cmd.exe) and launch second-stage payloads from specific AppData directories.
+    // MITRE TTPs: T1059.003, T1105, T1574.002
+    // References: https://securelist.com/notepad-supply-chain-attack/118708/
+    let timeframe = 1d;
+    // Define suspicious child processes and paths observed in the attack
+    let suspicious_children = dynamic(["cmd.exe", "curl.exe"]);
+    let suspicious_paths = dynamic([@"\ProShow\", @"\Adobe\Scripts\", @"\Bluetooth\"]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Filter for the legitimate Notepad++ updater as the parent process
+    | where InitiatingProcessFileName =~ "GUP.exe"
+    // Core detection logic: Look for suspicious child processes or processes launched from suspicious paths
+    | where FileName in~ (suspicious_children) or FolderPath has_any (suspicious_paths)
+    // Potential for false positives: Legitimate update procedures could, in rare cases, call cmd.exe.
+    // Tuning may be required if legitimate software uses the same AppData paths.
+    // Example: | where InitiatingProcessCommandLine !has "legit_update_arg"
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessId,
+        ProcessId,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0001
+techniques:
+    - T1059.003
+    - T1105
+    - T1195.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

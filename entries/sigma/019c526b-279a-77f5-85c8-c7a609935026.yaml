@@ -1,0 +1,54 @@
+id: 019c526b-279a-77f5-85c8-c7a609935026
+name: Persistence via QEMU Scheduled Task
+description: Detects the creation of a scheduled task named "TPMProfiler" that executes QEMU ('qemu-system-x86_64.exe'). This technique was observed being used by threat actors to establish persistence after exploiting SolarWinds Web Help Desk vulnerabilities.
+query: |
+    title: Persistence via QEMU Scheduled Task
+    id: 1d2f67bd-178f-4a98-9b7e-002de77d39aa
+    status: experimental
+    description: Detects the creation of a scheduled task named "TPMProfiler" that
+      executes QEMU ('qemu-system-x86_64.exe'). This technique was observed being
+      used by threat actors to establish persistence after exploiting SolarWinds Web
+      Help Desk vulnerabilities.
+    references:
+      - https://www.elastic.co/security-labs/solarwinds-whd-exploitation
+    author: detections.ai
+    date: 2026-02-12
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create' # Detects the creation of a new scheduled task
+          - '/tn' # Specifies the task name
+          - 'TPMProfiler' # Specific task name used in this campaign
+          - 'qemu-system-x86_64.exe' # QEMU executable used for persistence
+      condition: selection
+    falsepositives:
+      - Legitimate use of QEMU in a scheduled task with this specific name is highly
+        unlikely. However, if QEMU is used for legitimate administrative or
+        development purposes, consider tuning the rule by excluding specific command
+        lines or parent processes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/solarwinds-whd-exploitation
+data_sources:
+    - process_creation
+    - windows

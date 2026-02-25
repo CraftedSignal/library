@@ -1,0 +1,57 @@
+id: 019c347a-85e5-7353-b2ae-e26b7d1bfefa
+name: APT28 Cloud C2 via Koofr, IceDrive, Filen
+description: This rule detects network connections to cloud storage services Koofr, IceDrive, and Filen (koofr.net, icedrive.net, filen.io, filen.net, filen-1.net, filen-2.net) from non-browser processes. This activity is indicative of potential command and control (C2) communication, as APT28 has been observed using these services for C2, with tools like Covenant Grunt and BeardShell communicating via their APIs. The rule specifically filters out connections originating from common web browsers (msedge.exe, chrome.exe, firefox.exe) to reduce false positives.
+query: |
+    title: APT28 Phantom Net Voxel - Cloud C2 Koofr IceDrive Filen
+    id: a1b2c3d4-e5f6-4a5b-8c9d-apt28c2001
+    status: experimental
+    description: |
+        APT28 uses Koofr, IceDrive, Filen for C2. Covenant Grunt and BeardShell
+        communicate via cloud storage APIs. Network connections to these domains
+        from non-browser processes = potential C2.
+    references:
+        - https://www.trellix.com/blogs/research/apt28-stealthy-campaign-leveraging-cve-2026-21509-cloud-c2/
+        - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/
+    author: Daniel Jeremiah
+    date: 2026/02/03
+    tags:
+        - attack.command-and-control
+        - attack.t1071.001
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection_dest:
+            DestinationHostname|endswith|any:
+                - '.koofr.net'
+                - '.icedrive.net'
+                - '.filen.io'
+                - '.filen.net'
+                - '.filen-1.net'
+                - '.filen-2.net'
+        filter_browser:
+            Image|endswith|any:
+                - '\msedge.exe'
+                - '\chrome.exe'
+                - '\firefox.exe'
+        condition: selection_dest and not filter_browser
+    falsepositives:
+        - Legitimate Koofr/IceDrive/Filen sync clients
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.trellix.com/blogs/research/apt28-stealthy-campaign-leveraging-cve-2026-21509-cloud-c2/
+    - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/
+data_sources:
+    - network_connection
+    - windows

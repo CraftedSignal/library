@@ -1,0 +1,18 @@
+id: 0199c10f-78ec-769e-87b5-8faf4a71e244
+name: Multiple Service Crashes on Domain Controller
+description: This rule detects when critical Windows services or processes associated with Active Directory (NTDS, Netlogon, LSASS, LDAP) or the Print Spooler (Spooler, spoolsv.exe) crash multiple times (3 or more) on a machine within a 7-day period. This could indicate instability, a denial-of-service attempt, or a system compromise affecting core services.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(7d)\r\n| where EventID in (7031, 7034, 1000)\r\n| where AccountType == \"Machine\"\r\n| where ServiceName in (\"NTDS\", \"Netlogon\", \"Spooler\", \"LSASS\", \"LDAP\")\r\n    or ProcessName in (\"lsass.exe\", \"spoolsv.exe\", \"ntdsai.dll\")\r\n| summarize CrashCount = count() by Computer, ServiceName, ProcessName\r\n| where CrashCount >= 3\r\n| order by CrashCount desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0004
+techniques:
+    - T1003.003
+    - T1547.008
+    - T1003.001
+    - T1547.012
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,18 @@
+id: 019c7666-3162-73b3-8e40-c9272f996761
+name: Suspicious RMM PowerShell Quick Deploy (TrustConnect/DocConnect)
+description: Detects PowerShell one-liners used by TrustConnect/DocConnect to download and execute secondary payloads. These commands are provided as a 'Quick Deploy' feature in the MaaS C2 panel and typically use Invoke-RestMethod (irm) piped to Invoke-Expression (iex) from known malicious domains.
+query: "// Name: Suspicious RMM PowerShell Quick Deploy\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects PowerShell one-liners used by TrustConnect/DocConnect to download and execute secondary payloads. These commands are provided as a 'Quick Deploy' feature in the MaaS C2 panel and typically use Invoke-RestMethod (irm) piped to Invoke-Expression (iex).\r\n// MITRE ATT&CK: T1059.001 (Command and Scripting Interpreter: PowerShell), T1105 (Ingress Tool Transfer)\r\n// References: https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat\r\n// False Positive Sensitivity: Medium. The combination of \"irm | iex\" is a common \"living off the land\" technique. The specificity of the domains reduces false positives, but broader patterns could be noisy.\r\n// Tuning Suggestion: The rule is currently scoped to known malicious domains. If this pattern is used with other domains, consider adding logic to filter for newly registered domains or domains with low reputation. Exclude known administrative scripts or software deployment tools if they use a similar pattern.\r\n// Define the list of known C2 domains associated with TrustConnect and DocConnect\r\nlet suspiciousDomains = dynamic([\"trustconnectsoftware.com\", \"networkservice.cyou\"]);\r\nDeviceProcessEvents\r\n// Filter for PowerShell process creation events\r\n| where ActionType == \"ProcessCreated\" and FileName =~ \"powershell.exe\"\r\n// Look for the classic download and execute pattern using Invoke-RestMethod (irm) piped to Invoke-Expression (iex)\r\n| where ProcessCommandLine has \"irm\" and ProcessCommandLine has \"iex\" and ProcessCommandLine contains \"|\"\r\n// Filter for command lines containing the known C2 domains\r\n| where ProcessCommandLine has_any (suspiciousDomains)\r\n// Add additional context for investigation\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SHA1,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat

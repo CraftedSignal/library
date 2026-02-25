@@ -1,0 +1,28 @@
+id: 019971cb-8883-743c-8411-a7791685fc4f
+name: High Volume DNS Queries to Non-Standard Domains
+description: This rule detects a high volume of DNS queries (over 50) from a single source IP to a limited number of destination IPs (2 or less) for non-standard domains. It excludes common legitimate domains like microsoft.com, google.com, apple.com, cloudflare.com, akamai.com, and amazonaws.com, as well as queries to private IP ranges. This pattern can indicate DNS tunneling, data exfiltration, or command and control activity.
+query: |-
+    index="paloalto" sourcetype IN ("pan:traffic","pan:threat") app="*dns*"
+    | fields src_ip dest_ip dest_port url_domain query
+    | search NOT url_domain="*microsoft.*" NOT url_domain="*google.*" NOT url_domain="*apple.*" NOT url_domain="*cloudflare.*" NOT url_domain="*akamai.*" NOT url_domain="*amazonaws.*"
+    | where NOT (
+        (cidrmatch("10.0.0.0/8", dest_ip) OR
+         cidrmatch("172.16.0.0/12", dest_ip) OR
+         cidrmatch("192.168.0.0/16", dest_ip) OR
+         cidrmatch("127.0.0.0/8", dest_ip))
+    )
+    | stats count as query_count, dc(src_ip) as unique_srcs, dc(dest_ip) as unique_dests, values(dest_ip) as dests, values(dest_port) as ports by url_domain, src_ip
+    | where query_count > 50 AND unique_dests <= 2
+    | eval interval_suspect = if(query_count > 100, "HIGH", "MEDIUM")
+    | sort - query_count
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.004
+tags:
+    - spl
+author: '@AnoozillaHunterX'
+version: "1"

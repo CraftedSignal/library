@@ -1,0 +1,50 @@
+id: 019ac6e9-56db-77fd-8c77-375b2c6804b9
+name: Shai-Hulud GitHub Repo Creation
+description: 'This rule detects the creation of a public GitHub repository with the specific description "Sha1-Hulud: The Second Coming". This is an indicator of compromise (IOC) associated with the Shai-Hulud 2.0 worm, which uses these repositories to exfiltrate stolen credentials.'
+query: |
+    # Name: Shai-Hulud GitHub Repo Creation
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This search detects the creation of a public GitHub repository with the description "Sha1-Hulud: The Second Coming".
+    # This is a specific indicator of compromise (IOC) associated with the Shai-Hulud 2.0 worm, which uses these
+    # repositories to exfiltrate stolen credentials.
+    #
+    # Data Source:
+    # This search requires GitHub audit logs. The macro `github_audit_logs` should be configured to point to the correct index and sourcetype
+    # (e.g., `index=github sourcetype=github:audit`).
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Exfiltration
+    # - Technique: T1537 (Transfer Data to Cloud Account)
+    #
+    # False Positives:
+    # False positives are unlikely due to the specific description. However, a security researcher or copycat could use the same string.
+    # Investigation should confirm the context of the repository creation and the user who created it.
+
+    `github_audit_logs`
+
+    # Filter for repository creation events. The 'action' field may vary based on your data source.
+    | search action="repo.create"
+
+    # Filter for public repositories with the specific description used by the malware.
+    | search visibility="public" description="Sha1-Hulud: The Second Coming"
+
+    # Group results and list relevant details for investigation.
+    | stats count values(repo) as created_repos by _time, user, org, description, visibility
+    | `shai_hulud_github_repo_creation_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1537
+tags:
+    - spl
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

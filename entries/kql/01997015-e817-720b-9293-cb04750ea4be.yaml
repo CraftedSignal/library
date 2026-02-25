@@ -1,0 +1,19 @@
+id: 01997015-e817-720b-9293-cb04750ea4be
+name: Detecting EDR/AV Freeze
+description: |-
+    The attack uses WerFaultSecure.exe (Windows Error Reporting component) running with PPL (Protected Process Light) protection at the WinTCB level to call MiniDumpWriteDump on any process, bypassing PPL.
+    It leverages the CREATE_SUSPENDED flag during process creation and uses OpenProcess with PROCESS_SUSPEND_RESUME to suspend/resume PPL processes.
+query: "DeviceProcessEvents\r\n| where FileName =~ \"WerFaultSecure.exe\"\r\n| extend ProcessCommandLine = tostring(ProcessCommandLine)\r\n| where ProcessCommandLine has \"-p\" and ProcessCommandLine has \"-d\"\r\n| where ProcessCommandLine matches regex @\".*\\s-p\\s+\\d+\\s.*\"  \r\n| extend TargetPID = extract(@\"\\s-p\\s+(\\d+)\", 1, ProcessCommandLine) \r\n| extend TargetPID_int = toint(TargetPID) \r\n| join kind=leftouter (\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(1h)  // Adjust as needed for your environment\r\n    | distinct ProcessId, FileName, AccountName\r\n) on $left.TargetPID_int == $right.ProcessId\r\n| where FileName has_any (\"MsMpEng\", \"csrss\", \"lsass\", \"svchost\", \"edsensor\", \"edpa\", \"edr\", \"av\", \"defense\", \"protected\")  // Add more EDR/AV process names as needed\r\n| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, TargetPID\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1562.001
+    - T1055.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.zerosalarium.com/2025/09/EDR-Freeze-Puts-EDRs-Antivirus-Into-Coma.html

@@ -1,0 +1,16 @@
+id: 279d7a51-c717-42e0-8432-e67c3117a279
+name: Critical Devices Vulnerable to CVE-2024-30040
+description: This rule identifies devices that are both critical to the organization (based on exposure graph data) and are vulnerable to CVE-2024-30040. It leverages Microsoft Defender Vulnerability Management data to correlate critical assets with known vulnerabilities.
+query: "let CriticalIdentities =\r\nExposureGraphNodes\r\n| where set_has_element(Categories, \"identity\")\r\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\r\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \r\n| distinct NodeName;\r\nlet CriticalDevices =\r\nExposureGraphEdges \r\n| where EdgeLabel == @\"can authenticate to\"\r\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\r\n| extend DName = tostring(NodeProperties.rawData.deviceName)\r\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\r\n| where SourceNodeName has_any (CriticalIdentities)\r\n| distinct DName;\r\nDeviceTvmSoftwareVulnerabilities \r\n| where CveId == \"CVE-2024-30040\"\r\n| where DeviceName has_any (CriticalDevices)\r\n\r\nDefender Threat Analytics Report\r\nVulnerability Profile: CVE-2024-30040"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1212
+tags:
+    - kql
+author: Garyson Pereira
+version: "1"
+references:
+    - 'Vulnerability Profile: CVE-2024-30040'

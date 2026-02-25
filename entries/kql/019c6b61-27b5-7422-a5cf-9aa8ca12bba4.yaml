@@ -1,0 +1,17 @@
+id: 019c6b61-27b5-7422-a5cf-9aa8ca12bba4
+name: Suspicious Remote Execution Tool Usage
+description: Detects suspicious usage of remote execution tools like PsExec, WMIC, and PowerShell, which are commonly used for lateral movement by adversaries. The rule identifies instances where these tools are executed multiple times within a short period (more than 2 times in 5 minutes) from non-system accounts and outside of standard system directories, indicating potential malicious activity.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(1h)\r\n| where EventID == 4688\r\n| where NewProcessName has_any (@\"\\psexec.exe\", @\"\\wmic.exe\", @\"\\powershell.exe\")\r\n   or tolower(split(NewProcessName, @\"\\\")[-1]) in~ (\"psexec.exe\", \"wmic.exe\", \"powershell.exe\")\r\n| where ParentProcessName != \"system\"  \r\n| where SubjectLogonId != \"0x3e7\"      \r\n| where not(NewProcessName startswith @\"C:\\Windows\\System32\\\"\r\n            or NewProcessName startswith @\"C:\\Windows\\SysWOW64\\\"\r\n            or Account endswith \"$\")   \r\n| summarize ExecCount = count() by Computer, NewProcessName, Account, bin(TimeGenerated, 5m)\r\n| where ExecCount > 2\r\n| project TimeGenerated, Computer, NewProcessName, Account, ExecCount\r\n| extend Detection = \"Suspicious remote exec tool usage - potential lateral movement\"\r\n| order by ExecCount desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1047
+    - T1059.001
+    - T1021
+    - T1570
+tags:
+    - kql
+version: "1"

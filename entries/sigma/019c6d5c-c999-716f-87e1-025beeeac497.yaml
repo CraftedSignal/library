@@ -1,0 +1,23 @@
+id: 019c6d5c-c999-716f-87e1-025beeeac497
+name: Linux Login Records Tampering via Interpeters
+description: "Detects adversaries directly manipulating Linux login files to remove evidence of unauthorized access. These binary files record successful logins (wtmp), current sessions (utmp), and failed attempts (btmp). \nThis rule looks for the use of common interpeters in the context of editing binary login files. \nSophisticated attackers target these files because they're primary forensic artifacts for login tracking.\n"
+query: "title: Linux Login Records Tampering via Interpeters\nid: 29fe2d1f-a9f5-4bf8-8e62-30e5dbe37059\nstatus: experimental\ndescription: >\n  Detects adversaries directly manipulating Linux login files to remove evidence\n  of unauthorized access. These binary files record successful logins (wtmp),\n  current sessions (utmp), and failed attempts (btmp). \n\n  This rule looks for the use of common interpeters in the context of editing\n  binary login files. \n\n  Sophisticated attackers target these files because they're primary forensic artifacts for login tracking.\nreferences:\n  - https://attack.mitre.org/techniques/T1070/002/\n  - >-\n    https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering\nauthor: zendannyy\ntags:\n  - attack.defense-evasion\n  - attack.t1070.002\nlogsource:\n  product: linux\n  category: process_creation\n  service: audit\ndetection:\n  selection_interpreter_edit:\n    Image|endswith:\n      - /perl\n      - /powershell\n      - /python\n      - /python3\n    CommandLine|contains:\n      - /var/log/wtmp\n      - /var/log/btmp\n      - /var/run/utmp\n  selection_suspicious_ops:\n    Image|endswith:\n      - /dd\n      - /truncate\n      - /cp\n    CommandLine|contains:\n      - /var/log/wtmp\n      - /var/log/btmp\n      - /var/run/utmp\n      - if=/dev/null\n      - if=/dev/zero\n  condition: selection_interpreter_edit or selection_suspicious_ops\n\nfalsepositives:\n  - System administrators performing legitimate maintenance on corrupted utmp\n    files (correlate with change management tickets)\n  - Log rotation scripts that recreate utmp files (logrotate)\n  - Forensic analysts examining utmp files during incident response\nlevel: high\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070
+    - T1070.002
+tags:
+    - attack.defense-evasion
+    - attack.t1070.002
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1070/002/
+    - https://sandflysecurity.com/blog/using-linux-utmpdump-for-forensics-and-detecting-log-file-tampering
+data_sources:
+    - process_creation
+    - linux
+    - audit

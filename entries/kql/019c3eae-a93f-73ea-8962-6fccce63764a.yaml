@@ -1,0 +1,19 @@
+id: 019c3eae-a93f-73ea-8962-6fccce63764a
+name: Diaoyu Loader Execution Guardrail Detection
+description: This detection identifies the execution of a process from a directory that also contains a zero-byte file named 'pic1.png'. This specific behavior is a known execution guardrail for the 'Diaoyu' loader, used by the TGR-STA-1030 group to evade automated sandbox analysis.
+query: "// Name: TGR-STA-1030 Diaoyu Loader Execution Guardrail\r\n// Author: Nomit Vyas\r\n// Date: 2026-02-09\r\n// Description: This detection identifies the execution of a process from a directory that also contains a zero-byte file named 'pic1.png'. This specific behavior is a known execution guardrail for the 'Diaoyu' loader, used by the TGR-STA-1030 group to evade automated sandbox analysis.\r\n// Reference: https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/\r\n// False Positive Sensitivity: Medium\r\n// Tags: TGR-STA-1030, Diaoyu, Shadow Campaigns\r\n// Tactics: Defense Evasion, Execution\r\n// Techniques: T1497.001, T1204.002\r\nlet timeframe = 1h;\r\nlet guardrailFile = \"pic1.png\";\r\n// Find instances where the zero-byte guardrail file was created.\r\nlet fileCreationEvents = DeviceFileEvents\r\n    | where Timestamp > ago(timeframe)\r\n    | where FileName =~ guardrailFile and FileSize == 0\r\n    | project GuardrailFileCreationTime = Timestamp, FolderPath, DeviceId, DeviceName;\r\n// Join file creation events with process executions from the same folder.\r\nfileCreationEvents\r\n| join kind=inner (\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(timeframe)\r\n    // The report indicates the executable often shares a name with the parent archive, which is context-specific.\r\n    // We focus on the execution from the same folder as the guardrail file.\r\n) on DeviceId, FolderPath\r\n// The process should be created shortly after the guardrail file is dropped.\r\n| where Timestamp between (GuardrailFileCreationTime .. (GuardrailFileCreationTime + 5m))\r\n// Potential for False Positives: Legitimate software might create zero-byte PNG files for various reasons.\r\n// Tuning: Filter by specific parent processes if the delivery mechanism is known (e.g., browsers, archive utilities).\r\n// You can also add process names to the exclusion list below if legitimate activity is found.\r\n| where not(InitiatingProcessFileName in~ (\"explorer.exe\", \"photoshop.exe\"))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    GuardrailFileCreationTime,\r\n    MD5,\r\n    SHA1,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+    - TA0007
+techniques:
+    - T1497.001
+    - T1480
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/

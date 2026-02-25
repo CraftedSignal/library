@@ -1,0 +1,65 @@
+id: 0199b5f5-175c-7455-aafd-677e81d6b5ec
+name: Detection of Hidden Accounts and RID Hijacking in Windows
+description: The threat actor created an account using the net user command. When a $ is added to the end of the account name during account creation, the account is created with a hidden attribute. In this case, the account cannot be identified using the (net user command), and can only be identified in the SAM registry. In a RID Hijacking attack, threat actors modify the RID value of an account in the SAM registry so that the Windows operating system recognizes it as a changed RID.  In the Windows operating system, the registry key related to user accounts are stored in the path HKEY_LOCAL_MACHINE\ SAM\SAM\Domains\Account\Users. The RID of a user account is written in the little-endian format as 4 bytes in the 0x30 0x33 area of the F value under each account key. Threat actors change the value at this offset to the RID of the hijacking target.
+query: |-
+    title: Detection of Hidden Accounts and RID Hijacking in Windows
+    status: stable
+    description: 'The threat actor created an account using the net user command. When a $ is added to the end of the account name during account creation, the account is created with a hidden attribute. In this case, the account cannot be identified using the (net user command), and can only be identified in the SAM registry. In a RID Hijacking attack, threat actors modify the RID value of an account in the SAM registry so that the Windows operating system recognizes it as a changed RID.  In the Windows operating system, the registry key related to user accounts are stored in the path HKEY_LOCAL_MACHINE\ SAM\SAM\Domains\Account\Users. The RID of a user account is written in the little-endian format as 4 bytes in the 0x30 0x33 area of the F value under each account key. Threat actors change the value at this offset to the RID of the hijacking target.'
+    author: Ziya Deniz
+    date: '2025-02-22'
+    references:
+        - https://asec.ahnlab.com/en/85942/
+    tags:
+      - attack.initial_access
+      - attack.t1033
+      - attack.t1059
+      - attack.t1190
+      - attack.defense_evasion.t1033
+      - attack.defense_evasion.t1059
+      - attack.defense_evasion.t1190
+    logsource:
+        product: windows
+        category: registry_event
+    detection:
+        selection:
+            CommandLine|contains|all:
+                - 'net'
+                - 'user'
+                - 'add'
+                - '$'
+        selection_2:
+            TargetObject|contains|all:
+                - 'SAM'
+                - 'Domains'
+                - 'Account'
+                - 'Users'
+                - 'F'
+        condition: selection and selection_2
+    falsepositives:
+        - unlikely
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0007
+    - TA0005
+techniques:
+    - T1059.003
+    - T1087.001
+    - T1562.001
+tags:
+    - attack.initial_access
+    - attack.t1033
+    - attack.t1059
+    - attack.t1190
+    - attack.defense_evasion.t1033
+    - attack.defense_evasion.t1059
+    - attack.defense_evasion.t1190
+author: Ziya Deniz
+version: "1"
+references:
+    - https://asec.ahnlab.com/en/85942/
+data_sources:
+    - registry_event
+    - windows

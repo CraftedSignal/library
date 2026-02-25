@@ -1,0 +1,58 @@
+id: 019c6b1e-e110-708d-83d0-c923c6b6d520
+name: SolarWinds WebHelpDesk Post-Exploitation Activity
+description: This query detects multiple patterns of post-exploitation activity related to SolarWinds WebHelpDesk (WHD) vulnerabilities. It first identifies devices where suspicious commands are executed from the WHD directory, and then retrieves all related suspicious activities from those devices. The detection logic includes identifying suspicious child processes spawned by the WHD java service, suspicious command execution from the WHD directory, and suspicious child processes of ToolsIQ.exe, a component known to be abused in WHD exploits.
+query: |
+    // Name: SolarWinds WebHelpDesk Post-Exploitation Activity
+    // Description: This query detects multiple patterns of post-exploitation activity related to SolarWinds WebHelpDesk (WHD) vulnerabilities. It first identifies devices where suspicious commands are executed from the WHD directory, and then retrieves all related suspicious activities from those devices.
+    // Tags: attack.execution, attack.t1569.002, CVE-2021-35211
+    //
+    // Query Correction: To resolve persistent "Failed to resolve" errors, this version uses materialize() to force the evaluation of the 'impactedDevices' subquery.
+    // This ensures the result set is available as a stable table for the subsequent join, which is a robust pattern for preventing scope resolution issues in complex KQL queries.
+
+    // Define a list of suspicious commands often used for reconnaissance or execution.
+    let suspiciousCommands = pack_array("whoami", "net user", "net group", "nslookup", "certutil", "echo", "curl", "quser", "hostname", "iwr", "irm", "iex", "Invoke-Expression", "Invoke-RestMethod", "Invoke-WebRequest", "tasklist", "systeminfo", "nltest", "base64", "-Enc", "bitsadmin", "expand", "sc.exe", "netsh", "arp ", "adexplorer", "wmic", "netstat", "-EncodedCommand", "Start-Process", "wget");
+    // Define an allowlist of legitimate child processes for the WHD java process. This may need tuning.
+    let childProcessAllowlist = pack_array("java.exe", "pg_dump.exe", "reg.exe", "conhost.exe", "WerFault.exe");
+    // Identify devices where suspicious commands were executed from the WHD directory and materialize the results.
+    let impactedDevices = materialize (
+        DeviceProcessEvents
+        | where InitiatingProcessFolderPath has @"\WebHelpDesk\bin\"
+        | where ProcessCommandLine has_any (suspiciousCommands)
+        | distinct DeviceId
+    );
+    // Main query: Join all process events with the list of impacted devices to find related activity.
+    DeviceProcessEvents
+    | join kind=inner (impactedDevices) on DeviceId
+    // After joining, apply the detection patterns to the events from the impacted devices.
+    | where
+        // Pattern 1: Suspicious child processes spawned by the WHD java service.
+        (
+            InitiatingProcessParentFileName endswith "wrapper.exe"
+            and InitiatingProcessFolderPath has @"\WebHelpDesk\bin\"
+            and InitiatingProcessFileName in~ ("java.exe", "javaw.exe")
+            and FileName !in (childProcessAllowlist)
+        )
+        or
+        // Pattern 2: The suspicious command execution from the WHD directory that originally identified the device.
+        (
+            InitiatingProcessFolderPath has @"\WebHelpDesk\bin\"
+            and ProcessCommandLine has_any (suspiciousCommands)
+        )
+        or
+        // Pattern 3: Suspicious child processes of ToolsIQ.exe, a component known to be abused in WHD exploits.
+        (
+            InitiatingProcessFileName endswith "ToolsIQ.exe"
+            and FileName != "conhost.exe"
+        )
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1569.002
+tags:
+    - kql
+version: "3"
+references:
+    - CVE-2021-35211
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/

@@ -1,0 +1,62 @@
+id: 019a3bf3-a255-725f-bb5b-622090edb7f1
+name: Suspicious Process Spawn from WSUS Process
+description: Detects the spawning of command-line interpreters (`cmd.exe` or `powershell.exe`) from processes associated with Windows Server Update Services (WSUS), such as `w3wp.exe` (IIS worker process for WSUS) and `wsusservice.exe`. This behavior is a strong indicator of post-exploitation activity related to vulnerabilities like CVE-2025-59287, where attackers gain remote code execution on the WSUS server.
+query: |
+    title: Suspicious Process Spawn from WSUS Process
+    id: f646796b-795b-46a6-b614-179949f343e4
+    status: experimental
+    description: >-
+      Detects the spawning of command-line interpreters (`cmd.exe` or
+      `powershell.exe`) from processes associated with Windows Server Update
+      Services (WSUS), such as `w3wp.exe` (IIS worker process for WSUS) and
+      `wsusservice.exe`. This behavior is a strong indicator of post-exploitation
+      activity related to vulnerabilities like CVE-2025-59287, where attackers gain
+      remote code execution on the WSUS server.
+    references:
+      - >-
+        https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability
+    author: detections.ai
+    date: 2025-10-31T00:00:00.000Z
+    tags:
+      - attack.t1059.001
+      - attack.t1059.003
+      - cve.2025.59287
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - \w3wp.exe
+          - \wsusservice.exe
+      selection_child:
+        Image|endswith:
+          - \cmd.exe
+          - \powershell.exe
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts or maintenance tasks might spawn
+        command-line interpreters from these parent processes. Tuning may be
+        required based on normal administrative activity in the environment.
+    level: high
+    associated_cves:
+      - CVE-2025-59287
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059.003
+tags:
+    - attack.t1059.001
+    - attack.t1059.003
+    - cve.2025.59287
+author: detections.ai
+version: "3"
+references:
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,30 @@
+id: 5796b48a-ccea-4c97-96bf-a1633e5241ad
+name: DarkCloud Stealer RunOnce Persistence Detection
+description: KQL Query
+query: |-
+    DeviceRegistryEvents
+    | where ActionType == "RegistryValueSet"
+    | where RegistryKey has_cs @"SOFTWARE\Microsoft\Windows\CurrentVersion\RunOnce\"
+    | where isnotempty(RegistryValueData)
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RegistryKey, RegistryValueName, RegistryValueData
+    | summarize arg_max(Timestamp, *) by DeviceName, InitiatingProcessFileName, RegistryKey, RegistryValueName
+    | extend RuleName = "DarkCloud Stealer - RunOnce Persistence"
+    | extend Description = "Detects the creation or modification of the RunOnce registry key, a known persistence mechanism used by DarkCloud Stealer."
+    | extend Severity = "High"
+    | extend Tactics = "Persistence"
+    | extend Techniques = "T1547.001" // Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+    | extend Author = "Detections.ai"
+    | extend Date = "2025-06-27"
+    | extend References = "https://unit42.paloaltonetworks.com/darkcloud-stealer-and-obfuscated-autoit-scripting/"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/darkcloud-stealer-and-obfuscated-autoit-scripting/

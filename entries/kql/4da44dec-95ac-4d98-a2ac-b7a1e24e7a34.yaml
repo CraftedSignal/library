@@ -1,0 +1,16 @@
+id: 4da44dec-95ac-4d98-a2ac-b7a1e24e7a34
+name: Sentinel - Threat Hunting DNS Tunneling
+description: 'KQL Query from file: Sentinel - Threat Hunting DNS Tunneling'
+query: "// Threat Hunting DNS Tunneling \n\n// DNS tunneling is a method used by threat actors to encode non-DNS traffic within DNS packets. This technique allows data to bypass traditional network firewalls, creating covert channels for data exfiltration and infiltration. By centralizing your enterprise DNS logging and utilizing Microsoft Sentinel SIEM, you can leverage my Sentinel KQL (DnsEvents Schema) to hunt for DNS tunneling activities. Additionally, I’ve provided a DefenderXDR KQL for Microsoft Defender for Endpoint, which uses the DeviceEvents schema for DNS tunneling threat hunting. For further context, I’m sharing an article by Palo Alto Networks Unit42 that details a DNS tunneling campaign using DNS queries for tracking and data exfiltration, highlighting the importance of the threat hunting KQL I’ve shared.\n\n// DNS tunneling use either A records or TXT records for an infected host to receive data\n// To exfiltrate data to a C2 server, the DNS queries for infected host will spike with long queried hostname\n\n// Query 1 - Locate suspicious DNS tunneling host (ClientIP)\nlet DNSHostnameLengthCheck = 40;\nDnsEvents\n| where TimeGenerated > ago(90d) \n| where SubType == \"LookupQuery\"\n| where QueryType==\"A\" or QueryType==\"TXT\"\n| where strlen(Name) > DNSHostnameLengthCheck\n| summarize DNSQueriedHost=dcount(Name), TotalQueryType=dcount(QueryType) by ClientIP\n| sort by TotalQueryType, DNSQueriedHost desc\n\n// Query 2 - Analyze suspected DNS tunneling top host from Query 1 by examining the DNS query in detail\n// Look for sample generated DNS request like below:\n// 0018786966.96428380.04.5E43287B03114C04A64F68C0C23E44F4.n.156.887.empty.6_1._t_i.3000.explorer_exe.156.rc2.a4h9uploading[.]com\n\nlet DNSHostnameLengthCheck = 40;\nDnsEvents\n| where TimeGenerated > ago(90d) \n| where SubType == \"LookupQuery\"\n| where ClientIP == \"10.10.10.10\" // Replace top ClientIP from Query 1\n| where strlen(Name) > DNSHostnameLengthCheck\n| distinct Name\n\n// MITRE ATT&CK MAPPING\n// Application Layer Protocol: DNS (T1071.004)\n"
+query_type: kql
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.004
+    - T1572
+    - T1048
+    - T1041
+tags:
+    - kql
+version: "1"

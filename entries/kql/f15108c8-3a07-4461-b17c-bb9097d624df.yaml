@@ -1,0 +1,30 @@
+id: f15108c8-3a07-4461-b17c-bb9097d624df
+name: GitLab Threat Intelligence Identified 16 Malicious Chrome extensions
+description: KQL Query
+query: |
+    // GitLab Threat Intelligence Identified 16 Malicious Chrome extensions
+
+    // https://gitlab-com.gitlab.io/gl-security/security-tech-notes/threat-intelligence-tech-notes/malicious-browser-extensions-feb-2025/
+
+    let GitLabTI=externaldata(MaliciousChromeID:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/GitLabTI-MaliciousChromeExtID.csv'];
+    let MID =
+    GitLabTI
+    | project MaliciousChromeID;
+    DeviceFileEvents
+    | where ActionType == "FileCreated" or ActionType == "FileModified" or ActionType == "FileRenamed"
+    | where FileName endswith ".crx"
+    | where FileName has_any(MID)
+query_type: kql
+tactics:
+    - TA0003
+    - TA0043
+    - TA0002
+techniques:
+    - T1176.001
+    - T1176
+    - T1592.002
+    - T1204.002
+tags:
+    - kql
+version: "1"

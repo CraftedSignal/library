@@ -1,0 +1,14 @@
+id: a43d7b40-19b8-41fe-9d5e-043b30471357
+name: CVE-2025-53770 Exploitation hunt
+description: CVE-2025-53770 Exploitation hunt
+query: "Let sus_file=DeviceFileEvents\r\n| where ActionType in (\"FileCreated\", \"FileModified\")\r\n| where FolderPath contains \"template/layouts/\" and FileName endswith \".aspx\"\r\n| project  FileTimestamp = Timestamp,DeviceName, FileName, FolderPath;\r\nDeviceProcessEvents\r\n| where (InitiatingProcessFileName contains \"w3wp.exe\" or InitiatingProcessParentFileName contains \"w3wp.exe\") \r\n| where InitiatingProcessFileName in~ (\"cmd.exe\",\"powershell.exe\",\"mshta.exe\",\"wscript.exe\",\"curl.exe\") and FileName in~ (\"cmd.exe\",\"powershell.exe\",\"mshta.exe\",\"wscript.exe\")\r\n| join kind=inner (\r\n    sus_file\r\n) on DeviceName\r\n| where abs(datetime_diff(\"minute\", FileTimestamp, Timestamp)) <= 10"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1505.003
+    - T1059
+tags:
+    - kql
+version: "1"

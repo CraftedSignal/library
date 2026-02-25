@@ -1,0 +1,60 @@
+id: 019c669a-10e6-76d5-8954-50fc61c3f7c2
+name: OpenClaw Clawd install.sh Download via curl wget PowerShell or LOLBins
+description: This rule detects the execution of specific download utilities (curl, wget, aria2c, fetch, PowerShell, certutil, bitsadmin, mshta) attempting to download 'install.sh' from either 'clawd.bot' or 'openclaw.ai'. This activity is indicative of potential malware or unauthorized script downloads, possibly bypassing network security controls.
+query: |
+    title: OpenClaw Clawd install.sh Download via curl wget PowerShell or LOLBins
+    id: a1b2c3d4-e5f6-4a7b-8c9d-openclaw01
+    status: experimental
+    description: |
+        curl, wget, PowerShell, or LOLBins (certutil, bitsadmin, mshta) with command line fetching install.sh from clawd.bot or openclaw.ai. Indicates secret download bypassing Zscaler-style detection. LOLBAS ref https://lolbas-project.github.io/
+    author: Daniel Jeremiah
+    date: 2026/02/16
+    tags:
+        - attack.t1059.003
+        - attack.t1059.001
+        - attack.t1105
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_image:
+            Image|endswith|any:
+                - '\curl.exe'
+                - '\curl'
+                - '\wget.exe'
+                - '\wget'
+                - '\aria2c.exe'
+                - '\aria2c'
+                - '\fetch.exe'
+                - '\fetch'
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\certutil.exe'
+                - '\bitsadmin.exe'
+                - '\mshta.exe'
+        selection_cmdline:
+            CommandLine|contains|any:
+                - 'clawd.bot/install.sh'
+                - 'openclaw.ai/install.sh'
+        condition: selection_image and selection_cmdline
+    falsepositives:
+        - Legitimate use of same install scripts from approved workflows
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.003
+    - T1059.001
+    - T1105
+tags:
+    - attack.t1059.003
+    - attack.t1059.001
+    - attack.t1105
+author: Daniel Jeremiah
+version: "2"
+data_sources:
+    - process_creation
+    - windows

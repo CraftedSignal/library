@@ -1,0 +1,68 @@
+id: 0199dbea-3678-757c-9e87-0662dbbba3a6
+name: IIS WebServer Log Deletion via Command-Line
+description: |
+    Identifies attempts to remove Internet Information Services (IIS) log files using command-line utilities.
+    Attackers who gain access to IIS-hosted applications commonly remove or truncate IIS log files to evade detection and cover post-exploitation activity. This detection looks for command-line processes (Windows CMD/PowerShell/PowerShell Core) that execute common file-deletion commands against the IIS log folder.
+query: |-
+    title: IIS WebServer Log Deletion via Command-Line
+    id: 0649be4a-aeb0-45b0-b89e-7f1668f6d9c0
+    related:
+      - id: b7f3c9d2-4a6e-4f1b-9c2e-8a5d3f7b2c11
+    status: experimental
+    description: |
+      Identifies attempts to remove Internet Information Services (IIS) log files using command-line utilities.
+      Attackers who gain access to IIS-hosted applications commonly remove or truncate IIS log files to evade detection and cover post-exploitation activity. This detection looks for command-line processes (Windows CMD/PowerShell/PowerShell Core) that execute common file-deletion commands against the IIS log folder.
+    references:
+      - https://learn.microsoft.com/en-us/iis/manage/provisioning-and-managing-iis/managing-iis-log-file-storage
+    author: Kaung Khant Ko
+    date: 2025-09-02
+    tags:
+      - attack.defense-evasion
+      - attack.t1070
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_img:
+        - Image|endswith:
+            - '\cmd.exe'
+            - '\powershell_ise.exe'
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        - OriginalFileName:
+            - 'cmd.exe'
+            - 'powershell.exe'
+            - 'powershell_ise.exe'
+            - 'pwsh.dll'
+      selection_cli_del:
+        CommandLine|contains:
+          - 'del '
+          - 'erase '
+          - 'rm '
+          - 'remove-item '
+          - 'rmdir '
+      selection_cli_iis_dir:
+        CommandLine|contains: '\inetpub\logs\'
+      condition: all of selection_*
+    falsepositives:
+      - Scheduled or administrative cleanup of IIS logs performed as part of
+        retention policies.
+      - Automated maintenance scripts or scheduled tasks that regularly rotate or
+        delete old IIS logs.
+      - Ad-hoc manual log housekeeping by administrators (usually during maintenance
+        windows).
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+tags:
+    - attack.defense-evasion
+    - attack.t1070
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/iis/manage/provisioning-and-managing-iis/managing-iis-log-file-storage
+data_sources:
+    - process_creation
+    - windows

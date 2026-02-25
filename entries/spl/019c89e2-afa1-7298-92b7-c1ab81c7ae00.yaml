@@ -1,0 +1,29 @@
+id: 019c89e2-afa1-7298-92b7-c1ab81c7ae00
+name: BeyondTrust CVE-2026-1731 Remote Code Execution Attempt
+description: This detection rule identifies potential exploitation attempts of CVE-2026-1731, a remote code execution vulnerability in BeyondTrust software. It searches for a specific command injection pattern ('a[$(...)]0') in web request logs, specifically within the 'remoteVersion' parameter of the URL or URI query. This pattern forces Bash arithmetic evaluation of the injected command.
+query: |
+    # This detection rule identifies potential exploitation attempts of CVE-2026-1731, a remote code execution vulnerability in BeyondTrust software.
+    # It searches for a specific command injection pattern in web request logs.
+    # Data source: Web, Proxy, or WAF logs (e.g., sourcetype=pan:traffic, stream:http, iis, apache:access)
+    (`pan:traffic` OR `stream:http` OR `aws:waf` OR `iis` OR `apache:access`)
+
+    # Filter for requests containing the 'remoteVersion' parameter and the specific injection pattern.
+    # The pattern 'a[$(...)]0' forces Bash arithmetic evaluation of the injected command.
+    | where (url LIKE "%remoteVersion=%" OR uri_query LIKE "%remoteVersion=%") AND (match(url, "a\[\$\(.*\)\]0") OR match(uri_query, "a\[\$\(.*\)\]0"))
+
+    # Aggregate results for investigation.
+    | stats count earliest(_time) as firstTime latest(_time) as lastTime values(url) as urls by src_ip, dest_ip, user_agent
+    | convert ctime(firstTime) ctime(lastTime)
+    | rename src_ip as src, dest_ip as dest
+
+    # False Positive Tuning: This pattern is highly specific to the exploit.
+    # False positives may occur from security scanners or red team activity.
+    # Consider excluding known scanner IPs or user agents if noise occurs.
+    # Example: | search NOT (src="10.0.0.1" OR user_agent="*Nessus*")
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+tags:
+    - spl
+version: "2"

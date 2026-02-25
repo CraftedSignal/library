@@ -1,0 +1,23 @@
+id: de9c94e9-8c36-45ad-818d-d57b1a070155
+name: Use of URL Shortener in Email – Potential Phishing Indicator
+description: This detection identifies emails containing links that use well-known URL shortening services (e.g., bit.ly, t.co, tinyurl.com). While these services are commonly used for legitimate purposes, they are frequently abused by threat actors to obfuscate malicious destinations. This detection joins EmailUrlInfo with EmailEvents to include sender metadata and filters out trusted senders based on a configurable watchlist (ShortenerSafeSenders).
+query: "// Step 1: Load allowlisted senders who are permitted to use shorteners\r\nlet LegitShortenerSenders = (_GetWatchlist('ShortenerSafeSenders')\r\n    | project SafeSender = tolower(trim(\" \", SearchKey)));\r\n// Step 2: List of known URL shorteners\r\nlet shortener_domains = dynamic([\r\n    \"bit.ly\", \"t.co\", \"tinyurl.com\", \"goo.gl\", \"ow.ly\", \"buff.ly\", \"rebrand.ly\",\r\n    \"is.gd\", \"cutt.ly\", \"shorte.st\", \"mcaf.ee\", \"qr.ae\", \"trib.al\", \"tiny.cc\",\r\n    \"lnkd.in\", \"bl.ink\", \"soo.gd\", \"snip.ly\", \"urlzs.com\", \"v.gd\", \"1url.com\",\r\n    \"rb.gy\", \"shorturl.at\", \"u.nu\", \"b.link\", \"adf.ly\", \"smarturl.it\"\r\n]);\r\n// Step 3: Detect use of shorteners in emails\r\nlet SuspiciousUrls = EmailUrlInfo\r\n| where UrlDomain in (shortener_domains)\r\n| project NetworkMessageId, Url, UrlDomain;\r\n// Step 4: Join with EmailEvents to enrich with sender data (all matching shorteners retained)\r\nSuspiciousUrls\r\n| join kind=rightouter (\r\n    EmailEvents\r\n    | project NetworkMessageId, Timestamp, SenderFromAddress = tolower(trim(\" \", SenderFromAddress)), \r\n              SenderDisplayName, Subject, RecipientEmailAddress, InternetMessageId, DeliveryAction\r\n) on NetworkMessageId\r\n// Step 5: Filter out allowlisted senders\r\n| lookup LegitShortenerSenders on SenderFromAddress == SafeSender\r\n| where isnull(SafeSender)\r\n// Step 6: Output\r\n| project Timestamp, SenderFromAddress, SenderDisplayName, Subject, RecipientEmailAddress,\r\n          Url, UrlDomain, InternetMessageId, DeliveryAction\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1204.001
+tags:
+    - phishing
+    - urlshortener
+    - detection
+    - email
+    - m365
+    - kql
+    - mitre.t1204.002
+    - enrichment
+    - watchlist
+author: Michael Fajkus
+version: "1"
+references:
+    - https://www.isssource.com/url-shorteners-as-attack-vector/
+    - https://www.menlosecurity.com/blog/url-shortening-allows-threats-to-evade-url-filtering-and-categorization-tools

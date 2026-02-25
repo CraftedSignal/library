@@ -1,0 +1,15 @@
+id: 019c8ebd-7c1f-767c-8666-fe10d372b807
+name: C2 Beaconing - Periodic Outbound Connections to Single External IP
+description: This rule detects potential C2 beaconing behavior by identifying devices that make a high number of periodic outbound connections (20 or more within an hour) to a single external IP address on common web and C2-related ports (80, 443, 8080, 8443, 4444, 5555, 8888, 9001). The rule summarizes these connections by device, remote IP, and initiating process, highlighting sustained communication patterns indicative of command and control.
+query: "// Detection: C2 Beaconing - Periodic Outbound Connections to Single External IP\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1071.001 - Application Layer Protocol: Web Protocols\r\n\r\nlet connectionThreshold = 20;\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(24h)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteIPType == \"Public\"\r\n| where RemotePort in (80, 443, 8080, 8443, 4444, 5555, 8888, 9001)\r\n| summarize\r\n    ConnectionCount = count(),\r\n    FirstSeen       = min(TimeGenerated),\r\n    LastSeen        = max(TimeGenerated),\r\n    PortList        = make_set(RemotePort, 5)\r\n    by DeviceName, RemoteIP, InitiatingProcessFileName, bin(TimeGenerated, 1h)\r\n| where ConnectionCount >= connectionThreshold\r\n| extend DurationMin = datetime_diff('minute', LastSeen, FirstSeen)\r\n| extend AlertDescription = strcat(\r\n    \"'\", InitiatingProcessFileName, \"' made \",\r\n    ConnectionCount, \" connections to \", RemoteIP,\r\n    \" in 1 hour — potential C2 beaconing behavior\")\r\n| project-reorder TimeGenerated, DeviceName, RemoteIP,\r\n                  InitiatingProcessFileName, ConnectionCount,\r\n                  DurationMin, PortList, AlertDescription\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+    - T1071.001
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

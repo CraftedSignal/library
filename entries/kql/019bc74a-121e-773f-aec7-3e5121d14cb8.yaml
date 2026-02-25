@@ -1,0 +1,18 @@
+id: 019bc74a-121e-773f-aec7-3e5121d14cb8
+name: Word Remote Template leading to Equation Editor
+description: Detects Microsoft Word making an outbound network connection and subsequently spawning the Equation Editor process (EQNEDT32.EXE). This behavior is associated with the exploitation of CVE-2017-11882 via a malicious remote template.
+query: "// Name: Word Remote Template leading to Equation Editor\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-16\r\n// Description: Detects Microsoft Word making an outbound network connection and subsequently spawning the Equation Editor process (EQNEDT32.EXE).\r\n// This behavior is associated with the exploitation of CVE-2017-11882 via a malicious remote template.\r\n// MITRE ATT&CK: T1221, T1203\r\n// References: https://www.fortinet.com/blog/threat-research/new-remcos-campaign-distributed-through-fake-shipping-document\r\n// False Positive Sensitivity: Medium\r\n// Triage:\r\n// 1. Examine the RemoteUrl/RemoteIP that Word connected to. Is it a known-good domain for document templates or resources?\r\n// 2. Investigate the command line of the EQNEDT32.EXE process for any unusual parameters.\r\n// 3. Look for subsequent suspicious activity from the EQNEDT32.EXE process, such as spawning script interpreters (wscript.exe, powershell.exe) or making network connections.\r\nlet time_window = 5m;\r\n// Collect network events from Winword connecting to external IPs\r\nlet word_network_events = DeviceNetworkEvents\r\n    | where Timestamp > ago(time_window)\r\n    | where InitiatingProcessFileName =~ \"winword.exe\"\r\n    | where isnotempty(RemoteUrl) or isnotempty(RemoteIP)\r\n    // Filter for connections to public IP addresses\r\n    | where RemoteIPType == \"Public\"\r\n    // Potential tuning: Exclude connections to known-good corporate or cloud service domains (e.g., SharePoint, Google Docs).\r\n    // | where RemoteUrl !has \"sharepoint.com\"\r\n    | project NetworkEventTime = Timestamp, DeviceId, InitiatingProcessId, RemoteUrl, RemoteIP;\r\n// Collect process creation events where Winword spawns Equation Editor\r\nlet eqnedt32_spawn = DeviceProcessEvents\r\n    | where Timestamp > ago(time_window)\r\n    | where InitiatingProcessFileName =~ \"winword.exe\"\r\n    | where FileName =~ \"eqnedt32.exe\"\r\n    | project ProcessEventTime = Timestamp, DeviceId, InitiatingProcessId, InitiatingProcessCommandLine, FileName, ProcessCommandLine, AccountName, DeviceName;\r\n// Join the two event types on the same device and parent process ID\r\neqnedt32_spawn\r\n| join kind=inner word_network_events on DeviceId, InitiatingProcessId\r\n// Ensure the process creation happens after the network connection\r\n| where ProcessEventTime >= NetworkEventTime and ProcessEventTime - NetworkEventTime < time_window\r\n| project\r\n    Timestamp = ProcessEventTime,\r\n    DeviceId,\r\n    AccountName,\r\n    DeviceName,\r\n    InitiatingProcessFileName = \"winword.exe\",\r\n    InitiatingProcessCommandLine,\r\n    SpawnedProcess = FileName,\r\n    SpawnedProcessCommandLine = ProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1221
+    - T1203
+tags:
+    - kql
+author: Ethan Andrews
+version: "5"
+references:
+    - https://www.fortinet.com/blog/threat-research/new-remcos-campaign-distributed-through-fake-shipping-document

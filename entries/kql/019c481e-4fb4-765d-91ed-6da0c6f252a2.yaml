@@ -1,0 +1,58 @@
+id: 019c481e-4fb4-765d-91ed-6da0c6f252a2
+name: QEMU Virtualized Persistence for Evasion
+description: Detects the use of QEMU with port forwarding (`hostfwd`), a technique observed being used by attackers to create a persistent, virtualized environment for C2 and lateral movement, often via a scheduled task. The rule looks for the creation of scheduled tasks that launch QEMU with port forwarding or the direct execution of QEMU with port forwarding by common parent processes associated with scheduled tasks or remote administration.
+query: |
+    // Name: QEMU Virtualized Persistence for Evasion
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-10
+    // Description: Detects the use of QEMU with port forwarding (`hostfwd`), a technique observed being used by attackers to create a persistent, virtualized environment for C2 and lateral movement, often via a scheduled task.
+    // Tactic: Defense Evasion, Persistence
+    // Technique: T1564.006, T1053.005
+    // False Positives: Medium. Legitimate use of QEMU by developers or in lab environments may trigger this alert. Consider excluding known developer machines or specific project paths if this is common in your environment.
+    // References: https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/
+    let timeframe = 1d;
+    union isfuzzy=true
+    (
+        // Detects the creation of a scheduled task to launch QEMU with port forwarding
+        DeviceProcessEvents
+        | where Timestamp > ago(timeframe)
+        | where FileName =~ "schtasks.exe"
+        | where ProcessCommandLine has_all ("/create", "qemu-system-x86_64.exe", "hostfwd")
+        // The observed threat actor created the task to run as the SYSTEM account
+        | where ProcessCommandLine has_all ("/ru", "system")
+    ),
+    (
+        // Detects the direct execution of QEMU with port forwarding, likely by the Task Scheduler service or other remote admin tools
+        DeviceProcessEvents
+        | where Timestamp > ago(timeframe)
+        | where FileName =~ "qemu-system-x86_64.exe"
+        | where ProcessCommandLine has "hostfwd"
+        // svchost.exe and taskeng.exe are common parent processes for scheduled tasks. wsmprovhost.exe can indicate remote execution.
+        | where InitiatingProcessFileName in~ ("svchost.exe", "taskeng.exe", "wsmprovhost.exe")
+    )
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId,
+        InitiatingProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1564.006
+    - T1053.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/

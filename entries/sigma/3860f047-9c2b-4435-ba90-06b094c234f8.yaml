@@ -1,0 +1,62 @@
+id: 3860f047-9c2b-4435-ba90-06b094c234f8
+name: Suspicious ConnectWise Session Launch Without Common TLD
+description: |
+    Detects potentially rogue or self-hosted ConnectWise Control (ScreenConnect) session launches based on suspicious query string patterns in the command line. Specifically flags sessions that include parameters like `e=...&y=...&h=...&p=...` but where the `h=` (host) value does not include common trusted TLDs. May indicate use of unauthorized remote access tools.
+
+    Investigative Tip: Sandboxing or running the strings command against the binary will reveal the embedded host parameter if you really want to be sure.
+query: |
+    title: Suspicious ConnectWise Session Launch Without Common TLD
+    id: 9f16094a-50b3-44ea-a719-780ad0c227db
+    status: experimental
+    description: |
+      Detects potentially rogue or self-hosted ConnectWise Control (ScreenConnect) session launches based on suspicious query string patterns in the command line. Specifically flags sessions that include parameters like `e=...&y=...&h=...&p=...` but where the `h=` (host) value does not include common trusted TLDs. May indicate use of unauthorized remote access tools.
+
+      Investigative Tip: Sandboxing or running the strings command against the binary will reveal the embedded host parameter if you really want to be sure.
+
+    references:
+      - https://docs.connectwise.com/ConnectWise_Control_Documentation
+      - https://attack.mitre.org/software/S remote desktop software
+    tags:
+      - attack.command_and_control
+      - attack.t1219
+      - attack.t1563.002
+    author: Firestrike::Labs
+    date: 2025/07/12
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        CommandLine|re: 'e=.*&y=.*&h=.*&p=.*'
+      filter_common_tlds:
+        CommandLine|re: 'h=.*(com|ca|net|co|org|me|support|au|uk|it|tech)&'
+      condition: selection and not filter_common_tlds
+    fields:
+      - CommandLine
+      - ParentCommandLine
+      - Image
+      - ParentImage
+      - User
+      - Hostname
+    falsepositives:
+      - Legitimate IT vendors using non-standard session URLs
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1563.002
+tags:
+    - attack.command_and_control
+    - attack.t1219
+    - attack.t1563.002
+author: Firestrike::Labs
+version: "1"
+references:
+    - https://docs.connectwise.com/ConnectWise_Control_Documentation
+    - https://attack.mitre.org/software/S remote desktop software
+data_sources:
+    - process_creation
+    - windows

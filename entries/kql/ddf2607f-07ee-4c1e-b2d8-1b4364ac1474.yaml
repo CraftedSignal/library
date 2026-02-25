@@ -1,0 +1,17 @@
+id: ddf2607f-07ee-4c1e-b2d8-1b4364ac1474
+name: Suspicious Script Enabling RDP
+description: This rule detects suspicious command-line activity related to enabling Remote Desktop Protocol (RDP) access. Specifically, it looks for `netsh.exe` commands that add a firewall rule to allow inbound TCP traffic on port 3389 (RDP) or enable the 'Windows Management Instrumentation (WMI)' firewall group. It also detects `reg.exe` commands that modify the `fDenyTSConnections` registry value to enable RDP connections.
+query: "DeviceProcessEvents\r\n| where ProcessVersionInfoInternalFileName ==  \"\"reg.exe\"\" or \r\n        ProcessVersionInfoInternalFileName ==  \"\"netsh.exe\"\"\r\n| where (ProcessCommandLine startswith @'netsh  advfirewall firewall add rule name=' and ProcessCommandLine endswith 'dir=in protocol=tcp localport=3389 action=allow') or\r\n        ProcessCommandLine == @'netsh  advfirewall firewall set rule group=\"\"windows management instrumentation (wmi)\"\" new enable=yes' or\r\n        ProcessCommandLine == @'reg  add \"\"HKLM\\SYSTEM\\CurrentControlSet\\Control\\Terminal Server\"\" /v fDenyTSConnections /t REG_DWORD /d 0 /f'"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0005
+    - TA0003
+techniques:
+    - T1021.001
+    - T1112
+    - T1562.002
+tags:
+    - kql
+version: "1"

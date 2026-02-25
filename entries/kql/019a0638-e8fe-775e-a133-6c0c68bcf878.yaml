@@ -1,0 +1,27 @@
+id: 019a0638-e8fe-775e-a133-6c0c68bcf878
+name: Suspicious Command Executed from Run Dialog (ClickFix Technique)
+description: Detects suspicious commands written to the Windows RunMRU registry key, which stores the history of commands executed via the Windows Run dialog (Win+R). This activity is often associated with the "ClickFix" social engineering technique, where users are tricked into pasting and running malicious commands. The rule identifies various suspicious indicators, including fake verification messages, PowerShell commands with obfuscation or download cradles, mshta, wscript, curl, wget, rundll32, bitsadmin, ssh proxy abuse, and obfuscated command line arguments.
+query: "// Name: Suspicious Command Executed from Run Dialog (ClickFix Technique)\r\n// Description: Detects suspicious commands written to the RunMRU registry key. This key stores the history of commands executed via the Windows Run dialog (Win+R), a common execution vector for the \"ClickFix\" social engineering technique where users are tricked into pasting and running malicious commands.\r\n// False Positive Sensitivity: Medium. System administrators may use the Run dialog for legitimate tasks involving PowerShell, mshta, or curl. Review the full command line for malicious indicators like obfuscation, download cradles, or unusual domains. Consider tuning by excluding known administrative commands or specific users if false positives occur.\r\n// References: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/\r\n\r\nDeviceRegistryEvents\r\n// Filter for modifications to the RunMRU key, initiated by explorer.exe (the parent of the Run dialog).\r\n| where ActionType == \"RegistryValueSet\"\r\n| where InitiatingProcessFileName =~ \"explorer.exe\"\r\n| where RegistryKey endswith @\"\\Explorer\\RunMRU\" and RegistryValueName != \"MRUList\"\r\n| extend Command = RegistryValueData\r\n// Define sets of suspicious indicators based on the ClickFix technique.\r\n| extend isFakeVerification = Command has_any (\r\n    \"✅\", \"✔️\", \"I am not a robot\", \"reCAPTCHA Verification\", \"CAPTCHA Verification\",\r\n    \"Cloud identificator\", \"Human, not a robot\", \"Microsoft Defender Services Secure Access\", \"MacOS Verification\"\r\n)\r\n| extend isSuspiciousPS = (Command has \"powershell\" or Command has \"pwsh\") and Command has_any (\r\n    \"IEX\", \"Invoke-Expression\", \"IWR\", \"Invoke-WebRequest\", \"IRM\", \"Invoke-RestMethod\",\r\n    \"DownloadString\", \"DownloadFile\", \"FromBase64String\", \"System.Net.WebClient\",\r\n    \"-e \", \"-en \", \"-enc \", \"-encoded\", // PowerShell encoded command flags.\r\n    \"[char]\", \"'+'\", // Indicators of string obfuscation.\r\n    \"hidden\", \"-w h\", \"-Window.HID\", // Hiding the PowerShell window.\r\n    \"[System.IO.Path]::Combine\", \"[scriptblock]\"\r\n)\r\n| extend isSuspiciousMshta = Command has \"mshta\" and Command has_any (\"http\", \"javascript:\", \"vbscript:\")\r\n| extend isSuspiciousWscript = Command has \"wscript\" and Command has_any (\"http\", \".vbs\", \".js\")\r\n| extend isSuspiciousDownloadUtil = (Command has \"curl\" or Command has \"wget\") and Command has_any (\"-o \", \"-O \", \"|\", \">\") // Look for output to a file or piping.\r\n| extend isSuspiciousRundll32 = Command has \"rundll32\" and Command has_any (\"http\", \"javascript:\", \"vbscript:\")\r\n| extend isSuspiciousBitsadmin = Command has \"bitsadmin\" and Command has_any (\"/transfer\", \"/create\")\r\n| extend isSshProxyAbuse = Command has \"ssh.exe\" and Command has \"ProxyCommand\" // Detects abuse of ssh.exe to proxy commands.\r\n| extend isObfuscatedCmd = (\r\n    (Command has \"cmd\" and (countof(Command, \"^\") > 2 or countof(Command, \"cmd.exe /c\") > 2)) or // Detects caret obfuscation or LOLBIN stacking.\r\n    (Command matches regex @\"[-/–][Ee^]{1,2}[NnCcOoDdEeMmAa^]*\\s[A-Za-z0-9+/=]{15,}\")\r\n)\r\n// Combine all suspicious conditions to identify potential ClickFix activity.\r\n| where isFakeVerification\r\n    or isSuspiciousPS\r\n    or isSuspiciousMshta\r\n    or isSuspiciousWscript\r\n    or isSuspiciousDownloadUtil\r\n    or isSuspiciousRundll32\r\n    or isSuspiciousBitsadmin\r\n    or isSshProxyAbuse\r\n    or isObfuscatedCmd\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    Command,\r\n    RegistryKey,\r\n    InitiatingProcessFileName,\r\n    isFakeVerification,\r\n    isSuspiciousPS,\r\n    isSuspiciousMshta,\r\n    isSuspiciousWscript,\r\n    isSuspiciousDownloadUtil,\r\n    isSuspiciousRundll32,\r\n    isSuspiciousBitsadmin,\r\n    isSshProxyAbuse,\r\n    isObfuscatedCmd\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0011
+    - TA0001
+techniques:
+    - T1204.001
+    - T1059.001
+    - T1059.003
+    - T1218.005
+    - T1218.010
+    - T1105
+    - T1027
+    - T1566.001
+    - T1566.002
+tags:
+    - kql
+author: Rudra Verma
+version: "10"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/

@@ -1,0 +1,123 @@
+id: 019c2f16-8b68-75ff-ad2a-a783491e70b9
+name: Mimikatz Execution - All Modules and Plugins
+description: This rule detects the execution of Mimikatz or Mimikatz-related tools and scripts (e.g., DumpCreds, Invoke-Mimikatz, Invoke-Mimikittenz) by analyzing command-line arguments. It specifically looks for the use of various Mimikatz modules and commands, including those related to credential dumping (e.g., sekurlsa::logonpasswords, lsadump::sam, dpapi::masterkey), privilege escalation (e.g., privilege::debug, token::elevate), and other functionalities like Kerberos ticket manipulation (e.g., kerberos::golden, kerberos::ptt).
+query: |-
+    title: Mimikatz Execution - All Modules and Plugins
+    id: b2c3d4e5-f6a7-4890-b123-mimikatz001
+    status: experimental
+    description: |
+        Comprehensive detection of Mimikatz execution via command-line arguments.
+        Covers all modules: crypto, dpapi, event, kerberos, lsadump, misc, net, privilege,
+        process, rpc, sekurlsa, service, sid, standard, token, ts, vault.
+    references:
+        - https://tools.thehacker.recipes/mimikatz/modules
+    author: Daniel Jeremiah
+    date: 2026/02/05
+    tags:
+        - attack.credential-access
+        - attack.s0002
+        - attack.t1003.001
+        - attack.t1003.002
+        - attack.t1003.004
+        - attack.t1003.005
+        - attack.t1003.006
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_tools:
+            CommandLine|contains|any:
+                - 'mimikatz'
+                - 'DumpCreds'
+                - 'Invoke-Mimikatz'
+                - 'Invoke-Mimikittenz'
+        selection_modules:
+            CommandLine|contains|any:
+                - 'crypto::'
+                - 'dpapi::'
+                - 'event::'
+                - 'kerberos::'
+                - 'lsadump::'
+                - 'misc::'
+                - 'net::'
+                - 'privilege::'
+                - 'process::'
+                - 'rpc::'
+                - 'sekurlsa::'
+                - 'service::'
+                - 'sid::'
+                - 'token::'
+                - 'ts::'
+                - 'vault::'
+        selection_commands:
+            CommandLine|contains|any:
+                - 'sekurlsa::logonpasswords'
+                - 'sekurlsa::tickets'
+                - 'sekurlsa::pth'
+                - 'sekurlsa::minidump'
+                - 'sekurlsa::msv'
+                - 'sekurlsa::wdigest'
+                - 'sekurlsa::kerberos'
+                - 'sekurlsa::dpapi'
+                - 'sekurlsa::cloudap'
+                - 'lsadump::sam'
+                - 'lsadump::dcsync'
+                - 'lsadump::dcshadow'
+                - 'lsadump::secrets'
+                - 'lsadump::lsa'
+                - 'lsadump::cache'
+                - 'lsadump::zerologon'
+                - 'kerberos::golden'
+                - 'kerberos::ptt'
+                - 'kerberos::ptc'
+                - 'kerberos::tgt'
+                - 'dpapi::masterkey'
+                - 'dpapi::chrome'
+                - 'dpapi::cred'
+                - 'dpapi::blob'
+                - 'privilege::debug'
+                - 'privilege::backup'
+                - 'privilege::driver'
+                - 'token::elevate'
+                - 'misc::skeleton'
+                - 'misc::printnightmare'
+                - 'misc::memssp'
+                - 'misc::efs'
+                - 'misc::spooler'
+                - 'misc::shadowcopies'
+                - 'misc::aadcookie'
+                - 'vault::list'
+                - 'vault::cred'
+                - 'ts::logonpasswords'
+                - 'ts::mstsc'
+                - 'ts::multirdp'
+                - 'ts::remote'
+        condition: 1 of selection_*
+    falsepositives:
+        - Authorized red team
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1003.001
+    - T1003.002
+    - T1003.004
+    - T1003.005
+    - T1003.006
+tags:
+    - attack.credential-access
+    - attack.s0002
+    - attack.t1003.001
+    - attack.t1003.002
+    - attack.t1003.004
+    - attack.t1003.005
+    - attack.t1003.006
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://tools.thehacker.recipes/mimikatz/modules
+data_sources:
+    - process_creation
+    - windows

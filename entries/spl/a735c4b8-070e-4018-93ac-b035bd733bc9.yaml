@@ -1,0 +1,20 @@
+id: a735c4b8-070e-4018-93ac-b035bd733bc9
+name: ToolShell Post Exploit Mimikatz/PsExec/Impacket Usage
+description: This detection identifies the use of common post-exploitation tools like PsExec, Impacket (specifically WMIExec), and Mimikatz. These tools are frequently used by threat actors for lateral movement and credential access after gaining initial access. The rule looks for specific process names and command-line arguments indicative of these tools.
+query: "`comment(\"\ndate: 2025-07-23\ndescription: This detection identifies the use of common post-exploitation tools like PsExec, Impacket, and Mimikatz. These tools are frequently used by threat actors for lateral movement and credential access after gaining initial access, as seen in recent SharePoint exploitation campaigns.\nreferences:\n  - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/\n\")`\n\n`comment(\"Start search on process execution events, using tstats for performance.\")`\n| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.process_name IN (\"PSEXESVC.exe\", \"cmd.exe\") OR Processes.parent_process_name=\"WmiPrvSE.exe\" OR Processes.process IN (\"*sekurlsa::*\", \"*lsadump::*\")) by Processes.dest, Processes.user, Processes.parent_process_name, Processes.process_name, Processes.process\n\n`comment(\"Filter for specific patterns related to PsExec, Impacket, and Mimikatz.\")`\n| where \n    (process_name=\"PSEXESVC.exe\" AND parent_process_name=\"services.exe\") OR\n    (parent_process_name=\"WmiPrvSE.exe\" AND process_name=\"cmd.exe\" AND like(process, \"%1> \\\\\\\\127.0.0.1\\\\ADMIN$%\")) OR\n    (like(process, \"%sekurlsa::logonpasswords%\") OR like(process, \"%lsadump::sam%\"))\n\n`comment(\"Categorize the detected tool for easier analysis.\")`\n| eval tool_detected = case(\n    process_name=\"PSEXESVC.exe\", \"PsExec\",\n    parent_process_name=\"WmiPrvSE.exe\", \"Impacket (WMIExec)\",\n    like(process, \"%sekurlsa::%\") OR like(process, \"%lsadump::%\"), \"Mimikatz\",\n    1=1, \"Unknown\"\n)\n\n`comment(\"Rename fields for better readability.\")`\n| rename \"Processes.*\" as *\n\n`comment(\"Convert epoch timestamps to human-readable format.\")`\n| convert ctime(firstTime) ctime(lastTime)\n\n`comment(\"FP Note: PsExec is a legitimate administrative tool. Its use should be correlated with other suspicious activity or verified against authorized administrative tasks. The Mimikatz and Impacket patterns are high-fidelity but may appear during authorized penetration testing.\")`\n| fields firstTime, lastTime, dest, user, parent_process_name, process_name, process, count, tool_detected\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0006
+    - TA0002
+techniques:
+    - T1569.002
+    - T1021.002
+    - T1003
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

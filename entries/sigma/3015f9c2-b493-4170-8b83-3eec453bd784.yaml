@@ -1,0 +1,72 @@
+id: 3015f9c2-b493-4170-8b83-3eec453bd784
+name: TerraStealerV2/TerraLogger C2 and Exfiltration Detection
+description: Detects network connections to known TerraStealerV2/TerraLogger C2/exfiltration domains (wetransfers.io, api.telegram.org) initiated by suspicious processes, or the creation of the specific output zip file used by TerraStealerV2.
+query: |-
+    title: TerraStealerV2 / TerraLogger Network and File Activity
+    description: Detects network connections to known TerraStealerV2/TerraLogger C2/exfiltration domains (wetransfers.io, api.telegram.org) initiated by suspicious processes, or the creation of the specific output zip file used by TerraStealerV2.
+    status: experimental
+    author: Detections.ai
+    date: 2025-05-09
+    references:
+        - https://www.recordedfuture.com/golden-chickens-terrastalerv2-terralogger-credential-theft
+    logsource:
+        product: windows
+        service: sysmon
+    detection:
+        selection_wetransfers:
+            EventID: 3 # Sysmon EventID 3: Network connection
+            DestinationHostname|contains: 'wetransfers.io'
+            InitiatingProcessImage|endswith:
+                - '\regsvr32.exe'
+                - '\curl.exe'
+                - '\powershell.exe'
+                - '\mshta.exe'
+                - '\wmic.exe'
+        selection_telegram_network:
+            EventID: 3 # Sysmon EventID 3: Network connection
+            DestinationHostname|contains: 'api.telegram.org'
+            InitiatingProcessImage|endswith:
+                - '\regsvr32.exe'
+                - '\curl.exe'
+                - '\powershell.exe'
+                - '\mshta.exe'
+                - '\wmic.exe'
+        selection_zip:
+            EventID: 11 # Sysmon EventID 11: File creation
+            TargetFilename|endswith: '\output.zip'
+            TargetFilename|contains: '\Packages\'
+        condition: selection_wetransfers or (selection_telegram_network and selection_zip)
+    tags:
+        - attack.t1071.001 # Application Layer Protocol: Web Protocols
+        - attack.t1041 # Exfiltration Over C2 Channel
+        - attack.t1003 # OS Credential Dumping
+        - attack.t1056.001 # Input Capture: Keylogging
+        - attack.t1218.009 # Signed Binary Proxy Execution: Regsvr32
+        - attack.t1105 # Ingress Tool Transfer
+        - attack.t1555.003 # Credentials from Web Browsers
+        - attack.t1560.001 # Archive Collected Data: Archive via Utility
+        - attack.t1567.002 # Exfiltration to Cloud Storage: Automated Exfiltration
+        - attack.t1059 # Command and Scripting Interpreter
+        - attack.t1083 # File and Directory Discovery
+        - attack.t1057 # Process Discovery
+    falsepositives:
+        - Legitimate use of curl, powershell, mshta, wmic, or regsvr32 connecting to api.telegram.org (less likely in combination with zip file creation).
+        - Legitimate file creation of output.zip in a path containing \Packages\ (unlikely for this specific path pattern).
+    level: high
+query_type: sigma
+severity: medium
+tags:
+    - attack.t1071.001
+    - attack.t1041
+    - attack.t1003
+    - attack.t1056.001
+    - attack.t1218.009
+    - attack.t1105
+    - attack.t1555.003
+    - attack.t1560.001
+    - attack.t1567.002
+    - attack.t1059
+    - attack.t1083
+    - attack.t1057
+author: Detections.ai
+version: "1"

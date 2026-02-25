@@ -1,0 +1,15 @@
+id: 019c8ede-3145-77f6-ab41-543cf03ff8e8
+name: Anomalous WSUS Web Requests (CVE-2025-59287)
+description: Monitors for a pattern of POST requests to specific WSUS web services. This activity is associated with the initial exploitation of the WSUS RCE vulnerability CVE-2025-59287.
+query: "// Name: Anomalous WSUS Web Requests\r\n// Author: adarsh pandey\r\n// Date: 2026-02-24\r\n// Description: Monitors for a pattern of POST requests to specific WSUS web services. This activity is associated with the initial exploitation of the WSUS RCE vulnerability CVE-2025-59287.\r\n// False Positives: Medium. Legitimate WSUS clients will communicate with these endpoints. However, exploitation often originates from a single, non-standard client IP. Consider tuning by filtering for external source IPs or summarizing by client IP to find anomalous request patterns.\r\n// References: https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability\r\n// MITRE TTPs: T1190\r\nW3CIISLog\r\n// Look for IIS log entries from the last day. Note: This query assumes IIS logs are ingested into the W3CIISLog table.\r\n| where TimeGenerated > ago(1d)\r\n// Filter for POST requests, which are used in the exploit chain.\r\n| where csMethod == \"POST\"\r\n// Look for requests to the specific web service endpoints targeted by CVE-2025-59287.\r\n| where csUriStem in~ (\"/ReportingWebService/ReportingWebService.asmx\", \"/SimpleAuthWebService/SimpleAuth.asmx\", \"/ClientWebService/Client.asmx\", \"/ApiRemoting30/WebService.asmx\")\r\n// Optional: To reduce false positives, filter out known internal IP ranges if your WSUS server should not be internet-facing.\r\n// | where not(ipv4_is_private(cIP))\r\n| project\r\n    TimeGenerated,\r\n    Computer, // The targeted WSUS server\r\n    cIP, // Source IP of the request\r\n    csMethod,\r\n    csUriStem,\r\n    csUserAgent,\r\n    scStatus,\r\n    csHost\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/exploitation-of-windows-server-update-services-remote-code-execution-vulnerability

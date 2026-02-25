@@ -1,0 +1,59 @@
+id: 019ac6ed-abab-742f-bd89-94b6d520b1a7
+name: SERPENTINE#CLOUD Python Process Injection
+description: Detects python.exe executing from an unusual directory (e.g., a user's 'Contacts' folder) and injecting code into a benign process like notepad.exe. This is a specific behavior observed in the SERPENTINE#CLOUD campaign, where a Python-based loader is used to execute shellcode in memory.
+query: |
+    # Name: SERPENTINE#CLOUD Python Process Injection
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # Detects python.exe executing from an unusual directory (e.g., a user's 'Contacts' folder) and injecting code
+    # into a benign process like notepad.exe. This is a specific behavior observed in the SERPENTINE#CLOUD campaign,
+    # where a Python-based loader is used to execute shellcode in memory.
+    #
+    # Data Source:
+    # This search requires process injection logs, such as Sysmon (Event Code 8) or other EDR data.
+    # The macro `process_injection_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., source_process_name, source_process_path, target_process_name).
+    #
+    # References:
+    # - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Defense Evasion, Privilege Escalation
+    # - Technique: T1055 (Process Injection)
+    # - Technique: T1059.006 (Command and Scripting Interpreter: Python)
+    #
+    # False Positives:
+    # False positives are unlikely due to the specific combination of the source process path and the injection target.
+    # However, developers performing unusual tests could potentially trigger this alert.
+    # Investigation should confirm the legitimacy of the Python script and its activity.
+
+    `process_injection_events`
+
+    # Filter for python.exe as the source of the injection.
+    | search source_process_name="python.exe"
+
+    # Look for execution from the specific 'Contacts' directory used by the threat actor.
+    | search source_process_path IN ("*\\Users\\*\\Contacts\\*", "*\\Users\\*\\contacts\\*")
+
+    # The primary target for injection observed in the campaign was notepad.exe.
+    | search target_process_name="notepad.exe"
+
+    # Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, source_process_name, source_process_path, target_process_name, target_process_path
+    | `serpentine_cloud_python_process_injection_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0002
+techniques:
+    - T1055
+    - T1059.006
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/

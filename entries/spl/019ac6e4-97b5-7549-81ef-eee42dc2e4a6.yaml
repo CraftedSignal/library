@@ -1,0 +1,48 @@
+id: 019ac6e4-97b5-7549-81ef-eee42dc2e4a6
+name: Shai-Hulud Webhook Exfiltration
+description: This search detects network connections to a specific webhook.site URL known to be used by the Shai-Hulud 2.0 worm for data exfiltration.
+query: |
+    # Name: Shai-Hulud Webhook Exfiltration
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # This search detects network connections to a specific webhook.site URL known to be used by the
+    # Shai-Hulud 2.0 worm for data exfiltration.
+    #
+    # Data Source:
+    # This search requires network traffic logs, such as proxy, firewall, or DNS logs.
+    # The macro `network_traffic_logs` should be configured to point to the correct index and sourcetype.
+    # Fields for url, dest, and src should be mapped to your CIM.
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Exfiltration
+    # - Technique: T1537 (Transfer Data to Cloud Account)
+    #
+    # False Positives:
+    # The webhook.site service is legitimate and often used by developers for testing. While the specific URI is a strong indicator,
+    # a developer could potentially use the same URI for testing if they copied it from a public threat report.
+    # Investigation should focus on the source of the traffic and any associated process activity.
+
+    `network_traffic_logs`
+
+    # Filter for the specific domain and URI path used by the malware.
+    | search (url="*webhook.site/bb8ca5f6-4175-45d2-b042-fc9ebb8170b7*")
+
+    # Group results for easier investigation.
+    | stats count by _time, src, dest, user, url
+    | `shai_hulud_webhook_exfiltration_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.004
+tags:
+    - spl
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

@@ -1,0 +1,24 @@
+id: 77b193d3-05d2-4a2c-9fe2-9ec2e818386f
+name: Remote Monitoring and Management (RMM) Tool Distributed via Email
+description: "This detection identifies when an email that contains a URL associated with a known Remote Monitoring and Management (RMM) tool was sent and subsequently clicked by the intended recipient or the original sender. The domain is not part of the organization's approved RMM solutions, indicating a potential use of Living-off-the-Land RMM (LOLRMM) techniques often employed in initial access or persistence stages by threat actors. \n\nThis activity may reflect attempted remote access, lateral movement, or data collection through unauthorized RMM deployment. "
+query: "let Timeframe = 1h;\r\n//Your approved RMM domains\r\nlet ApprovedRMM = dynamic([]); \r\nlet RMMList = externaldata(URI: string, RMMTool: string)\r\n    [h'https://raw.githubusercontent.com/magicsword-io/LOLRMM/main/website/public/api/rmm_domains.csv'];\r\nlet RMMUrl = RMMList | project URI;\r\nlet RMMToolEmail = materialize (\r\n    EmailUrlInfo\r\n    | where Timestamp > ago(Timeframe)\r\n    | where not(UrlDomain has_any(ApprovedRMM))\r\n    | where UrlDomain has_any(RMMUrl)\r\n    | join kind=innerunique (\r\n        EmailEvents \r\n        | where Timestamp > ago(Timeframe)\r\n        | where EmailDirection == 'Inbound'\r\n        | where DeliveryAction == 'Delivered'\r\n        | where LatestDeliveryAction == 'Delivered'\r\n        | where UrlCount >= 1\r\n        | extend \r\n            Recipients = array_concat(To, Cc, todynamic(RecipientEmailAddress)),\r\n            SPF = tostring(parse_json(AuthenticationDetails)['SPF']),\r\n            DKIM = tostring(parse_json(AuthenticationDetails)['DKIM']),\r\n            DMARC = tostring(parse_json(AuthenticationDetails)['DMARC']),\r\n            CompAuth = tostring(parse_json(AuthenticationDetails)['CompAuth'])\r\n        | summarize \r\n            Recipients = make_set(Recipients),\r\n            arg_min(ReportId, AuthenticationDetails)\r\n            by EmailTime = Timestamp, SPF, DMARC, DKIM, CompAuth, EmailLanguage, EmailDirection, DeliveryAction, LatestDeliveryAction, LatestDeliveryLocation,\r\n                NetworkMessageId, InternetMessageId, SenderMailFromDomain, SenderDisplayName, SenderFromAddress,\r\n                SenderIPv4, Subject, UrlCount, AttachmentCount\r\n        ) on NetworkMessageId\r\n    | join kind=innerunique ( \r\n        UrlClickEvents\r\n        | where Timestamp > ago(Timeframe)\r\n        | where ActionType == 'ClickAllowed'\r\n        | where Workload == 'Email'\r\n        | summarize arg_max(SourceId, UrlChain, DetectionMethods) \r\n            by ClickTime = Timestamp, Workload, ActionType, AccountUpn, IPAddress, Url, IsClickedThrough, AppName, AppVersion\r\n        ) on Url\r\n        | extend \r\n            SenderEmail = tolower(SenderFromAddress), \r\n            ClickEmail = tolower(AccountUpn)\r\n);\r\nRMMToolEmail\r\n//The user who sent the email clicked the URL or the recipient(s) of the email clicked the URL\r\n| where SenderEmail == ClickEmail or array_index_of(Recipients, ClickEmail) != -1\r\n| project \r\n    Timestamp, Url, UrlDomain, UrlLocation, UrlChainPosition, UrlChain,\r\n    EmailTime, EmailDirection, EmailLanguage, SPF, DKIM, DMARC, CompAuth, LatestDeliveryAction, LatestDeliveryLocation,\r\n    SenderDisplayName, SenderFromAddress, SenderIPv4, NetworkMessageId, InternetMessageId, Subject, UrlCount, AttachmentCount,\r\n    Recipients, ClickTime, ActionType, AccountUpn, IPAddress, IsClickedThrough, Workload, AppName, AppVersion, SourceId, ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+    - TA0003
+    - TA0005
+    - TA0004
+techniques:
+    - T1566.002
+    - T1219
+    - T1133
+    - T1078
+    - T1098
+tags:
+    - kql
+    - mdo
+    - defender xdr
+author: ramz
+version: "1"

@@ -1,0 +1,31 @@
+id: 7d3f0cf4-8c3c-42ea-8b35-662384d9a3fa
+name: DefenderXDR Advanced Hunting All-In-One UPN Search
+description: KQL Query
+query: "// DefenderXDR Advanced Hunting All-In-One UPN Search\n// https://www.linkedin.com/pulse/defenderxdr-advanced-hunting-all-in-one-upn-search-steven-lim-zdlic/\n\n// This KQL query searches across these DefenderXDR log tables for the UPN variable that is defined at the start:\n// AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta, IdentityInfo, IdentityLogonEvents, UrlClickEvents, DeviceEvents, DeviceFileEvents, DeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents, DeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents, EmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes\n\nlet upn = \"John.Doe@Microsoft.com\"; // Enter Your Search UPN\nsearch in (AlertEvidence, BehaviorEntities, BehaviorInfo, AADSignInEventsBeta,\nIdentityInfo, IdentityLogonEvents, UrlClickEvents, DeviceEvents, DeviceFileEvents,\nDeviceImageLoadEvents, DeviceLogonEvents, DeviceNetworkEvents, DeviceProcessEvents,\nDeviceRegistryEvents, CloudAppEvents, EmailAttachmentInfo, EmailEvents, \nEmailPostDeliveryEvents, CloudAuditEvents, ExposureGraphNodes)\nTimestamp between (ago(1d) .. now())\nand (\n// AlertEvidence BehaviorEntities BehaviorInfo DeviceProcessEvents\n// AADSignInEventsBeta IdentityInfo IdentityLogonEvents UrlClickEvents \nAccountUpn == upn\n// DeviceEvents DeviceFileEvents DeviceImageLoadEvents DeviceLogonEvents\n// DeviceNetworkEvents DeviceProcessEvents DeviceRegistryEvents \nor InitiatingProcessAccountUpn == upn\n// CloudAppEvents\nor tostring(RawEventData.UserId) == upn\n// EmailAttachmentInfo EmailEvents EmailPostDeliveryEvents  \nor SenderFromAddress == upn\nor RecipientEmailAddress == upn\n// CloudAuditEvents \nor RawEventData contains upn\n//ExposureGraphNodes\nor NodeProperties.rawData contains upn\n)\n\n// MITRE ATT&CK Mapping\n\n// The query can be associated with several MITRE ATT&CK techniques based on the data sources and fields being queried:\n\n// Credential Access:\n// T1078: Valid Accounts - Searching for AccountUpn and InitiatingProcessAccountUpn can help detect unauthorized use of valid accounts.\n\n// Initial Access:\n// T1071: Application Layer Protocol - UrlClickEvents and EmailEvents can be used to detect phishing attempts or malicious links.\n\n// Execution:\n// T1059: Command and Scripting Interpreter - DeviceProcessEvents can help detect suspicious script execution.\n\n// Persistence:\n// T1078: Valid Accounts - Repeated logon events (DeviceLogonEvents) can indicate persistence mechanisms.\n\n// Privilege Escalation:\n// T1055: Process Injection - DeviceProcessEvents can be used to detect process injection techniques.\n\n// Defense Evasion:\n// T1070: Indicator Removal on Host - DeviceRegistryEvents can help detect attempts to modify registry keys to evade detection.\n\n// Discovery:\n// T1083: File and Directory Discovery - DeviceFileEvents can be used to detect file and directory discovery activities.\n\n// Lateral Movement:\n// T1021: Remote Services - DeviceNetworkEvents can help detect lateral movement through remote services.\n\n// Collection:\n// T1114: Email Collection - EmailEvents and EmailAttachmentInfo can be used to detect email collection activities.\n\n// Exfiltration:\n// T1041: Exfiltration Over C2 Channel - CloudAppEvents can help detect data exfiltration over cloud applications.\n\n// Impact:\n// T1486: Data Encrypted for Impact - DeviceFileEvents can help detect ransomware activities.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0011
+    - TA0002
+    - TA0007
+    - TA0008
+    - TA0009
+    - TA0010
+    - TA0040
+techniques:
+    - T1078
+    - T1071
+    - T1059
+    - T1055
+    - T1070
+    - T1083
+    - T1021
+    - T1114
+    - T1041
+    - T1486
+tags:
+    - kql
+version: "1"

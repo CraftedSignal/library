@@ -1,0 +1,16 @@
+id: 019c5275-f766-706c-b3da-b2554ffbab05
+name: OysterLoader Initial C2 Beacon
+description: Detects a specific two-step HTTP pattern characteristic of OysterLoader's initial C2 communication. The malware first sends a registration request containing a 'WordPressAgent' User-Agent string, followed by a login request with a 'FingerPrint' User-Agent string to the same destination. This version checks for the User-Agent strings in the 'AdditionalFields' column.
+query: "// Name: OysterLoader Initial C2 Beacon\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Description: Detects a specific two-step HTTP pattern characteristic of OysterLoader's initial C2 communication. The malware first sends a registration request containing a 'WordPressAgent' User-Agent string, followed by a login request with a 'FingerPrint' User-Agent string to the same destination. This version checks for the User-Agent strings in the 'AdditionalFields' column.\r\n// MITRE TTPs: T1071.001\r\n// References: https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/\r\n// False Positive Sensitivity: Medium. The combination of User-Agents and URI paths is highly specific, making false positives unlikely. The 'timeframe' variable can be adjusted if legitimate activity is found to match this pattern over a longer period.\r\nlet timeframe = 5m; // Time window to correlate the two sequential events.\r\n// Look for the first C2 communication step: a registration request.\r\n// Checks for the User-Agent string in the 'AdditionalFields' column as 'HttpUserAgent' may not be available.\r\nlet registration =\r\n    DeviceNetworkEvents\r\n    | where ActionType in (\"HttpConnect\", \"HttpRequest\")\r\n    | where RemoteUrl has \"/reg\" and AdditionalFields has \"WordPressAgent\";\r\n// Look for the second C2 communication step: a login request.\r\nlet login =\r\n    DeviceNetworkEvents\r\n    | where ActionType in (\"HttpConnect\", \"HttpRequest\")\r\n    | where RemoteUrl has \"/login\" and AdditionalFields has \"FingerPrint\";\r\n// Join the two steps on the same device and destination IP.\r\nregistration\r\n| join kind=inner (\r\n    login\r\n) on DeviceId, RemoteIP\r\n// Ensure the login event happens after the registration event but within the specified timeframe.\r\n// KQL renames columns from the right side of the join with a '1' if names conflict (e.g., Timestamp becomes Timestamp1).\r\n| where Timestamp1 > Timestamp and (Timestamp1 - Timestamp) < timeframe\r\n| project\r\n    Timestamp = Timestamp1,\r\n    DeviceId,\r\n    DeviceName = DeviceName1,\r\n    RemoteIP,\r\n    RegistrationUrl = RemoteUrl,\r\n    LoginUrl = RemoteUrl1,\r\n    RegistrationTimestamp = Timestamp,\r\n    // Projecting AdditionalFields for investigation context.\r\n    RegistrationAdditionalFields = AdditionalFields,\r\n    LoginAdditionalFields = AdditionalFields1\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.sekoia.io/oysterloader-unmasked-the-multi-stage-evasion-loader/

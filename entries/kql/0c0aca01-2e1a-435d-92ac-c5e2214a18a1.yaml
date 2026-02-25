@@ -1,0 +1,7 @@
+id: 0c0aca01-2e1a-435d-92ac-c5e2214a18a1
+name: Detect Suspicious Windows Service Activities
+description: This KQL query identifies known suspicious Windows service activities on devices by comparing them with an external list of suspicious services.
+query: "let Suspicious_Services = externaldata(\n    service_name: string, \n    service_path: string, \n    metadata_tool_category: string, \n    metadata_tool_type: string,\n    metadata_severity: string,\n    metadata_comment: string,\n    metadata_reference: string\n)\n[\n    @\"https://raw.githubusercontent.com/mthcht/awesome-lists/main/Lists/suspicious_windows_services_names_list.csv\"\n] \nwith (format=\"csv\", ignoreFirstRecord=True);\nDeviceEvents\n| where ActionType in (\"ServiceInstalled\", \"ServiceModified\", \"ServiceDeleted\")\n| extend ServiceName = extractjson(\"$.ServiceName\", tostring(AdditionalFields))\n| extend ServiceAccount = extractjson(\"$.ServiceAccount\", tostring(AdditionalFields))\n| join kind=inner (Suspicious_Services) on $left.ServiceName == $right.service_name\n| project TimeGenerated, DeviceName, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessFolderPath, ActionType, ServiceName, ServiceAccount, metadata_comment, metadata_tool_category, metadata_tool_type, metadata_severity, metadata_reference, service_name, service_path\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+version: "2"

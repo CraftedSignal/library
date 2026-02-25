@@ -1,0 +1,60 @@
+id: d0859639-00c4-4618-9a6a-93c5a2e353e8
+name: Reflective Code Loading
+description: Detects reflective loading of .NET assemblies from memory within PowerShell. This technique is often used to execute malicious code while bypassing file-based detections and some AMSI features, as the assembly is loaded directly from a byte array rather than from a file on disk.
+query: |
+    // Name: Reflective Assembly Load in PowerShell
+    // Author: detections.ai
+    // Date: 2025-08-11
+    // Description: Detects reflective loading of .NET assemblies from memory within PowerShell. This technique is often used to execute malicious code while bypassing file-based detections and some AMSI features, as the assembly is loaded directly from a byte array rather than from a file on disk.
+    // MITRE ATT&CK: T1620 (Reflective Code Loading), T1055 (Process Injection), T1622 (Debugger Evasion)
+    // References: https://github.com/BC-SECURITY/Obfuscation-Reloaded (from user provided intel)
+
+    // This search requires PowerShell Script Block Logging (EventCode 4104).
+    `powershell_script_block_log` EventCode=4104
+
+    // Normalize the field containing the script block content.
+    | eval script_block_text = coalesce(ScriptBlockText, Message)
+
+    // Main detection logic: Look for Assembly.Load combined with memory-based sources.
+    | where (
+        // High-confidence: Loading an assembly directly from a Base64 string is a very common malware pattern.
+        (like(script_block_text, "%[System.Reflection.Assembly]::Load%") AND like(script_block_text, "%FromBase64String%"))
+        OR
+        // High-confidence: Loading an assembly from a byte array downloaded from the web.
+        (like(script_block_text, "%[System.Reflection.Assembly]::Load%") AND like(script_block_text, "%DownloadData%"))
+        OR
+        // Medium-confidence: A more generic pattern looking for Assembly.Load with a byte array.
+        (like(script_block_text, "%[System.Reflection.Assembly]::Load%") AND like(script_block_text, "%[byte[]]%"))
+        OR
+        // Alternative method using the current AppDomain, also combined with memory-based sources.
+        (like(script_block_text, "%CurrentDomain.Load%") AND (like(script_block_text, "%FromBase64String%") OR like(script_block_text, "%DownloadData%")))
+    )
+
+    // FP Tuning: Some legitimate software installers or management tools may use reflective loading.
+    // Exclude known safe parent processes or scripts if false positives occur.
+    // Example: | search NOT (ParentProcessName="*\\TrustedInstaller.exe" OR ParentProcessName="*\\ManagementConsole.exe")
+
+    // Extract key information for the alert.
+    | eval technique = case(
+        like(script_block_text, "%FromBase64String%"), "Reflective Load from Base64 String",
+        like(script_block_text, "%DownloadData%"), "Reflective Load from Web Download",
+        like(script_block_text, "%[byte[]]%"), "Reflective Load from Byte Array",
+        1=1, "Generic Reflective Load"
+      )
+    | table _time, host, user, technique, ParentProcessName, process, CommandLine, script_block_text
+    | rename host as dest, ParentProcessName as parent_process, process as process_name, CommandLine as process_command_line, script_block_text as details
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1620
+    - T1059.001
+    - DS0012
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://github.com/BC-SECURITY/Obfuscation-Reloaded

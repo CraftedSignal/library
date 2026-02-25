@@ -1,0 +1,84 @@
+id: 019c0ca9-360b-7702-baf6-466ac7a254a7
+name: XenoRAT Info Stealer Execution
+description: |
+    Detects execution of XenoRAT, an information stealer and remote access trojan targeting browser data, cryptocurrency wallets, file systems, and HVNC style remote desktop activity. Command and control parameters including hostname, port, username, and password are supplied at runtime. Detection uses known hashes and behavioural context, with higher confidence achieved by correlating with xenorat_stealer_file_access on the same host within 15 minutes.
+query: |
+    title: XenoRAT Info Stealer Execution
+    id: a1b2c3d4-e5f6-7890-abcd-ef1234567890
+    status: experimental
+    description: >
+      Detects execution of XenoRAT, an information stealer and remote access trojan
+      targeting browser data, cryptocurrency wallets, file systems, and HVNC style
+      remote desktop activity. Command and control parameters including hostname,
+      port, username, and password are supplied at runtime. Detection uses known
+      hashes and behavioural context, with higher confidence achieved by correlating
+      with xenorat_stealer_file_access on the same host within 15 minutes.
+    references:
+      - >-
+        https://bazaar.abuse.ch/download/5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd/
+    author: Daniel Jeremiah
+    date: 2026/01/30
+    hashes:
+      - 5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd
+      - bb7f5743de052f65f2678aa63ab7ee39e1532e555be42d5b3a7183332f97c07b
+    tags:
+      - attack.command_and_control
+      - attack.collection
+      - attack.t1047
+      - attack.t1056
+      - attack.t1071.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_known_hash:
+        SHA256|contains|any:
+          - 5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd
+          - bb7f5743de052f65f2678aa63ab7ee39e1532e555be42d5b3a7183332f97c07b
+      selection_dropper_context:
+        Image|re: .*\\(ProgramData|Temp|TEMP|Users\\.*\\AppData\\Local\\Temp)\\.*\.exe
+        ParentImage|endswith|any:
+          - \explorer.exe
+          - \msedge.exe
+          - \chrome.exe
+          - \firefox.exe
+          - \iexplore.exe
+      selection_loader_context:
+        ParentImage|re: .*\\(ProgramData|Temp|TEMP|Users\\.*\\AppData\\Local\\Temp)\\.*\.exe
+        Image|endswith|any:
+          - \cmd.exe
+          - \chrome.exe
+          - \firefox.exe
+          - \msedge.exe
+          - \opera.exe
+      condition: >-
+        selection_known_hash or (selection_dropper_context or
+        selection_loader_context)
+    falsepositives:
+      - Legitimate security testing (e.g. POC, authorized testing) using the C2 as
+        testing
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0002
+    - TA0006
+    - TA0011
+techniques:
+    - T1047
+    - T1056
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.collection
+    - attack.t1047
+    - attack.t1056
+    - attack.t1071.001
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://bazaar.abuse.ch/download/5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,16 @@
+id: ba4dccef-a487-40f6-b910-7eb9ec2f04da
+name: ToolShell Defender Protection Disablement
+description: This detection identifies attempts to disable or tamper with Microsoft Defender Antivirus using common command-line tools. This is a frequent defense evasion technique used by threat actors, including those exploiting SharePoint vulnerabilities, to operate undetected on a compromised host.
+query: "`comment(\"\ndate: 2025-07-23\ndescription: This detection identifies attempts to disable or tamper with Microsoft Defender Antivirus using common command-line tools. This is a frequent defense evasion technique used by threat actors, including those exploiting SharePoint vulnerabilities, to operate undetected on a compromised host.\nreferences:\n  - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/\n\")`\n\n`comment(\"Start search on process execution events, using tstats for performance.\")`\n| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.process_name IN (\"powershell.exe\", \"sc.exe\", \"net.exe\", \"reg.exe\")) AND (Processes.process IN (\"*Set-MpPreference*\", \"*DisableAntiSpyware*\", \"*WinDefend*\")) by Processes.dest, Processes.user, Processes.parent_process_name, Processes.process_name, Processes.process\n\n`comment(\"Filter for specific, high-confidence patterns of Defender disablement.\")`\n| where \n    (process_name=\"powershell.exe\" AND (like(process, \"%Set-MpPreference -DisableRealtimeMonitoring `$true%\") OR like(process, \"%Set-MpPreference -DisableRealtimeMonitoring 1%\"))) OR\n    (process_name IN (\"sc.exe\", \"net.exe\") AND (like(process, \"%stop WinDefend%\") OR like(process, \"%config WinDefend%start=%disabled%\"))) OR\n    (process_name=\"reg.exe\" AND like(process, \"%add%HKLM\\\\SOFTWARE\\\\Policies\\\\Microsoft\\\\Windows Defender%\") AND like(process, \"%/v DisableAntiSpyware%\") AND like(process, \"%/d 1%\"))\n\n`comment(\"Rename fields for better readability.\")`\n| rename \"Processes.*\" as *\n\n`comment(\"Convert epoch timestamps to human-readable format.\")`\n| convert ctime(firstTime) ctime(lastTime)\n\n`comment(\"FP Note: Legitimate administrative scripts may perform these actions. Review the user, parent process (e.g., w3wp.exe is highly suspicious), and context of the activity to determine if it is authorized.\")`\n| fields firstTime, lastTime, dest, user, parent_process_name, process_name, process, count"
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/

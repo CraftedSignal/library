@@ -1,0 +1,18 @@
+id: 019c6731-3ba4-7761-99cc-97b5b538f698
+name: BADIIS Malware Driver Staging File Creation
+description: Detects the creation of specific .sys files in the C:\Windows\System32\drivers\ directory. These filenames are used by the BADIIS malware installer to stage malicious DLLs before they are moved to other locations for execution.
+query: "// Name: BADIIS Malware Driver Staging\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-16\r\n// Description: Detects the creation of specific .sys files in the C:\\Windows\\System32\\drivers\\ directory. These filenames are used by the BADIIS malware installer to stage malicious DLLs before they are moved to other locations for execution.\r\n// False Positives: False positives are highly unlikely as these filenames are specific to the BADIIS malware staging process and do not correspond to legitimate Windows driver files.\r\n// References: https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign\r\n// MITRE ATT&CK: T1036.005, T1105\r\nlet suspicious_filenames = dynamic([\"WUDFPfprot.sys\", \"WppRecorderpo.sys\", \"WppRecorderrt.sys\"]);\r\nDeviceFileEvents\r\n// Look for file creation events.\r\n| where ActionType == \"FileCreated\"\r\n// Filter for the specific filenames used by BADIIS for staging.\r\n| where FileName in (suspicious_filenames)\r\n// The malware stages these files in the system drivers directory.\r\n| where FolderPath endswith \"\\\\System32\\\\drivers\\\\\"\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1036.005
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/badiis-to-the-bone-new-insights-to-global-seo-poisoning-campaign

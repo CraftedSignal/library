@@ -1,0 +1,63 @@
+id: 01999500-ca53-76c8-b1b7-f49403c96b02
+name: New PlugX variant Naikon/Backdoor DLL Hijacking
+description: Detects the loading of a malicious 'pc2msupp.dll' via legitimate applications, a technique used by Naikon and BackdoorDiplomacy groups to load RainyDay, Turian, and a new PlugX variant.
+query: |
+    title: New PlugX variant Naikon/Backdoor DLL Hijacking
+    id: 59d345a1-6488-4753-9259-d0798e1996e6
+    status: experimental
+    description: >-
+      Detects the loading of a malicious 'pc2msupp.dll' via legitimate applications,
+      a technique used by Naikon and BackdoorDiplomacy groups to load RainyDay,
+      Turian, and a new PlugX variant.
+    references:
+      - >-
+        https://blog.talosintelligence.com/how-rainyday-turian-and-a-new-plugx-variant-abuse-dll-search-order-hijacking/
+    date: 2025-09-29T00:00:00.000Z
+    author: Kaung Khant Ko
+    tags:
+      - attack.t1574.001
+      - threat_actor.naikon
+      - threat_actor.backdoordiplomacy
+      - malware.plugx
+      - malware.rainyday
+      - malware.turian
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_legit_exe:
+        Image|endswith:
+          - \s.exe
+          - \KMSeldi.exe
+          - \wingervlansec.exe
+      selection_mal_dll:
+        ImageLoaded|endswith: \pc2msupp.dll
+      condition: all of selection_*
+    falsepositives:
+      - This detection is highly specific to the TTPs of Naikon and
+        BackdoorDiplomacy. However, if other legitimate software uses a combination
+        of these executable and DLL names, it could lead to false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.t1574.001
+    - threat_actor.naikon
+    - threat_actor.backdoordiplomacy
+    - malware.plugx
+    - malware.rainyday
+    - malware.turian
+author: Kaung Khant Ko
+version: "4"
+references:
+    - https://blog.talosintelligence.com/how-rainyday-turian-and-a-new-plugx-variant-abuse-dll-search-order-hijacking/
+data_sources:
+    - image_load
+    - windows

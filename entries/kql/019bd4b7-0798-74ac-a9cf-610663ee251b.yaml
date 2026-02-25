@@ -1,0 +1,70 @@
+id: 019bd4b7-0798-74ac-a9cf-610663ee251b
+name: '"PHALT#BLYX" ClickFix Attack Using BSOD to deliver malware '
+description: The goal of this detection is to alert on activity associated with the ClickFix social engineering technique, where a user is coerced into manually executing attacker-controlled commands via the Windows Run dialog after interacting with a malicious website reached through a phishing email. More details can be found in the reference URL linked below
+query: |-
+    let ClickFixDomains = dynamic(["low-house.com"]);
+    let BrowserProcesses = dynamic(["msedge.exe", "chrome.exe", "firefox.exe"]);
+    let SuspiciousRunBinaries = dynamic([
+        "powershell.exe",
+        "cmd.exe",
+        "mshta.exe",
+        "rundll32.exe",
+        "wscript.exe",
+        "cscript.exe"
+    ]);
+    let SuspiciousCmdIndicators = dynamic([
+        "-enc",
+        "frombase64string",
+        "invoke-webrequest",
+        "iex",
+        "curl",
+        "bitsadmin",
+        "http"
+    ]);
+    DeviceNetworkEvents
+    | where Timestamp > ago (30d)
+    | where RemoteUrl has_any (ClickFixDomains)
+    | where InitiatingProcessFileName in (BrowserProcesses)
+    | project
+        DeviceId,
+        InitiatingProcessAccountName,
+        PhishTime = Timestamp,
+        RemoteUrl
+    | join kind=inner (
+        DeviceProcessEvents
+        | where Timestamp > ago (30d)
+        | where InitiatingProcessFileName == "explorer.exe"
+        | where FileName in (SuspiciousRunBinaries)
+        | where ProcessCommandLine has_any (SuspiciousCmdIndicators)
+        | project
+            DeviceId,
+            InitiatingProcessAccountName,
+            ExecTime = Timestamp,
+            FileName,
+            ProcessCommandLine
+    ) on DeviceId, InitiatingProcessAccountName
+    | where ExecTime between (PhishTime .. (PhishTime + 10m))
+    | project
+        DeviceId,
+        InitiatingProcessAccountName,
+        PhishTime,
+        RemoteUrl,
+        ExecTime,
+        FileName,
+        ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1204
+    - T1204.001
+    - T1204.004
+    - T1566
+tags:
+    - kql
+author: McDavid Adofoli
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/clickfix-attack-uses-fake-windows-bsod-screens-to-push-malware/

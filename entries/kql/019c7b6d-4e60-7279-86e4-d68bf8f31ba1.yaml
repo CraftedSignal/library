@@ -1,0 +1,40 @@
+id: 019c7b6d-4e60-7279-86e4-d68bf8f31ba1
+name: LunarApplication Malware File Activity
+description: Detects file activity associated with the LunarApplication malware, either by the known installer hash or by creation of files/directories within its installation path. This rule combines a high-fidelity hash with a specific folder path.
+query: |-
+    // Name: LunarApplication Directory Creation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-20
+    // Description: Detects file activity associated with the LunarApplication malware, either by the known installer hash or by creation of files/directories within its installation path.
+    // MITRE ATT&CK: T1543.003, T1204.002
+    // References: https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+    // False Positive Sensitivity: Medium
+    DeviceFileEvents
+    // Look for file events where the initiating process is the known malicious installer OR where files are created in the specific path used by LunarApplication
+    | where InitiatingProcessSHA256 =~ "c634838f255e0a691f8be3eab45f2015f7f3572fba2124142cf9fe1d227416aa"
+        or FolderPath has @"\AppData\Roaming\LunarApplication\"
+    // This rule combines a high-fidelity hash with a specific folder path. If a legitimate application in your environment uses the 'LunarApplication' name,
+    // consider adding exclusions based on the InitiatingProcessFileName or other attributes to reduce potential false positives from the FolderPath clause.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        SHA256,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessSHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets

@@ -1,0 +1,48 @@
+id: af7ba298-0231-474c-8915-67d8840435c1
+name: DarkCloud Campaign Domain Access
+description: Detects DNS queries for domains known to be used by the DarkCloud campaign for payload delivery and C2 communication. This rule specifically targets domains used for initial payload download, final payload delivery, and public IP address determination.
+query: |
+    title: DarkCloud Campaign Domain Access
+    id: b1a2a36e-0808-40d6-883e-537dcaf9362b
+    status: experimental
+    description: Detects DNS queries for domains known to be used by the DarkCloud campaign for payload delivery and C2 communication.
+    references:
+      - https://www.fortinet.com/blog/threat-research/unveiling-a-new-variant-of-the-darkcloud-campaign
+    author: detections.ai
+    date: 2025-08-11
+    tags:
+      - attack.command_and_control
+      - attack.t1102
+    logsource:
+      category: dns
+    detection:
+      selection:
+        query|endswith:
+          # Domain used to download the initial .NET DLL. WARNING: archive.org is a legitimate service and is prone to high false positives.
+          - 'archive.org'
+          # Domain used to download the final DarkCloud payload.
+          - 'paste.ee'
+          # Domain used by the payload to determine the victim's public IP address.
+          - 'showip.net'
+      condition: selection
+    falsepositives:
+      - Legitimate user or application traffic to archive.org, paste.ee, or showip.net.
+      - Due to the inclusion of archive.org, this rule will likely require significant tuning. It is recommended to correlate these DNS events with process execution logs to identify the source process (e.g., powershell.exe, MSBuild.exe) to increase fidelity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102
+    - T1071
+    - T1568
+tags:
+    - attack.command_and_control
+    - attack.t1102
+author: detections.ai
+version: "1"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-a-new-variant-of-the-darkcloud-campaign
+data_sources:
+    - dns

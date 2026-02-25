@@ -1,0 +1,50 @@
+id: 019c9189-898a-754f-84a1-174c2f1b14d0
+name: BQTLock & GREENBLOOD Behavioral Hunts
+description: This rule detects a multi-stage attack chain associated with BQTLock and GREENBLOOD ransomware. It identifies the staging of registry keys for a fodhelper UAC bypass, the subsequent execution of fodhelper.exe, the creation of run-key persistence, and the execution of processes containing the keyword 'greenblood' in their command line, indicating the final payload or related activity.
+query: |+
+    ## BQTLock & GREENBLOOD behavioral hunts (fodhelper UAC bypass + Run-key persistence + greenblood pivot)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://any.run/cybersecurity-blog/emerging-ransomware-bqtlock-greenblood/
+
+    ### 1) Registry staging for fodhelper UAC bypass (ms-settings handler)
+    (index=sysmon OR index=edr OR index=os) (
+      (EventCode=13 OR event_id=13 OR sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational")
+      AND (TargetObject="*\\Software\\Classes\\ms-settings\\Shell\\Open\\command*" OR registry_path="*\\Software\\Classes\\ms-settings\\Shell\\Open\\command*")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Details) as details values(Image) as images values(User) as users by Computer, TargetObject
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Fodhelper execution pivot
+    (index=sysmon OR index=edr OR index=os) (process_name="fodhelper.exe" OR Image="*\\fodhelper.exe")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines values(ParentImage) as parents by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Run-key persistence creation
+    (index=sysmon OR index=edr OR index=os) (
+      (EventCode=13 OR event_id=13 OR sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational")
+      AND (TargetObject="*\\Software\\Microsoft\\Windows\\CurrentVersion\\Run*" OR registry_path="*\\Software\\Microsoft\\Windows\\CurrentVersion\\Run*")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Details) as details values(Image) as images values(User) as users by Computer, TargetObject
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 4) GREENBLOOD triage pivot (keyword)
+    (index=sysmon OR index=edr OR index=os) CommandLine="*greenblood*"
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Image) as images values(ParentImage) as parents by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+    - TA0003
+techniques:
+    - T1548.002
+    - T1547.001
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://any.run/cybersecurity-blog/emerging-ransomware-bqtlock-greenblood/

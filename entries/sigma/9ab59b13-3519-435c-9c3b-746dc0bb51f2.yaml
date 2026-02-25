@@ -1,0 +1,45 @@
+id: 9ab59b13-3519-435c-9c3b-746dc0bb51f2
+name: Massive service failures - Tchopper
+description: Detects scenarios where an attacker uses the Tchopper tool by abusing the display name of a service as a placeholder to upload an obfuscated payload. Service name may come with very high entropy.
+query: |-
+    title: Massive service failures - Tchopper
+    description: Detects scenarios where an attacker uses the Tchopper tool by abusing the display name of a service as a placeholder to upload an obfuscated payload. Service name may come with very high entropy.
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1569.002-Service%20execution
+    - https://github.com/lawrenceamer/TChopper
+    tags:
+    - attack.execution
+    - attack.t1569
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: system
+    detection:
+      selection:
+        EventID:
+          - 7000 # EVENT_SERVICE_START_FAILED
+          - 7009 # EVENT_CONNECTION_TIMEOUT
+      condition: selection | count(EventRecordID) by Computer > 100 # Count how many services failures are reported on the host.
+      timeframe: 20m
+    falsepositives:
+    - Missconfigured services
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1569
+    - T1569.002
+tags:
+    - attack.execution
+    - attack.t1569
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0002-Execution/T1569.002-Service%20execution
+    - https://github.com/lawrenceamer/TChopper
+data_sources:
+    - windows
+    - system

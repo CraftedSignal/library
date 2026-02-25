@@ -1,0 +1,53 @@
+id: 019abed0-2489-743c-8a59-bb952a65728b
+name: FlexibleFerret LaunchAgent Persistence Detection
+description: Detects command line creation or loading of suspicious LaunchAgent plists related to FlexibleFerret malware on macOS.
+query: |+
+    ---
+    title: FlexibleFerret LaunchAgent Persistence via Command Line
+    id: a1b2c3d4-4445-4e5f-8a9b-0c1d2e3f4a5b
+    status: experimental
+    description: Detects command line creation or loading of suspicious LaunchAgent plists
+    author: Claude Opus 4.5
+    date: 2025/11/26
+    references:
+        - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+    tags:
+        - attack.persistence
+        - attack.t1543.001
+        - attack.t1547.011
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_launchctl:
+            Image|endswith: '/launchctl'
+            CommandLine|contains:
+                - 'load'
+                - 'bootstrap'
+        selection_plist:
+            CommandLine|contains:
+                - 'com.driver9990as7tpatch'
+                - 'drivfixer'
+        condition: selection_launchctl and selection_plist
+    falsepositives:
+        - Unlikely in normal operations
+    level: critical
+
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.001
+tags:
+    - attack.persistence
+    - attack.t1543.001
+    - attack.t1547.011
+author: Claude Opus 4.5
+version: "1"
+references:
+    - https://www.jamf.com/blog/flexibleferret-malware-continues-to-adapt/
+data_sources:
+    - process_creation
+    - macos

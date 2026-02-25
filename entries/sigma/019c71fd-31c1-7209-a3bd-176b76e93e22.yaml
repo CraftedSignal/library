@@ -1,0 +1,55 @@
+id: 019c71fd-31c1-7209-a3bd-176b76e93e22
+name: Cryptographic Algorithm Downgrade Attempts
+description: |
+    Detects attempts to downgrade or use outdated cryptographic algorithms that may be vulnerable to several attacks.
+query: |
+    title: Cryptographic Algorithm Downgrade Attempts
+    id: 49d843c0-90c2-4bf9-b0d0-6188c16b4b88
+    status: experimental
+    description: >
+      Detects attempts to downgrade or use outdated cryptographic algorithms that
+      may be vulnerable to several attacks.
+    references:
+      - https://owasp.org/Top10/2025/A04_2025-Cryptographic_Failures/
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_crypto_tools:
+        Image|endswith:
+          - /openssl
+          - /gpg
+          - /ssh
+          - /curl
+      selection_weak_algorithms:
+        CommandLine|contains:
+          - '-cipher RC4'
+          - '-cipher DES'
+          - '-cipher 3DES'
+          - rsa1024
+          - md5
+      selection_tls_downgrade:
+        CommandLine|contains:
+          - tls1.0
+          - tls1.1
+          - ssl3.0
+          - '--insecure'
+      condition: >-
+        selection_crypto_tools and (selection_weak_algorithms or
+        selection_tls_downgrade)
+    level: medium
+    author: zendannyy
+    falsepositives:
+      - Legitimate testing or debugging activities by developers or system
+        administrators that intentionally use older protocols or ciphers.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+author: zendannyy
+version: "2"
+references:
+    - https://owasp.org/Top10/2025/A04_2025-Cryptographic_Failures/
+data_sources:
+    - process_creation
+    - linux

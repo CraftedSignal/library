@@ -1,0 +1,33 @@
+id: db1d61a0-aa7b-461f-8beb-c6ad99e3d78f
+name: SLOW#TEMPEST DLL Sideloading via DingTalk
+description: This detection identifies when the legitimate application DingTalk.exe loads a DLL from a non-standard file path. This behavior is associated with the SLOW#TEMPEST campaign, which uses this DLL sideloading technique to execute its malicious payload.
+query: |
+    `comment("name: SLOW#TEMPEST DLL Sideloading via DingTalk")`
+    `comment("author: detections.ai")`
+    `comment("date: 2025-07-23")`
+    `comment("description: This detection identifies when the legitimate application DingTalk.exe loads a DLL from a non-standard file path. This behavior is associated with the SLOW#TEMPEST campaign, which uses this DLL sideloading technique to execute its malicious payload.")`
+    `comment("references: https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/")`
+
+    `comment("This detection rule identifies potential DLL sideloading activity associated with the SLOW#TEMPEST campaign.")`
+    tstats summariesonly=true count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.ImageLoads where (ImageLoads.action=loaded ImageLoads.file_name="*.dll" ImageLoads.process_name="DingTalk.exe") by ImageLoads.dest ImageLoads.process_name ImageLoads.file_path ImageLoads.file_name ImageLoads.file_hash
+    | `drop_dm_object_name("ImageLoads")`
+    | `rename` dest as host, process_name as process, file_path as loaded_dll_path, file_name as loaded_dll, file_hash as hash
+    `comment("Filter out common, legitimate DLL locations to focus on non-standard paths. These paths may need tuning for your environment.")`
+    | where NOT (like(loaded_dll_path, "C:\\Program Files\\%") OR like(loaded_dll_path, "C:\\Program Files (x86)\\%") OR like(loaded_dll_path, "C:\\Windows\\System32\\%") OR like(loaded_dll_path, "C:\\Windows\\SysWOW64\\%"))
+    | `ctime(firstTime)`
+    | `ctime(lastTime)`
+    `comment("FP Tuning: Legitimate plugins or updates for DingTalk could be loaded from other directories like AppData. Investigate the loaded DLL's reputation and origin. The list of excluded paths may need to be expanded based on legitimate application behavior in your environment.")`
+    | table firstTime, lastTime, host, process, loaded_dll_path, loaded_dll, hash, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - spl
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/slow-tempest-malware-obfuscation/

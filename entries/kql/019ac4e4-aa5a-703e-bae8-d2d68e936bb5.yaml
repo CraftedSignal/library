@@ -1,0 +1,59 @@
+id: 019ac4e4-aa5a-703e-bae8-d2d68e936bb5
+name: Suspicious RPC Traffic to Critical Assets for Authentication Coercion
+description: Detects Remote Procedure Call (RPC) attempts targeting critical assets, such as Domain Controllers, where the call includes a UNC path pointing to an external IP address. This is a strong indicator of an authentication coercion attack (e.g., PetitPotam, DFSCoerce) where an attacker is attempting to force the critical asset to authenticate to a listener they control to capture credentials.
+query: |
+    // Name: Suspicious RPC Traffic to Critical Assets
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects Remote Procedure Call (RPC) attempts targeting critical assets, such as Domain Controllers, where the call includes a UNC path pointing to an external IP address. This is a strong indicator of an authentication coercion attack (e.g., PetitPotam, DFSCoerce) where an attacker is attempting to force the critical asset to authenticate to a listener they control to capture credentials.
+    // False Positive Sensitivity: Medium
+    // Reference: https://unit42.paloaltonetworks.com/authentication-coercion/
+    // MITRE TTPs: T1557.001
+    // Data Source: DeviceEvents (Microsoft Defender for Endpoint)
+    // Define critical assets that should not be making outbound authentication attempts to external IPs via RPC.
+    // This list should be customized for your environment.
+    let CriticalAssets = dynamic([
+        "DC01.corp.local",
+        "DC02.corp.local",
+        "CA-SERVER.corp.local",
+        "ADFS-SERVER.corp.local"
+    ]);
+    DeviceEvents
+    | where ActionType == "RpcCall"
+    // Focus on RPC calls targeting the defined critical assets.
+    | where DeviceName has_any (CriticalAssets) or DeviceDnsDomain has_any (CriticalAssets)
+    // Filter out local RPC calls, as coercion is typically initiated remotely.
+    | where isnotempty(RemoteDeviceName) and RemoteDeviceName != DeviceName
+    // Extract the target hostname/IP from the UNC path in the RPC parameters.
+    | extend CoercedTarget = extract(@"\\\\([^\\/]+)", 1, RpcParameters)
+    | where isnotempty(CoercedTarget)
+    // Core Logic: Identify when the coerced target is a public (non-private) IP address.
+    | where not(ipv4_is_private(CoercedTarget))
+    // Potential for False Positives: Legitimate cloud-integrated or hybrid services might perform such actions.
+    // These legitimate external IPs or domains should be identified and added to an allowlist to reduce noise.
+    // Example: | where CoercedTarget !in ("1.2.3.4", "some.vendor.com")
+    | project
+        Timestamp,
+        DeviceName, // The critical asset being coerced.
+        RemoteDeviceName, // The source machine initiating the RPC call.
+        InitiatingProcessAccountName,
+        CoercedTarget, // The external, attacker-controlled machine.
+        RpcInterfaceUuid,
+        RpcOperationId,
+        RpcProtocol,
+        RpcParameters,
+        InitiatingProcessCommandLine,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1187
+    - T1557.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/authentication-coercion/

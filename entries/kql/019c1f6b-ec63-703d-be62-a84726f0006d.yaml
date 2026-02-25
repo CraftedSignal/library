@@ -1,0 +1,18 @@
+id: 019c1f6b-ec63-703d-be62-a84726f0006d
+name: Suspicious Process Spawning from Notepad++ Updater
+description: This rule looks for the GUP.exe process (the legitimate updater) spawning unexpected child processes like cmd.exe or the known malicious AutoUpdater.exe.
+query: "// KQL detection for Notepad++ Updater (GUP.exe) Hijack Activity\r\n// Define the legitimate updater and suspicious child processes\r\nlet UpdaterName = \"GUP.exe\";\r\nlet SuspiciousChildren = dynamic([\"cmd.exe\", \"powershell.exe\", \"AutoUpdater.exe\", \"curl.exe\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(24h)\r\n// Filter for the Notepad++ updater as the parent process\r\n| where ParentFileName =~ UpdaterName\r\n// Detect if it spawns a child process that is NOT expected (Legit GUP usually only spawns Notepad++.exe to restart it)\r\n| where FileName in~ (SuspiciousChildren) or FolderPath has \"Temp\"\r\n// Enrich with a specific column for easier triage\r\n| extend DetectionType = case(\r\n    FileName =~ \"cmd.exe\", \"Suspicious Shell Execution\",\r\n    FileName =~ \"AutoUpdater.exe\", \"Malicious Binary Drop\",\r\n    FileName =~ \"curl.exe\", \"Suspicious Data Exfiltration\",\r\n    \"Anomalous Child Process\"\r\n)\r\n| project\r\n    Timestamp,\r\n    DetectionType,\r\n    DeviceName,\r\n    ParentFileName,\r\n    ParentCommandLine,\r\n    FileName,       // The suspicious child process\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessAccountName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1195.002
+    - T1574
+    - T1059.003
+    - T1041
+    - T1082
+tags:
+    - kql
+author: Daniel Miller
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/notepad-plus-plus-update-feature-hijacked-by-chinese-state-hackers-for-months/

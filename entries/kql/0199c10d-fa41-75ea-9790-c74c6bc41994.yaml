@@ -1,0 +1,16 @@
+id: 0199c10d-fa41-75ea-9790-c74c6bc41994
+name: 'Tycoon PhaaS: Phishing URL Click with Correlated Risky Sign-In'
+description: This rule detects instances where a user clicks on a URL identified as potentially malicious (phishing-related) and subsequently has a risky sign-in event in Azure AD. The rule correlates URL click events from email with Azure AD sign-in logs, specifically looking for sign-ins marked as risky or originating from suspicious user agents (e.g., specific axios versions). The phishing URLs are identified by keywords such as 'azureapplicationregistration.pages.dev', 'chrnobinson.com', 'workers.dev', '.pages.dev', '.web.core.windows.net', '/oauth2/v2.0/authorize', 'client_id=', and 'scope=openid'.
+query: "let phishingUrls = dynamic([\r\n  \"azureapplicationregistration.pages.dev\",\r\n  \"chrnobinson.com\",\r\n  \"workers.dev\",\r\n  \".pages.dev\",\r\n  \".web.core.windows.net\",\r\n  \"/oauth2/v2.0/authorize\",\r\n  \"client_id=\",\r\n  \"scope=openid\"\r\n]);\r\nlet urlClicks = UrlClickEvents\r\n| where Url has_any (phishingUrls)\r\n| project AccountUpn, ClickTime = TimeGenerated, Url, NetworkMessageId, ClickIP = IPAddress;\r\nlet emailEvents = EmailEvents\r\n| where isnotempty(NetworkMessageId)\r\n| project NetworkMessageId, Subject, SenderFromAddress, RecipientEmailAddress, EmailTime = TimeGenerated;\r\nlet riskyLogins = SigninLogs\r\n| where (IsRisky == true or RiskLevelAggregated !in (\"none\", \"low\"))\r\n    or UserAgent has_any (\"axios/1.7.9\", \"axios/1.8.2\")\r\n| project UserPrincipalName, SigninTime = TimeGenerated, LoginIP = IPAddress, UserAgent, Status, RiskLevelAggregated;\r\nurlClicks\r\n| join kind=inner (emailEvents) on NetworkMessageId\r\n| join kind=inner (riskyLogins) on $left.AccountUpn == $right.UserPrincipalName\r\n| project \r\n    AccountUpn,\r\n    SenderFromAddress,\r\n    Subject,\r\n    Url,\r\n    ClickTime,\r\n    SigninTime,\r\n    ClickIP,\r\n    LoginIP,\r\n    UserAgent,\r\n    Status,\r\n    RiskLevelAggregated\r\n| order by SigninTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+tags:
+    - kql
+version: "1"

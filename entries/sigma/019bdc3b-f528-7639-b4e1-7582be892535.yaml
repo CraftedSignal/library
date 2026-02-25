@@ -1,0 +1,63 @@
+id: 019bdc3b-f528-7639-b4e1-7582be892535
+name: Non-Browser Process Querying Telegram API
+description: Detects processes, other than legitimate web browsers or the official Telegram client, making DNS queries for the Telegram Bot API. This behavior is indicative of malware using Telegram for command-and-control (C2) or data exfiltration, as seen in a campaign leveraging Amnesia RAT.
+query: |
+    title: Non-Browser Process Querying Telegram API
+    id: 389c9592-ecf7-4017-9747-02b1763289e9
+    status: experimental
+    description: >-
+      Detects processes, other than legitimate web browsers or the official Telegram
+      client, making DNS queries for the Telegram Bot API. This behavior is
+      indicative of malware using Telegram for command-and-control (C2) or data
+      exfiltration, as seen in a campaign leveraging Amnesia RAT.
+    references:
+      - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    author: tim@detections.ai
+    date: 2026-01-20
+    tags:
+      - attack.command_and_control
+      - attack.exfiltration
+      - attack.t1102.002
+      - attack.t1071.001
+    logsource:
+      category: dns_query
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        # Detects DNS queries for the Telegram Bot API endpoint
+        QueryName|endswith: 'api.telegram.org'
+      filter_legit_processes:
+        # Filter out legitimate browsers and the official Telegram client
+        Image|endswith:
+          - '\chrome.exe'
+          - '\firefox.exe'
+          - '\msedge.exe'
+          - '\opera.exe'
+          - '\browser.exe'
+          - '\Telegram.exe'
+      condition: selection and not filter_legit_processes
+    falsepositives:
+      - Developers or administrators testing Telegram bots.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1102.002
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.exfiltration
+    - attack.t1102.002
+    - attack.t1071.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+data_sources:
+    - dns_query
+    - windows
+    - sysmon

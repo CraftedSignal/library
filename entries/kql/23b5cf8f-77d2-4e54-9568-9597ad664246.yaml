@@ -1,0 +1,36 @@
+id: 23b5cf8f-77d2-4e54-9568-9597ad664246
+name: ZDI-CAN-25373 Windows Shortcut Exploit Abused Detection
+description: KQL Query
+query: |
+    // https://www.trendmicro.com/en_us/research/25/c/windows-shortcut-zero-day-exploit.html
+
+    let MonitoredCommands = dynamic(["cmd","powershell"]);
+    DeviceEvents
+    | where Timestamp > ago(1h)
+    | where ActionType == "ShellLinkCreateFileEvent"
+    | where tostring(AdditionalFields) contains "ShellLink"
+    | where parse_json(AdditionalFields)["ShellLinkShowCommand"] != 'SW_SHOWNORMAL'
+    | extend ShellLinkCommandLine = parse_json(AdditionalFields)["ShellLinkCommandLine"]
+    | extend ShellLinkIconPath = parse_json(AdditionalFields)["ShellLinkIconPath"]
+    | where ShellLinkCommandLine != ""
+    | where ShellLinkCommandLine has_any (MonitoredCommands)
+query_type: kql
+tactics:
+    - TA0043
+    - TA0007
+    - TA0042
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1596.005
+    - T1087.001
+    - T1588.005
+    - T1587.004
+    - T1547.009
+    - T1086
+    - T1504
+    - T1059.001
+tags:
+    - kql
+version: "1"

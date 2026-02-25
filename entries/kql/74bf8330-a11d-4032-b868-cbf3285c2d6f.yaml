@@ -1,0 +1,20 @@
+id: 74bf8330-a11d-4032-b868-cbf3285c2d6f
+name: Detect abnormal pattern of command and scripting interpreter followed by USB mount
+description: Analytic detect abnormal pattern of command and scripting interpreter followed by USB mount
+query: "\tlet timeWindow = 10m;\r\n\t// Step 1: Detect USB events (insert/mount/write)\r\n\tlet usb_events = \r\n\t    DeviceEvents\r\n\t    | where Timestamp > ago(1h)\r\n\t    | where ActionType in (\"UsbDriveMounted\", \"UsbDriveDetected\", \"UsbDriveInserted\", \"DeviceWrite\")\r\n\t    or (\r\n\t        ActionType == \"DevicePlugAndPlayEvent\"\r\n\t        and AdditionalFields has_any (\"USBSTOR\", \"Removable Media\")\r\n\t    )\r\n\t        | extend AdditionalFields_ProductName = parse_json(AdditionalFields)[\"ProductName\"]\r\n\t        | where AdditionalFields_ProductName !has (\"VMware\")\r\n\t    | project USBTime = Timestamp, DeviceId, DeviceName, AccountName, ActionType, AdditionalFields;\r\n\t// Step 2: Detect PowerShell script execution\r\n\tlet powershell_exec = \r\n\t    DeviceProcessEvents\r\n\t    | where Timestamp > ago(1h)\r\n\t        | where FileName in~ (\"powershell.exe\", \"cmd.exe\", \"wscript.exe\", \"cscript.exe\", \"mshta.exe\", \"wt.exe\")\r\n\t    | where AccountName !in(\"system\", \"local service\", \"network service\")\r\n\t    | where ProcessCommandLine has \".ps1\"\r\n\t    | project PSETime = Timestamp, DeviceId, DeviceName, AccountName, FileName, ProcessCommandLine;\r\n\t// Step 3: Correlate where PowerShell is launched within timeWindow after USB event\r\n\tusb_events\r\n\t| join kind=inner (\r\n\t    powershell_exec\r\n\t) on DeviceId\r\n\t| where PSETime between (USBTime .. USBTime + timeWindow)\r\n\t| project USBTime, PSETime, DeviceId, DeviceName, AccountName, ActionType, AdditionalFields, FileName, ProcessCommandLine\r\n\t| order by USBTime desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0008
+    - TA0001
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.003
+    - T1091
+tags:
+    - TheCyberSleuth
+    - kql
+author: Zakkir
+version: "1"

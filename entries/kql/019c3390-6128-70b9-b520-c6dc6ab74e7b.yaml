@@ -1,0 +1,45 @@
+id: 019c3390-6128-70b9-b520-c6dc6ab74e7b
+name: ShadowGuard Rootkit Management Commands
+description: Detects the use of non-standard signals with the 'kill' command, which are used to manage the ShadowGuard eBPF rootkit's process hiding capabilities. Signal -900 is used for allow-listing a PID, and -901 is used to remove a PID from the allow-list.
+query: |
+    //    Author: Ethan Andrews + detections.ai
+    //    Title: ShadowGuard Rootkit Management Commands
+    //    Date: 2026-02-06
+    //    Description: Detects the use of non-standard signals with the 'kill' command, which are used to manage the ShadowGuard eBPF rootkit's process hiding capabilities. Signal -900 is used for allow-listing a PID, and -901 is used to remove a PID from the allow-list.
+    //    Tactic: Defense Evasion
+    //    Technique: T1014 (Rootkit), T1564.001 (Hidden Files and Directories), T1562.001 (Disable or Modify Tools)
+    //    False Positive Sensitivity: Medium
+    //    References: https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/
+    DeviceProcessEvents
+    // Filter for process creation events.
+    | where ActionType == "ProcessCreated"
+    // Focus on the execution of the 'kill' command, typically found in /bin/ or /usr/bin/.
+    | where FileName == "kill"
+    // Look for the specific non-standard signals used by ShadowGuard for process management.
+    | where ProcessCommandLine has "-900" or ProcessCommandLine has "-901"
+    // FP Tuning: The use of these specific, non-standard signals with the 'kill' command is highly anomalous and should have a very low false positive rate. No tuning is expected.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        ReportId,
+        DeviceId
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1014
+    - T1564.001
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/

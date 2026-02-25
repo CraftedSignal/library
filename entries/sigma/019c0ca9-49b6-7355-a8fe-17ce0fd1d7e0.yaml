@@ -1,0 +1,68 @@
+id: 019c0ca9-49b6-7355-a8fe-17ce0fd1d7e0
+name: XenoRAT Stealer File Access
+description: |
+    Detects XenoRAT command and control information stealer file access activity. XenoRAT reads browser profile data, including logins.json, Web Data, Cookies, Local Extension Settings, chromium_plugins, and profiles.ini, as well as cryptocurrency wallet files such as _key.txt, _v20.txt, and directories under Wallets. The detection triggers when a process executing from a writable or temporary path, or matching known XenoRAT hashes including MalwareBazaar samples and the UPX packed variant bb7f5743, accesses these paths under AppData or ProgramData. For higher confidence, correlate with xenorat_execution on the same host.
+query: |
+    title: XenoRAT Stealer File Access
+    id: b2c3d4e5-f6a7-8901-bcde-f23456789012
+    status: experimental
+    description: |
+      Detects XenoRAT command and control information stealer file access activity. XenoRAT reads browser profile data, including logins.json, Web Data, Cookies, Local Extension Settings, chromium_plugins, and profiles.ini, as well as cryptocurrency wallet files such as _key.txt, _v20.txt, and directories under Wallets. The detection triggers when a process executing from a writable or temporary path, or matching known XenoRAT hashes including MalwareBazaar samples and the UPX packed variant bb7f5743, accesses these paths under AppData or ProgramData. For higher confidence, correlate with xenorat_execution on the same host.
+    references:
+      - https://bazaar.abuse.ch/download/5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd/
+    author: Daniel Jeremiah
+    date: 2026/01/25
+    hashes:
+      - '5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd'
+      - 'bb7f5743de052f65f2678aa63ab7ee39e1532e555be42d5b3a7183332f97c07b'
+    tags:
+      - attack.collection
+      - attack.t1005
+      - attack.t1056
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_stealer_path:
+        TargetFilename|contains|any:
+          - 'logins.json'
+          - 'Web Data'
+          - 'Cookies'
+          - 'Local Extension Settings'
+          - 'chromium_plugins'
+          - 'profiles.ini'
+          - '_key.txt'
+          - '_v20.txt'
+          - 'Wallets\\'
+        TargetFilename|re: '.*\\(AppData|ProgramData)\\.*'
+      selection_context_process:
+        Image|re: '.*\\(ProgramData|Temp|TEMP|Users\\.*\\AppData\\Local\\Temp)\\.*\.exe'
+      selection_known_hash:
+        SHA256|contains|any:
+          - '5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd'
+          - 'bb7f5743de052f65f2678aa63ab7ee39e1532e555be42d5b3a7183332f97c07b'
+      condition: selection_stealer_path and (selection_context_process or
+        selection_known_hash)
+    falsepositives:
+      - Legitimate security testing (e.g. POC, authorized testing) using the C2 as
+        testing
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1005
+    - T1056
+tags:
+    - attack.collection
+    - attack.t1005
+    - attack.t1056
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://bazaar.abuse.ch/download/5fba4d72fff86ff1d2837bdc315b0f89140d37421fa76e6437c07530ca2ea8cd/
+data_sources:
+    - file_event
+    - windows

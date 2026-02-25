@@ -1,0 +1,62 @@
+id: 019c6e67-60cc-76ff-9311-171422871d75
+name: K8S Log Events Deleted
+description: |
+    Detects deleting of K8s log events. Indicating Defense Evasion tactics, and covering of tracks.
+query: |
+    title: K8S Log Events Deleted
+    id: 318ba678-89bd-4327-819d-d9d25c2911c9
+    status: experimental
+    description: >
+      Detects deleting of K8s log events.
+      Indicating Defense Evasion tactics, and covering of tracks.
+    tags:
+      - attack.t1562.001
+      - attack.defense.evasion
+      - attack.resource.container
+      - container.kubernetes
+    author: zendannyy
+    references:
+      - https://attack.mitre.org/techniques/T1562/001/
+    logsource:
+      product: kubernetes
+      service: audit
+    detection:
+      selection_verb_resource:
+        verb: delete
+        objectRef.resource: events
+      selection_interactive_session:
+        stage: ResponseComplete
+      selection_prod_namespace:
+        objectRef.namespace:
+          - prod
+          - production
+          - default
+      filter_authorized_users:
+        user.username|startswith:
+          - ci-admin
+          - 'system:'
+      condition: >-
+        selection_verb_resource and selection_prod_namespace and not
+        filter_authorized_users
+    falsepositives:
+      - Cluster upgrades or cleanup tasks (Add to filter for these exceptions)
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1609
+    - T1562.001
+tags:
+    - attack.t1562.001
+    - attack.defense.evasion
+    - attack.resource.container
+    - container.kubernetes
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/001/
+data_sources:
+    - kubernetes
+    - audit

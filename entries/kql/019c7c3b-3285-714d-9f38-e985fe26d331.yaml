@@ -1,0 +1,72 @@
+id: 019c7c3b-3285-714d-9f38-e985fe26d331
+name: Detect RunMRU Command History obfuscated DNS
+description: Detects registry value set events in HKCU\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU where the parent process is userinit.exe, indicating Run dialog command history updates during interactive logon sessions. The rule flags nslookup including obfuscated character separated variants, and other common network discovery tooling often used in social engineering driven copy paste execution workflows. This can indicate ClickFix style activity or early stage network discovery typed via Win plus R.
+query: |
+    let TimeRange = 30d;
+
+    // Core regex building blocks
+    let rx_word_boundary = @"(?i)(^|[^a-z0-9])";
+    let rx_non_alnum_gap = @"[^a-z0-9]{0,6}";
+    let rx_nslookup_obf =
+        strcat(rx_word_boundary,
+               "n", rx_non_alnum_gap,
+               "s", rx_non_alnum_gap,
+               "l", rx_non_alnum_gap,
+               "o", rx_non_alnum_gap,
+               "o", rx_non_alnum_gap,
+               "k", rx_non_alnum_gap,
+               "u", rx_non_alnum_gap,
+               "p",
+               rx_word_boundary);
+
+    // Additional DNS and discovery utilities often typed into RunMRU
+    let rx_dns_tools =
+        @"(?i)(^|[^a-z0-9])(" +
+        "nslookup|dig|host|whois|ping|tracert|pathping|" +
+        "ipconfig|netstat|arp|route|nltest|net\\s+view|" +
+        "powershell|pwsh|cmd\\.exe|rundll32|reg\\.exe|wmic|" +
+        "curl|wget|certutil|bitsadmin" +
+        @")([^a-z0-9]|$)";
+
+    // Suspicious command patterns commonly paired with DNS discovery or staging
+    let rx_suspicious_flags =
+        @"(?i)(-enc\\s+|frombase64string\\(|iwr\\s+|invoke-webrequest|downloadstring\\(|" +
+        "http[s]?://|\\\\\\\\[a-z0-9\\.-]+\\\\|%appdata%|%temp%|\\bstartup\\b|\\brunonce\\b)";
+
+    DeviceRegistryEvents
+    | where Timestamp >= ago(TimeRange)
+    | where ActionType == "RegistryValueSet"
+    | where RegistryKey endswith @"\Microsoft\Windows\CurrentVersion\Explorer\RunMRU"
+    | where InitiatingProcessParentFileName =~ "userinit.exe"
+    | extend Data = tostring(RegistryValueData)
+    | extend Hit_NslookupObf = iff(Data matches regex rx_nslookup_obf, true, false)
+    | extend Hit_DnsTools    = iff(Data matches regex rx_dns_tools, true, false)
+    | extend Hit_SuspFlags   = iff(Data matches regex rx_suspicious_flags, true, false)
+    | where Hit_NslookupObf or Hit_DnsTools or Hit_SuspFlags
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        RegistryKey,
+        RegistryValueName,
+        RegistryValueData,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        InitiatingProcessAccountName,
+        InitiatingProcessLogonId,
+        Hit_NslookupObf,
+        Hit_DnsTools,
+        Hit_SuspFlags,
+        ReportId
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "8"
+references:
+    - https://www.malwarebytes.com/blog/news/2026/02/clickfix-added-nslookup-commands-to-its-arsenal-for-downloading-rats
+    - https://thehackernews.com/2026/02/microsoft-discloses-dns-based-clickfix.html
+    - https://research.splunk.com/endpoint/a15aa1ab-2b79-467f-8201-65e0f32d5b1a

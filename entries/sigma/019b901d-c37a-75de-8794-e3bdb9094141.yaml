@@ -1,0 +1,80 @@
+id: 019b901d-c37a-75de-8794-e3bdb9094141
+name: PowerShell Adding Windows Defender Exclusions
+description: Detects the use of PowerShell to add exclusions to Windows Defender. This technique was observed in the PHALT#BLYX campaign where attackers added exclusions for the 'C:\ProgramData' directory and for file extensions like '.exe', '.ps1', and '.proj' to prevent their malware from being detected.
+query: |
+    title: PowerShell Adding Windows Defender Exclusions
+    id: e6560c8b-2ff8-4692-b739-6af229ed4c5a
+    status: experimental
+    description: >-
+      Detects the use of PowerShell to add exclusions to Windows Defender. This
+      technique was observed in the PHALT#BLYX campaign where attackers added
+      exclusions for the 'C:\ProgramData' directory and for file extensions like
+      '.exe', '.ps1', and '.proj' to prevent their malware from being detected.
+    references:
+      - https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/
+    author: tim@detections.ai
+    date: 2026-01-05
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      # Detects powershell.exe execution
+      selection_process:
+        Image|endswith: '\powershell.exe'
+      # Detects the addition of suspicious path exclusions
+      selection_path_exclusion:
+        CommandLine|contains|all:
+          - 'Add-MpPreference'
+          - '-ExclusionPath'
+        CommandLine|contains:
+          # Note: These are common malware staging directories. Tune this list based on legitimate administrative activity.
+          - 'C:\ProgramData'
+          - 'C:\Perflogs'
+          - 'C:\Users\Public'
+          - 'C:\Windows\debug'
+          - 'C:\Windows\Fonts'
+          - 'C:\Windows\Tasks'
+          - 'C:\Windows\System32\Tasks'
+          - '\AppData\Roaming'
+          - '\Desktop'
+          - '\Downloads'
+          - '\temp\'
+      # Detects the addition of specific file extension exclusions seen in the PHALT#BLYX campaign
+      selection_extension_exclusion:
+        CommandLine|contains|all:
+          - 'Add-MpPreference'
+          - ' -ExclusionExtension'
+        CommandLine|contains:
+          - '.exe'
+          - '.ps1'
+          - '.proj'
+          - '.tmp'
+          - '.bat'
+      condition: selection_process and (selection_path_exclusion or
+        selection_extension_exclusion)
+    falsepositives:
+      - Legitimate administrative scripts or system management tools (e.g., SCCM,
+        Intune) may add exclusions to Windows Defender to prevent conflicts with
+        trusted software.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

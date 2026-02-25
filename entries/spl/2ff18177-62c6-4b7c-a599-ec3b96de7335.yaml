@@ -1,0 +1,14 @@
+id: 2ff18177-62c6-4b7c-a599-ec3b96de7335
+name: PowerShell Spawning Node.js in AppData
+description: This rule detects instances where PowerShell (powershell.exe or pwsh.exe) spawns 'node.exe' with command-line arguments containing '-e' and the process path is located within the 'AppData\Roaming' or 'AppData\Local' directories. This behavior can be indicative of malicious activity, such as the execution of Node.js-based scripts or malware by PowerShell, potentially for persistence or further execution within user-specific application data folders.
+query: '| tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.parent_process_name IN ("powershell.exe", "pwsh.exe")) AND Processes.process_name="node.exe" AND (Processes.process_path="*\\AppData\\Roaming\\*" OR Processes.process_path="*\\AppData\\Local\\*") AND Processes.process="* -e *" by Processes.dest, Processes.user, Processes.parent_process_name, Processes.process_name, Processes.process, Processes.process_id, Processes.parent_process_id | rename Processes.dest as host, Processes.user as user, Processes.parent_process_name as parent_process, Processes.process_name as process_name, Processes.process as process_command_line, Processes.process_id as process_id, Processes.parent_process_id as parent_process_id | fieldformat firstTime = strftime(firstTime, "%Y-%m-%d %H:%M:%S") | fieldformat lastTime = strftime(lastTime, "%Y-%m-%d %H:%M:%S")'
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059
+tags:
+    - spl
+version: "4"

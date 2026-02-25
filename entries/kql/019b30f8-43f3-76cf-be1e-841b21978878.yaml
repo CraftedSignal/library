@@ -1,0 +1,36 @@
+id: 019b30f8-43f3-76cf-be1e-841b21978878
+name: Obfuscated Script Execution via PowerShell or VBScript
+description: Detects the execution of PowerShell or VBScript commands that contain indicators of base64 encoding. This is a common obfuscation technique used by malware like DarkGate to hide malicious payloads, often seen in social engineering campaigns like "ClickFix".
+query: |
+    // Name: Obfuscated Script Execution via PowerShell or VBScript
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the execution of PowerShell or VBScript commands that contain indicators of base64 encoding. This is a common obfuscation technique used by malware like DarkGate to hide malicious payloads, often seen in social engineering campaigns like "ClickFix".
+    // MITRE ATT&CK: T1027, T1059.001, T1059.005
+    // References: https://socprime.com/active-threats/clickfix-darkgate-malware/
+    // False Positive Sensitivity: Medium. Legitimate administrative scripts or software deployment tools may use base64 encoding. Tuning may be required to exclude known good scripts, parent processes, or administrative users.
+
+    DeviceProcessEvents
+    // Look for script interpreters like PowerShell and VBScript hosts.
+    | where FileName in~ ("powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe")
+    // Check for command-line arguments indicative of base64 encoding.
+    // -EncodedCommand (and its aliases -e, -en, -enc) is a PowerShell parameter.
+    // FromBase64String is a .NET method commonly used within scripts to decode data.
+    | where ProcessCommandLine has_any ("-EncodedCommand", "-e ", "-en ", "-enc ", "FromBase64String")
+    // To reduce potential false positives, consider filtering for command lines that also perform downloads or interact with the clipboard.
+    // | where ProcessCommandLine has_any ("DownloadString", "DownloadFile", "Invoke-WebRequest", "Get-Clipboard")
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+    - T1059.005
+    - T1204.004
+tags:
+    - kql
+version: "3"
+references:
+    - https://socprime.com/active-threats/clickfix-darkgate-malware/

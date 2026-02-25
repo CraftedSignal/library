@@ -1,0 +1,140 @@
+id: 59f6a0a0-166c-4b98-a461-f50501e8847e
+name: Detect Kimsuky PowerShell Exfiltration to private Github repositories as attack infrastructure (PAT)
+description: Detects PowerShell activity associated with the Kimsuky threat actor, where system information is collected and exfiltrated to a private GitHub repository, or where other IOCs related to this campaign are observed. This technique was observed in a campaign distributing the XenoRAT malware.
+query: |
+    title: "Detect Kimsuky PowerShell Exfiltration to private Github repositories as
+      attack infrastructure (PAT)"
+    id: 4c96618d-79df-44ae-8bca-572046e43d49
+    status: experimental
+    description: Detects PowerShell activity associated with the Kimsuky threat
+      actor, where system information is collected and exfiltrated to a private
+      GitHub repository, or where other IOCs related to this campaign are observed.
+      This technique was observed in a campaign distributing the XenoRAT malware.
+    references:
+      - https://www.enki.co.kr/en/media-center/tech-blog/dissecting-kimsuky-s-attacks-on-south-korea-in-depth-analysis-of-github-based-malicious-infrastructure
+    author: Chaitanya B (Mr.Alien)
+    date: 2025-07-15
+    tags:
+      - attack.t1567.001
+      - attack.t1059.001
+      - attack.t1082
+      - threat_group.kimsuky
+      - malware.xenorat
+    logsource:
+      category: powershell_script
+      product: windows
+    detection:
+      # This rule is best implemented using PowerShell Script Block Logging (Event ID 4104)
+      # It may be adapted for process creation logs, but command lines may be obfuscated.
+      selection_github_upload:
+        ScriptBlockText|contains|all:
+          - 'api.github.com/repos/' # Use of the GitHub API for repositories
+          - '/contents/log/' # Specific path for log exfiltration
+          - 'Invoke-RestMethod' # Command used for the API call
+          - 'Authorization' # Header used for authentication
+      selection_indicators:
+        ScriptBlockText|contains:
+          # Specific filename patterns used by the malware
+          - '-0956_info.txt'
+          - '-XXX-kkk.txt' # WMI/CIM commands used for system information discovery
+          - 'Get-CimInstance Win32_OperatingSystem'
+          - 'Get-WmiObject -Class Win32_ComputerSystem'
+          - 'Get-NetIPAddress'
+      selection_iocs:
+        ScriptBlockText|contains:
+          # Specific GitHub repos/users
+          - '/Dasi274/hole_311/'
+          - '/Dasi274/star/'
+          - '/luckmask/asp/'
+          # Specific RAT filenames
+          - 'xxx.rtf'
+          - 'eula.rtf'
+          # Mutexes
+          - 'Dansweit_Hk65'
+          - 'Cheetah_0716'
+          # C2 IPs
+          - '158.247.230.196'
+          - '216.244.74.115'
+          - '165.154.78.9'
+          - '101.36.114.190'
+          - '80.71.157.55'
+          - '139.99.36.158'
+          - '158.247.253.215'
+          - '141.164.41.17'
+          - '118.194.249.201'
+          - '158.247.202.109'
+          - '45.61.161.103'
+          # Dropbox URLs - more generic parts of the URL are used for broader detection
+          - 'dl.dropboxusercontent.com/scl/fi/c6ba7iwuke57d75j3mmte/eula.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/okglg167i8kuwna1m2lxm/bie70er.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/67j5162v19rtngxkexau5/bie70er.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/ti6rphsns0xsvx1ekb02f/bie70er.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/bifls0sn1nx1b52adydyn/tt7024.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/3z2lxx1aor5g82e86c6ru/panel.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/nanwt6elsuxziz05hnlt4/cjfansgmlans1-x.txt'
+          - 'dl.dropboxusercontent.com/scl/fi/hpv3jd8o9annkala8vskb/hhopp.rtf'
+          - 'dl.dropboxusercontent.com/scl/fi/bqicute746gcts2utf903/pong_race.rtf'
+          # Email
+          - 'janman8907@gmail.com'
+          # Hashes - may be present in script text if used for verification or as string artifacts
+          - 'a56edfef94008c77abfb4e151df934d9'
+          - '30d5f17d5e3f85be18220a7cab0b9fff'
+          - '5e9a80d3d4f71ecd8bf8e579a5e2449c'
+          - 'f692c1dd797f68c34744a377482c4ed4'
+          - 'b77e4e9f5897f00dcbd08b2ee9bde7e8'
+          - '74b1d5f857a4245aef8189ac4f409a99'
+          - '6cbc007799b56682ac196e44d79e496d'
+          - 'a9d80e7fe3f217ea4d33f8a4a0f3f73c'
+          - '57015267d06b0d80721015ccd29a04cd'
+          - '5076c579e378f976a57e862e5b6a7859'
+          - '45ed6abfc12be606bdbcfe76bd17b2af'
+          - 'b36159563452d9a837a5e566ad2a1e44'
+          - '522a122f3cd4c488a51d81c846bfabbb'
+          - 'c2f88038d431bb190454fae02225e639'
+          - 'd0a8cd7584547bdb2959f0d1008e6871'
+          - 'b13ffe7b8e351291250f1a3a855134aa'
+          - '1dee4c60fffcc80eb4bbd523eedab2f4'
+          - '8c84d7f559cf0947fbf1981a0acb8a35'
+          - 'acd2d728ee4d1110521524c1eac6204e'
+          - '157d1b1798f0f370a95125253e039c18'
+          - 'b99c1d9bf70be5172a8b36b098c67ee5'
+          - '8c561a53085651d7f47b24129c2cd2d0'
+          - '7df07ecb0b516df085a5ee95ed8e6560'
+          - 'af999c3c615b56691d75e8c877e185fb'
+          - '5be0527f5c84208371761cee852f0d7c'
+          - 'f51a2ccb4b9b2bf163c81b525bfac08e'
+          - '10ce9409d8d1e72ea6439bec7cd7e4cd'
+          - 'a87659641e00d724de5662b14fe142e8'
+          - '1808bd4919c5943096a4a19784d6b8de'
+      condition: (selection_github_upload and selection_indicators) or selection_iocs
+    falsepositives:
+      - Legitimate developer or CI/CD scripts that interact with GitHub repositories
+        to upload logs or system information.
+      - The IOC part of the detection may trigger on legitimate scripts if the
+        strings are too generic, although the selected IOCs are reasonably specific.
+        It is recommended to baseline legitimate PowerShell scripts that interact
+        with the GitHub API in your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0007
+    - TA0010
+techniques:
+    - T1059.001
+    - T1082
+    - T1567.001
+tags:
+    - attack.t1567.001
+    - attack.t1059.001
+    - attack.t1082
+    - threat_group.kimsuky
+    - malware.xenorat
+author: Chaitanya B (Mr.Alien)
+version: "1"
+references:
+    - https://www.enki.co.kr/en/media-center/tech-blog/dissecting-kimsuky-s-attacks-on-south-korea-in-depth-analysis-of-github-based-malicious-infrastructure
+data_sources:
+    - powershell_script
+    - windows

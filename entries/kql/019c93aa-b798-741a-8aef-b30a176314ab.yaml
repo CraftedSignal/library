@@ -1,0 +1,13 @@
+id: 019c93aa-b798-741a-8aef-b30a176314ab
+name: BCDedit Boot Configuration Modification
+description: Detects attempts to modify the Boot Configuration Data (BCD) using bcdedit.exe. This rule specifically looks for commands that delete boot entries or values, enable safe boot with networking, disable recovery, or ignore boot status policy failures. Such modifications can be used by adversaries to establish persistence, evade defenses, or disrupt system recovery.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where (FileName endswith \"bcdedit.exe\" or (FileName endswith \".exe\" and ProcessCommandLine contains \"bcdedit\"))\r\n| where (((ProcessCommandLine has_any (\r\n  \"delete\",\r\n  \"deletevalue\"\r\n)\r\n or (ProcessCommandLine has_all (\r\n  \"safeboot\",\r\n  \"network\"\r\n))) or (ProcessCommandLine has_all (\r\n  \"recoveryenabled\",\r\n  \"no\"\r\n))) or (ProcessCommandLine has_all (\r\n  \"bootstatuspolicy\",\r\n  \"ignoreallfailures\"\r\n)))\r\n "
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+version: "2"

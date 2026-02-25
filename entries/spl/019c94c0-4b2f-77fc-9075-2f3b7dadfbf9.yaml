@@ -1,0 +1,12 @@
+id: 019c94c0-4b2f-77fc-9075-2f3b7dadfbf9
+name: Grandstream Exploitation Attempt
+description: This rule detects attempts to exploit CVE-2026-2329, a critical unauthenticated stack buffer overflow vulnerability in Grandstream GXP1600 VoIP phones. The detection is based on requests to the '/cgi-bin/api.values.get' URI path, which is associated with the vulnerability.
+query: "/* \nGrandstream GXP1600 CVE-2026-2329 hunt\nAuthor: Daniel Jeremiah\nDate: 2026-02-24\nReference: https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/\n*/\n\n(index=* sourcetype=*)\n(\n  uri_path=\"/cgi-bin/api.values.get\"\n  OR url_path=\"/cgi-bin/api.values.get\"\n  OR path=\"/cgi-bin/api.values.get\"\n  OR cs_uri_stem=\"/cgi-bin/api.values.get\"\n  OR uri=\"/cgi-bin/api.values.get\"\n  OR url=\"*/cgi-bin/api.values.get*\"\n)\n| stats count min(_time) as firstSeen max(_time) as lastSeen values(host) as host values(src_ip) as src_ip values(dest_ip) as dest_ip values(http_method) as http_method values(status) as status values(url) as url values(user_agent) as user_agent values(sourcetype) as sourcetype by uri_path url_path path cs_uri_stem uri\n| convert ctime(firstSeen) ctime(lastSeen)\n| sort - lastSeen"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/

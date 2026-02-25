@@ -1,0 +1,107 @@
+id: 0fe5af67-b7d0-4949-9475-6c8d78ecde51
+name: DeedRAT Malware Detection
+description: This rule detects various artifacts and behaviors associated with the DeedRAT malware, also known as MicRun or SBAMRES. It identifies the execution of 'MicRun.exe', suspicious file paths like 'C:\ProgramData\MicroDefaults', and registry persistence via 'Run' keys with specific data patterns. The rule also looks for the creation of malicious services using 'sc create MicRun', known malicious SHA256 hashes for both processes and files, and suspicious filenames such as 'SBAMRES.DLL' and 'MicRun.exe'. Additionally, it detects network communication to a known DeedRAT C2 domain, 'luckybear669.kozow.com'.
+query: |
+    // ============================================================================
+    // DeedRAT Malware Detection Pack (MicRun / SBAMRES / LuckyBear C2)
+    // Author: KillBillKill98
+    // Last Updated: 2025-09-19
+    // ============================================================================
+    // Actor Profile: DeedRAT (China-nexus APT)
+    //  - Modular RAT delivered via spearphishing campaigns
+    //  - Known to use MicRun.exe and SBAMRES DLLs for persistence & execution
+    //  - C2 observed on dynamic DNS domains (e.g., kozow.com)
+    // Tactic(s): Persistence (TA0003), Execution (TA0002), Command & Control (TA0011)
+    // Technique(s): Registry Run Keys (T1547.001), Service Creation (T1543.003),
+    //                DLL Search Order Hijacking (T1574.001), Web Service (T1102)
+    // Description & Rationale:
+    //  - Detects DeedRAT artifacts and behaviors across registry, process, file, and network telemetry
+    //  - Includes hash-based IoCs, filenames, registry keys, and known C2 domains
+    // ============================================================================
+
+    // --- Suspicious Binary Execution ---
+    DeviceImageLoadEvents
+    | where FileName has "MicRun.exe"
+    | extend DetectionType = "DeedRAT MicRun.exe Execution"
+    | project Timestamp, DeviceId, DeviceName, FileName, FolderPath, SHA256, DetectionType
+
+    // --- Suspicious File Paths ---
+    DeviceFileEvents
+    | where FolderPath contains @"C:\ProgramData\MicroDefaults"
+    | extend DetectionType = "DeedRAT Suspicious File Path"
+    | project Timestamp, DeviceId, DeviceName, FileName, FolderPath, SHA256, DetectionType
+
+    // --- Registry Persistence ---
+    DeviceRegistryEvents
+    | where ActionType == "RegistryValueSet"
+    | where RegistryKey has @"CurrentVersion\Run"
+    | where RegistryValueName has "MicRun"
+    | where RegistryValueData matches regex @"-[A-Z]{0,7}_[A-Z]{0,7}_[A-Z]{0,8}"
+    | extend DetectionType = "DeedRAT Registry Run Key"
+    | project Timestamp, DeviceId, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, DetectionType
+
+    // --- Malicious Service Creation ---
+    DeviceProcessEvents
+    | where ProcessCommandLine has_all ("sc", "create", "MicRun")
+    | extend DetectionType = "DeedRAT Service Creation"
+    | project Timestamp, DeviceId, DeviceName, FileName, ProcessCommandLine, DetectionType
+
+    // --- Known Malicious Hashes (Process) ---
+    DeviceProcessEvents
+    | where SHA256 has_any (
+        "52f489d47618db8dfb503d6da98cbd76d08b063cc7ce0aac02b03601b6cae6a1",
+        "99a0b424bb3a6bbf60e972fd82c514fd971a948f9cedf3b9dc6b033117ecb106",
+        "e356dbd3bd62c19fa3ff8943fc73a4fab01a6446f989318b7da4abf48d565af2",
+        "2d9107edad9f674f6ca1707d56619a355227a661163f18b5794326d4f81a2803"
+    )
+    | extend DetectionType = "DeedRAT Malicious Hash (Process)"
+    | project Timestamp, DeviceId, DeviceName, FileName, SHA256, ProcessCommandLine, DetectionType
+
+    // --- Known Malicious Hashes (File) ---
+    DeviceFileEvents
+    | where SHA256 has_any (
+        "52f489d47618db8dfb503d6da98cbd76d08b063cc7ce0aac02b03601b6cae6a1",
+        "99a0b424bb3a6bbf60e972fd82c514fd971a948f9cedf3b9dc6b033117ecb106",
+        "e356dbd3bd62c19fa3ff8943fc73a4fab01a6446f989318b7da4abf48d565af2",
+        "2d9107edad9f674f6ca1707d56619a355227a661163f18b5794326d4f81a2803"
+    )
+    | extend DetectionType = "DeedRAT Malicious Hash (File)"
+    | project Timestamp, DeviceId, DeviceName, FileName, SHA256, FolderPath, DetectionType
+
+    // --- Suspicious DLL/Executable Filenames ---
+    union isfuzzy=true
+    (
+        DeviceProcessEvents
+        | where FileName has_any ("SBAMRES.DLL", "MicRun.exe", "SBAMRES.DLL.CC")
+        | extend DetectionType = "DeedRAT Suspicious Process File"
+        | project Timestamp, DeviceId, DeviceName, FileName, FolderPath, SHA256, DetectionType,
+                  ProcessCommandLine
+    ,
+        DeviceFileEvents
+        | where FileName has_any ("SBAMRES.DLL", "MicRun.exe", "SBAMRES.DLL.CC")
+        | extend DetectionType = "DeedRAT Suspicious File Event"
+        | project Timestamp, DeviceId, DeviceName, FileName, FolderPath, SHA256, DetectionType
+    )
+
+    // --- Known C2 Domain ---
+    DeviceNetworkEvents
+    | where RemoteUrl has "luckybear669.kozow.com"
+    | extend DetectionType = "DeedRAT C2 Beacon"
+    | project Timestamp, DeviceId, DeviceName, RemoteIP, RemoteUrl, LocalIP, LocalPort, RemotePort, Protocol, DetectionType
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0011
+    - TA0004
+    - TA0005
+techniques:
+    - T1547.001
+    - T1543.003
+    - T1574.001
+    - T1102
+tags:
+    - kql
+author: KillBillKill98
+version: "1"

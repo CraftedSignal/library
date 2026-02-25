@@ -1,0 +1,17 @@
+id: 019bc747-0ad8-7098-8442-b40b321a2f58
+name: Disabling RDP Restricted Admin Mode
+description: Detects the modification of the registry to disable RDP Restricted Admin mode. This allows attackers to access plaintext credentials from the remote machine. This TTP is associated with the threat actor UAT-8837.
+query: "// Name: UAT-8837 Disabling RDP Restricted Admin Mode\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-01-16\r\n// Tactic: Defense Evasion\r\n// Technique: T1112\r\n// Description: Detects the modification of the registry to disable RDP Restricted Admin mode. This allows attackers to access plaintext credentials from the remote machine. This TTP is associated with the threat actor UAT-8837.\r\n// References: https://blog.talosintelligence.com/uat-8837/\r\n// False Positive Sensitivity: Medium. Legitimate administrators may disable this for specific troubleshooting scenarios, but it is not a common practice.\r\nlet timeframe = 1h;\r\nlet registry_mod = DeviceRegistryEvents\r\n| where Timestamp > ago(timeframe)\r\n// Look for registry value set events\r\n| where ActionType == \"RegistryValueSet\"\r\n// Filter for the specific registry key related to LSA configuration\r\n| where RegistryKey endswith @\"SYSTEM\\CurrentControlSet\\Control\\Lsa\"\r\n// Filter for the specific value name that controls Restricted Admin mode\r\n| where RegistryValueName == \"DisableRestrictedAdmin\"\r\n// The value '0' disables the protection. The data can be represented as \"0\" or \"00000000\".\r\n| where RegistryValueData in (\"0\", \"00000000\");\r\nlet command_line_mod = DeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n// Look for the reg.exe utility being used\r\n| where FileName =~ \"reg.exe\"\r\n// Filter for command line arguments that add/modify the specific key to disable the setting\r\n| where ProcessCommandLine has_all (\"add\", @\"HKLM\\System\\CurrentControlSet\\Control\\Lsa\", \"/v\", \"DisableRestrictedAdmin\", \"/d\", \"0\") and ProcessCommandLine contains \"/f\";\r\nunion registry_mod, command_line_mod\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    RegistryValueData,\r\n    AccountName,\r\n    AccountDomain\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1112
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://blog.talosintelligence.com/uat-8837/

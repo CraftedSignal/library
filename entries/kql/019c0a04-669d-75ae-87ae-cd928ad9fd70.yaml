@@ -1,0 +1,85 @@
+id: 019c0a04-669d-75ae-87ae-cd928ad9fd70
+name: Suspicious Office Child Process from Trusted Location
+description: Detects when a Microsoft Office application (Word, Excel, PowerPoint, etc.) spawns a suspicious child process (like cmd.exe or powershell.exe) from a document located in a configured Office Trusted Location. While trusted locations are meant to bypass macro security warnings, the subsequent spawning of shell processes is a strong indicator of malicious macro execution for post-exploitation activities.
+query: |
+    //
+    // Rule Title: Suspicious Office Child Process from Trusted Location
+    // Description: Detects when a Microsoft Office application (Word, Excel, PowerPoint, etc.) spawns a suspicious child process (like cmd.exe or powershell.exe) from a document located in a configured Office Trusted Location. While trusted locations are meant to bypass macro security warnings, the subsequent spawning of shell processes is a strong indicator of malicious macro execution for post-exploitation activities.
+    //
+    // Author: detections.ai
+    // Date: 2026-01-28
+    //
+    // MITRE ATT&CK:
+    // - T1204.002: User Execution: Malicious File
+    // - T1059.001: Command and Scripting Interpreter: PowerShell
+    // - T1059.003: Command and Scripting Interpreter: Windows Command Shell
+    // - T1059.005: Command and Scripting Interpreter: Visual Basic
+    //
+    // References:
+    // - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations
+    //
+    // False Positive Sensitivity: Medium
+    // - Some legitimate, complex automation scripts or legacy applications may use macros to spawn shell processes.
+    // - Review the document, command line, and user activity to determine legitimacy. Tuning may be required for specific business applications.
+    //
+
+    // Define parent Office applications to monitor.
+    let office_apps = dynamic([
+        "winword.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "msaccess.exe"
+    ]);
+    // Define suspicious child processes often used for code execution.
+    let suspicious_children = dynamic([
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "wscript.exe",
+        "cscript.exe"
+    ]);
+    // Collect all configured Office Trusted Location paths from the last day.
+    let trusted_locations =
+        DeviceRegistryEvents
+        | where TimeGenerated > ago(1d)
+        // Target registry keys for trusted locations across different Office versions.
+        | where RegistryKey has_all (@"Software\Microsoft\Office", @"\Security\Trusted Locations")
+        // The 'Path' value holds the trusted directory path.
+        | where RegistryValueName == "Path" and isnotempty(RegistryValueData)
+        | project DeviceId, TrustedPath = tostring(RegistryValueData);
+    // Look for recent suspicious process creation events.
+    DeviceProcessEvents
+    | where TimeGenerated > ago(1h)
+    | where InitiatingProcessFileName in~ (office_apps)
+    | where FileName in~ (suspicious_children)
+    // Join with the collected trusted paths for the same device.
+    | join kind=inner (trusted_locations) on DeviceId
+    // Correlate by checking if the Office application's command line contains the trusted path.
+    // This indicates the document that spawned the child process was likely opened from that trusted location.
+    | where InitiatingProcessCommandLine contains TrustedPath
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        AccountName,
+        InitiatingProcessParentFileName,
+        TrustedPath
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059.001
+    - T1059.003
+    - T1059.005
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/microsoft-365-apps/security/trusted-locations

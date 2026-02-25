@@ -1,0 +1,8 @@
+id: 019a5731-5770-713e-b19b-9b2c6fab7f57
+name: Detect Logon Failures Due to Expired Passwords
+description: This query helps identify user accounts that faced logon failures due to expired passwords by correlating logon failure events with the last password change timestamp using Microsoft Entra ID and IdentityLogonEvents.
+query: "//\U0001F50D Detecting Logon Failures Due to Expired Passwords with KQL\r\n\r\nTitle: Detect Logon Failures Due to Expired Passwords\r\nObjective: This query helps identify user accounts that faced logon failures because their password expired. It correlates logon failure events with the last password change timestamp using Microsoft Entra ID and IdentityLogonEvents.\r\n\r\n\r\nlet LogonFailures = IdentityLogonEvents\r\n| where ActionType == \"LogonFailed\" and FailureReason has \"PasswordExpired\"\r\n| summarize FailureReason = any(FailureReason) by AccountDisplayName;\r\nlet PasswordChangeInfo = AADSignInEventsBeta\r\n| where isnotempty(LastPasswordChangeTimestamp)\r\n| summarize LastPasswordChangeTimestamp = max(LastPasswordChangeTimestamp) by AccountDisplayName;\r\nLogonFailures\r\n| join kind=inner (PasswordChangeInfo) on AccountDisplayName\r\n| project AccountDisplayName, LastPasswordChangeTimestamp, FailureReason"
+query_type: kql
+tags:
+    - kql
+version: "3"

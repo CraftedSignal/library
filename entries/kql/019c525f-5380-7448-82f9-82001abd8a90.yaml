@@ -1,0 +1,18 @@
+id: 019c525f-5380-7448-82f9-82001abd8a90
+name: OpenClaw Malicious Infrastructure Access
+description: Detects outbound network traffic to known infrastructure used in OpenClaw malicious skill delivery or credential exfiltration. These IOCs were identified in the NSFOCUS report on OpenClaw security risks.
+query: "// Name: OpenClaw Malicious Infrastructure Access\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Tactic: Command and Control, Exfiltration\r\n// Technique: T1071.001, T1567\r\n// Description: Detects outbound network traffic to known infrastructure used in OpenClaw malicious skill delivery or credential exfiltration. These IOCs were identified in the NSFOCUS report on OpenClaw security risks.\r\n// False Positive Sensitivity: Medium\r\n// References: https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/\r\nlet malicious_iocs = dynamic([\"91.92.242.30\", \"download.setup-service.com\"]);\r\nDeviceNetworkEvents\r\n// Look for network connections to known malicious IPs or domains.\r\n| where RemoteIP in (malicious_iocs) or RemoteUrl has_any (malicious_iocs)\r\n// FP Tuning: To increase fidelity, consider scoping the detection to processes\r\n// commonly associated with OpenClaw or its malicious skill execution chain (e.g., openclaw, curl, wget, bash).\r\n// Example: | where InitiatingProcessFileName in~ (\"openclaw\", \"clawdbot\", \"moltbot\", \"curl\", \"wget\", \"bash\", \"sh\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteIP,\r\n    RemoteUrl,\r\n    RemotePort"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1567
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://nsfocusglobal.com/openclaw-open-source-ai-agent-application-attack-surface-and-security-risk-system-analysis/

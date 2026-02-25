@@ -1,0 +1,14 @@
+id: 49bfc5f6-70cf-420c-a5eb-2a9e6c2d767f
+name: Exploitation of SharePoint Vulnerability (CVE-2025-53770)
+description: Microsoft Releases Guidance on Exploitation of SharePoint Vulnerability (CVE-2025-53770)
+query: "let suspiciousIPs = dynamic([\"107.191.58.76\", \"104.238.159.149\", \"96.9.125.147\"]);\r\nlet suspiciousPath = \"/_layouts/15/ToolPane.aspx?DisplayMode=Edit\";\r\n\r\nDeviceNetworkEvents\r\n| where Timestamp >= ago(5m)\r\n| extend method = tostring(parse_json(AdditionalFields)[\"method\"]),\r\n         uri = tostring(parse_json(AdditionalFields)[\"uri\"]),\r\n         status_code = tostring(parse_json(AdditionalFields)[\"status_code\"])\r\n| extend IOCMatch = case(\r\n    ActionType == \"HttpConnectionInspected\" and method == \"POST\" and uri == suspiciousPath and status_code == \"200\", \"Suspicious SharePoint Path Access\",\r\n    RemoteIP in (suspiciousIPs), \"Known Malicious IP\",\r\n    \"\"\r\n)\r\n| where IOCMatch != \"\"\r\n| project Timestamp, DeviceName, RemoteIP, RemoteUrl, ActionType, method, uri, status_code, IOCMatch, DeviceId, ReportId\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1190
+tags:
+    - kql
+author: Josh Grimes
+version: "1"
+references:
+    - https://www.cisa.gov/news-events/alerts/2025/07/20/microsoft-releases-guidance-exploitation-sharepoint-vulnerability-cve-2025-53770

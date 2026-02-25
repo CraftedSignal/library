@@ -1,0 +1,55 @@
+id: f82f2d0f-1779-42da-8f0b-2b95661b3e30
+name: Suspicious Azure DRS Token Request by Microsoft Authentication Broker
+description: Detects Microsoft Entra ID sign-in events where a user principal authenticates using a refresh token issued to the Microsoft Authentication Broker (MAB) client, targeting the Device Registration Service (DRS) with the "adrs_access" OAuth scope. This pattern may indicate token-based access to DRS following an initial authorization code phishing or as a precursor to malicious device registration using tools like ROADtx.
+query: |
+    // title: Suspicious Azure DRS Token Request by Microsoft Authentication Broker
+    // id: 992163ac-4754-4388-b73a-5b10b3ffd9ee
+    // status: experimental
+    // description: >-
+    //   Detects Microsoft Entra ID sign-in events where a user principal authenticates using a refresh token issued to the Microsoft Authentication Broker (MAB) client,
+    //   targeting the Device Registration Service (DRS) with the "adrs_access" OAuth scope.
+    //   This pattern may indicate token-based access to DRS following an initial authorization code phishing or as a precursor to malicious device registration using tools like ROADtx.
+    // references:
+    //   - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    //   - https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/
+    // author: detections.ai
+    // date: 2025-07-15
+    // tags:
+    //   - attack.credential_access
+    //   - attack.persistence
+    //   - attack.t1528
+    // falsepositives:
+    //   - Legitimate device registration or recovery processes, such as Windows Hello for Business enrollment, may generate similar events. However, these are typically part of a larger, expected workflow and may be initiated from trusted corporate devices or networks. Investigate the context of the sign-in, such as the source IP address, device information, and preceding user activity.
+    // level: high
+
+    SigninLogs
+    // Corresponds to a successful sign-in event.
+    | where ResultType == 0
+    // Filters for regular user accounts, as phishing campaigns typically target users.
+    | where UserType == "Member"
+    // The token used for authentication was a refresh token, indicating a persistent session was leveraged.
+    | where IncomingTokenType == "refreshToken"
+    // The client application is the Microsoft Authentication Broker.
+    | where AppId == "29d9ed98-a469-4536-ade2-f981bc1d605e"
+    // The target resource is the Device Registration Service (DRS).
+    | where ResourceId == "01cb2876-7ebd-4aa4-9cc9-d28bd4d359a9"
+    // The presence of the 'adrs_access' scope is a key indicator for Azure DRS access.
+    | where tostring(AuthenticationProcessingDetails) has "adrs_access"
+    // To reduce potential false positives, consider filtering for non-corporate IP addresses or correlating with other suspicious user activity.
+    // For example: | where not(ipv4_is_in_range(IPAddress, "10.0.0.0/8"))
+query_type: kql
+tactics:
+    - TA0003
+    - TA0006
+    - TA0001
+    - TA0004
+techniques:
+    - T1528
+    - T1566.002
+    - T1098.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/entra-id-oauth-phishing-detection
+    - https://www.volexity.com/blog/2025/04/22/phishing-for-codes-russian-threat-actors-target-microsoft-365-oauth-workflows/

@@ -1,0 +1,28 @@
+id: 019c4819-8959-705a-be34-73c0c1697b81
+name: Notepad++ Updater Reconnaissance Commands
+description: This rule detects the execution of reconnaissance commands (whoami, tasklist, systeminfo, netstat) via `cmd.exe` where the parent process is either `GUP.exe` or `AutoUpdater.exe`. This behavior is indicative of the Notepad++ supply chain attack, where malicious updates could execute system reconnaissance commands. The detection specifically looks for output redirection, which is a common technique for adversaries to save command output.
+query: |
+    | tstats `security_content_summariesonly` count min(_time) as firstTime max(_time) as lastTime from datamodel=Endpoint.Processes where (Processes.parent_process_name IN ("GUP.exe", "AutoUpdater.exe")) AND Processes.process_name="cmd.exe" AND (Processes.process="*whoami*" OR Processes.process="*tasklist*" OR Processes.process="*systeminfo*" OR Processes.process="*netstat*") AND (Processes.process LIKE "% > %" OR Processes.process LIKE "% >> %") by Processes.dest Processes.user Processes.parent_process_name Processes.process_name Processes.process
+    | `drop_dm_object_name(Processes)`
+    `comment("This search is based on the research from Securelist regarding the Notepad++ supply chain attack. It may generate false positives if administrators or developers use scripts with the Notepad++ updater to perform system reconnaissance, although this is highly unlikely.")`
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | `notepad_supply_chain_recon_commands_filter`
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0007
+techniques:
+    - T1195.002
+    - T1059
+    - T1033
+    - T1057
+    - T1082
+    - T1049
+tags:
+    - spl
+version: "2"
+references:
+    - This search is based on the research from Securelist regarding the Notepad++ supply chain attack.

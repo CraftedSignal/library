@@ -1,0 +1,72 @@
+id: 019c25bb-3b31-7255-8692-5228579fb359
+name: Suspicious Notepad++ Updater Child Process
+description: Detects the legitimate Notepad++ updater (GUP.exe) spawning suspicious child processes. This behavior was observed during the Notepad++ supply chain attack where the updater was abused to download and execute malicious installers and command interpreters.
+query: |
+    title: Suspicious Notepad++ Updater Child Process
+    id: 15ab3352-621b-4d6a-acf0-21967179e079
+    status: experimental
+    description: Detects the legitimate Notepad++ updater (GUP.exe) spawning
+      suspicious child processes. This behavior was observed during the Notepad++
+      supply chain attack where the updater was abused to download and execute
+      malicious installers and command interpreters.
+    references:
+      - https://securelist.com/notepad-supply-chain-attack/118708/
+    author: detections.ai
+    date: 2026-02-03
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+      - attack.user_execution
+      - attack.t1204.002
+      - attack.execution
+      - attack.t1059.003
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent:
+        ParentImage|endswith: '\GUP.exe' # Legitimate Notepad++ updater process
+      selection_child:
+        Image|endswith:
+          # Suspicious child processes observed in the attack
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\curl.exe'
+          - '\update.exe'
+          - '\install.exe'
+          - '\AutoUpdater.exe'
+      filter_legit_args:
+        # Legitimate updaters often run with silent flags. This may need tuning.
+        CommandLine|contains:
+          - '/s'
+          - '/silent'
+      condition: (selection_parent and selection_child) and not filter_legit_args
+    falsepositives:
+      - Legitimate but unusual update scenarios or plugins for Notepad++ might
+        trigger this rule.
+      - The filter for silent arguments might not cover all legitimate update
+        scenarios and may require tuning for specific environments.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1195.002
+    - T1204.002
+    - T1059.003
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+    - attack.user_execution
+    - attack.t1204.002
+    - attack.execution
+    - attack.t1059.003
+author: detections.ai
+version: "4"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/
+data_sources:
+    - process_creation
+    - windows

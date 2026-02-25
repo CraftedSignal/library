@@ -1,0 +1,29 @@
+id: 23246c79-674b-4d25-b7de-70eb1a13cb05
+name: CVE-2025-22224 (CVSS 9.3 CRITICAL) Internet facing VMware server discovery
+description: 'KQL Query from file: CVE-2025-22224 (CVSS 9.3 CRITICAL) Internet facing VMware server discovery'
+query: |
+    // CVE-2025-22224 (CVSS 9.3 CRITICAL) Internet facing VMware server discovery
+
+    // https://www.bleepingcomputer.com/news/security/over-37-000-vmware-esxi-servers-vulnerable-to-ongoing-attacks/
+
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    DeviceProcessEvents
+    | where Timestamp > ago(30d)
+    | where FileName has "vmtoolsd"
+    | summarize arg_max(Timestamp, *) by DeviceId
+    | where DeviceId has_any(InternetFacing)
+query_type: kql
+tactics:
+    - TA0002
+    - TA0003
+    - TA0007
+techniques:
+    - T1675
+    - T1505.006
+    - T1016.001
+tags:
+    - kql
+version: "1"

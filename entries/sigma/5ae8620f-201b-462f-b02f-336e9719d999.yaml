@@ -1,0 +1,109 @@
+id: 5ae8620f-201b-462f-b02f-336e9719d999
+name: Suspicious Command Execution Associated with ClickFix
+description: |
+    Detects suspicious command-line activity associated with the "ClickFix" social engineering technique.
+    Threat actors trick users into pasting and executing malicious commands that typically use scripting engines or built-in utilities to download and run subsequent payloads.
+    This rule identifies patterns seen in recent NetSupport RAT, Latrodectus, and Lumma Stealer campaigns using this vector.
+query: |
+    title: Suspicious Command Execution Associated with ClickFix
+    id: c425343e-6892-412d-b6f7-a3dc8a117f3f
+    status: experimental
+    description: |
+      Detects suspicious command-line activity associated with the "ClickFix" social engineering technique.
+      Threat actors trick users into pasting and executing malicious commands that typically use scripting engines or built-in utilities to download and run subsequent payloads.
+      This rule identifies patterns seen in recent NetSupport RAT, Latrodectus, and Lumma Stealer campaigns using this vector.
+    references:
+      - https://unit42.paloaltonetworks.com/preventing-clickfix-attack-vector/
+    author: Aaron Mog - detections.ai
+    date: 2025-07-11
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.social_engineering
+      - attack.t1059
+      - attack.t1204.002
+      - attack.t1218
+      - attack.t1518.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects mshta.exe fetching a remote payload, as seen in Lumma Stealer campaigns
+      selection_mshta:
+        Image|endswith: '\mshta.exe'
+        CommandLine|contains: 'http'
+        # Detects PowerShell used for downloading or executing remote code.
+        # This is a broad condition and may need tuning by combining keywords with 'all' if FPs occur.
+      selection_powershell:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains:
+          - 'http'
+          - 'IEX'
+          - 'Invoke-Expression'
+          - 'DownloadString'
+          - 'DownloadFile'
+          - ' -e ' # Encoded command switch
+          - ' -enc '
+        # Detects curl.exe downloading from suspicious domains seen in the campaigns
+      selection_curl:
+        Image|endswith: '\curl.exe'
+        CommandLine|contains:
+          - 'http'
+          - '.live' # Latrodectus TLD
+          - 'r2.dev' # Lumma Stealer hosting
+        # Detects cscript.exe running a downloaded script, as seen with Latrodectus
+      selection_cscript:
+        Image|endswith: '\cscript.exe'
+        CommandLine|contains:
+          - '.txt'
+          - '.js'
+        # Detects discovery commands used by Lumma Stealer to find security products
+      selection_discovery:
+        Image|endswith: '\findstr.exe'
+        ParentImage|endswith: '\cmd.exe'
+        CommandLine|contains:
+          # AV product process names
+          - 'opssvc'
+          - 'wrsa'
+          - 'bdservicehost'
+          - 'SophosHealth'
+          - 'AvastUI'
+          - 'AVGUI'
+          - 'nsWscSvc'
+          - 'ekrn'
+
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate administrative or developer scripts that download and execute
+        content from the internet.
+      - Software installers or updaters that use these utilities.
+      - System monitoring tools that may use findstr to check for running services.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0007
+techniques:
+    - T1059
+    - T1204.002
+    - T1218
+    - T1518.001
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.social_engineering
+    - attack.t1059
+    - attack.t1204.002
+    - attack.t1218
+    - attack.t1518.001
+author: Aaron Mog - detections.ai
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/preventing-clickfix-attack-vector/
+data_sources:
+    - process_creation
+    - windows

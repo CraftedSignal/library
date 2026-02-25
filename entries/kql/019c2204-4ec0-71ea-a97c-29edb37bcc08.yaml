@@ -1,0 +1,66 @@
+id: 019c2204-4ec0-71ea-a97c-29edb37bcc08
+name: CATO Networks - Blocked URL Access
+description: This query identifies URL access attempts that were blocked by CATO Networks security policies, based on logs in CommonSecurityLog. It allows for filtering by specific devices or target URLs.
+query: |
+    // Name: CATO Networks - Blocked URL Access
+    // Author: Nicholas Isakson
+    // Date: 2026-02-02
+    //
+    // Description: This query identifies URL access attempts that were blocked by CATO Networks security policies, based on logs in CommonSecurityLog.
+    // It allows for filtering by specific devices or target URLs.
+    //
+    // False Positive Sensitivity: Medium
+    // - This query is based on explicit block actions from the security device, so false positives should be low.
+    // - However, legitimate policy enforcement (e.g., blocking social media) will trigger alerts. Consider tuning by excluding non-malicious categories in the 'Reason' field if necessary.
+    //
+    // Tactic: Initial Access, Command and Control
+    // Technique: T1189 (Drive-by Compromise), T1071.001 (Web Protocols)
+
+    // ============================================
+    // PARAMETERS
+    // ============================================
+    let LookbackPeriod = 7d;
+    let DeviceName = "";    // e.g., "rlis107730pgles"
+    let TargetURL = "";     // e.g., "license.scala.com"
+    // ============================================
+    CommonSecurityLog
+    | where TimeGenerated > ago(LookbackPeriod)
+    | where DeviceProduct == "Cato Networks" // Filter for CATO Networks logs. Adjust if your DeviceProduct name is different.
+    | where (isempty(DeviceName) or SourceHostName has DeviceName or Computer has DeviceName) // Filter for specific device if provided.
+    | where (isempty(TargetURL) or DestinationHostName has TargetURL or RequestURL has TargetURL) // Filter for specific URL if provided.
+    | extend
+        ActionStatus = case(
+            DeviceAction in~ ("block", "drop", "deny", "reset-both", "reset-client", "reset-server"), "Blocked",
+            DeviceAction in~ ("allow", "accept", "permit", "pass"), "Allowed",
+            DeviceAction =~ "monitor", "Monitored",
+            "Other"
+        )
+    | where ActionStatus == "Blocked" // Focus only on events that were explicitly blocked.
+    | project
+        TimeGenerated,
+        DeviceVendor,
+        DeviceProduct,
+        Computer,
+        SourceHostName,
+        SourceUserName,
+        SourceIP,
+        DestinationHostName,
+        DestinationIP,
+        DestinationPort,
+        DeviceAction,
+        ActionStatus,
+        RequestURL,
+        Reason,
+        Message
+    | order by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1189
+    - T1071.001
+tags:
+    - kql
+version: "3"

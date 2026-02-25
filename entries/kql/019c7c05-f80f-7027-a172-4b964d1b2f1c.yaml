@@ -1,0 +1,19 @@
+id: 019c7c05-f80f-7027-a172-4b964d1b2f1c
+name: Suspicious Kernel Module Load from Temporary or Non-Standard Path
+description: Identifies the loading of a Linux kernel module from a suspicious, non-standard directory such as /tmp, /dev/shm, /var/tmp, or a user's local hidden directory. Attackers often deploy rootkits and other kernel-level malware from these locations to evade detection and gain persistence. This technique is a prerequisite for kernel-level bypasses like those used by the 'Singularity' rootkit.
+query: "// Name: Suspicious Kernel Module Load Path\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-20\r\n// Description: Identifies the loading of a Linux kernel module from a suspicious, non-standard directory such as /tmp, /dev/shm, or /var/tmp. Attackers deploy rootkits and other kernel-level malware from these locations to evade detection and gain persistence. This technique is a prerequisite for kernel-level bypasses like those used by the 'Singularity' rootkit.\r\n// False Positive Sensitivity: Medium\r\n// References:\r\n// - https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools\r\n// MITRE ATT&CK: T1547.006 (Kernel Modules and Extensions)\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(1d)\r\n// Look for common utilities used to load kernel modules.\r\n| where FileName in (\"insmod\", \"modprobe\")\r\n// Check if the module path in the command line points to a suspicious, world-writable, or temporary location.\r\n| where ProcessCommandLine has \"/tmp/\"\r\n    or ProcessCommandLine has \"/dev/shm/\"\r\n    or ProcessCommandLine has \"/var/tmp/\"\r\n    or ProcessCommandLine matches regex @'/home/[^/]+/\\.local/'\r\n// False Positive Tuning: Legitimate software installation or development/testing activities might involve loading modules from temporary paths.\r\n// Exclude known safe parent processes or specific command lines if they are part of a standard workflow.\r\n// For example: `| where InitiatingProcessParentFileName != \"safe_installer\"`\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1547.006
+    - T1014
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://matheuzsecurity.github.io/hacking/ebpf-security-tools-hacking/?utm_source=tldrsec.com&utm_medium=referral&utm_campaign=tl-dr-sec-316-how-trail-of-bits-uses-claude-code-github-threat-intel-open-source-ai-pentesting-tools

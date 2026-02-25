@@ -1,0 +1,20 @@
+id: d70afe77-7573-4550-973f-49c38fe74121
+name: Remote Monitoring and Management (RMM) Tool Distributed via Microsoft Teams
+description: "This detection identifies when a Microsoft Teams message containing a URL associated with a known Remote Monitoring and Management (RMM) tool was sent and subsequently clicked by the intended recipient or the original sender. The domain is not part of the organization's approved RMM solutions, indicating a potential use of Living-off-the-Land RMM (LOLRMM) techniques often employed in initial access or persistence stages by threat actors. \n\nThis activity may reflect attempted remote access, lateral movement, or data collection through unauthorized RMM deployment. \n"
+query: "let Timeframe = 1h;\r\n//Your approved RMM domains\r\nlet ApprovedRMM = dynamic([]); \r\nlet RMMList = externaldata(URI: string, RMMTool: string)\r\n    [h'https://raw.githubusercontent.com/magicsword-io/LOLRMM/main/website/public/api/rmm_domains.csv'];\r\nlet RMMUrl = RMMList | project URI;\r\nlet RMMToolTeams = materialize (\r\n    MessageUrlInfo\r\n    | where Timestamp > ago(Timeframe)\r\n    | where not(UrlDomain has_any(ApprovedRMM))\r\n    | where UrlDomain has_any(RMMUrl)\r\n    | join kind=innerunique (\r\n        MessageEvents \r\n        | where Timestamp > ago(Timeframe)\r\n        | where SenderType == 'User'\r\n        | where DeliveryLocation == 'Teams'\r\n        | where DeliveryAction == 'Delivered'\r\n        | where ThreadType == 'chat'\r\n        | where MessageSubtype == 'Html'\r\n        | summarize arg_max(ThreadId, DetectionMethods, RecipientDetails) \r\n            by TeamsMessageId, MessageId, ParentMessageId, SenderObjectId, SenderDisplayName, SenderEmailAddress, IsOwnedThread, IsExternalThread,\r\n                ThreadSubType, MessageType, MessageSubtype, MessageVersion, DeliveryAction, DeliveryLocation\r\n        ) on TeamsMessageId\r\n    | join kind=innerunique ( \r\n        UrlClickEvents\r\n        | where Timestamp > ago(Timeframe)\r\n        | where Workload == 'Teams'\r\n        | where ActionType == 'ClickAllowed'\r\n        | summarize arg_max(SourceId, UrlChain, DetectionMethods) \r\n            by ClickTime = Timestamp, ActionType, AccountUpn, IPAddress, Url, IsClickedThrough, AppName, AppVersion\r\n        ) on Url\r\n        | extend \r\n            SenderEmail = tolower(SenderEmailAddress), \r\n            ClickEmail = tolower(AccountUpn),\r\n            RecipientEmails = extract_all(@'\"RecipientSmtpAddress\":\"([^\"]+)\"', tostring(RecipientDetails))\r\n);\r\nRMMToolTeams\r\n//The user who sent the message clicked the URL or the recipient of the message clicked the URL\r\n| where SenderEmail == ClickEmail or array_index_of(RecipientEmails, ClickEmail) != -1\r\n| project Timestamp, TeamsMessageId, MessageId, ParentMessageId, MessageType, MessageSubtype, MessageVersion, DetectionMethods, Url, UrlDomain, UrlChain, UrlDetectionMethods = DetectionMethods1,\r\n    SenderObjectId, SenderDisplayName, SenderEmailAddress, DeliveryAction, DeliveryLocation, RecipientDetails, RecipientEmails, ThreadId, ThreadSubType, IsOwnedThread, IsExternalThread, \r\n    ClickTime, ActionType, AccountUpn, IPAddress, IsClickedThrough, AppName, AppVersion, SourceId, ReportId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+    - TA0008
+    - TA0009
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - kql
+    - mdo
+    - defender xdr
+author: ramz
+version: "1"

@@ -1,0 +1,18 @@
+id: 019a3a89-892d-750c-bebf-2a7ed6698cf9
+name: 'Lotusblo Obfuscated Powershell Script Detection '
+description: This rule detects suspicious, obfuscated PowerShell commands by analyzing the command line for long string literals with low character diversity and high frequency of a single character. It extracts strings enclosed in single quotes, double quotes, or backticks, and then calculates the ratio of distinct characters to total length and the ratio of the most frequent character's count to total length. If these ratios fall below and above certain thresholds, respectively, the command is flagged as suspicious.
+query: "// Searches for suspicious, obfuscated PowerShell commands\r\n// Based on the PowerShell command in this report: https://www.cyberproof.com/blog/fileless-remcos-attacks-on-the-rise/\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName =~ \"powershell.exe\"\r\n| extend CommandLine = tolower(ProcessCommandLine) \r\n| where strlen(CommandLine) > 100\r\n// Find string literals with different types of quotation marks\r\n| extend SingleQuoteStrings = extract_all(@\"'([^']{20,})'\", CommandLine)\r\n| extend DoubleQuoteStrings = extract_all(\"\\\"([^\\\"]{20,})\\\"\", CommandLine)\r\n| extend BacktickStrings = extract_all(@\"`([^`]{20,})`\", CommandLine)\r\n// Combine all extracted strings\r\n| extend AllStrings = array_concat(SingleQuoteStrings, DoubleQuoteStrings, BacktickStrings)\r\n| where array_length(AllStrings) > 0\r\n// Expand each extracted string literal\r\n| mv-expand SuspiciousString = AllStrings to typeof(string)\r\n| where isnotempty(SuspiciousString)\r\n| extend TotalLength = strlen(SuspiciousString)\r\n| where TotalLength > 20\r\n// Create an index for every character in the string\r\n| mv-apply Index = range(0, TotalLength - 1, 1) on (\r\n    project Character = substring(SuspiciousString, toint(Index), 1)\r\n)\r\n// Count how often each character occurs\r\n| summarize CharFrequency = count() \r\n    by DeviceId, Timestamp, Character, TotalLength, TimeGenerated, DeviceName, CommandLine, SuspiciousString, ReportId\r\n// Find the maximum frequency and number of unique characters\r\n| summarize \r\n    DistinctChars = dcount(Character),\r\n    MostFrequentCharCount = max(CharFrequency),\r\n    TotalLength = any(TotalLength),\r\n    TimeGenerated = any(TimeGenerated),\r\n    DeviceName = any(DeviceName),\r\n    CommandLine = any(CommandLine),\r\n    ReportId = any(ReportId)\r\n    by DeviceId, Timestamp, SuspiciousString\r\n// Calculate ratios\r\n| extend Ratio_Diversity_Total = todouble(DistinctChars) / TotalLength \r\n| extend Ratio_Junk_Total = todouble(MostFrequentCharCount) / TotalLength \r\n// Apply threshold values for detection\r\n| where Ratio_Diversity_Total < 0.38 // lower value = more aggressive detection\r\n| where Ratio_Junk_Total > 0.25 // lower value = more aggressive detection\r\n| project TimeGenerated, DeviceId, DeviceName, ReportId, CommandLine, SuspiciousString, TotalLength, DistinctChars, MostFrequentCharCount, Ratio_Diversity_Total, Ratio_Junk_Total\r\n| sort by Ratio_Junk_Total desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://www.cyberproof.com/blog/fileless-remcos-attacks-on-the-rise/

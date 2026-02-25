@@ -1,0 +1,76 @@
+id: 019c348e-197e-7488-b4d7-3c30cbbe2d83
+name: Sensitive .env File Exfiltration
+description: Detects a process reading a .env file, which often contains sensitive credentials like API keys. This is often the first step of a data exfiltration pattern where the credentials are then sent to an attacker-controlled server. This behavior was observed in the malicious 'rankaj' OpenClaw skill. This rule should be correlated with subsequent network activity from the same process to a rare destination.
+query: |
+    title: Sensitive .env File Exfiltration
+    id: 0bf3f8df-70b4-4e55-b505-fe06fabaf4ab
+    status: experimental
+    description: >-
+      Detects a process reading a .env file, which often contains sensitive
+      credentials like API keys. This is often the first step of a data exfiltration
+      pattern where the credentials are then sent to an attacker-controlled server.
+      This behavior was observed in the malicious 'rankaj' OpenClaw skill. This rule
+      should be correlated with subsequent network activity from the same process to
+      a rare destination.
+    references:
+      - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.credential_access
+      - attack.t1552.001
+      - attack.exfiltration
+      - attack.t1048.003
+    logsource:
+      category: file_event
+      product: linux # This pattern is also applicable to Windows and macOS
+    detection:
+      selection:
+        # Detects access to .env files which commonly store secrets
+        TargetFilename|endswith: '.env'
+      filter:
+        # Filter out common developer tools, shells, and editors that legitimately access .env files
+        Image|endswith:
+          - '/bash'
+          - '/code'
+          - '/docker'
+          - '/docker-compose'
+          - '/emacs'
+          - '/fish'
+          - '/go'
+          - '/nano'
+          - '/node'
+          - '/php'
+          - '/python'
+          - '/python3'
+          - '/ruby'
+          - '/sh'
+          - '/vi'
+          - '/vim'
+          - '/zsh'
+      condition: selection and not filter
+    falsepositives:
+      - Legitimate custom scripts or applications reading their configuration from a
+        .env file.
+      - The filter list may need to be expanded based on the specific development
+        tools used in an environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+    - TA0006
+techniques:
+    - T1552.001
+tags:
+    - attack.credential_access
+    - attack.t1552.001
+    - attack.exfiltration
+    - attack.t1048.003
+author: detections.ai
+version: "2"
+references:
+    - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html
+data_sources:
+    - file_event
+    - linux

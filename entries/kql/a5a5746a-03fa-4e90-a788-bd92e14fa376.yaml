@@ -1,0 +1,14 @@
+id: a5a5746a-03fa-4e90-a788-bd92e14fa376
+name: RootCertificateInstalled WindowsSysmon
+description: Detects installation of new root certificates, which may be used for man-in-the-middle attacks during defense evasion.
+query: "rule RootCertificateInstalled_WindowsSysmon {\r\n\r\n    meta:\r\n        subject = \"Root Certificate Installed\"\r\n        author = \"Sanjay Kumar\"\r\n        description = \"Detects installation of new root certificates, which may be used for man-in-the-middle attacks during defense evasion.\"\r\n        severity = \"Medium\"\r\n        mitre_category = \"Defense Evasion\"\r\n        mitre_technique_id = \"T1553\"\r\n        version = \"1.0.0\"\r\n\r\n    events:\r\n        $root_cert.metadata.vendor_name = \"Microsoft\"\r\n\r\n        // Detection via certutil\r\n        (\r\n            re.regex($root_cert.target.process.file.full_path , `certutil\\.exe`) nocase and\r\n            re.regex($root_cert.target.process.command_line, `\\-addstore`) nocase and\r\n            re.regex($root_cert.target.process.command_line, `root`) nocase\r\n        )\r\n        or\r\n        // Detection via certmgr/certmgt\r\n        (\r\n            re.regex($root_cert.target.process.file.full_path , `(certmgr|certmgt)\\.exe`) nocase and\r\n            re.regex($root_cert.target.process.command_line, `\\/add`) nocase and\r\n            re.regex($root_cert.target.process.command_line, `root`) nocase\r\n        )\r\n        or\r\n        // Detection via PowerShell script block\r\n        (\r\n            re.regex($root_cert.additional.fields[\"ScriptBlockText\"] , `(Import\\-Certificate|Move\\-Item)`) nocase and\r\n            re.regex($root_cert.additional.fields[\"ScriptBlockText\"] , `Cert\\:\\\\LocalMachine\\\\Root`) nocase\r\n        )\r\n\r\n\r\n    outcome:\r\n        $riskscore = 56\r\n        $target_file_path = array_distinct($root_cert.target.process.file.full_path)\r\n        $target_process_cmdline = array_distinct($root_cert.target.process.command_line)\r\n\r\n    condition:\r\n        $root_cert\r\n}\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+author: Sanjay
+version: "1"
+references:
+    - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_powershell_import_cert_susp_locations.yml
+    - ttps://github.com/SigmaHQ/sigma/blob/master/rules/windows/powershell/powershell_script/posh_ps_root_certificate_installed.yml
+    - https://github.com/SigmaHQ/sigma/blob/master/rules/windows/process_creation/proc_creation_win_certmgr_certificate_installation.yml

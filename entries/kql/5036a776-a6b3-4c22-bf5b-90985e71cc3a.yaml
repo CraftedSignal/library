@@ -1,0 +1,12 @@
+id: 5036a776-a6b3-4c22-bf5b-90985e71cc3a
+name: Malicious Email Attachment Presence on Devices
+description: This query hunts for files shared by a specified malicious sender on user devices. It identifies if attachments from emails sent by the malicious sender have been downloaded, saved, or are present on the user's devices by joining email attachment information with device file events based on the SHA256 hash of the attachment.
+query: "#### This query hunts for any files shared by the malicious sender on the devices of the users. In other words it checks if the file shared by malicious sender is downloaded, saved or present on the devices of the user's.\n\n#### Query:\n```KQL \nEmailAttachmentInfo_CL\n| where SenderFromAddress_s =~ \"MaliciousSender@example.com\"\n// Get emails with attachments identified by a SHA-256\n| where isnotempty(SHA256_s)\n| extend SHA256 = SHA256_s // Standardize the column name for the join\n| join (\n// Check devices for any activity involving the attachments\n    DeviceFileEvents\n    | project FileName, SHA256, DeviceName, DeviceId\n) on SHA256 \n| project Timestamp_t, FileName, SHA256, DeviceName, DeviceId, NetworkMessageId_g, SenderFromAddress_s, RecipientEmailAddress_s\n``` \n\n"
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+version: "1"

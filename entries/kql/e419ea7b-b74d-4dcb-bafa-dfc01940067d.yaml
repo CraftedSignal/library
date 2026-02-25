@@ -1,0 +1,42 @@
+id: e419ea7b-b74d-4dcb-bafa-dfc01940067d
+name: Tor Proxy Execution and VM Evasion Detection
+description: KQL Query
+query: |-
+    let tor_proxy_execution = DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName =~ "tor.exe"
+    | where FolderPath contains @"\AppData\Local\Temp\skynet\"
+    | where CommandLine has_all ("--ControlPort", "127.0.0.1:24616", "--SocksPort", "127.0.0.1:24615", "--Log", "notice stdout")
+    | extend DetectionType = "TorProxyExecution";
+
+    let vm_evasion_tasklist = DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where FileName =~ "tasklist.exe"
+    | where CommandLine has "findstr"
+    | where CommandLine has_any ("vmware.exe", "vboxservice.exe", "qemu-ga.exe")
+    | extend DetectionType = "VMEvasionTaskList";
+
+    let info_gathering_file_access = DeviceFileEvents
+    | where ActionType == "FileRead"
+    | where FileName in ("known_hosts", "id_rsa", "hosts")
+    | where FolderPath contains_any (@"\.ssh\", @"\System32\drivers\etc\")
+    | extend DetectionType = "InfoGatheringFileAccess";
+
+    union tor_proxy_execution, vm_evasion_tasklist, info_gathering_file_access
+    | project-reorder Timestamp, DeviceName, DetectionType, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, CommandLine, ProcessId, InitiatingProcessId, ParentProcessId
+    | extend AccountName = iff(isnotempty(InitiatingProcessAccountName), InitiatingProcessAccountName, AccountName)
+    | extend AccountSid = iff(isnotempty(InitiatingProcessAccountSid), InitiatingProcessAccountSid, AccountSid)
+    | extend AccountDomain = iff(isnotempty(InitiatingProcessAccountDomain), InitiatingProcessAccountDomain, AccountDomain)
+    | extend AccountUpn = iff(isnotempty(InitiatingProcessAccountUpn), InitiatingProcessAccountUpn, AccountUpn)
+    | extend TargetProcessCommandLine = CommandLine
+    | extend TargetProcessFileName = FileName
+    | extend TargetProcessFolderPath = FolderPath
+    | extend TargetProcessId = ProcessId
+    | extend TargetProcessParentId = ParentProcessId
+    | extend TargetProcessCreationTime = Timestamp
+    | project-away CommandLine, FileName, FolderPath, ProcessId, ParentProcessId, Timestamp
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

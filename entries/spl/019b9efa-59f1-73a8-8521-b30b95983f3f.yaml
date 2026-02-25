@@ -1,0 +1,10 @@
+id: 019b9efa-59f1-73a8-8521-b30b95983f3f
+name: CrowdStrike Query - ClickFix Social Engineering Attack Chain
+description: 'This rule detects a suspicious attack chain, potentially related to ''ClickFix'' or similar social engineering campaigns. It correlates multiple events within a 5-minute window: a browser being launched from an email client, a file download from a browser into the Downloads directory, and a command prompt being launched from explorer.exe executing a command that references the Downloads directory. Additionally, it looks for network connections initiated by common document types, which could indicate malicious document activity.'
+query: "#event_simpleName=/^(ProcessRollup2|NetworkConnectIP4)$/ OR #event_simpleName=/FileWritten$/\r\n| case {\r\n    #event_simpleName=ProcessRollup2 ParentBaseFileName=*outlook* OR ParentBaseFileName=*thunderbird* | ContextBaseFileName=*msedge* OR ContextBaseFileName=*chrome* OR ContextBaseFileName=*firefox* | CommandLine=*http* | event_type := \"browser_from_email\";\r\n    #event_simpleName=/FileWritten$/ ContextBaseFileName=*msedge* OR ContextBaseFileName=*chrome* OR ContextBaseFileName=*firefox* | TargetFileName=*Downloads* | event_type := \"file_download\";\r\n    #event_simpleName=ProcessRollup2 ParentBaseFileName=*explorer* | ContextBaseFileName=*cmd* | CommandLine=*/c* | CommandLine=*start* | CommandLine=*Downloads* | event_type := \"cmd_from_explorer\";\r\n    #event_simpleName=NetworkConnectIP4 ContextBaseFileName=*.pdf OR ContextBaseFileName=*.doc* OR ContextBaseFileName=*.xls* OR ContextBaseFileName=*.ppt* | event_type := \"document_network\";\r\n    * | event_type := \"other\";\r\n  }\r\n| event_type != \"other\"\r\n| bucket(field=@timestamp, span=5m, limit=500)\r\n| groupBy([_bucket, aid], function=([collect(event_type), count(event_type, distinct=true, as=event_count)]), limit=max)\r\n| event_count >= 3\r\n| alert := \"ClickFix Attack Chain Detected\"\r\n| rename(\"_collect\", as=\"events\")\r\n| table([@timestamp, aid, ComputerName, events, event_count, alert])"
+query_type: spl
+severity: medium
+tags:
+    - spl
+author: Jorden Smith
+version: "2"

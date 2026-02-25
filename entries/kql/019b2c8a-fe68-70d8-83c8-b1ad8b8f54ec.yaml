@@ -1,0 +1,17 @@
+id: 019b2c8a-fe68-70d8-83c8-b1ad8b8f54ec
+name: Detection of Known Malicious Browser Extensions (Urban VPN, 1ClickVPN)
+description: This rule detects the presence of known malicious browser extensions, specifically Urban VPN, Urban Browser Guard, Urban Ad Blocker, and 1ClickVPN Proxy, across Chrome and Edge browsers. It identifies these extensions by searching for their unique 32-character Extension IDs within file paths or file names associated with device file events. The rule then enriches the findings with the extension's name and the browser it belongs to.
+query: "let ExtensionMapping = datatable(ExtensionID:string, ExtensionName:string, Browser:string) [\r\n    // Chrome\r\n    \"eppiocemhmnlbhjplcgkofciiegomcon\", \"Urban VPN Proxy\", \"Chrome\",\r\n    \"almalgbpmcfpdaopimbdchdliminoign\", \"Urban Browser Guard\", \"Chrome\",\r\n    \"feflcgofneboehfdeebcfglbodaceghj\", \"Urban Ad Blocker\", \"Chrome\",\r\n    \"pphgdbgldlmicfdkhondlafkiomnelnk\", \"1ClickVPN Proxy\", \"Chrome\",\r\n    // Edge\r\n    \"nimlmejbmnecnaghgmbahmbaddhjbecg\", \"Urban VPN Proxy\", \"Edge\",\r\n    \"jckkfbfmofganecnnpfndfjifnimpcel\", \"Urban Browser Guard\", \"Edge\",\r\n    \"gcogpdjkkamgkakkjgeefgpcheonclca\", \"Urban Ad Blocker\", \"Edge\",\r\n    \"deopfbighgnpgfmhjeccdifdmhcjckoe\", \"1ClickVPN Proxy\", \"Edge\"\r\n];\r\nlet MaliciousExtensionIDs = ExtensionMapping | project ExtensionID;\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where FolderPath has_any (MaliciousExtensionIDs) or FileName has_any (MaliciousExtensionIDs)\r\n| extend ExtensionID = extract(@\"([a-z]{32})\", 1, tolower(strcat(FolderPath, FileName)))\r\n| lookup  ExtensionMapping on ExtensionID\r\n| project Timestamp, DeviceName, DeviceId, ExtensionID, ExtensionName, Browser, FolderPath, FileName, ActionType"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176
+    - T1176.001
+tags:
+    - kql
+version: "5"
+references:
+    - https://www.koi.ai/blog/urban-vpn-browser-extension-ai-conversations-data-collection
+    - https://thehackernews.com/2025/12/featured-chrome-browser-extension.html

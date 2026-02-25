@@ -1,0 +1,59 @@
+id: 019c348d-bea1-721f-b167-3ed6760fce54
+name: OpenClaw AI Agent Cognitive Rootkit Persistence
+description: Detects modification of core OpenClaw AI agent behavioral files (SOUL.md, AGENTS.md). Threat actors have been observed using malicious 'skills' to append instructions to these files, creating a 'cognitive rootkit' that persistently alters the agent's behavior.
+query: |
+    title: OpenClaw AI Agent Cognitive Rootkit Persistence
+    id: 15f5540e-af2b-4c02-9198-543847e41f11
+    status: experimental
+    description: Detects modification of core OpenClaw AI agent behavioral files
+      (SOUL.md, AGENTS.md). Threat actors have been observed using malicious
+      'skills' to append instructions to these files, creating a 'cognitive rootkit'
+      that persistently alters the agent's behavior.
+    references:
+      - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.persistence
+      - attack.t1546
+    logsource:
+      category: file_event
+      product: linux # This detection can be adapted for other OS where OpenClaw runs (e.g., macOS, Windows)
+    detection:
+      selection:
+        # Detects modification of core OpenClaw behavioral files that define the agent's personality and safety boundaries.
+        TargetFilename|endswith:
+          - '/SOUL.md'
+          - '/AGENTS.md'
+      filter:
+        # Filter out modifications by common text editors to reduce false positives from legitimate administrative changes.
+        Image|endswith:
+          - '/vi'
+          - '/vim'
+          - '/nano'
+          - '/code'
+          - '/emacs'
+      condition: selection and not filter
+    falsepositives:
+      - Legitimate modification of these files by administrators or developers using
+        text editors or IDEs.
+      - Benign OpenClaw skills that are designed to legitimately update these files,
+        although this behavior should be rare and carefully vetted.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546
+tags:
+    - attack.persistence
+    - attack.t1546
+author: detections.ai
+version: "2"
+references:
+    - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html
+data_sources:
+    - file_event
+    - linux

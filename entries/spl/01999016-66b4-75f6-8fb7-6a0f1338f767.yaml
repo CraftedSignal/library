@@ -1,0 +1,79 @@
+id: 01999016-66b4-75f6-8fb7-6a0f1338f767
+name: Olymp Loader Malware IOC Detection
+description: This rule detects the presence of Olymp Loader malware by identifying known malicious file hashes (SHA256) and network communication with associated distribution domains. It looks for these indicators across various data sources, normalizing fields for consistent output. The rule aims to identify systems infected with or communicating with Olymp Loader infrastructure.
+query: |
+    `comment("This query hunts for Indicators of Compromise (IOCs) associated with Olymp Loader malware, including known malicious file hashes and distribution domains. Please update the index and sourcetype values to match your environment for better performance.")`
+    index=*
+    (
+        `comment("File Hash IOCs for Olymp Loader and its modules")`
+        sha256 IN (
+            "7bc217f0ee12266d42812af436f49caf599c0705242457a581f64d4eb508904",
+            "d36da9c3e5e78aa87bcdcd7fc8d3499d85a60b9dd107bf775d759940fc2f2489",
+            "d167a0c6fdba1175b67f10daf4be218b4d8adf2f81280ba5d1510228a4321bca",
+            "446c7b9ff49c7c0b8ae02b720054e4f09ef60475c92a5d7f2e2b2bdb4ca5de23",
+            "ff1e159c4c6fcb97c9cb1885796fa4557e1afb92c82ada00f24ae994bffd63e4",
+            "9464a2a1fb53b3a8c783ee4b55bba69cbb74a841f0d06f0cef86a93d607be5ae",
+            "59b143fd884f8450cf5161954ebf38dbd9c951ecdb13de5e1f6aea01a9f92201",
+            "60fec45a29a89c1cb10fd793065e8fc39bdae15daf813e3438e8ff6558fb7e2d",
+            "561809b0c9c67b7d48712ab9e53cf5cc137b94d5a2d8bc65314a2db4c23df99d",
+            "9d5d474791793300a273c5b6e522c7c3acd6fbb26c4da0421d4ef695c82f3fa5",
+            "14e4884288c1740d5a4b67ac83a890000c3b92f945139b2433bf9746acd14f9b",
+            "01562cd36b61d517959fdbe5beaef9e1e9462be292c74a49b36a30057d09bc2c",
+            "60f8b5a6c8621e07124fbec4b9253b913056d1279d6c42fdd99a8b6b14c33e9a",
+            "048701ffc9b7ccfe4228bfaaa0b98a0518f02c6325c7f59365f863eccb65aa6d",
+            "c465c1ac750e80ffb4020ec085528ca520b4fca587710ae1a5937bc88e5ad22c",
+            "dbe4aaef628f4d392fd25946643424334af4ecb9eb2589884112b465f508ca33",
+            "02eb774341d84b8c83b448186f3de8db139c52bea2376fec0ac88c7112186fd2",
+            "ee1e27a01b884099a614b8eee78cdb1dd02ffecd6ed9f6a54b7b567b9eab979f"
+        )
+        OR file_hash IN (
+            "7bc217f0ee12266d42812af436f49caf599c0705242457a581f64d4eb508904",
+            "d36da9c3e5e78aa87bcdcd7fc8d3499d85a60b9dd107bf775d759940fc2f2489",
+            "d167a0c6fdba1175b67f10daf4be218b4d8adf2f81280ba5d1510228a4321bca",
+            "446c7b9ff49c7c0b8ae02b720054e4f09ef60475c92a5d7f2e2b2bdb4ca5de23",
+            "ff1e159c4c6fcb97c9cb1885796fa4557e1afb92c82ada00f24ae994bffd63e4",
+            "9464a2a1fb53b3a8c783ee4b55bba69cbb74a841f0d06f0cef86a93d607be5ae",
+            "59b143fd884f8450cf5161954ebf38dbd9c951ecdb13de5e1f6aea01a9f92201",
+            "60fec45a29a89c1cb10fd793065e8fc39bdae15daf813e3438e8ff6558fb7e2d",
+            "561809b0c9c67b7d48712ab9e53cf5cc137b94d5a2d8bc65314a2db4c23df99d",
+            "9d5d474791793300a273c5b6e522c7c3acd6fbb26c4da0421d4ef695c82f3fa5",
+            "14e4884288c1740d5a4b67ac83a890000c3b92f945139b2433bf9746acd14f9b",
+            "01562cd36b61d517959fdbe5beaef9e1e9462be292c74a49b36a30057d09bc2c",
+            "60f8b5a6c8621e07124fbec4b9253b913056d1279d6c42fdd99a8b6b14c33e9a",
+            "048701ffc9b7ccfe4228bfaaa0b98a0518f02c6325c7f59365f863eccb65aa6d",
+            "c465c1ac750e80ffb4020ec085528ca520b4fca587710ae1a5937bc88e5ad22c",
+            "dbe4aaef628f4d392fd25946643424334af4ecb9eb2589884112b465f508ca33",
+            "02eb774341d84b8c83b448186f3de8db139c52bea2376fec0ac88c7112186fd2",
+            "ee1e27a01b884099a614b8eee78cdb1dd02ffecd6ed9f6a54b7b567b9eab979f"
+        )
+        OR
+        `comment("Domain/URL IOCs for Olymp Loader distribution")`
+        (url="*fastdownloads.live*" OR url="*jjf.life*" OR url="*classic-offensive.com*")
+        OR (dest_host="*fastdownloads.live*" OR dest_host="*jjf.life*" OR dest_host="*classic-offensive.com*")
+    )
+    `comment("Normalize fields for consistent output across different data sources.")`
+    | eval ioc_type=case(
+        match(url, "fastdownloads\\.live|jjf\\.life|classic-offensive\\.com") OR match(dest_host, "fastdownloads\\.live|jjf\\.life|classic-offensive\\.com"), "domain",
+        isnotnull(sha256) OR isnotnull(file_hash), "hash"
+        ),
+        ioc_value=coalesce(sha256, file_hash, url, dest_host),
+        process_name=coalesce(process, file_name, ProcessName),
+        user=coalesce(user, User),
+        dest=coalesce(dest, host, dvc_host)
+    `comment("Group results by key fields for readability and to summarize findings.")`
+    | stats count, values(process_name) as processes, values(user) as users by _time, index, sourcetype, dest, src_ip, dest_ip, ioc_type, ioc_value
+    | sort -_time
+    `comment("Potential for false positives is low as this query uses specific IOCs. However, if domains like 'classic-offensive.com' are used for legitimate purposes in your environment, consider adding exclusions.")`
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1071.001
+tags:
+    - spl
+author: Hartoyo Wahyu
+version: "4"
+references:
+    - https://outpost24.com/blog/olymp-loader-a-new-malware-as-a-service/

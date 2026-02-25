@@ -1,0 +1,95 @@
+id: c9c7c80e-c097-4c8a-a5a0-13fe95a1c4b8
+name: Windows Data Destruction Recursive Exec Files Deletion
+description: |
+    Detects a suspicious process recursively deleting or overwriting a high volume of executable files (.exe, .sys, .dll) on a Windows host, leveraging Sysmon Event IDs 23 and 26. This behavior is commonly associated with destructive malware such as CaddyWiper, DoubleZero, and SwiftSlicer.
+query: |
+    title: Windows Data Destruction Recursive Exec Files Deletion
+    id: 3596a799-6320-4a2f-8772-a9e98ddb2960
+    status: production
+    description: >
+      Detects a suspicious process recursively deleting or overwriting a high volume
+      of executable files (.exe, .sys, .dll) on a Windows host, leveraging Sysmon
+      Event IDs 23 and 26. This behavior is commonly associated with destructive
+      malware such as CaddyWiper, DoubleZero, and SwiftSlicer.
+    author: Teoderick Contreras, Splunk, Steven Dick
+    date: 2025-06-27T00:00:00.000Z
+    references:
+      - >-
+        https://www.welivesecurity.com/2023/01/27/swiftslicer-new-destructive-wiper-malware-ukraine/
+    tags:
+      - attack.impact
+      - attack.t1485
+      - Data Destruction
+      - Swift Slicer
+      - Disk Wiper
+      - Handala Wiper
+      - asset_type.Endpoint
+    logsource:
+      product: windows
+      service: sysmon
+      category: file_delete
+    detection:
+      selection_eventid:
+        EventID:
+          - 23
+          - 26
+      selection_ext:
+        TargetFilename|endswith:
+          - .exe
+          - .sys
+          - .dll
+      condition: selection_eventid and selection_ext
+    falsepositives:
+      - Uninstallation of large software applications
+      - Use of cleanmgr.exe
+      - Legitimate mass file deletion/cleanup operations
+    level: high
+    fields:
+      - TargetFilename
+      - Image
+      - User
+      - ComputerName
+      - ProcessId
+      - ProcessGuid
+      - FileHash
+      - FilePath
+      - FileName
+      - FileModifyTime
+      - Action
+      - Signature
+      - SignatureId
+      - VendorProduct
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1485
+    - C0034
+    - T1561
+    - T1561.001
+    - T1561.002
+    - DS0022
+    - T1578.003
+    - T1107
+    - T1070.004
+    - T1098.002
+tags:
+    - attack.impact
+    - attack.t1485
+    - Data Destruction
+    - Swift Slicer
+    - Disk Wiper
+    - Handala Wiper
+    - asset_type.Endpoint
+author: Teoderick Contreras, Splunk, Steven Dick
+version: "1"
+references:
+    - https://www.welivesecurity.com/2023/01/27/swiftslicer-new-destructive-wiper-malware-ukraine/
+data_sources:
+    - file_delete
+    - windows
+    - sysmon

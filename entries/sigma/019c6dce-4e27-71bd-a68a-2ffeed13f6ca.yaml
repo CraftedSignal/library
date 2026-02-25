@@ -1,0 +1,53 @@
+id: 019c6dce-4e27-71bd-a68a-2ffeed13f6ca
+name: Interactive CI/CD Pipeline Configuration Changes
+description: |
+    Detects unauthorized interactive modifications to CI/CD pipeline configurations that could indicate supply chain attack or malicious dependency code injection attempts.
+query: |
+    title: Interactive CI/CD Pipeline Configuration Changes
+    id: d56ff572-fc3d-4b1c-9872-9bc39ecc0796
+    status: experimental
+    description: >
+      Detects unauthorized interactive modifications to CI/CD pipeline
+      configurations that could indicate supply chain attack or malicious dependency
+      code injection attempts.
+    logsource:
+      product: github
+      category: file_event
+    detection:
+      selection_pipeline_configs:
+        TargetFilename|contains:
+          - .gitlab-ci.yml
+          - .github/workflows/
+          - Jenkinsfile
+          - azure-pipelines.yml
+          - .travis.yml
+          - buildspec.yml
+        EventType: FileCreate
+      selection_suspicious_changes:
+        TargetFilename|contains:
+          - .github/workflows/
+        TargetFilename|endswith: .yml
+      filter_legitimate:
+        Image|startswith:
+          - /usr/bin/git
+          - /opt/git
+        User|contains:
+          - jenkins
+          - github-actions
+          - gitlab-runner
+      condition: selection_pipeline_configs and not filter_legitimate
+    level: high
+    author: zendannyy
+    falsepositives:
+      - Emergency changes by DevOps admins (should have a PR or CHange Management if
+        force push is used)
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0004
+author: zendannyy
+version: "2"
+data_sources:
+    - file_event
+    - linux

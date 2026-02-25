@@ -1,0 +1,14 @@
+id: 019c8ec2-3ca1-70d7-b118-44dae67e6283
+name: High-Volume Azure Key Vault Secret/Key Access
+description: This rule detects high-volume access to Azure Key Vault secrets, keys, or certificates within a one-hour window. It specifically looks for successful read operations on secrets, keys, and certificates, as well as modifications to access policies. A high volume (more than 10 accesses) from a single caller within an hour is flagged as potential credential harvesting.
+query: "// Detection: High-Volume Key Vault Secret/Key Access (Credential Harvesting)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1552.001 - Credentials in Files\r\n\r\nAzureActivity\r\n| where TimeGenerated > ago(1d)\r\n| where ResourceProviderValue =~ \"MICROSOFT.KEYVAULT\"\r\n| where OperationNameValue has_any (\r\n    \"VAULTS/SECRETS/READ\",\r\n    \"VAULTS/KEYS/READ\",\r\n    \"VAULTS/CERTIFICATES/READ\",\r\n    \"VAULTS/SECRETS/GETVERSIONS/ACTION\",\r\n    \"VAULTS/ACCESSPOLICIES/WRITE\"\r\n)\r\n| where ActivityStatusValue =~ \"Success\"\r\n| summarize\r\n    AccessCount = count(),\r\n    SecretOps   = make_set(OperationNameValue, 10),\r\n    IPAddresses = make_set(CallerIpAddress, 5)\r\n    by Caller, ResourceGroup, bin(TimeGenerated, 1h)\r\n| where AccessCount > 10\r\n| extend AlertDescription = strcat(\r\n    \"'\", Caller, \"' accessed Key Vault \",\r\n    AccessCount, \" times in 1 hour — potential credential harvesting\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555.006
+tags:
+    - kql
+author: Rudra Verma
+version: "4"

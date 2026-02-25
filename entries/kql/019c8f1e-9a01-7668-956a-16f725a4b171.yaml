@@ -1,0 +1,14 @@
+id: 019c8f1e-9a01-7668-956a-16f725a4b171
+name: Visual Studio Code (VSC) Extension use detection
+description: |-
+    The query is designed to look for VSC extension use in the environment and determine who and which device the extension is being run on.
+
+    The query was built in support of detection for VSC extension abuse
+
+    The data from this query can be supported with inventorying of VSC through Microsoft SCCM
+query: "DeviceProcessEvents\r\n| where ProcessVersionInfoProductName == @\"Visual Studio Code\" and ProcessCommandLine startswith @'\"Code.exe\" c:\\Users'\r\n| extend extension = tostring(split(ProcessCommandLine,' ',1)[0])\r\n| extend extension = parse_path(extension)['DirectoryPath']\r\n| extend extension = tostring(split(extension,@'\\',5)[0])\r\n| summarize by DeviceName,AccountName,extension\r\n| summarize make_list(extension) by AccountName,DeviceName\r\n| sort by AccountName,DeviceName"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "2"

@@ -1,0 +1,215 @@
+id: 56b221a1-17c4-4f21-b705-9cac58904425
+name: Malicious Adtech Traffic Distribution System (TDS) URL Patterns
+description: Detects HTTP requests with URL patterns associated with various malicious Traffic Distribution Systems (TDS) as identified in the Infoblox report on VexTrio and related adtech cabals. These TDS are used to redirect users to malicious content, including scams and malware.
+query: |
+    title: Malicious Adtech Traffic Distribution System (TDS) URL Patterns
+    id: af2d60a9-6232-4452-a0ce-06e0f70d021d
+    status: experimental
+    description: Detects HTTP requests with URL patterns associated with various
+      malicious Traffic Distribution Systems (TDS) as identified in the Infoblox
+      report on VexTrio and related adtech cabals. These TDS are used to redirect
+      users to malicious content, including scams and malware.
+    references:
+      - https://blogs.infoblox.com/threat-intelligence/vexing-and-vicious-the-eerie-relationship-between-wordpress-hackers-and-an-adtech-cabal
+    author: detections.ai
+    date: 2025-07-10
+    tags:
+      - attack.initial_access
+      - attack.t1566
+      - threat.vextrio
+      - threat.bropush
+      - threat.partners_house
+      - threat.richads
+      - threat.rexpush
+      - threat.monetizer
+    logsource:
+      product: zeek
+      service: http
+        # This logsource definition assumes you are using Zeek's http.log.
+        # The field names used are 'uri' for the requested URI path and query, and 'host' for the requested domain.
+    detection:
+      # BroPush Patterns
+      bropush_1:
+        uri|contains|all:
+          - 'p='
+          - 'sub1='
+          - 'sub2='
+      bropush_2:
+        uri|contains|all:
+          - 'auf='
+          - 'p='
+          - 'sub1='
+          - 'sub2='
+      bropush_3:
+        uri|contains|all:
+          - 'start='
+          - 's='
+          - 't='
+          - 'sub1=' # The parameters 's=' and 't=' are very generic and might cause FPs.
+      bropush_4:
+        uri|contains|all:
+          - '/go/'
+          - 'sub2='
+        # VexTrio Patterns
+      vextrio_tacolo_1_path:
+        uri|contains:
+          - '/eyes-robot/'
+          - '/space-robot/'
+          - '/blue-robot/'
+          - '/office-robot/'
+          - '/allow-button/'
+      vextrio_tacolo_1_params:
+        uri|contains|all:
+          - 'pl='
+          - 'sm='
+          - 'nrid='
+          - 'hash='
+          - 'exp='
+      vextrio_lospollos_1:
+        uri|contains|all:
+          - 'u='
+          - 'o='
+          - 't=' # The parameters 'u=', 'o=', and 't=' are extremely generic and have a high potential for false positives.
+      vextrio_lospollos_2:
+        uri|contains|all:
+          - '/smartlink/'
+          - 'a='
+          - 'sm='
+          - 'mt='
+          - 's1='
+      vextrio_tacolo_2_path:
+        uri|contains:
+          - '/bot-check-'
+          - '/video-'
+          - '/adult-web'
+          - '/age-check-'
+          - '/porno-land-'
+          - '/checking-browser-'
+      vextrio_tacolo_2_params:
+        uri|contains: 'h=' # This is a very generic parameter. The strength of this detection comes from the path.
+        # Partners House Patterns
+      partners_house_1:
+        uri|contains|all:
+          - 'fingerprint='
+          - 'i='
+          - 'id='
+          - 'traceId='
+      partners_house_2:
+        uri|contains|all:
+          - 'drs='
+          - 'id='
+          - 'p1='
+          - 'p2='
+          - 'p3='
+          - 'traceId='
+      partners_house_3:
+        uri|contains|all:
+          - '/click/ssp/'
+          - 'id='
+      partners_house_4:
+        uri|contains|all:
+          - '/16/'
+          - 'site='
+          - 'sub1='
+          - 'sub2='
+          - 'sub3='
+          - 'sub4='
+        # RichAds Patterns
+      richads_1:
+        uri|contains|all:
+          - 'q='
+          - 's='
+          - 'var='
+          - 'geo=' # These parameters are all common in web tracking and advertising. This selection may generate false positives.
+      richads_2:
+        uri|contains|all:
+          - '/cl?'
+          - 'c='
+          - 'p='
+          - 'cid='
+          - 'sub1=' # These parameters are also quite generic. This selection may generate false positives.
+        # RexPush Patterns
+      rexpush_path:
+        uri|contains:
+          - '/adult_video_'
+          - '/check_age/'
+      rexpush_params:
+        uri|contains|all:
+          - 'sub3='
+          - 'sub2='
+          - 'click_id='
+        # Monetizer / Advertizer Pattern
+      monetizer_1:
+        uri|contains|all:
+          - 'utm_medium='
+          - 'utm_campaign=cid:' # While 'utm_' parameters are legitimate, the specific value 'cid:' in 'utm_campaign' is a key indicator for this threat.
+        # Help / Disposable TDS Patterns
+      help_tds_1:
+        uri|contains|all:
+          - '/index/'
+          - 'extra_param_1='
+      disposable_tds_host:
+        host|endswith:
+          - '.tk'
+          - '.gq'
+          - '.cf'
+      disposable_tds_uri:
+        uri|startswith: '/index/?' # This URI pattern is very generic. It is combined with a check for free TLDs to reduce false positives.
+        # Other TDS Patterns
+      unknown_tds_1:
+        uri|contains|all:
+          - 'clck='
+          - 'sid='
+      admeking_1:
+        uri|contains|all:
+          - 'lp='
+          - 'actoken='
+          - 'sid='
+
+      condition: bropush_1 or bropush_2 or bropush_3 or bropush_4 or
+        (vextrio_tacolo_1_path and vextrio_tacolo_1_params) or vextrio_lospollos_1
+        or vextrio_lospollos_2 or (vextrio_tacolo_2_path and
+        vextrio_tacolo_2_params) or partners_house_1 or partners_house_2 or
+        partners_house_3 or partners_house_4 or richads_1 or richads_2 or
+        (rexpush_path and rexpush_params) or monetizer_1 or help_tds_1 or
+        (disposable_tds_host and disposable_tds_uri) or unknown_tds_1 or admeking_1
+
+    falsepositives:
+      - Legitimate advertising and tracking services may use similar URL parameters
+      - which could lead to false positives. Some of the patterns are intentionally
+        broad to maximize detection and may require tuning.
+      - The patterns for VexTrio (u
+      - o
+      - t)
+      - RichAds
+      - and BroPush (s
+      - t) are particularly prone to false positives due to the use of very common
+      - short parameter names. It is recommended to scope these detections to
+        traffic from untrusted sources or apply them in 'monitor' mode first.
+      - The rule for 'disposable_tds' relies on requests to free TLDs (.tk
+      - .gq
+      - .cf)
+      - which can be legitimate.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - attack.initial_access
+    - attack.t1566
+    - threat.vextrio
+    - threat.bropush
+    - threat.partners_house
+    - threat.richads
+    - threat.rexpush
+    - threat.monetizer
+author: detections.ai
+version: "1"
+references:
+    - https://blogs.infoblox.com/threat-intelligence/vexing-and-vicious-the-eerie-relationship-between-wordpress-hackers-and-an-adtech-cabal
+data_sources:
+    - zeek
+    - http

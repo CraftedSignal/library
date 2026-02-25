@@ -1,0 +1,29 @@
+id: 4b849d01-d22f-4a17-9341-4fd45d299a99
+name: Execute malicious .lnk files to silently fetch wsf file from Cloudflare URL
+description: |-
+    This package searches for evidence of Windows Shortcut (.lnk) files executing code to download a .wsf file from a remote WebDAV share hosted on a trycloudflare[.]com subdomain. This package searches in both web logs and endpoint process logs.
+    An ongoing malware campaign tracked as SERPENTINE#CLOUD has been identified as leveraging the Cloudflare Tunnel infrastructure and Python-based loaders to deliver memory-injected payloads through a chain of shortcut files and obfuscated scripts.
+    For initial access, the threat actors are luring users to execute malicious .lnk files (shortcut files) disguised as documents to silently fetch and execute remote code.
+    These payloads use cmd.exe to silently retrieve additional stages over WebDAV (via Cloudflare Tunnel subdomains) and invoke WSF or batch-based droppers.
+    trycloudflare[.]com allows a threat actor to expose a tunnel to the internet using legitimate infrastructure that will likely blend into benign traffic. trycloudflare dynamically generates subdomains formed of random words and so it's not enough to just look for such connections since they are also used by developers in testing. Therefore this search looks for further procedures attributed to the campaign.
+query: "| tstats summariesonly=t count values(Web.url) AS \"url\" values(Web.action) AS action values(Web.http_content_type) as content_type values(Web.category) as category earliest(_time) AS earliest latest(_time) AS latest FROM datamodel=Web WHERE (Web.url_domain=\"*.trycloudflare.com\" OR (Web.http_content_type=\"*wsf*\" AND Web.uri_path=\"*.wsf\") OR Web.uri_path=\"*DavWWWRoot*\") BY Web.user, index\r\n| convert ctime(earliest) ctime(latest)"
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0001
+techniques:
+    - T1059
+    - T1102
+    - T1204
+tags:
+    - serpentine#cloud
+    - WebDAV
+    - spl
+author: Salten Fisk
+version: "1"
+references:
+    - https://www.securonix.com/blog/analyzing_serpentinecloud-threat-actors-abuse-cloudflare-tunnels-threat-research/
+    - https://www.forcepoint.com/blog/x-labs/asyncrat-reloaded-python-trycloudflare-malware
+    - https://try.cloudflare.com/

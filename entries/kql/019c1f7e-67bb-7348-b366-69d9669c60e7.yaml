@@ -1,0 +1,16 @@
+id: 019c1f7e-67bb-7348-b366-69d9669c60e7
+name: Notepad++ Updater Connecting to Unusual Domains
+description: Detects the Notepad++ updater process (gup.exe) making network connections to domains other than the official Notepad++ or GitHub domains. This could indicate a compromised update process or a supply chain attack where the updater is redirected to a malicious download location.
+query: "// Name: Notepad++ Updater Connecting to Unusual Domains\r\n// Author: @jsh0x\r\n// Date: 2026-02-02\r\n// Description: Detects the Notepad++ updater process (gup.exe) making network connections to domains other than the official Notepad++ or GitHub domains. This could indicate a compromised update process or a supply chain attack where the updater is redirected to a malicious download location.\r\n// Tactic: Defense Evasion, Credential Access\r\n// Technique: T1557.002, T1584.005\r\n// References: https://doublepulsar.com/the-notepad-incident-how-a-likely-state-sponsored-threat-actor-is-using-notepad-to-hack-e5375547318d\r\nlet legitimate_domains = dynamic([\"notepad-plus-plus.org\",\"github.com\",\"release-assets.githubusercontent.com\"]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessFileName =~ \"gup.exe\"\r\n| where isnotempty(RemoteUrl) and not(ipv4_is_private(RemoteIP))\r\n| extend Domain = tostring(parse_url(RemoteUrl).Host)\r\n| where isnotempty(Domain) and not(Domain has_any (legitimate_domains))\r\n| project Timestamp,DeviceName,InitiatingProcessFileName,InitiatingProcessCommandLine,RemoteUrl,RemoteIP,InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - kql
+author: jsh0x
+version: "2"
+references:
+    - https://doublepulsar.com/the-notepad-incident-how-a-likely-state-sponsored-threat-actor-is-using-notepad-to-hack-e5375547318d

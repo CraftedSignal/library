@@ -1,0 +1,20 @@
+id: 3c48eeb5-dbf6-447f-969a-2be77c32b259
+name: Git Critical Vulnerability CVE-2024-32002
+description: 'KQL Query from file: Git Critical Vulnerability CVE-2024-32002'
+query: "// Git Critical Vulnerability CVE-2024-32002\n// https://www.linkedin.com/posts/activity-7197478049729110016-TGar/\n\n// Git is a widely-popular distributed version control system for collaborative software development. Critical Git vulnerability allows RCE when cloning repositories with submodules (CVE-2024-32002).\n\n// Privilege Role Admin with vulnerable Git:\n\nlet CriticalIdentities =\nExposureGraphNodes\n| where set_has_element(Categories, \"identity\")\n| where isnotnull(NodeProperties.rawData.criticalityLevel) and\nNodeProperties.rawData.criticalityLevel.criticalityLevel < 4 \n| distinct NodeName;\nlet CriticalDevices =\nExposureGraphEdges \n| where EdgeLabel == @\"can authenticate to\"\n| join ExposureGraphNodes on $left.TargetNodeId==$right.NodeId\n| extend DName = tostring(NodeProperties.rawData.deviceName)\n| extend isLocalAdmin = EdgeProperties.rawData.userRightsOnDevice.isLocalAdmin\n| where SourceNodeName has_any (CriticalIdentities)\n| distinct DName;\nDeviceTvmSoftwareVulnerabilities \n| where CveId == \"CVE-2024-32002\"\n| where DeviceName has_any (CriticalDevices)\n\n// MITRE ATT&CK Mapping\n\n// The KQL query is designed to identify critical identities and devices, and then find devices with a specific vulnerability. The associated MITRE ATT&CK techniques include:\n\n// T1078: Valid Accounts\n// T1078.001: Valid Accounts: Local Accounts\n// T1078.003: Valid Accounts: Local Administrator Account\n// T1190: Exploit Public-Facing Application\n// T1210: Exploitation of Remote Services\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+techniques:
+    - T1078
+    - T1078.001
+    - T1078.003
+    - T1190
+    - T1210
+tags:
+    - kql
+version: "1"

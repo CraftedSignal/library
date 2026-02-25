@@ -1,0 +1,17 @@
+id: 019c9048-f45a-744e-8674-9382368ee56d
+name: Disabling Windows Defender via SystemSettingsAdminFlows.exe
+description: Detects the use of the legitimate Windows binary 'SystemSettingsAdminFlows.exe' to spawn a child process that disables Windows Defender settings. This is a LOLBin technique used for defense evasion as observed in campaigns leveraging the Apache ActiveMQ exploit.
+query: "// Name: Disabling Windows Defender via SystemSettingsAdminFlows.exe\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-24\r\n// Description: Detects the use of the legitimate Windows binary 'SystemSettingsAdminFlows.exe' to spawn a child process that disables Windows Defender settings. This is a LOLBin technique used for defense evasion as observed in campaigns leveraging the Apache ActiveMQ exploit.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1562.001\r\n// References:\r\n// - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/\r\n// - https://www.huntress.com/blog/lolbin-to-inc-ransomware\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\nDeviceProcessEvents\r\n// Set the lookback window for the detection\r\n| where Timestamp > ago(1d)\r\n// Key detection logic: Looks for the LOLBin SystemSettingsAdminFlows.exe spawning a child process.\r\n| where InitiatingProcessFileName =~ \"SystemSettingsAdminFlows.exe\"\r\n// The child process is typically a shell that executes the command to disable Defender.\r\n| where ProcessVersionInfoOriginalFileName  in~ (\"powershell.exe\", \"pwsh.exe\", \"cmd.exe\")\r\n// The child process command line contains keywords related to disabling security features, specifically Windows Defender's real-time monitoring.\r\n| where ProcessCommandLine has \"DisableRealtimeMonitoring\" or ProcessCommandLine has_all (\"Set-MpPreference\", \"-Disable\")\r\n// FP Tuning: This behavior is highly suspicious. Legitimate administrative scripts might perform this action but are unlikely to be initiated by SystemSettingsAdminFlows.exe. Investigate the full command line and user context.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine,\r\n    ProcessVersionInfoOriginalFileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    ReportId,\r\n    DeviceId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    - https://www.huntress.com/blog/lolbin-to-inc-ransomware

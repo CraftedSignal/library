@@ -1,0 +1,62 @@
+id: 019c3e7d-da1c-757e-85db-163545e01310
+name: DiaoYu Loader Guardrail Check (pic1.png)
+description: This rule detects the creation of a zero-byte file named 'pic1.png' followed by the execution of any process from the same directory within a specified time window. This behavior is indicative of the DiaoYu Loader, which uses a zero-byte 'pic1.png' as a guardrail or check before executing its malicious payload.
+query: |-
+    // Name: TGR-STA-1030 DiaoYu Loader Guardrail Check (pic1.png)
+    // Author: Yuri Mkrtumyan
+    // Username: @nightfury
+    // Description: Correlates creation of zero-byte pic1.png with execution of any process from same directory afterwards.
+    // Reference: Unit 42 notes a zero-byte pic1.png in the archive and a check for pic1.png in the execution directory. :contentReference[oaicite:6]{index=6}
+
+    let lookback = 7d;
+    let maxDelay = 12h; // tune: 1h, 6h, 24h depending on how users open lures
+
+    let triggerFile =
+        DeviceFileEvents
+        | where Timestamp > ago(lookback)
+        | where ActionType == "FileCreated"
+        | where FileName == "pic1.png"
+        | where FileSize == 0
+        | project
+            TriggerTime = Timestamp,
+            DeviceId,
+            DeviceName,
+            TriggerFolder = FolderPath;
+
+    let procExec =
+        DeviceProcessEvents
+        | where Timestamp > ago(lookback)
+        | project
+            ProcTime = Timestamp,
+            DeviceId,
+            ProcFolder = FolderPath,
+            ProcName = FileName,
+            ProcCmd = ProcessCommandLine,
+            ParentName = InitiatingProcessFileName,
+            ParentCmd = InitiatingProcessCommandLine,
+            Account = AccountName,
+            SHA1, SHA256, MD5;
+
+    triggerFile
+    | join kind=inner procExec on DeviceId
+    | where ProcFolder == TriggerFolder
+    | where ProcTime >= TriggerTime and ProcTime <= TriggerTime + maxDelay
+    | project
+        TriggerTime, ProcTime,
+        DeviceName, DeviceId,
+        TriggerFolder,
+        TriggerFile = "pic1.png",
+        SuspiciousProcess = ProcName,
+        SuspiciousProcessCmdline = ProcCmd,
+        InitiatingProcess = ParentName,
+        InitiatingProcessCmd = ParentCmd,
+        Account,
+        MD5, SHA1, SHA256
+    | order by ProcTime desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "4"
+references:
+    - https://unit42.paloaltonetworks.com/shadow-campaigns-uncovering-global-espionage/

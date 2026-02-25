@@ -1,0 +1,54 @@
+id: 35e04f9b-1823-448c-8a9d-e801e51e3ac1
+name: Hidden account creation (with fast deletion)
+description: Detects scenarios where an attacker creates a hidden local account. See also rule "User account creation disguised in a computer account".
+query: |-
+    title: Hidden account creation (with fast deletion)
+    description: Detects scenarios where an attacker creates a hidden local account. See also rule "User account creation disguised in a computer account".
+    references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0003-Persistence/T1136-Create%20account
+    - https://github.com/wgpsec/CreateHiddenAccount
+    tags:
+    - attack.persistence
+    - attack.t1098 # account manipulation
+    - attack.t1136 # user creation
+    - attack.defense_evesion
+    - attack.t0136 # masquerading
+    author: mdecrevoisier
+    status: experimental
+    logsource:
+      product: windows
+      service: security
+    detection:
+      selection_create:
+        EventID: 4720
+      selection_delete:
+        EventID: 4726
+      filter:
+        Computer: '%domain_controllers%'
+      condition: selection_create and selection_delete and not filter # requires grouping over 'TargetSid' to not mix different user accounts
+      timeframe: 1m
+    falsepositives:
+    - IAM account lifecycle software
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+    - T1136
+tags:
+    - attack.persistence
+    - attack.t1098
+    - attack.t1136
+    - attack.defense_evesion
+    - attack.t0136
+author: mdecrevoisier
+version: "1"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0003-Persistence/T1136-Create%20account
+    - https://github.com/wgpsec/CreateHiddenAccount
+data_sources:
+    - windows
+    - security

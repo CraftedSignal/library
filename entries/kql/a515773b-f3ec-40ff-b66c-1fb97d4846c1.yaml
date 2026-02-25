@@ -1,0 +1,84 @@
+id: a515773b-f3ec-40ff-b66c-1fb97d4846c1
+name: RDP Trace Removal
+description: Detects attempts to remove traces of Remote Desktop Protocol (RDP) activity by clearing specific event logs, deleting registry keys, or removing cache files. This rule identifies command-line actions using 'wevtutil' to clear RDP operational logs, 'reg delete' for RDP client registry keys, and 'del' or 'remove-item' for RDP bitmap cache files. It also directly monitors registry events for RDP client key deletions and file events for RDP cache file deletions.
+query: |
+    // Name: RDP Trace Removal
+    // Author: Rica Grande
+    // Date: 2025-07-15
+    // Description: Detects attempts to remove traces of Remote Desktop Protocol (RDP) activity by clearing specific event logs, deleting registry keys, or removing cache files.
+    // Tactic: Defense Evasion
+    // Technique: T1070, Indicator Removal on Host
+    // False Positive Sensitivity: Medium
+    // References:
+    // - https://attack.mitre.org/techniques/T1070/
+    // - https://www.13cubed.com/downloads/rdp-cheat-sheet.pdf
+    let lookback = 1d;
+    // Define a list of known legitimate processes that might perform these actions for tuning.
+    // For example, system management tools or cleanup scripts could be added here.
+    let process_allowlist = dynamic([""]);
+    // Detect command-line based RDP trace removal
+    let rdp_trace_removal_cli =
+        DeviceProcessEvents
+        | where Timestamp > ago(lookback)
+        | where InitiatingProcessFileName !in (process_allowlist)
+        | where
+            // Detects clearing of the RDP operational event log using wevtutil
+            (ProcessCommandLine has "wevtutil" and (ProcessCommandLine has "cl" or ProcessCommandLine has "clear-log") and ProcessCommandLine has "Microsoft-Windows-TerminalServices-LocalSessionManager/Operational") or
+            // Detects deletion of RDP client registry keys containing connection history
+            (ProcessCommandLine has "reg" and ProcessCommandLine has "delete" and ProcessCommandLine has @"\Software\Microsoft\Terminal Server Client\") or
+            // Detects deletion of RDP bitmap cache files via cmd or powershell
+            (ProcessCommandLine has "del" and ProcessCommandLine has @"\Microsoft\Terminal Server Client\Cache\" and ProcessCommandLine has ".bmc") or
+            (ProcessCommandLine has_any ("rm", "remove-item") and ProcessCommandLine has @"\Microsoft\Terminal Server Client\Cache\" and ProcessCommandLine has ".bmc");
+    // Detect RDP registry key deletion via direct registry events
+    let rdp_trace_removal_reg =
+        DeviceRegistryEvents
+        | where Timestamp > ago(lookback)
+        | where ActionType == "RegistryKeyDeleted"
+        | where InitiatingProcessFileName !in (process_allowlist)
+        // Focus on the specific RDP client history path
+        | where RegistryKey has @"\Software\Microsoft\Terminal Server Client\Servers" or RegistryKey has @"\Software\Microsoft\Terminal Server Client\Default";
+    // Detect RDP cache file deletion via direct file events
+    let rdp_trace_removal_file =
+        DeviceFileEvents
+        | where Timestamp > ago(lookback)
+        | where ActionType == "FileDeleted"
+        | where InitiatingProcessFileName !in (process_allowlist)
+        // Focus on the specific RDP cache path and file extension
+        | where FolderPath has @"\Microsoft\Terminal Server Client\Cache" and FileName endswith ".bmc";
+    // Union all detection methods and project key fields for investigation
+    union rdp_trace_removal_cli, rdp_trace_removal_reg, rdp_trace_removal_file
+    | extend
+        DetectionMethod = case(
+            isnotempty(ProcessCommandLine), "CommandLine",
+            isnotempty(RegistryKey), "RegistryKeyDeleted",
+            isnotempty(FileName), "FileDeleted",
+            "Unknown"
+        ),
+        SuspiciousTarget = case(
+            isnotempty(ProcessCommandLine), ProcessCommandLine,
+            isnotempty(RegistryKey), RegistryKey,
+            isnotempty(FileName), strcat(FolderPath, FileName),
+            "Unknown"
+        )
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName = case(isnotempty(InitiatingProcessAccountName), InitiatingProcessAccountName, AccountName),
+        DetectionMethod,
+        SuspiciousTarget,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070
+    - T1070.001
+    - T1070.004
+tags:
+    - kql
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1070/
+    - https://www.13cubed.com/downloads/rdp-cheat-sheet.pdf

@@ -1,0 +1,58 @@
+id: 019c0921-3ad0-765b-be84-0e88adbf487c
+name: Clawdbot/Moltbot Sensitive Configuration File Access
+description: Detects attempts to access the sensitive Clawdbot/Moltbot configuration file (clawdbot.json or moltbot.json). This file contains API keys and gateway tokens. Unauthorized access, often resulting from prompt injection attacks, can lead to full agent and system compromise.
+query: |
+    // Name: Clawdbot/Moltbot Sensitive Configuration File Access
+    // Author: detections.ai
+    // Date: 2026-01-29
+    // Description: Detects attempts to access the sensitive Clawdbot/Moltbot configuration file (clawdbot.json or moltbot.json). This file contains API keys and gateway tokens. Unauthorized access, often resulting from prompt injection attacks, can lead to full agent and system compromise.
+    // False Positives: Medium. Legitimate administrative or development activities may involve accessing this file. Consider excluding known developer systems or specific command lines associated with normal operation. The 'FileAccessed' ActionType may increase noise; consider removing it if legitimate read operations are frequent.
+    // References: https://snyk.io/articles/clawdbot-ai-assistant/, https://mashable.com/article/clawdbot-changes-name-to-moltbot
+    // Tactic: Credential Access, Discovery
+    // Technique: T1552.001, T1083
+    let sensitiveFiles = dynamic(["clawdbot.json", "moltbot.json"]);
+    // Common installation paths for Clawdbot/Moltbot.
+    let sensitivePaths = dynamic(["/clawdbot/", "/.clawdbot/", "/moltbot/", "/.moltbot/"]);
+    // Common runtimes for AI agents like Clawdbot/Moltbot. Added with and without .exe for cross-platform compatibility.
+    let agentRuntimes = dynamic(["node.exe", "python.exe", "bun.exe", "node", "python", "bun"]);
+
+    // Detects access via command line arguments, which is a strong indicator of direct interaction or exfiltration scripts.
+    let commandLineAccess =
+    DeviceProcessEvents
+    | where ProcessCommandLine has_any (sensitiveFiles) or ProcessCommandLine has_any (sensitivePaths)
+    | where FileName in~ (agentRuntimes) or ProcessVersionInfoOriginalFileName in~ (agentRuntimes);
+
+    // Detects file system events, including read access which is necessary for exfiltration.
+    let fileSystemAccess =
+    DeviceFileEvents
+    | where (FileName in~ (sensitiveFiles) or FolderPath has_any (sensitivePaths))
+    // Added FileAccessed to detect read events, which align with the exfiltration TTP described in the intel.
+    | where ActionType in ("FileCreated", "FileRenamed", "FileAccessed")
+    | where InitiatingProcessFileName in~ (agentRuntimes);
+
+    union isfuzzy=true commandLineAccess, fileSystemAccess
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        AccountName,
+        AccountUpn
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0007
+techniques:
+    - T1552.001
+    - T1083
+tags:
+    - kql
+version: "2"
+references:
+    - https://snyk.io/articles/clawdbot-ai-assistant/
+    - https://mashable.com/article/clawdbot-changes-name-to-moltbot

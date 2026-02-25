@@ -1,0 +1,61 @@
+id: 019a40f8-a857-778f-9a44-5c88c1015927
+name: CrowdStrike Falcon Agent Tampering Detection
+description: This detection identifies command-line activity consistent with attempts to stop, uninstall, or otherwise tamper with the CrowdStrike Falcon agent. It looks for specific commands and utilities (sc.exe, net.exe, powershell.exe, falconctl.exe, taskkill) used in conjunction with CrowdStrike-related keywords to detect attempts to disable, uninstall, or terminate the agent's processes or services.
+query: |
+    // Name: CrowdStrike Falcon Agent Tampering
+    // Author: detections.ai
+    // Date: 2025-11-01
+    // Description: This detection identifies command-line activity consistent with attempts to stop, uninstall, or otherwise tamper with the CrowdStrike Falcon agent.
+    // False Positive Sensitivity: Medium
+    // ---
+    // Define a time window for the search.
+    let timeframe = 1h;
+    // Define keywords related to the CrowdStrike agent.
+    let cs_keywords = dynamic(["csagent", "falconctl.exe", "WindowsSensor.exe", "CSFalconService.exe", "CSFalconContainer.exe"]);
+    // Define commands used for tampering.
+    let tamper_commands = dynamic(["stop", "delete", "disabled", "/uninstall", "unload", "taskkill"]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Pre-filter for events containing both a CrowdStrike keyword and a tampering command for efficiency.
+    | where ProcessCommandLine has_any (cs_keywords) and ProcessCommandLine has_any (tamper_commands)
+    // Apply more specific logic to identify tampering techniques.
+    | where
+        // Technique 1: Using sc.exe or net.exe to stop, delete, or disable the service.
+        (ProcessCommandLine matches regex @"(sc|net)\.exe" and ProcessCommandLine has "csagent" and (ProcessCommandLine has "stop" or ProcessCommandLine has "delete" or ProcessCommandLine contains "start= disabled")) or
+        // Technique 2: Using PowerShell to stop or disable the service.
+        (ProcessFileName =~ "powershell.exe" and ProcessCommandLine has "csagent" and (ProcessCommandLine has "Stop-Service" or ProcessCommandLine has "Set-Service")) or
+        // Technique 3: Attempting to uninstall the sensor.
+        (ProcessCommandLine has "WindowsSensor.exe" and ProcessCommandLine has "/uninstall") or
+        // Technique 4: Using the falconctl.exe utility to unload the agent.
+        (ProcessCommandLine has "falconctl.exe" and ProcessCommandLine has "unload") or
+        // Technique 5: Using taskkill to terminate CrowdStrike processes.
+        (ProcessCommandLine has "taskkill" and (ProcessCommandLine has "CSFalconService.exe" or ProcessCommandLine has "CSFalconContainer.exe"))
+    // Potential False Positives: Legitimate administrative actions, such as uninstalling or restarting the agent for maintenance, will trigger this alert.
+    // Consider excluding known administrator accounts or specific device groups if this becomes noisy.
+    // Example: | where InitiatingProcessAccountName !in ("known_admin_account1", "known_admin_account2")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName = InitiatingProcessAccountName,
+        FileName,
+        ProcessCommandLine,
+        ParentProcessName = InitiatingProcessFileName,
+        ParentProcessCommandLine = InitiatingProcessCommandLine,
+        Signer,
+        MD5
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0040
+    - TA0002
+techniques:
+    - T1562.001
+    - T1489
+    - T1569.002
+    - T1059.001
+    - T1059.003
+tags:
+    - kql
+author: AJ
+version: "2"

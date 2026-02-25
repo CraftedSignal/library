@@ -1,0 +1,15 @@
+id: 019c8ebb-550f-7361-9333-14a10a68c4d8
+name: UAC Bypass via HKCU Registry Key Hijacking
+description: This rule detects attempts to bypass User Account Control (UAC) by monitoring modifications or creations of specific registry keys. Adversaries often manipulate these registry keys to achieve privilege escalation without triggering a UAC prompt, allowing them to execute malicious code with elevated permissions. The rule specifically looks for changes to registry paths commonly abused in UAC bypass techniques, such as those related to ms-settings, mscfile, Environment\UserInitMprLogonScript, exefile, Folder, and Image File Execution Options.
+query: "// Detection: UAC Bypass via HKCU Registry Key Hijacking\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1548.002 - Bypass User Account Control\r\n\r\nlet uacBypassKeys = dynamic([\r\n    \"SOFTWARE\\\\Classes\\\\ms-settings\\\\shell\\\\open\\\\command\",\r\n    \"SOFTWARE\\\\Classes\\\\mscfile\\\\shell\\\\open\\\\command\",\r\n    \"Environment\\\\UserInitMprLogonScript\",\r\n    \"SOFTWARE\\\\Classes\\\\exefile\\\\shell\\\\runas\\\\command\\\\isolatedCommand\",\r\n    \"SOFTWARE\\\\Classes\\\\Folder\\\\shell\\\\open\\\\command\",\r\n    \"SOFTWARE\\\\Microsoft\\\\Windows NT\\\\CurrentVersion\\\\Image File Execution Options\"\r\n]);\r\nDeviceRegistryEvents\r\n| where TimeGenerated > ago(1d)\r\n| where ActionType in (\"RegistryValueSet\",\"RegistryKeyCreated\")\r\n| where RegistryKey has_any (uacBypassKeys)\r\n| project TimeGenerated, DeviceName, ActionType,\r\n          RegistryKey, RegistryValueName, RegistryValueData,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName\r\n| extend AlertDescription = strcat(\r\n    \"UAC Bypass registry key modified: '\", RegistryKey,\r\n    \"' by '\", InitiatingProcessFileName, \"' — privilege escalation attempt\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1548.002
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

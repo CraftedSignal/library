@@ -1,0 +1,63 @@
+id: 019c1f40-8758-7089-9773-e40bfee988e5
+name: Suspicious Notepad++ Updater Child Process
+description: Detects the Notepad++ updater (gup.exe) spawning suspicious child processes such as shells or network tools. Legitimate updates should only spawn explorer.exe or the Notepad++ installer itself. This behavior has been observed in targeted attacks where the update process is hijacked to deliver malware and facilitate hands-on-keyboard activity.
+query: |
+    title: Suspicious Notepad++ Updater Child Process
+    id: b5a16efd-7b5b-4c70-ad68-2bfc6e439970
+    status: experimental
+    description: Detects the Notepad++ updater (gup.exe) spawning suspicious child
+      processes such as shells or network tools. Legitimate updates should only
+      spawn explorer.exe or the Notepad++ installer itself. This behavior has been
+      observed in targeted attacks where the update process is hijacked to deliver
+      malware and facilitate hands-on-keyboard activity.
+    references:
+      - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.t1105
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent:
+        ParentImage|endswith: '\gup.exe' # Parent process is the Notepad++ updater
+      selection_child:
+        Image|endswith:
+          # Detects suspicious child processes not typically spawned by the updater
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\curl.exe'
+          - '\wscript.exe'
+          - '\cscript.exe'
+      condition: selection_parent and selection_child
+    falsepositives:
+      - The GUP updater should not normally spawn these processes. However, custom
+        scripts or administrative actions involving Notepad++ updates might trigger
+        this rule. It's important to verify the context of the execution.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://doublepulsar.com/small-numbers-of-notepad-users-reporting-security-woes-b19095534460
+data_sources:
+    - process_creation
+    - windows

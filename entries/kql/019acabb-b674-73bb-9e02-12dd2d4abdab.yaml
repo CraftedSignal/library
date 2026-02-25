@@ -1,0 +1,45 @@
+id: 019acabb-b674-73bb-9e02-12dd2d4abdab
+name: Teams Messaging Policy Changed to Allow External B2B Invites
+description: Detects when a Microsoft Teams messaging policy is modified to allow users to send B2B invitations to external users ('UseB2BInvitesToAddExternalUsers' set to 'True'). While this can be a legitimate administrative change, it can also be an indicator of misconfiguration or malicious activity to enable phishing attacks by luring users to malicious external tenants where organizational security controls do not apply.
+query: |
+    // Name: Teams Messaging Policy Changed to Allow External B2B Invites
+    // Author: detections.ai
+    // Date: 2025-11-28
+    // Description: Detects when a Microsoft Teams messaging policy is modified to allow users to send B2B invitations to external users ('UseB2BInvitesToAddExternalUsers' set to 'True'). While this can be a legitimate administrative change, it can also be an indicator of misconfiguration or malicious activity to enable phishing attacks by luring users to malicious external tenants where organizational security controls do not apply.
+    // False Positives: Authorized administrative changes to enable B2B collaboration. Investigate the actor and justification for the change.
+    // Tactic: Initial Access
+    // Technique: T1566.002
+    // References: https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html
+
+    AuditLogs
+    | where TimeGenerated > ago(1d)
+    // Filter for audit events related to Microsoft Teams.
+    | where Workload == "MicrosoftTeams"
+    // Filter for the specific operation that modifies a Teams messaging policy.
+    | where OperationName == "Set-CsTeamsMessagingPolicy"
+    | extend Parameters_dynamic = todynamic(Parameters)
+    // Expand the parameters array to inspect each setting that was changed.
+    | mvexpand Parameters_dynamic
+    // Filter for events where the specific B2B invitation setting was changed to 'True'.
+    | where Parameters_dynamic.Name == "UseB2BInvitesToAddExternalUsers" and Parameters_dynamic.Value == "True"
+    // Extract relevant details for the alert.
+    | project
+        TimeGenerated,
+        OperationName,
+        PolicyModified = ObjectId,
+        ActorUPN = UserId,
+        ActorIpAddress = ClientIP,
+        Description = "A Teams messaging policy was changed to allow sending B2B invitations to external users.",
+        InsecureParameter = Parameters_dynamic.Name,
+        InsecureValue = Parameters_dynamic.Value
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html

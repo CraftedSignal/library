@@ -1,0 +1,17 @@
+id: 019c712a-be87-721a-abca-b1994cd1f872
+name: Dell RecoverPoint Persistence via Script Modification
+description: This detection identifies modifications to the 'convert_hosts.sh' script on Dell RecoverPoint appliances. This script is executed at boot time and was observed being modified by UNC6201 to establish persistence for the GRIMBOLT and BRICKSTORM backdoors.
+query: "// Name: Dell RecoverPoint Persistence Script Modification\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: This detection identifies modifications to the 'convert_hosts.sh' script on Dell RecoverPoint appliances. This script is executed at boot time and was observed being modified by UNC6201 to establish persistence for the GRIMBOLT and BRICKSTORM backdoors.\r\n// Reference: https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day\r\n// Tactic: Persistence\r\n// Technique: T1037.004, T1546.012\r\n// False Positive Sensitivity: Medium\r\nDeviceFileEvents\r\n// This query looks for modifications to a specific shell script used by UNC6201 for persistence.\r\n| where FolderPath == \"/home/kos/kbox/src/installation/distribution/convert_hosts.sh\"\r\n// A FileCreated event can indicate a file modification or overwrite.\r\n| where ActionType == \"FileCreated\"\r\n// False Positive Tuning: Legitimate software updates or administrative actions on Dell RecoverPoint appliances may modify this file.\r\n// Investigate the initiating process to determine if the activity is authorized.\r\n// If possible, scope this detection to only run on Dell RecoverPoint appliances.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessCommandLine,\r\n    SHA256,\r\n    ReportId,\r\n    DeviceId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1037.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day

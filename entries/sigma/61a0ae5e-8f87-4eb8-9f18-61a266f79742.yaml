@@ -1,0 +1,90 @@
+id: 61a0ae5e-8f87-4eb8-9f18-61a266f79742
+name: Suspicious Command In RunMRU via ClickFix Technique
+description: Detects suspicious commands written to the RunMRU registry key. This is a characteristic of the "ClickFix" social engineering technique, where a user is tricked into copying a malicious command and executing it via the Windows Run dialog (Win+R). This technique is notably used by Lumma Stealer affiliates.
+query: |
+    title: Suspicious Command In RunMRU via ClickFix Technique
+    id: 866aa445-9224-473b-90e9-509d7499441e
+    status: experimental
+    description: >-
+      Detects suspicious commands written to the RunMRU registry key. This is a
+      characteristic of the "ClickFix" social engineering technique, where a user is
+      tricked into copying a malicious command and executing it via the Windows Run
+      dialog (Win+R). This technique is notably used by Lumma Stealer affiliates.
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/
+    author: detections.ai
+    date: 2025-07-22
+    tags:
+      - attack.execution
+      - attack.t1204.002
+      - malware.lumma
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      # Detects commands written to the RunMRU key, initiated by explorer.exe (typical for Win+R)
+      base:
+        Image|endswith: '\explorer.exe'
+        TargetObject|contains: '\Software\Microsoft\Windows\CurrentVersion\Explorer\RunMRU'
+      # Looks for mshta.exe downloading remote content
+      mshta:
+        Details|contains|all:
+          - 'mshta'
+          - 'http'
+      # Looks for powershell with suspicious arguments, often for obfuscation or download
+      powershell:
+        Details|startswith: 'powershell'
+        Details|contains:
+          - ' -e ' # Encoded command, spaces help reduce FPs
+          - ' -enc '
+          - ' -encodedcommand '
+          - ' -W Hidden'
+          - ' -w h'
+          - ' -NoP '
+          - 'Invoke-Expression'
+          - 'iex'
+          - 'DownloadString'
+          - 'DownloadFile'
+          - 'FromBase64String'
+          - 'Invoke-WebRequest'
+          - 'iwr'
+          - 'irm ' # Note the space
+      # Other suspicious patterns seen in ClickFix campaigns
+      other_lolbins:
+        Details|contains:
+          - '✅' # Emoji seen in some campaigns
+          - 'bitsadmin'
+          - 'forfiles'
+          - 'curl'
+          - 'msiexec'
+          - 'javascript:'
+          - 'vbscript:'
+      condition: base and (mshta or powershell or other_lolbins)
+    falsepositives:
+      - Power users or system administrators might run legitimate but complex
+        commands via the Run dialog that contain some of these keywords.
+      - The use of 'curl' might be common in developer environments. Consider tuning
+        this out if it causes noise.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1218.005
+    - T1059.001
+    - T1218.007
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1204.002
+    - malware.lumma
+author: detections.ai
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/05/21/lumma-stealer-breaking-down-the-delivery-techniques-and-capabilities-of-a-prolific-infostealer/
+data_sources:
+    - registry_set
+    - windows

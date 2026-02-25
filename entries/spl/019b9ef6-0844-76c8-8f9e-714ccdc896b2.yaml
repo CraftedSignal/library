@@ -1,0 +1,19 @@
+id: 019b9ef6-0844-76c8-8f9e-714ccdc896b2
+name: Splunk Query - ClickFix Social Engineering Attack Chain
+description: 'This rule detects a suspicious attack chain, potentially related to ''ClickFix'' or similar social engineering campaigns. It correlates multiple events within a 5-minute window: a browser being launched from an email client, a file download from a browser into the Downloads directory, and a command prompt being launched from explorer.exe executing a command that references the Downloads directory. Additionally, it looks for network connections initiated by common document types, which could indicate malicious document activity.'
+query: "index=windows EventCode=1 OR EventCode=3 OR EventCode=11\r\n| eval User=mvfilter(match(User, \"^(?!NOT_TRANSLATED)\"))\r\n| eval event_type=case(\r\n    EventCode=1 AND match(ParentImage, \"(?i)(outlook|thunderbird)\\\\.exe$\") AND match(Image, \"(?i)(msedge|chrome|firefox)\\\\.exe$\") AND match(CommandLine, \"(?i)http\"), \"browser_from_email\",\r\n    EventCode=11 AND match(Image, \"(?i)(msedge|chrome|firefox)\\\\.exe$\") AND match(TargetFilename, \"(?i)\\\\\\\\Downloads\\\\\\\\\"), \"file_download\",\r\n    EventCode=1 AND match(ParentImage, \"(?i)explorer\\\\.exe$\") AND match(Image, \"(?i)cmd\\\\.exe$\") AND match(CommandLine, \"(?i)/c\") AND match(CommandLine, \"(?i)start\") AND match(CommandLine, \"(?i)\\\\\\\\Downloads\\\\\\\\\"), \"cmd_from_explorer\",\r\n    EventCode=3 AND match(Image, \"(?i)\\\\.(pdf|docx?|xlsx?|pptx?)$\"), \"document_network\",\r\n    1=1, \"other\"\r\n)\r\n| where event_type!=\"other\"\r\n| bin _time span=5m\r\n| stats values(event_type) as events, dc(event_type) as event_count by _time, ComputerName, User\r\n| where event_count >= 3\r\n| eval alert=\"ClickFix Attack Chain Detected\"\r\n| table _time, ComputerName, User, events, event_count, alert\r\n| sort - _time"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+    - TA0002
+techniques:
+    - T1566
+    - T1105
+    - T1059
+    - T1071
+tags:
+    - spl
+author: Jorden Smith
+version: "1"

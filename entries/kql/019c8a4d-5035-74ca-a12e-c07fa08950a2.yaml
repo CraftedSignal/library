@@ -1,0 +1,16 @@
+id: 019c8a4d-5035-74ca-a12e-c07fa08950a2
+name: Suspicious Windows Admin Center Logon from External Tenant
+description: Detects logon events from Windows Admin Center (WAC) virtual accounts where the user's domain is external to the organization's tenant. This could indicate exploitation of CVE-2026-20965, where an attacker uses a forged token from another tenant to gain unauthorized access.
+query: "// Name: Suspicious Windows Admin Center Logon from External Tenant\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects logon events from Windows Admin Center (WAC) virtual accounts where the user's domain is external to the organization's tenant. This could indicate exploitation of CVE-2026-20965, where an attacker uses a forged token from another tenant to gain unauthorized access.\r\n// Tags: security, lateral movement, privilege escalation, CVE-2026-20965, WAC, TA0008, TA0004\r\n// References: https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/\r\n// Severity: High\r\nlet lookback = 30d;\r\n// FP Tuning: Add your tenant domain(s) and any other legitimate external domains used for administration to this list.\r\nlet known_domains = dynamic([\"<your_tenant_domain_goes_here>\"]);\r\nDeviceLogonEvents\r\n| where Timestamp > ago(lookback)\r\n// Filter for account names that follow the WAC virtual account format (WAC_user@domain.com).\r\n| where AccountName startswith \"WAC_\" and AccountName has \"@\"\r\n// Extract the domain from the UPN-style account name.\r\n| extend AccountDomain = tostring(split(AccountName, \"@\")[1])\r\n// Filter out logons from known, legitimate domains. This is the core detection logic for identifying cross-tenant abuse.\r\n| where not(AccountDomain in~ (known_domains))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    AccountDomain,\r\n    LogonType,\r\n    ActionType,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0004
+techniques:
+    - T1068
+tags:
+    - kql
+version: "2"
+references:
+    - https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/

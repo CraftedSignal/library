@@ -1,0 +1,48 @@
+id: 406a13db-f983-4378-95ea-84a5b7d6048e
+name: AORTA - New Forest Trust with TGT Delegation Enabled (Non-Transitive)
+description: Detects the creation or modification of an Active Directory forest trust with only the CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flag set in TdoAttributes. This indicates the AORTA attack where TGT delegation is enabled without the trust also being marked as transitive. This complements the detection for the 0x808 value.
+query: |-
+    title: AORTA - New Forest Trust with TGT Delegation Enabled (Non-Transitive)
+    id: 6b8c0d2e-3f4a-5b6c-7d8e-9f0a1b2c3d4e
+    status: experimental
+    description: Detects the creation or modification of an Active Directory forest trust with only the CROSS_ORGANIZATION_ENABLE_TGT_DELEGATION (0x00000800) flag set in TdoAttributes. This indicates the AORTA attack where TGT delegation is enabled without the trust also being marked as transitive. This complements the detection for the 0x808 value.
+    author: Detections.ai
+    date: 2025-06-29
+    references:
+        - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+    logsource:
+        product: windows
+        service: security
+        log_on_dc: true # Event 4706 is logged on Domain Controllers
+    detection:
+        selection:
+            EventID: 4706
+            TdoAttributes: '0x800' # Matches the exact hexadecimal string representation of only the TGT delegation flag
+        condition: selection
+    falsepositives:
+        - Legitimate creation of a forest trust with TGT delegation enabled is highly unusual and discouraged by Microsoft, making false positives rare.
+    level: high
+    tags:
+        - attack.persistence
+        - attack.privilege_escalation
+        - attack.t1098.006 # Account Manipulation: Domain Trust Modification
+        - attack.defense_evasion
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.006
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1098.006
+    - attack.defense_evasion
+author: Detections.ai
+version: "1"
+references:
+    - https://specterops.io/blog/2025/06/25/untrustworthy-trust-builders-account-operators-replicating-trust-attack-aorta/
+data_sources:
+    - windows
+    - security

@@ -1,0 +1,65 @@
+id: b6f0e9bc-ee16-488d-8378-1f932a6b6205
+name: Malicious NPM Package Versions Associated With Crypto Drainer
+description: Detects the presence of specific compromised versions of popular NPM packages. These versions were tampered with to include a malicious crypto wallet drainer as part of a supply chain attack.
+query: |
+    title: Malicious NPM Package Versions Associated With Crypto Drainer
+    id: f42b5119-80c1-4257-946b-9abde5c2ea28
+    status: experimental
+    description: |
+      Detects the presence of specific compromised versions of popular NPM packages. These versions were tampered with to include a malicious crypto wallet drainer as part of a supply chain attack.
+    references:
+      - https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised
+    author: detections.ai
+    date: 2025-09-08
+    tags:
+      - attack.t1195.002
+      - attack.supply_chain
+    logsource:
+      category: file_event # This rule requires file monitoring capabilities, common in EDRs.
+    detection:
+      # This selection identifies the relevant NPM dependency files.
+      filenames:
+        file.path|endswith:
+          - '\package.json'
+          - '\package-lock.json'
+      # This selection contains the specific compromised package versions.
+      malicious_packages:
+        Contents|contains: # Note: 'Contents' is a placeholder for the field containing file content data.
+          - '"backslash": "0.2.1"'
+          - '"chalk": "5.6.1"'
+          - '"chalk-template": "1.1.1"'
+          - '"color-convert": "3.1.1"'
+          - '"color-name": "2.0.1"'
+          - '"color-string": "2.1.1"'
+          - '"debug": "4.4.2"'
+          - '"error-ex": "1.3.3"'
+          - '"has-ansi": "6.0.1"'
+          - '"is-arrayish": "0.3.3"'
+          - '"slice-ansi": "7.1.1"'
+          - '"simple-swizzle": "0.2.3"'
+          - '"strip-ansi": "7.1.1"'
+          - '"supports-color": "10.2.1"'
+          - '"supports-hyperlinks": "4.1.1"'
+          - '"wrap-ansi": "9.0.1"'
+          - '"ansi-regex": "6.2.1"'
+          - '"ansi-styles": "6.2.2"'
+      condition: filenames and 1 of malicious_packages
+    falsepositives:
+      - This rule may trigger on vulnerability scan reports or documentation that lists these compromised packages.
+      - Legitimate projects that have not yet been updated may also trigger this alert. Investigation should focus on confirming if the package is actively used in a production environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+tags:
+    - attack.t1195.002
+    - attack.supply_chain
+author: detections.ai
+version: "1"
+references:
+    - https://www.aikido.dev/blog/npm-debug-and-chalk-packages-compromised
+data_sources:
+    - file_event

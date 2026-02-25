@@ -1,0 +1,66 @@
+id: 019b30ec-24aa-770a-a670-8d49a435be94
+name: 01flip Ransomware Self-Deletion on Linux
+description: Detects the specific command-line sequence used by the 01flip ransomware on Linux to erase itself from the disk after encrypting files. This involves using 'sleep' for a delay, 'dd' to overwrite the file with random data, and 'rm' to delete it.
+query: |
+    // Name: 01flip Ransomware Self-Deletion on Linux
+    // Author: detections.ai
+    // Date: 2025-12-18
+    // Description: Detects the specific command-line sequence used by the 01flip ransomware on Linux to erase itself from the disk after encrypting files. This involves using 'sleep' for a delay, 'dd' to overwrite the file with random data, and 'rm' to delete it.
+    // Tactic: Defense Evasion
+    // Technique: T1070.004 - File Deletion
+    // References: https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/
+    let TimeFrame = 10m;
+    DeviceProcessEvents
+    | where Timestamp > ago(TimeFrame)
+    | where OperatingSystemFamily == "Linux"
+    // Filter for the specific processes involved in the self-deletion routine.
+    | where ProcessName in ("sleep", "dd", "rm")
+    // Parse the target file from the 'dd' and 'rm' command lines.
+    | extend TargetFile = case(
+        ProcessName == "dd", extract(@"of=(\S+)", 1, ProcessCommandLine),
+        // This regex handles flags like -f, -rf, --force before the filename
+        ProcessName == "rm", extract(@"rm\s+(?:-[^\s]+\s+)*(\S+)", 1, ProcessCommandLine),
+        ""
+    )
+    // Categorize the events based on the 01flip pattern.
+    | extend EventType = case(
+        ProcessName == "sleep" and ProcessCommandLine has "5", "SleepDelay",
+        ProcessName == "dd" and ProcessCommandLine has "if=/dev/urandom" and isnotempty(TargetFile), "DdOverwrite",
+        ProcessName == "rm" and isnotempty(TargetFile) and (ProcessCommandLine has " -f " or ProcessCommandLine has "--force"), "RmDelete",
+        "Other"
+    )
+    | where EventType != "Other"
+    // Correlate the events by the parent process on a single host within a short time window.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        Commands = make_set(EventType),
+        TargetFiles = make_set_if(TargetFile, isnotempty(TargetFile)),
+        CommandLines = make_set(ProcessCommandLine)
+        by DeviceId, DeviceName, InitiatingProcessId, bin(Timestamp, 2m)
+    // Verify that all three components of the self-deletion sequence are present.
+    | where array_length(Commands) == 3 and Commands has_all ("SleepDelay", "DdOverwrite", "RmDelete")
+    // Ensure both 'dd' and 'rm' targeted the same file.
+    | where array_length(TargetFiles) == 1
+    // FP Tuning: This specific sequence is highly suspicious. However, custom cleanup scripts could potentially generate similar behavior.
+    // If FPs occur, consider excluding known safe parent processes (InitiatingProcessFolderPath).
+    | project
+        StartTime,
+        EndTime,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessId,
+        Commands,
+        TargetFile = TargetFiles[0],
+        CommandLines
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/new-ransomware-01flip-written-in-rust/

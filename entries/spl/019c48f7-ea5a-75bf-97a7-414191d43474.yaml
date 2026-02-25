@@ -1,0 +1,8 @@
+id: 019c48f7-ea5a-75bf-97a7-414191d43474
+name: SSH Login from Non-Internal IP
+description: This rule detects successful SSH logins from external IP addresses. It specifically looks for syslog messages indicating "Accepted password" or "Accepted publickey" and then filters out connections originating from common private IP address ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), loopback addresses (127.0.0.0/8), and APIPA addresses (169.254.0.0/16). The rule extracts the username, source IP address, and source port of the successful login.
+query: "index=linux sourcetype=syslog (\"Accepted password\" OR \"Accepted publickey\")\r\n| rex field=_raw \"Accepted (?:password|publickey) for (?<user>\\S+) from (?<src>[0-9\\.]+) port (?<src_port>\\d+)\"\r\n| where NOT (match(src, \"^10\\.\") OR match(src, \"^172\\.(1[6-9]|2[0-9]|3[0-1])\\.\") OR match(src, \"^192\\.168\\.\") OR match(src, \"^127\\.\") OR match(src, \"^169\\.254\\.\"))\r\n| table _time, host, user, src, src_port, _raw"
+query_type: spl
+tags:
+    - spl
+version: "1"

@@ -1,0 +1,17 @@
+id: 019c8ead-f169-719d-8772-af28c031476a
+name: MFA or Strong Authentication Disabled/Removed
+description: This rule detects when multi-factor authentication (MFA) or strong authentication settings are disabled or removed for a user account. It specifically looks for successful audit log entries related to operations such as 'Disable Strong Authentication', 'Update user', 'Update StsRefreshTokensValidFrom', 'Admin registered security info', or 'Admin deleted security info'. This activity could indicate an adversary attempting to maintain persistent access to a compromised account by weakening its authentication requirements.
+query: "// Detection: MFA Disabled or Strong Authentication Removed\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1556 - Modify Authentication Process\r\n\r\nAuditLogs\r\n| where TimeGenerated > ago(1d)\r\n| where OperationName has_any (\r\n    \"Disable Strong Authentication\",\r\n    \"Update user\",\r\n    \"Update StsRefreshTokensValidFrom\",\r\n    \"Admin registered security info\",\r\n    \"Admin deleted security info\"\r\n)\r\n| where Result =~ \"success\"\r\n| extend\r\n    TargetUser    = tostring(TargetResources[0].userPrincipalName),\r\n    InitiatingUser = tostring(InitiatedBy.user.userPrincipalName),\r\n    InitiatingApp  = tostring(InitiatedBy.app.displayName),\r\n    InitiatingIP   = tostring(iff(\r\n        isnotempty(InitiatedBy.user.ipAddress),\r\n        InitiatedBy.user.ipAddress,\r\n        InitiatedBy.app.ipAddress\r\n    ))\r\n| where isnotempty(TargetUser)\r\n| project TimeGenerated, OperationName, TargetUser,\r\n          InitiatingUser, InitiatingApp, InitiatingIP,\r\n          Result, CorrelationId\r\n| extend AlertDescription =\r\n    \"MFA or strong authentication disabled for a user account — verify legitimacy\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+techniques:
+    - T1556
+    - T1556.006
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

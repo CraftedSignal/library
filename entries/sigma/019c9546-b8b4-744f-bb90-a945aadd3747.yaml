@@ -1,0 +1,61 @@
+id: 019c9546-b8b4-744f-bb90-a945aadd3747
+name: Java Spawning Shell to Download File via CertUtil
+description: Detects a Java process spawning a command shell to download a file using the certutil.exe utility. This behavior was observed in the exploitation of Apache ActiveMQ (CVE-2023-46604), where the threat actor used this technique to download a secondary payload.
+query: |
+    title: Java Spawning Shell to Download File via CertUtil
+    id: ebc19c27-1ace-42e2-813a-6c9dff032bf3
+    status: experimental
+    description: Detects a Java process spawning a command shell to download a file
+      using the certutil.exe utility. This behavior was observed in the exploitation
+      of Apache ActiveMQ (CVE-2023-46604), where the threat actor used this
+      technique to download a secondary payload.
+    author: detections.ai
+    references:
+      - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    date: 2026-02-25
+    tags:
+      - attack.t1105
+      - attack.t1210
+      - attack.t1059.003
+      - cve.2023-46604
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects a shell process spawned by a Java application
+        ParentImage|endswith: '\java.exe'
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe' # Looks for the use of certutil to download a file from a URL
+        CommandLine|contains|all:
+          - 'certutil'
+          - '-urlcache'
+          - '-f'
+      condition: selection
+    falsepositives:
+      - Legitimate Java-based applications or administration tools that may use
+        certutil for updating or managing files.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0008
+    - TA0002
+techniques:
+    - T1105
+    - T1210
+    - T1059.003
+tags:
+    - attack.t1105
+    - attack.t1210
+    - attack.t1059.003
+    - cve.2023-46604
+author: detections.ai
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows

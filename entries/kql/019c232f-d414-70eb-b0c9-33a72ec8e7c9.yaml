@@ -1,0 +1,13 @@
+id: 019c232f-d414-70eb-b0c9-33a72ec8e7c9
+name: Lotus Blossom DLL Sideloading Activity
+description: This detection rule identifies potential DLL sideloading activity associated with the Lotus Blossom threat actor's Chrysalis backdoor. It searches for specific legitimate executables, often renamed from security products, loading suspicious DLLs from the same directory. The rule specifically looks for `BluetoothService.exe` loading `log.dll` or `tmdbglog.exe` loading `tmdglog.dll`, where both the process and the DLL reside in the same directory.
+query: "// Detection: Lotus Blossom DLL Sideloading Activity\r\n// Author: Abhishek\r\n// Description: This detection rule identifies potential DLL sideloading activity associated with the Lotus Blossom threat actor's Chrysalis backdoor.\r\n// It searches for specific legitimate executables, often renamed from security products, loading suspicious DLLs from the same directory.\r\n// MITRE ATT&CK: T1574.002 (DLL Sideloading), TA0003 (Persistence), TA0005 (Defense Evasion)\r\n// References: https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/\r\n// Severity: High\r\n// Known False Positives: Legitimate updaters or uninstallers for the related security products (Bitdefender, Trend Micro) could potentially cause false positives, though it is unlikely. If noise occurs, consider filtering by parent process or excluding digitally signed executables from the respective vendors.\r\nDeviceImageLoad\r\n| where (FileName =~ \"BluetoothService.exe\" and InitiatingProcessFileName =~ \"log.dll\") or (FileName =~ \"tmdbglog.exe\" and InitiatingProcessFileName =~ \"tmdglog.dll\")\r\n| extend process_dir = iff(process_path contains \"\\\\\", substring(process_path, 0, max(0, lastindexof(process_path, \"\\\\\"))), process_path)\r\n| extend dll_dir = iff(file_path contains \"\\\\\", substring(file_path, 0, max(0, lastindexof(file_path, \"\\\\\"))), file_path)\r\n| where process_dir == dll_dir\r\n| summarize count() by DeviceName, InitiatingProcessAccountName, FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessFolderPath\r\n| project-rename dest = DeviceName, user = InitiatingProcessAccountName, process_name = FileName, process_path = FolderPath, file_name = InitiatingProcessFileName, file_path = InitiatingProcessFolderPath"
+query_type: kql
+severity: medium
+techniques:
+    - T1574.002
+tags:
+    - spl
+version: "3"
+references:
+    - https://www.rapid7.com/blog/post/tr-chrysalis-backdoor-dive-into-lotus-blossoms-toolkit/

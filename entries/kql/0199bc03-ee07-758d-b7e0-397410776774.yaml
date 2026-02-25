@@ -1,0 +1,15 @@
+id: 0199bc03-ee07-758d-b7e0-397410776774
+name: Multiple SSL Login Failures
+description: This rule detects multiple failed SSL login attempts from a single source IP to a destination IP within a 24-hour period. A threshold of 10 failed attempts is used to identify potential brute-force attacks or credential stuffing against SSL-enabled services.
+query: "let timeRange = 24h;  \r\nlet threshold = 10;   \r\nCommonSecurityLog\r\n| where TimeGenerated > ago(timeRange)\r\n| where DeviceAction has \"ssl-login-fail\"\r\n| summarize FailedAttempts = count(), StartTime = min(TimeGenerated), EndTime = max(TimeGenerated)\r\n    by SourceIP, DestinationIP, DeviceProduct, DeviceVendor\r\n| where FailedAttempts >= threshold\r\n| sort by FailedAttempts desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+    - T1110.003
+tags:
+    - kql
+version: "1"

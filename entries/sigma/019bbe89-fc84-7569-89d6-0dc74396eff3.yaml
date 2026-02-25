@@ -1,0 +1,56 @@
+id: 019bbe89-fc84-7569-89d6-0dc74396eff3
+name: Suspicious Hydra Target Value in Config File
+description: Detects AI/ML model configuration files (e.g., config.json, model_config.yaml) containing a suspicious '_target_' value, which could indicate an attempt to exploit a Hydra instantiation vulnerability for remote code execution (RCE).
+query: |-
+    title: Suspicious Hydra Target Value in Config File
+    id: 12345678-1234-1234-1234-123456789012
+    status: experimental
+    description: Detects AI/ML model configuration files (e.g., config.json, model_config.yaml) containing a suspicious '_target_' value, which could indicate an attempt to exploit a Hydra instantiation vulnerability for remote code execution (RCE).
+    author: Nomit Vyas
+    date: 2026/01/15
+    references:
+      - https://unit42.paloaltonetworks.com/rce-vulnerabilities-in-ai-python-libraries/
+    tags:
+      - attack.t1059.006
+      - application.ai
+      - application.ml
+      - application.hydra
+      - application.python
+      - supply_chain.vulnerability
+      - exploitation.rce
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      file_event_selection:
+        EventID:
+          - 11
+          - 4663
+        TargetFilename|endswith:
+          - 'config.json'
+          - 'model_config.yaml'
+      content_selection:
+        Image|endswith:
+          - '.exe'
+          - '.dll'
+        CommandLine|contains:
+          - '_target_'
+          - 'builtins.exec'
+          - 'os.system'
+          - 'eval'
+      condition: file_event_selection and content_selection
+    falsepositives:
+      - Legitimate but poorly designed applications might use these functions. Tuning may be required to exclude specific file paths or repositories known to be safe.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059.006
+    - T1195.002
+author: Nomit Vyas
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/rce-vulnerabilities-in-ai-python-libraries/

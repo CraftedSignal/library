@@ -1,0 +1,57 @@
+id: 019c4cf5-f574-748c-9574-62e8ac2791e3
+name: SHub Stealer Password Validation via DSCL
+description: |
+    Detects the use of 'dscl . authonly' to validate user passwords, a technique
+    used by the SHub Stealer malware to verify credentials before exfiltration.
+    The malware typically executes this command from a shell or AppleScript
+    interpreter.
+query: |
+    title: SHub Stealer Password Validation via DSCL
+    id: 4efefca5-d532-4293-aa3f-a8a271b0b04a
+    status: experimental
+    description: |
+      Detects the use of 'dscl . authonly' to validate user passwords, a technique
+      used by the SHub Stealer malware to verify credentials before exfiltration.
+      The malware typically executes this command from a shell or AppleScript
+      interpreter.
+    references:
+      - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+    author: tim@detections.ai
+    date: 2026-02-11T00:00:00.000Z
+    tags:
+      - attack.t1056.002
+      - attack.credential-access
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith: '/dscl'
+        CommandLine|contains|all:
+          - ' . '
+          - ' authonly'
+        ParentImage|endswith:
+          - '/zsh'
+          - '/bash'
+          - '/sh'
+          - '/osascript'
+      condition: selection
+    falsepositives: |
+      Legitimate administrative scripts or tools might use this command for
+      password validation, although it's uncommon from these parent processes in a
+      non-interactive context.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+tags:
+    - attack.t1056.002
+    - attack.credential-access
+author: tim@detections.ai
+version: "3"
+references:
+    - https://securitylabs.datadoghq.com/articles/tech-impersonators-clickfix-and-macos-infostealers/
+data_sources:
+    - process_creation
+    - macos

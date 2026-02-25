@@ -1,0 +1,19 @@
+id: 162280b5-6158-48e4-b409-ccd64d140590
+name: Lateral Movement Analysis KQL (Automatic Attack Disruption)
+description: KQL Query
+query: "let AttackerIP =\r\nDisruptionAndResponseEvents\r\n| where ReportTime > ago(1h) \r\n| where isnotempty(SourceIpAddress)\r\n| distinct SourceIpAddress;\r\nDeviceNetworkEvents\r\n| where ActionType == @\"InboundConnectionAccepted\"\r\n| where RemoteIP has_any(AttackerIP)\r\n| summarize Total_Host_Attack=dcount(DeviceId), Total_Port_Attack=dcount(LocalPort) by RemoteIP"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0043
+techniques:
+    - T1570
+    - T1021
+    - T1595.001
+tags:
+    - kql
+author: Steven Lim
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/defender-xdr/automatic-attack-disruption

@@ -1,0 +1,23 @@
+id: e369cb5c-5aa9-410a-99d2-66cecd50a7bf
+name: Device or VM with critical CVSS and ExploitIsVerified
+description: KQL Query
+query: "// Device or VM with critical CVSS and ExploitIsVerified \n// https://www.linkedin.com/posts/activity-7193835506164469761-_1ty/\n\n// The ‘MDE DeviceTvmSoftwareVulnerabilitiesKB’ table includes the ‘IsExploitAvailable’ column, which simply indicates the public availability of an exploit. In contrast, the ‘Exposure Management ExposureGraphNodes’ table features the ‘ExploitabilityLevel’ column, offering more detailed information about the exploit, such as whether ‘ExploitIsVerified’. Bearing this in mind, we have crafted a KQL query to isolate Critical CVEs that are verified as exploitable. This query is then combined with the ‘ExposureGraphEdge’ to identify all devices and virtual machines that are vulnerable to critical, exploitable CVEs. The goal is to prioritize the remediation of these machines urgently, thereby minimizing the potential attack surface.\n\nExposureGraphNodes \n| where NodeLabel == \"Cve\"\n| extend CVSSScore = tostring(NodeProperties.rawData.cvssScore)\n| extend Severity = tostring(NodeProperties.rawData.severity)\n| extend HasExploit = tostring(NodeProperties.rawData.hasExploit)\n| extend ExploitabilityLevel = tostring(NodeProperties.rawData.exploitabilityLevel)\n| where ExploitabilityLevel == \"ExploitIsVerified\" and Severity == \"Critical\"\n| join ExposureGraphEdges on $left.NodeId == $right.SourceNodeId\n| project TargetNodeName, TargetNodeLabel, SourceNodeName, CVSSScore, NodeProperties\n| sort by CVSSScore desc\n\n// MITRE ATT&CK Mapping\n\n//The query focuses on identifying critical vulnerabilities with verified exploits, which aligns with several MITRE ATT&CK techniques related to vulnerability exploitation. Here are some relevant techniques:\n\n// T1190 - Exploit Public-Facing Application: This technique involves exploiting vulnerabilities in public-facing applications. Your query identifies critical vulnerabilities that could be exploited in such a manner1.\n// T1210 - Exploitation of Remote Services: This technique involves exploiting vulnerabilities in remote services. The query’s focus on verified exploits and critical severity aligns with detecting such exploitation attempts1.\n// T1068 - Exploitation for Privilege Escalation: This technique involves exploiting vulnerabilities to gain higher privileges. Critical vulnerabilities with verified exploits could be used for privilege escalation1.\n"
+query_type: kql
+tactics:
+    - TA0001
+    - TA0008
+    - TA0004
+    - TA0043
+    - TA0006
+    - TA0042
+techniques:
+    - T1190
+    - T1210
+    - T1068
+    - T1595.002
+    - T1212
+    - T1588.005
+    - T1595.003
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,54 @@
+id: 019ab1cf-093b-77bd-af43-06174b275329
+name: ZEROLOT Wiper File System Activity
+description: Detects the use of fsutil.exe to delete the USN (Update Sequence Number) journal, a technique observed in the ZEROLOT wiper to inhibit system recovery.
+query: |
+    title: ZEROLOT Wiper File System Activity
+    id: f09c1865-caf4-49d1-8c62-12abb519fdf6
+    status: experimental
+    description: Detects the use of fsutil.exe to delete the USN (Update Sequence Number) journal, a technique observed in the ZEROLOT wiper to inhibit system recovery.
+    references:
+      - https://www.sentinelone.com/blog/zerolox-new-destructive-wiper-deployed-in-targeted-attacks-against-critical-infrastructure/
+      - https://www.fortinet.com/blog/threat-research/new-wiper-zerolot-used-in-targeted-attack
+    author: detections.ai
+    date: 2025-11-23
+    tags:
+      - attack.impact
+      - attack.t1485
+      - attack.defense_evasion
+      - attack.software.s1125
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+            # Detects the execution of the file system utility
+        Image|endswith: '\fsutil.exe'
+            # Detects command line arguments used to delete the USN journal
+        CommandLine|contains|all:
+          - 'usn'
+          - 'deletejournal'
+      condition: selection
+    falsepositives:
+        # While uncommon, legitimate administrators may delete the USN journal for troubleshooting purposes.
+        # Filter based on parent processes or user accounts if this is common in your environment.
+      - Legitimate administrative activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1485
+tags:
+    - attack.impact
+    - attack.t1485
+    - attack.defense_evasion
+    - attack.software.s1125
+author: detections.ai
+version: "2"
+references:
+    - https://www.sentinelone.com/blog/zerolox-new-destructive-wiper-deployed-in-targeted-attacks-against-critical-infrastructure/
+    - https://www.fortinet.com/blog/threat-research/new-wiper-zerolot-used-in-targeted-attack
+data_sources:
+    - process_creation
+    - windows

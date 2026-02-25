@@ -1,0 +1,26 @@
+id: e47139d6-537c-4d34-a952-1390209f75fc
+name: Devices with Missing Recommended Security Updates
+description: This rule identifies devices that are missing recommended security updates based on data from Microsoft Defender for Endpoint's TVM (Threat and Vulnerability Management) capabilities. It joins vulnerability information with knowledge base articles to pinpoint specific missing updates.
+query: |
+    #### This query identifies the devices with missing Recommended Security Updates on the devices onboarded on Defender.
+    #### Query:
+    ```KQL
+    DeviceTvmSoftwareVulnerabilities
+    | join kind=inner (
+        DeviceTvmSoftwareVulnerabilitiesKB
+        | project CveId
+    ) on CveId
+    | project DeviceName, CveId, RecommendedSecurityUpdateId
+    | summarize MissingKBs = make_set(RecommendedSecurityUpdateId) by DeviceName
+    | where array_length(MissingKBs) > 0
+    ```
+query_type: kql
+tactics:
+    - TA0043
+    - TA0042
+techniques:
+    - T1595.002
+    - T1588.006
+tags:
+    - kql
+version: "1"

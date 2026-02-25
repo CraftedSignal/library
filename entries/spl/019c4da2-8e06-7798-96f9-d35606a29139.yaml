@@ -1,0 +1,26 @@
+id: 019c4da2-8e06-7798-96f9-d35606a29139
+name: ClickFix / CrashFix Python RAT Activity
+description: Detects suspicious process execution patterns indicative of the ClickFix / CrashFix Python RAT. This rule specifically looks for 'finger.exe' or 'powershell.exe' with encoded or obfuscated commands, especially when initiated by common browser processes or explorer.exe, which aligns with social engineering techniques involving malicious copy-pasting.
+query: |
+    // ClickFix / CrashFix Python RAT - Splunk
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+    // Source: Windows process events (e.g. Sysmon, EDR)
+
+    index=main (Process="finger.exe" OR (Process="powershell.exe" AND (CommandLine="*EncodedCommand*" OR CommandLine="* -Enc *" OR CommandLine="*IEX(*" OR CommandLine="*Invoke-Expression*")))
+    | eval parent=coalesce(ParentProcess, InitiatingProcessFileName)
+    | where parent IN ("chrome.exe", "msedge.exe", "firefox.exe", "rundll32.exe", "dllhost.exe", "explorer.exe") OR Process="finger.exe"
+    | table _time, host, Process, CommandLine, parent
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.004
+    - T1059
+    - T1059.001
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/

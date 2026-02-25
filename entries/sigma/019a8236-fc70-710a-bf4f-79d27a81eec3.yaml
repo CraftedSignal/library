@@ -1,0 +1,70 @@
+id: 019a8236-fc70-710a-bf4f-79d27a81eec3
+name: Rapid Privilege Escalation After Account Creation
+description: Detects a user account creation event followed by that same account being added to a privileged administrative group within a short timeframe (e.g., 40 minutes). This behavior is a key tactic of threat actors like Muddled Libra (Scattered Spider), who are known to rapidly escalate privileges after gaining initial access. This detection requires a SIEM to correlate the user identity between the creation event and the group addition event.
+query: |
+    title: Rapid Privilege Escalation After Account Creation
+    id: 3c3c7d2a-d61b-4971-863b-0231cdf0db59
+    status: experimental
+    description: >-
+      Detects a user account creation event followed by that same account being added to a privileged administrative group within a short timeframe (e.g., 40 minutes).
+      This behavior is a key tactic of threat actors like Muddled Libra (Scattered Spider), who are known to rapidly escalate privileges after gaining initial access.
+      This detection requires a SIEM to correlate the user identity between the creation event and the group addition event.
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.privilege_escalation
+      - attack.ta0004
+    logsource:
+      product: windows
+      service: security
+    detection:
+      # Detects the creation of a new user account
+      user_creation:
+        Channel: Security
+        EventID: 4720
+      # Detects a user being added to a high-privilege group
+      priv_group_add:
+        Channel: Security
+        EventID:
+          - 4728 # A member was added to a security-enabled global group
+          - 4732 # A member was added to a security-enabled local group
+          - 4756 # A member was added to a security-enabled universal group
+        GroupName:
+          - 'Domain Admins'
+          - 'Enterprise Admins'
+          - 'Administrators'
+          - 'Schema Admins'
+          - 'Account Operators'
+          - 'Backup Operators'
+          - 'Server Operators'
+          - 'Print Operators'
+          - 'DnsAdmins'
+          - 'Hyper-V Administrators'
+          - 'Remote Desktop Users'
+      # Correlate the two events happening within a 40 minute window, based on Muddled Libra TTPs
+      timeframe: 40m
+      condition: user_creation and priv_group_add
+    falsepositives:
+      - Legitimate, rapid creation and promotion of administrative or service accounts.
+      - Automated user provisioning scripts may trigger this alert.
+      - This rule relies on time-based correlation. To reduce false positives, it is critical to configure the SIEM to correlate the events where the created user (`user_creation.TargetSid`) is the same as the user added to the group (`priv_group_add.MemberSid`).
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1098
+tags:
+    - attack.privilege_escalation
+    - attack.ta0004
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra/
+data_sources:
+    - windows
+    - security

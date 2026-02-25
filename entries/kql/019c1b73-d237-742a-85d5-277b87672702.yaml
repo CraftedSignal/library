@@ -1,0 +1,16 @@
+id: 019c1b73-d237-742a-85d5-277b87672702
+name: Code.exe Running from Non-Standard Locations
+description: This rule detects instances of 'Code.exe' (the executable for Visual Studio Code) running from non-standard or suspicious file system locations. It specifically flags processes originating from temporary directories (like \Temp or \AppData\Local\Temp), the ScreenConnect Client directory, or Program Files (x86) which are not typical installation paths for VS Code. The rule aims to identify potential masquerading or execution of malicious code disguised as VS Code.
+query: "// Detection: Code.exe Running from Non-Standard Locations\n// Detect Code.exe processes outside legitimate VS Code installation paths\nDeviceProcessEvents\n| where Timestamp > ago(30d)\n| where FileName =~ \"Code.exe\"\n| where FolderPath !has_any (\n    @\"Microsoft VS Code\\Code.exe\",\n    @\"VSCode\\Code.exe\",\n    @\"Visual Studio Code\\Code.exe\"\n)\n| extend RiskLevel = case(\n    FolderPath has_any (@\"\\Temp\", @\"\\AppData\\Local\\Temp\"), \"Critical\",\n    FolderPath has @\"ScreenConnect Client\", \"High\",\n    FolderPath has @\"Program Files (x86)\", \"Medium\",\n    \"Low\"\n)\n| project \n    Timestamp,\n    DeviceName,\n    AccountName,\n    FileName,\n    FolderPath,\n    ProcessCommandLine,\n    ParentProcessName = InitiatingProcessFileName,\n    ParentProcessCommandLine = InitiatingProcessCommandLine,\n    RiskLevel,\n    SHA256,\n    MD5\n| where RiskLevel in (\"Critical\", \"High\")\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.003
+    - T1218.015
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "5"

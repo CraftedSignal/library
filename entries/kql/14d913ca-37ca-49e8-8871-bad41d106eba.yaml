@@ -1,0 +1,38 @@
+id: 14d913ca-37ca-49e8-8871-bad41d106eba
+name: KQL to detect new chromium browser extension installation on MDE endpoints by Emerald Sleet (APT43)
+description: KQL Query
+query: |
+    // KQL to detect new chromium browser extension installation on MDE endpoints by Emerald Sleet (APT43)
+    // https://www.linkedin.com/posts/activity-7212205082002513922-WGt4/
+
+    // Emerald Sleet (APT43) deploying faked google translate extension to exfiltrate user email, password and cookie data. Targeting users in the U.S., Europe, and South Korea.
+
+    // KQL to detect new chromium browser extension installation on MDE endpoints.
+
+    DeviceFileEvents
+    | where ActionType == "FileCreated"
+    | where FolderPath contains "Webstore Downloads" and FileName endswith ".crx"
+    | extend ExtensionId = extract(@"(?i)Downloads[\\/]|Webstore Downloads[\\/](.+?)_\d+\.crx", 1, FolderPath)
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the analysis, the KQL query can be associated with the following MITRE ATT&CK techniques:
+
+    // T1071.001 - Application Layer Protocol: Web Protocols:
+    // The detection of .crx files in the “Webstore Downloads” folder indicates potential use of web protocols to download and install browser extensions.
+    // T1036.005 - Masquerading: Match Legitimate Name or Location:
+    // The use of legitimate folder names like “Webstore Downloads” can be a technique to masquerade malicious files as legitimate downloads.
+    // T1204.002 - User Execution: Malicious File:
+    // The creation of .crx files could be part of a social engineering attack where users are tricked into executing malicious browser extensions.
+query_type: kql
+tactics:
+    - TA0011
+    - TA0005
+    - TA0002
+techniques:
+    - T1071.001
+    - T1036.005
+    - T1204.002
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,64 @@
+id: 019a08ba-290d-7763-af75-94c1653585b0
+name: HIDDENDRIVER Rootkit Registry Configuration
+description: Detects the creation or modification of registry values used by the HIDDENDRIVER rootkit to configure its hiding and protection capabilities. This rootkit, a modified version of the open-source "Hidden" project, uses these registry entries to define which files, processes, and registry keys to conceal. This activity is associated with the REF3927 threat actor and the TOLLBOOTH malware campaign.
+query: |
+    title: HIDDENDRIVER Rootkit Registry Configuration
+    id: 794c7a24-d53e-4efa-9cb8-9bcb933a4524
+    status: experimental
+    description: >-
+      Detects the creation or modification of registry values used by the
+      HIDDENDRIVER rootkit to configure its hiding and protection capabilities. This
+      rootkit, a modified version of the open-source "Hidden" project, uses these
+      registry entries to define which files, processes, and registry keys to
+      conceal. This activity is associated with the REF3927 threat actor and the
+      TOLLBOOTH malware campaign.
+    references:
+      - https://www.elastic.co/security-labs/tollbooth
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.defense_evasion
+      - attack.t1112
+      - attack.t1564
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      # Detects the specific registry value names used by HIDDENDRIVER for configuration
+      selection:
+        TargetObject|endswith:
+          - '\Kbj_WinkbjFsDirs'
+          - '\Kbj_WinkbjFsFiles'
+          - '\Kbj_WinkbjRegKeys'
+          - '\Kbj_WinkbjRegValues'
+          - '\Kbj_FangxingImages'
+          - '\Kbj_BaohuImages'
+          - '\Kbj_WinkbjImages'
+          - '\Kbj_Zhuangtai'
+          - '\Kbj_YinshenMode'
+      condition: selection
+    falsepositives:
+      - The registry value names are highly specific to this rootkit, making false
+        positives very unlikely. To increase fidelity, this detection could be
+        correlated with the installation of the 'Winkbj.sys' driver.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1112
+    - T1564
+    - T1014
+tags:
+    - attack.defense_evasion
+    - attack.t1112
+    - attack.t1564
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/tollbooth
+data_sources:
+    - registry_set
+    - windows

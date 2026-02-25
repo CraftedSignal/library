@@ -1,0 +1,62 @@
+id: 019bb7f4-26b1-7494-9bdf-043cea95bb4f
+name: In-Memory ELF Execution via memfd_create
+description: Detects the creation and execution of anonymous memory-backed files using `memfd_create`. This technique is used by malware like VoidLink to execute modular plugins or payloads directly in memory, bypassing disk-based detection mechanisms.
+query: |
+    title: In-Memory ELF Execution via memfd_create
+    id: 5939aa03-b55e-4f78-b3ea-f88c0002d8aa
+    status: experimental
+    description: Detects the creation and execution of anonymous memory-backed files
+      using `memfd_create`. This technique is used by malware like VoidLink to
+      execute modular plugins or payloads directly in memory, bypassing disk-based
+      detection mechanisms.
+    references:
+      - https://research.checkpoint.com/2026/voidlink-the-cloud-native-malware-framework/
+    author: tim@detections.ai
+    date: 2026-01-13
+    tags:
+      - attack.defense_evasion
+      - attack.execution
+      - attack.t1620
+      - attack.t1059.004
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection:
+        # Detects processes executed from a memfd file descriptor or where the command line indicates its use
+        Image|startswith: '/memfd:'
+        CommandLine|contains: 'memfd'
+      filter_legit_procs:
+        # Filter known legitimate software that uses this technique for sandboxing or plugins
+        Image|contains:
+          - 'pulseaudio'
+          - 'snapd'
+          - 'chrome'
+          - 'firefox'
+      filter_legit_parents:
+        ParentImage|startswith:
+          - '/usr/lib/systemd/'
+          - '/usr/bin/gnome-shell'
+      condition: selection and not (filter_legit_procs or filter_legit_parents)
+    falsepositives:
+      - Legitimate applications like browsers, audio daemons (PulseAudio), or system
+        services (systemd).
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1620
+tags:
+    - attack.defense_evasion
+    - attack.execution
+    - attack.t1620
+    - attack.t1059.004
+author: tim@detections.ai
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/voidlink-the-cloud-native-malware-framework/
+data_sources:
+    - process_creation
+    - linux

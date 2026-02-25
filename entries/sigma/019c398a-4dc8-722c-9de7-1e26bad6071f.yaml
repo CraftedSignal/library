@@ -1,0 +1,49 @@
+id: 019c398a-4dc8-722c-9de7-1e26bad6071f
+name: DeadVax Batch Staging in temp
+description: |
+    When a user opens a fake document in this attack, the document runs a script in the background. That script creates a batch file in a hidden temp folder. The folder structure is unusual: a temp folder inside another temp folder. The batch file has a random-looking name. Normal programs rarely create batch files in this way. Legitimate installers might use temp folders, but they do not typically create nested temp paths with batch files. The script that creates this file is started by the document, not by the user. Security teams should look for batch files being written to this specific path by a script process. This rule helps catch that staging step before the malware runs.
+query: |
+    title: DeadVax Batch Staging in temp
+    id: c3d4e5f6-a7b8-4c5d-9e0f-deadvax005
+    status: experimental
+    description: |
+      When a user opens a fake document in this attack, the document runs a script in the background. That script creates a batch file in a hidden temp folder. The folder structure is unusual: a temp folder inside another temp folder. The batch file has a random-looking name. Normal programs rarely create batch files in this way. Legitimate installers might use temp folders, but they do not typically create nested temp paths with batch files. The script that creates this file is started by the document, not by the user. Security teams should look for batch files being written to this specific path by a script process. This rule helps catch that staging step before the malware runs.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: Daniel Jeremiah
+    date: 2026/02/07
+    tags:
+      - attack.execution
+      - attack.t1059.003
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_path:
+        TargetFilename|contains: '\temp\temp\'
+      selection_ext:
+        TargetFilename|endswith: '.bat'
+      selection_parent:
+        ParentImage|endswith|any:
+          - '\wscript.exe'
+          - '\cscript.exe'
+      condition: selection_path and selection_ext and selection_parent
+    falsepositives:
+      - Legitimate script creating temp batch
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.003
+tags:
+    - attack.execution
+    - attack.t1059.003
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - file_event
+    - windows

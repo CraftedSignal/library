@@ -1,0 +1,73 @@
+id: 7e141121-71a8-4a47-aace-1f9762be3508
+name: Suspicious Script or Executable Execution from NETLOGON Share
+description: |
+    Detects the execution of an executable or script file from the NETLOGON share. This behavior was observed during the deployment of the Obscura ransomware and is a strong indicator of lateral movement or malicious deployment via Group Policy.
+query: |
+    title: Suspicious Script or Executable Execution from NETLOGON Share
+    id: 0a27ecfe-fe24-40e4-aa5e-d70eca11b979
+    status: experimental
+    description: >
+      Detects the execution of an executable or script file from the NETLOGON share.
+      This behavior was observed during the deployment of the Obscura ransomware and
+      is a strong indicator of lateral movement or malicious deployment via Group
+      Policy.
+    references:
+      - https://www.huntress.com/blog/obscura-ransomware-variant
+    author: detections.ai
+    date: 2025-09-03T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.t1204.002
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.t1059.005
+      - attack.t1218.011
+      - threat.ransomware.obscura
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_exe:
+        Image|re: (?i)\\sysvol\\sysvol\\[^\\]+\\scripts\\.+\.exe$
+      selection_scripts:
+        Image|endswith:
+          - \powershell.exe
+          - \cscript.exe
+          - \wscript.exe
+          - \rundll32.exe
+          - \cmd.exe
+        CommandLine|re: >-
+          (?i)\\sysvol\\sysvol\\[^\\]+\\scripts\\.+\.(?:ps1|psd1|js|vbs|wsf|dll|bat|cmd)
+      condition: selection_exe or selection_scripts
+    falsepositives:
+      - Legitimate administrative scripts deployed via Group Policy or the NETLOGON
+        share may trigger this rule. Tuning may be required to exclude known safe
+        scripts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1059.001
+    - T1059.003
+    - T1059.005
+    - T1218.011
+tags:
+    - attack.execution
+    - attack.t1204.002
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.t1059.005
+    - attack.t1218.011
+    - threat.ransomware.obscura
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/obscura-ransomware-variant
+data_sources:
+    - process_creation
+    - windows

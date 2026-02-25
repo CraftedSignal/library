@@ -1,0 +1,22 @@
+id: 019ab59f-8e31-749c-9f1e-ac6331e8100e
+name: High-Fidelity Azure AD User Risk Detection
+description: |-
+    Microsoft Entra ID Protection can provide a broad range of risk detections that can be used to identify suspicious activity in your organization.
+
+    This KQL detection rule identifies and prioritizes high-fidelity user risk events in Azure AD. It focuses on high-fidelity risk event types, filtering out known, noisy, or low-fidelity events to ensure alerts are accurate, actionable, and reliable.
+query: "AADUserRiskEvents\r\n| where RiskEventType in (\"adminConfirmedUserCompromised\", \"unlikelyTravel\", \"maliciousIPAddress\", \"investigationsThreatIntelligence\", \"passwordSpray\", \"suspiciousBrowser\", \"tokenIssuerAnomaly\", \"nationStateIP\")\r\n| where RiskState <> \"confirmedSafe\"\r\n| mv-expand AdditionalInfo\r\n| where AdditionalInfo contains \"mitreTechniques\"\r\n| extend MitreAttack = tostring(parse_json(tostring(AdditionalInfo)).Value)\r\n| extend GeoIPInfo = geo_info_from_ip_address(IpAddress)\r\n| extend country = tostring(parse_json(GeoIPInfo).country), state = tostring(parse_json(GeoIPInfo).state), city = tostring(parse_json(GeoIPInfo).city), latitude = tostring(parse_json(GeoIPInfo).latitude), longitude = tostring(parse_json(GeoIPInfo).longitude)\r\n| project DetectedDateTime, Activity, RiskEventType, UserDisplayName, IpAddress, country, MitreAttack"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1078
+    - T1110
+    - T1098
+    - T1190
+tags:
+    - kql
+author: Andre Zeemering
+version: "2"
+references:
+    - https://learn.microsoft.com/en-us/entra/id-protection/concept-identity-protection-risks?utm_source=chatgpt.com#anomalous-user-activity

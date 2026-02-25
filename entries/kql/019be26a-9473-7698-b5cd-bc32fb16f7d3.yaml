@@ -1,0 +1,82 @@
+id: 019be26a-9473-7698-b5cd-bc32fb16f7d3
+name: Phishing to Cloud Resource Compromise Chain
+description: This rule detects a multi-stage attack chain starting with a high-confidence phishing email, followed by a risky sign-in from the recipient, and culminating in sensitive actions within Azure, specifically targeting IAM role assignments, storage account key access, or AKS cluster modifications. The detection correlates these events within a defined time window to identify potential compromise of cloud resources originating from a successful phishing attack.
+query: |-
+    let lookback = 1d;
+    let pivot_window = 1h; // Defines the maximum time allowed between the phishing email, the sign-in, and the sensitive action.
+
+    // Stage 1: Identify delivered high-confidence phishing emails.
+    let phish_emails = EmailEvents
+    | where TimeGenerated > ago(lookback)
+    | where DeliveryAction == "Delivered" and ConfidenceLevel == "High" and ThreatTypes has "Phish"
+    | project PhishTime = TimeGenerated, RecipientEmailAddress;
+
+    // Stage 2: Identify risky sign-ins from users who received a phish.
+    let risky_signins = SigninLogs
+    | where TimeGenerated > ago(lookback)
+    | where RiskLevelDuringSignIn in ("high", "medium")
+    // The RiskState being 'atRisk' or 'confirmedCompromised' provides additional signal.
+    | where RiskState in ("atRisk", "confirmedCompromised")
+    | project SignInTime = TimeGenerated, UserPrincipalName, SignInRiskLevel = RiskLevelDuringSignIn, IPAddress, Location;
+
+    // Stage 3: Identify sensitive Azure actions related to IAM, Storage, and AKS.
+    let sensitive_azure_actions = AzureActivity
+    | where TimeGenerated > ago(lookback)
+    | where OperationNameValue in (
+        // IAM - Role assignments
+        "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/WRITE",
+        "MICROSOFT.AUTHORIZATION/ROLEASSIGNMENTS/DELETE",
+        // Storage - Accessing keys is a high-impact action for data exfiltration.
+        "MICROSOFT.STORAGE/STORAGEACCOUNTS/LISTKEYS/ACTION",
+        "MICROSOFT.STORAGE/STORAGEACCOUNTS/LISTACCOUNTKEYS/ACTION",
+        // AKS - Modifying a cluster can lead to container compromise.
+        "MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/WRITE",
+        "MICROSOFT.CONTAINERSERVICE/MANAGEDCLUSTERS/DELETE"
+    )
+    | where ActivityStatusValue == "Success"
+    | project ActionTime = TimeGenerated, Caller, Operation = OperationNameValue, ResourceGroup, ResourceProvider, ResourceId;
+
+    // Correlate the events in sequence: Phish -> Risky Sign-in -> Sensitive Action.
+    phish_emails
+    | join kind=inner (
+        risky_signins
+    ) on $left.RecipientEmailAddress == $right.UserPrincipalName
+    // Ensure the sign-in happens within the pivot_window after the phish email.
+    | where SignInTime between (PhishTime .. (PhishTime + pivot_window))
+    | join kind=inner (
+        sensitive_azure_actions
+    ) on $left.UserPrincipalName == $right.Caller
+    // Ensure the sensitive action happens within the pivot_window after the risky sign-in.
+    | where ActionTime between (SignInTime .. (SignInTime + pivot_window))
+    // FP Tuning: To reduce potential false positives from administrative or security testing activities,
+    // consider filtering out known admin accounts or trusted IP address ranges.
+    // For example: where UserPrincipalName !in ('admin1@contoso.com') and IPAddress !in ('1.2.3.4')
+    | project
+        DetectionTime = ActionTime,
+        UserPrincipalName,
+        PhishTime,
+        SignInTime,
+        SignInRiskLevel,
+        IPAddress,
+        Location,
+        AzureAction = Operation,
+        ResourceId
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0004
+    - TA0040
+    - TA0001
+    - TA0005
+    - TA0003
+techniques:
+    - T1566
+    - T1566.002
+    - T1078
+    - T1098
+    - T1098.006
+    - T1486
+tags:
+    - kql
+version: "4"

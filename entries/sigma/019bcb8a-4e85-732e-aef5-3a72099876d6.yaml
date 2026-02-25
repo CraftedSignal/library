@@ -1,0 +1,52 @@
+id: 019bcb8a-4e85-732e-aef5-3a72099876d6
+name: Suspicious QEMU Execution To Run Adversary VM
+description: Detects the execution of QEMU with parameters to launch a virtual machine with a disk image and networking capabilities. Adversaries have been observed using this "Bring Your Own VM" (BYO-VM) technique to create an isolated operational environment on a compromised host, evading host-based defenses and establishing persistence. This activity was notably preceded by social engineering via Quick Assist, leading to execution by "wscript.exe".
+query: |
+    title: Suspicious QEMU Execution To Run Adversary VM
+    id: 0d25ced9-9cb5-4b22-9b4b-34a458989572
+    status: experimental
+    description: Detects the execution of QEMU with parameters to launch a virtual
+      machine with a disk image and networking capabilities. Adversaries have been
+      observed using this "Bring Your Own VM" (BYO-VM) technique to create an
+      isolated operational environment on a compromised host, evading host-based
+      defenses and establishing persistence. This activity was notably preceded by
+      social engineering via Quick Assist, leading to execution by "wscript.exe".
+    references:
+      - https://redcanary.com/blog/threat-intelligence/email-bombing-virtual-machine/
+    author: detections.ai
+    date: 2026-01-17
+    tags:
+      - attack.t1564.006
+      - attack.execution
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        CommandLine|contains|all:
+          - '-hda' # Specifies the virtual hard disk image.
+          - '.qcow2' # QEMU copy-on-write disk image format, a strong indicator for QEMU usage.
+          - '-netdev' # Configures the network backend for the VM.
+      condition: selection
+    falsepositives:
+      - Legitimate use of QEMU by developers, system administrators, or security
+        researchers. Such activity is highly unusual on standard user endpoints.
+        Consider tuning by filtering for specific users or parent processes if
+        legitimate use cases exist in your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1564.006
+tags:
+    - attack.t1564.006
+    - attack.execution
+author: detections.ai
+version: "2"
+references:
+    - https://redcanary.com/blog/threat-intelligence/email-bombing-virtual-machine/
+data_sources:
+    - process_creation
+    - windows

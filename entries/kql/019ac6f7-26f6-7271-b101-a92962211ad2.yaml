@@ -1,0 +1,73 @@
+id: 019ac6f7-26f6-7271-b101-a92962211ad2
+name: LANDFALL C2 Communication from Mobile Apps
+description: Detects outbound network connections from common messaging or gallery apps on Samsung Android devices to command and control (C2) infrastructure associated with the LANDFALL spyware.
+query: |
+    # Name: LANDFALL C2 Communication from Mobile Apps
+    # Author: detections.ai
+    # Date: 2025-11-27
+    #
+    # Description:
+    # Detects outbound network connections from common messaging or gallery apps on Samsung Android devices
+    # to command and control (C2) infrastructure associated with the LANDFALL spyware.
+    #
+    # Data Source:
+    # This search requires network connection logs from a Mobile Device Management (MDM) or EDR solution.
+    # The macro `network_events` should be configured for your environment, with fields mapped to the CIM
+    # (e.g., process_name, dest_ip, dest_host, device_vendor, device_os, host, user).
+    #
+    # References:
+    # - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    #
+    # MITRE ATT&CK:
+    # - Tactic: Command and Control (TA0011)
+    # - Technique: T1071.001 (Application Layer Protocol: Web Protocols)
+    #
+    # False Positives:
+    # False positives are unlikely given the specific combination of source applications and known malicious destinations.
+    # However, if C2 domains/IPs are sinkholed or re-purposed, legitimate traffic could be flagged.
+    # Investigation should confirm the nature of the traffic and the state of the device.
+
+    // Define known C2 infrastructure for the LANDFALL campaign.
+    let landfall_c2_ips = dynamic([
+        "45.155.250.158",
+        "46.246.28.75",
+        "91.132.92.35",
+        "92.243.65.240",
+        "192.36.57.56",
+        "194.76.224.127"
+    ]);
+    let landfall_c2_domains = dynamic([
+        "brightvideodesigns.com",
+        "healthyeatingontherun.com",
+        "hotelsitereview.com",
+        "projectmanagerskills.com"
+    ]);
+
+    // Define common package names for targeted applications.
+    let target_apps = dynamic([
+        "com.whatsapp", // WhatsApp
+        "com.samsung.android.gallery3d", // Samsung Gallery
+        "com.sec.android.gallery3d" // Samsung Gallery (older/alternate name)
+    ]);
+
+    `network_events`
+    // Filter for Samsung Android devices, as specified in the threat intel.
+    | where device_vendor == "Samsung" and device_os == "Android"
+    // Filter for network connections originating from targeted messaging or gallery apps.
+    | where process_name in (target_apps)
+    // Filter for connections to known LANDFALL C2 infrastructure.
+    | where dest_ip in (landfall_c2_ips) or dest_host in (landfall_c2_domains)
+    // Group results for analysis and investigation.
+    | stats count min(_time) as firstTime max(_time) as lastTime by host, user, process_name, dest_ip, dest_host, dest_port, device_vendor, device_model
+    | `landfall_c2_communication_from_mobile_apps_filter`
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/

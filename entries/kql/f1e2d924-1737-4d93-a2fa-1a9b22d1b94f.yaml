@@ -1,0 +1,15 @@
+id: f1e2d924-1737-4d93-a2fa-1a9b22d1b94f
+name: Net User Domain Account Creation
+description: Detects the creation of new domain user accounts using the 'net user /add /domain' command. This activity can be indicative of an adversary establishing persistence or escalating privileges within a Windows domain environment.
+query: "let BaseCommand = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has \"user\"\r\n    | distinct ProcessCommandLine ;\r\nlet CreationWithConfPrompt = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine endswith \"/add /domain\"\r\n    | distinct ProcessCommandLine ;\r\nlet CreationWithConfSuppression = \r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine endswith \"/add /domain /Y\"\r\n    | distinct ProcessCommandLine ;\r\nlet NonEncodedPowershell=\r\n    DeviceProcessEvents\r\n    | where ProcessCommandLine has \"net user\" and ProcessCommandLine has \"/add /domain\"\r\n    | distinct ProcessCommandLine ;\r\nDeviceProcessEvents\r\n| extend PCL = ProcessCommandLine\r\n| where PCL in (BaseCommand) and (PCL in (CreationWithConfSuppression) or PCL in (CreationWithConfPrompt)) or PCL in (NonEncodedPowershell)\r\n| project  ProcessCreationTime, InitiatingProcessAccountName,LogonId, DeviceId, DeviceName, InitiatingProcessFolderPath, InitiatingProcessCommandLine, InitiatingProcessId, PCL, ProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1136
+    - T1136.002
+tags:
+    - kql
+author: M6R
+version: "1"

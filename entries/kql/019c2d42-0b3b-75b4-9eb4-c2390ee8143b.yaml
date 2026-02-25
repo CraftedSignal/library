@@ -1,0 +1,65 @@
+id: 019c2d42-0b3b-75b4-9eb4-c2390ee8143b
+name: Chained RMM Tool Installation
+description: Detects when a known Remote Monitoring and Management (RMM) tool is used to install a secondary RMM tool. Threat actors use this technique to establish redundant and persistent access to victim networks.
+query: |
+    // Name: Chained RMM Tool Installation
+    // Author: detections.ai
+    // Date: 2026-02-05
+    // Description: Detects when a known Remote Monitoring and Management (RMM) tool is used to install a secondary RMM tool. Threat actors use this technique to establish redundant and persistent access to victim networks.
+    // Tactics: Command and Control
+    // Techniques: T1219 - Remote Access Software
+    // References: https://www.huntress.com/blog/series-of-unfortunate-rmm-events
+
+    // Define the list of initial access RMM tools and known lures.
+    let initialRMMs = dynamic([
+        // Legitimate RMM process names often abused for initial access
+        "GoToResolve.exe",
+        "PDQ.exe",
+        "ITarian.exe",
+        // Known lure file names from the report
+        "Open Revised Contract (2).exe",
+        "Thanksgiving-iv.exe",
+        "EVITEINVITERSOLVELIST.exe",
+        "OPENINVITATION.exe",
+        "Contract Revised.exe"
+    ]);
+    // Define the list of secondary RMM tools or installers.
+    let secondaryRMMs = dynamic([
+        "ScreenConnect.ClientService.exe",
+        "SimpleService.exe",
+        "msiexec.exe"
+    ]);
+    DeviceProcessEvents
+    // Look for a process creation event where the parent process is a known initial RMM tool.
+    | where InitiatingProcessFileName in~ (initialRMMs)
+    // And the child process is a known secondary RMM tool or a generic installer.
+    | where FileName in~ (secondaryRMMs)
+    // FP-TUNING: The use of msiexec.exe by an RMM can be legitimate for software deployment.
+    // The line below strengthens the condition by requiring the msiexec command line to reference a remote file, which is more suspicious.
+    // Consider commenting this out for broader detection or tuning it with known legitimate domains/paths if legitimate RMM->msiexec activity is common in your environment.
+    | where not(FileName =~ "msiexec.exe" and ProcessCommandLine !has "http")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1219
+    - T1219.002
+    - T1218.007
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/series-of-unfortunate-rmm-events

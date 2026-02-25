@@ -1,0 +1,41 @@
+id: 019ae3a4-23d4-7773-9fb5-fc819a9900d2
+name: GitHub Runner Persistence (SHA1HULUD)
+description: Detects the creation of a persistent GitHub self-hosted runner named 'SHA1HULUD', a technique used by the Shai-Hulud 2.0 malware for persistence and remote command execution. The rule specifically looks for process command lines containing " --name SHA1HULUD".
+query: |
+    // Name: GitHub Runner Persistence (SHA1HULUD)
+    // Author: detections.ai
+    // Date: 2025-12-03
+    // Description: Detects the creation of a persistent GitHub self-hosted runner named 'SHA1HULUD', a technique used by the Shai-Hulud 2.0 malware for persistence and remote command execution.
+    // MITRE ATT&CK: T1543.003 (Create or Modify System Process: Windows Service), T1059.004 (Command and Scripting Interpreter: Unix Shell)
+    // References: https://unit42.paloaltonetworks.com/npm-supply-chain-attack/
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Filter for process command lines containing the specific runner name used by the malware.
+    | where ProcessCommandLine contains " --name SHA1HULUD"
+    // FP Tuning: The string "SHA1HULUD" is highly specific to this malware campaign, making false positives extremely unlikely.
+    // Any alert should be treated as a high-fidelity indicator of compromise.
+    // Investigate the initiating process and parent process to understand the full execution chain.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ParentProcessFileName,
+        ParentProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1543.003
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

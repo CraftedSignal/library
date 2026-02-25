@@ -1,0 +1,50 @@
+id: 019b93bd-ff84-7578-ac18-a1b32fe7c23c
+name: Mltab Adware DLL Execution via Rundll32
+description: Detects the execution of the Mltab adware installer DLL, "OfficeTeam.Installer.dll", via rundll32.exe. This activity is part of a supply chain attack involving the Office Assistant software.
+query: |
+    title: Mltab Adware DLL Execution via Rundll32
+    id: 041a69e2-d2c1-4794-8769-cef620b74bfb
+    status: experimental
+    description: Detects the execution of the Mltab adware installer DLL,
+      "OfficeTeam.Installer.dll", via rundll32.exe. This activity is part of a
+      supply chain attack involving the Office Assistant software.
+    references:
+      - https://ti.qianxin.com/blog/articles/office-assistant-supply-chain-attack-en/
+    author: tim@detections.ai
+    date: 2026-01-06
+    tags:
+      - attack.execution
+      - attack.t1218.011
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        # Detects the use of rundll32.exe, a common tool for proxy execution of malicious DLLs
+        Image|endswith: '\rundll32.exe'
+        # Detects the specific malicious DLL and its export function in the command line
+        CommandLine|contains|all:
+          - 'OfficeTeam.Installer.dll'
+          - 'StartInstall'
+      condition: selection
+    falsepositives:
+      - None expected.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1218.011
+tags:
+    - attack.execution
+    - attack.t1218.011
+author: tim@detections.ai
+version: "3"
+references:
+    - https://ti.qianxin.com/blog/articles/office-assistant-supply-chain-attack-en/
+data_sources:
+    - process_creation
+    - windows

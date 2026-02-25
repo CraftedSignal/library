@@ -1,0 +1,13 @@
+id: 019c6b60-693e-770c-82c2-e490f442e656
+name: Potential DCSync Replication Abuse
+description: This rule detects potential DCSync replication abuse by monitoring Security Event ID 4662, specifically looking for access to 'domainDNS' or user objects with the GUID '1131f6aa-9c07-11d1-f79f-00c04fc2dcd2', which is associated with Directory Replication Service (DRS) permissions. It filters out machine accounts to reduce false positives.
+query: "SecurityEvent\r\n| where TimeGenerated > ago(1h)\r\n| where EventID == 4662 \r\n| where ObjectType == \"domainDNS\" or ObjectType contains \"user\"  \r\n| where Properties contains \"1131f6aa-9c07-11d1-f79f-00c04fc2dcd2\"  \r\n| where Account !contains \"$\" \r\n| project TimeGenerated, Account, ObjectName, Properties, AccessMask, IpAddress\r\n| extend SuspiciousReason = \"Potential DCSync replication abuse\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.006
+tags:
+    - kql
+version: "1"

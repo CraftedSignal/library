@@ -1,0 +1,23 @@
+id: 019bf103-c71b-76ca-bbdd-543156a714bd
+name: EtherRAT Self-Propagating Worm and Next.js Exploit
+description: This rule detects activities associated with the EtherRAT self-propagating worm, specifically its module for scanning and exploiting vulnerable Next.js applications. It looks for combinations of mass port scanning tools (nmap, masscan, zmap, nc) targeting common web ports, logging of Next.js scan activities, `curl` commands with specific `Next-Action` headers indicative of Next.js exploitation, `node` or `nodejs` processes performing network connections to private IP ranges, and command lines containing patterns related to prototype pollution exploitation (e.g., `__proto__`, `constructor.prototype`). The rule correlates these activities to identify potential exploitation attempts against Next.js applications using the React2Shell vulnerability (CVE-2025-55182) and subsequent lateral movement or payload delivery.
+query: "title: EtherRAT Self-Propagating Worm and Network Scanning\nid: 9a0b1c2d-3e4f-5a6b-7c8d-9e0f1a2b3c4d\nstatus: experimental\ndescription: |\n    Detection of EtherRAT's self-propagating worm module that scans for vulnerable \n    Next.js applications and exploits React2Shell (CVE-2025-55182). Correlates \n    mass scanning with prototype pollution exploit delivery.\nauthor: Daniel Jeremiah\ndate: 2025-01-24\nreferences:\n    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2\ntags:\n    - attack.lateral_movement\n    - attack.t1210\n    - attack.t1046\nlogsource:\n    category: process_creation\n    product: linux\ndetection:\n    mass_port_scan:\n        CommandLine|re: '(?i)(nmap|masscan|zmap|nc\\s+-z).*(-p\\s*80|443|3000|3001|8080|8443)'\n    nextjs_scan_log:\n        CommandLine|re: '(?i)(tee|cat|echo).*/tmp/nextjs_scan\\.log'\n    curl_mass_requests:\n        CommandLine|re: '(?i)curl.*(-H\\s+.*Next-Action|--header.*Next-Action)'\n    node_network_scan:\n        Image|endswith|any:\n            - '/node'\n            - '/nodejs'\n        CommandLine|re: '(?i)(net\\.connect|socket|http\\.request).*(\\b10\\.|172\\.(1[6-9]|2[0-9]|3[01])\\.|192\\.168\\.)'\n    prototype_pollution_payload:\n        CommandLine|re: '(?i)(\\$1:__proto__|__proto__:then|constructor\\.prototype)'\n    condition: (mass_port_scan and nextjs_scan_log) or (curl_mass_requests and prototype_pollution_payload) or (node_network_scan and (curl_mass_requests or prototype_pollution_payload))\nfalsepositives:\n    - Legitimate vulnerability scanning tools\n    - Security assessments\nlevel: critical\n"
+query_type: sigma
+severity: critical
+tactics:
+    - TA0008
+    - TA0007
+techniques:
+    - T1210
+    - T1046
+tags:
+    - attack.lateral_movement
+    - attack.t1210
+    - attack.t1046
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.sysdig.com/blog/etherrat-dissected-how-a-react2shell-implant-delivers-5-payloads-through-blockchain-c2
+data_sources:
+    - process_creation
+    - linux

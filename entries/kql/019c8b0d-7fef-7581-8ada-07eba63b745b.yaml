@@ -1,0 +1,16 @@
+id: 019c8b0d-7fef-7581-8ada-07eba63b745b
+name: SANDWORM_MODE Malicious npm Package Installation
+description: This rule detects the installation or execution of known malicious, typosquatted npm packages associated with the SANDWORM_MODE campaign. It identifies process creation events related to common Node.js package managers (npm, yarn, npx) and checks for command lines indicating package installation or execution, specifically looking for the presence of malicious package names from the SANDWORM_MODE campaign.
+query: "// Name: SANDWORM_MODE Malicious npm Package Installation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-23\r\n// Tactic: Initial Access\r\n// Technique: T1195.001, Supply Chain Compromise: Compromise Software Dependencies and Development Tools\r\n// Description: This rule detects the installation or execution of known malicious, typosquatted npm packages associated with the SANDWORM_MODE campaign.\r\n// False Positive Sensitivity: Medium\r\n// References: https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning\r\n// Define the list of known malicious npm packages from the SANDWORM_MODE campaign.\r\nlet MaliciousPackages = dynamic([\r\n    \"claud-code\",\r\n    \"cloude-code\",\r\n    \"cloude\",\r\n    \"crypto-locale\",\r\n    \"crypto-reader-info\",\r\n    \"detect-cache\",\r\n    \"format-defaults\",\r\n    \"hardhta\",\r\n    \"locale-loader-pro\",\r\n    \"naniod\",\r\n    \"node-native-bridge\",\r\n    \"opencraw\",\r\n    \"parse-compat\",\r\n    \"rimarf\",\r\n    \"scan-store\",\r\n    \"secp256\",\r\n    \"suport-color\",\r\n    \"veim\",\r\n    \"yarsg\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events related to common Node.js package managers.\r\n| where FileName in~ (\"npm\", \"npm.exe\", \"yarn\", \"yarn.exe\", \"npx\", \"npx.exe\")\r\n// Check for command lines that indicate a package is being installed or executed.\r\n// The 'npx' process itself is used to execute packages, so its presence is sufficient.\r\n| where (ProcessCommandLine has_any (\"install\", \"add\", \"i\", \"dlx\")) or (FileName in~ (\"npx\", \"npx.exe\"))\r\n// Correlate with the presence of a malicious package name in the command line.\r\n| where ProcessCommandLine has_any (MaliciousPackages)\r\n// FP Tuning: This detection is generally high-fidelity. False positives may occur if a security researcher or developer is intentionally analyzing these packages.\r\n// Consider excluding known researcher devices or specific project paths if this activity is expected and benign.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    ProcessId,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/sandworm-mode-npm-worm-ai-toolchain-poisoning

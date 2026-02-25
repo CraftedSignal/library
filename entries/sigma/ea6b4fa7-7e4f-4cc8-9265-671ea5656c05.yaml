@@ -1,0 +1,22 @@
+id: ea6b4fa7-7e4f-4cc8-9265-671ea5656c05
+name: NTLM downgrade attack (Reg via SYSMON)
+description: Detects scenarios where an attacker modifies the registry configuration in order to enable or downgrade NTLM protocol version, to later on perform relay attacks.
+query: "title: NTLM downgrade attack (Reg via SYSMON)\ndescription: Detects scenarios where an attacker modifies the registry configuration in order to enable or downgrade NTLM protocol version, to later on perform relay attacks.\nreferences:\n- https://www.trustedsec.com/blog/practical-attacks-against-ntlmv1/\n- https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/network-security-lan-manager-authentication-level\n- https://www.praetorian.com/blog/ntlmv1-vs-ntlmv2/\ntags:\n- attack.defense_evasion\n- attack.t1562.010 # Impair Defenses: Downgrade Attack \nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: registry_set\ndetection:\n  selection:\n    TargetObject|endswith: '\\SYSTEM\\CurrentControlSet\\Control\\Lsa\\LmCompatibilityLevel'\n    Details|contains:\n      - '0x00000000' # Send LM & NTLM responses\n      - '0x00000001' # Send LM & NTLM – use NTLMv2 session security if negotiated\n      - '0x00000002' # Send NTLM response only\n  condition: selection\nfalsepositives:\n- VPN software\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562.010
+tags:
+    - attack.defense_evasion
+    - attack.t1562.010
+author: mdecrevoisier
+version: "1"
+references:
+    - https://www.trustedsec.com/blog/practical-attacks-against-ntlmv1/
+    - https://learn.microsoft.com/en-us/windows/security/threat-protection/security-policy-settings/network-security-lan-manager-authentication-level
+    - https://www.praetorian.com/blog/ntlmv1-vs-ntlmv2/
+data_sources:
+    - registry_set
+    - windows

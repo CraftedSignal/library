@@ -1,0 +1,8 @@
+id: 019c48f7-482e-7086-abb1-2dab88c475fd
+name: Scheduled Task Creation and Deletion by Same User
+description: This rule detects the creation and subsequent deletion of scheduled tasks on a Windows system within a one-hour window. It specifically looks for Sysmon EventCode 1 (process creation) where the image is 'schtasks.exe' and the command line contains both '/create' and '/delete' operations, along with '/S' (system name) and '/TN' (task name) parameters. It excludes operations targeting 'localhost', '127.0.0.1', or '::1'. The rule then counts the number of create and delete actions per computer and user within an hour, triggering an alert if both create and delete actions are observed.
+query: "index=windows source=WinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1\r\n| search Image=\"*\\\\schtasks.exe\"\r\n| search ((CommandLine=\"*/create*\" CommandLine=\"*/S*\" CommandLine=\"*/TN*\") OR (CommandLine=\"*/delete*\" CommandLine=\"*/S*\" CommandLine=\"*/TN*\"))\r\n| search NOT (CommandLine=\"*/S localhost*\" OR CommandLine=\"*/S 127.0.0.1*\" OR CommandLine=\"*/S ::1*\")\r\n| eval action=if(match(CommandLine, \"(?i)/create\"), \"create\", \"delete\")\r\n| bin _time span=1h\r\n| stats count(eval(action=\"create\")) as creates,\r\n        count(eval(action=\"delete\")) as deletes,\r\n        values(CommandLine) as commands,\r\n        min(_time) as first_time,\r\n        max(_time) as last_time\r\n        by _time, ComputerName, User\r\n| where creates >= 1 AND deletes >= 1\r\n| eval first_time=strftime(first_time, \"%Y-%m-%d %H:%M:%S\"), last_time=strftime(last_time, \"%Y-%m-%d %H:%M:%S\")\r\n| table first_time, last_time, ComputerName, User, creates, deletes, commands"
+query_type: spl
+tags:
+    - spl
+version: "1"

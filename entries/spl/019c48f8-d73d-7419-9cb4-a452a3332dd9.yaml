@@ -1,0 +1,8 @@
+id: 019c48f8-d73d-7419-9cb4-a452a3332dd9
+name: Large Plain Text File Transfer to External IP
+description: This rule detects large text files (over 1MB) downloaded from the Tor network (index=onion) to a local host, where the destination IP address is not a private or loopback address. It specifically looks for files with a MIME type of 'text/plain' and where 'local_orig' is true, indicating the file originated from the local network. The rule filters out internal network traffic by excluding private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16), loopback addresses (127.0.0.0/8), and APIPA addresses (169.254.0.0/16) from the responder's IP address.
+query: "index=onion source=\"/nsm/zeek/logs/current/files.log\" mime_type=\"text/plain\" seen_bytes>1000000 local_orig=true\r\n| where NOT (cidrmatch(\"10.0.0.0/8\", 'id.resp_h') OR cidrmatch(\"172.16.0.0/12\", 'id.resp_h') OR cidrmatch(\"192.168.0.0/16\", 'id.resp_h') OR cidrmatch(\"127.0.0.0/8\", 'id.resp_h') OR cidrmatch(\"169.254.0.0/16\", 'id.resp_h'))\r\n| table id.orig_h, id.resp_h, seen_bytes, mime_type"
+query_type: spl
+tags:
+    - spl
+version: "1"

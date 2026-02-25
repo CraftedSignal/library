@@ -1,0 +1,18 @@
+id: 019c3f96-f870-72bf-809f-cb1fbe3f70c1
+name: SolarWinds WHD Spawning Suspicious Child Process
+description: Detects the SolarWinds Web Help Desk service process (java.exe) launching shell or installer processes to download payloads from suspicious domains. This behavior is consistent with the exploitation of CVE-2025-26399 as reported by Huntress.
+query: "// Name: SolarWinds WHD Spawning Suspicious Child Process\r\n// Author: tim@detections.ai\r\n// Date: 2026-02-08\r\n// Severity: High\r\n// Description: Detects the SolarWinds Web Help Desk service process (java.exe) launching \r\n//   shell or installer processes to download payloads from suspicious domains. This behavior \r\n//   is consistent with the exploitation of CVE-2025-26399 as reported by Huntress.\r\n// References: https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399\r\n// MITRE ATT&CK: T1190, T1105, T1203\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName =~ \"java.exe\"\r\n// Scope to SolarWinds WHD installation path to reduce FPs from other Java apps\r\n| where InitiatingProcessFolderPath has @\"WebHelpDesk\"\r\n// Look for lolbins\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\", \"pwsh.exe\", \"msiexec.exe\", \"rundll32.exe\", \"cscript.exe\", \"wscript.exe\")\r\n// Command line contains domains/paths used by threat actors to stage payloads\r\n| where ProcessCommandLine has_any (\r\n    // Common malware staging domains\r\n    \"catbox.moe\",\r\n    \"supabase.co\", \r\n    \"github.com/cloudflare/cloudflared\",\r\n    \"trycloudflare.com\",\r\n    \"mooo.com\",\r\n    \"workers.dev\",\r\n    // Suspicious commandline\r\n    \"Start-BitsTransfer\",\r\n    \"bitsadmin\",\r\n    \"certutil\",\r\n    \"Invoke-WebRequest\",\r\n    \"iwr\",\r\n    \"Invoke-RestMethod\",\r\n    \"irm\",\r\n    \"Invoke-Expression\",\r\n    \"iex\",\r\n    \"curl\",\r\n    \"wget\",\r\n    \"Net.WebClient\",\r\n    \"EncodedCommand\",\r\n    \" -ec \",\r\n    \" -enc \"\r\n)\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    MD5,\r\n    SHA256"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1190
+    - T1105
+tags:
+    - kql
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.huntress.com/blog/active-exploitation-solarwinds-web-help-desk-cve-2025-26399

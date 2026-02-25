@@ -1,0 +1,25 @@
+id: 019aa75f-8136-73b3-aa55-c4fc13208abc
+name: AWS Network Firewall HTTP Port Protocol Enforcement
+description: This rule enforces port/protocol alignment for HTTP traffic using AWS Network Firewall, blocking TCP port 80 traffic that is not HTTP and vice versa, to maintain network hygiene and detect anomalies. The rule is valid.
+query: "title: AWS Network Firewall - HTTP Port/Protocol Enforcement\nid: 202501032-202501033-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that enforces port/protocol alignment for HTTP traffic.\n  It blocks both scenarios: TCP port 80 traffic that is not HTTP, and HTTP traffic that is not using port 80. While HTTP\n  can technically operate on any port (commonly 8080, 8000, etc.), enforcing standard port usage in production environments\n  helps detect protocol tunneling, evasion techniques, covert channels, and malicious command-and-control traffic. This is\n  a typical security control that customers configure to enforce proper protocol usage and detect anomalous behavior. AWS\n  Network Firewall uses Suricata as its underlying engine with deep packet inspection capabilities. This is not a specific\n  threat detection but rather a protocol enforcement rule to maintain network hygiene.\n  \n  Suricata Rules:\n  reject tcp $HOME_NET any -> any 80 (msg:\"Egress Port TCP/80 but not HTTP\"; app-layer-protocol:!http; flow:to_server; sid:202501032;)\n  reject http $HOME_NET any -> any !80 (msg:\"Egress HTTP but not port TCP/80\"; flow:to_server; sid:202501033;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1571/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1571\n  - attack.defense_evasion\n  - attack.t1090\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_port80_not_http:\n    protocol: tcp\n    destination_port: 80\n    direction: outbound\n    source_network: internal\n  filter_port80:\n    app_protocol: http\n  selection_http_not_port80:\n    app_protocol: http\n    direction: outbound\n    source_network: internal\n  filter_http:\n    destination_port: 80\n  condition: (selection_port80_not_http and not filter_port80) or (selection_http_not_port80 and not filter_http)\nfalsepositives:\n  - Development servers on ports 8080, 8000, 3000, etc.\n  - Proxy servers on alternate ports\n  - Web applications on custom ports\n  - Internal services using HTTP on non-standard ports\n  - Misconfigured applications\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1571
+    - T1090
+tags:
+    - attack.command_and_control
+    - attack.t1571
+    - attack.defense_evasion
+    - attack.t1090
+author: AWS Network Firewall Customer Example
+version: "1"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1571/
+data_sources:
+    - firewall
+    - aws_network_firewall

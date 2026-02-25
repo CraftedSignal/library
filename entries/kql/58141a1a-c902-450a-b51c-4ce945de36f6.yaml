@@ -1,0 +1,32 @@
+id: 58141a1a-c902-450a-b51c-4ce945de36f6
+name: Detect Black Basta Ransomware Campaign RMMTools Deployment
+description: KQL Query
+query: |
+    // Detect Black Basta Ransomware Campaign
+    // Social Engineering Attack via Teams
+
+    // https://www.rapid7.com/blog/post/2024/12/04/black-basta-ransomware-campaign-drops-zbot-darkgate-and-custom-malware/
+
+    // Exclude Corporate Sharepoint
+    let CorporateSharepoint = "xxx.sharepoint.com";
+    CloudAppEvents
+    | where Application == @"Microsoft Teams"
+    | where ActionType == @"MessageSent"
+    | where AccountId contains "@"
+    | where parse_json(RawEventData)["CommunicationType"] == 'OneOnOne'
+    | where isnotempty(parse_json(RawEventData)["MessageURLs"])
+    | where (parse_json(RawEventData)["MessageURLs"]) contains ".sharepoint.com"
+    // External Teams Tenant sending a sharepoint link to download RMM tools to evade detections
+    | where (parse_json(RawEventData)["MessageURLs"]) !contains CorporateSharepoint
+query_type: kql
+tactics:
+    - TA0001
+    - TA0003
+    - TA0002
+techniques:
+    - T1566.002
+    - T1133
+    - T1204.002
+tags:
+    - kql
+version: "1"

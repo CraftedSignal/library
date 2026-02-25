@@ -1,0 +1,96 @@
+id: 019bfd7e-9a21-7508-9a5a-a598770147e4
+name: Security Service Disabled or Modified
+description: This query detects attempts to disable or modify critical security services using either the 'sc.exe' utility or direct registry modification. This is a common defense evasion technique used by adversaries to weaken a system's security posture before performing further actions.
+query: |
+    // Name: Security Service Disabled or Modified
+    // Author: detections.ai
+    // Date: 2026-01-27
+    // Description: This query detects attempts to disable or modify critical security services using either the 'sc.exe' utility or direct registry modification. This is a common defense evasion technique used by adversaries to weaken a system's security posture before performing further actions.
+    // Tactic: Defense Evasion
+    // Technique: T1562.001, Impair Defenses: Disable or Modify Tools
+    // False Positive Sensitivity: Medium
+    // References:
+    // - https://attack.mitre.org/techniques/T1562/001/
+
+    // Define a list of security-related services to monitor.
+    // This list should be customized to include services specific to your environment for better accuracy.
+    let security_services = dynamic([
+        "WinDefend",      // Windows Defender Antivirus Service
+        "MsMpEng",        // Windows Defender Antivirus Engine
+        "Sense",          // Microsoft Defender for Endpoint service
+        "wscsvc",         // Windows Security Center
+        "Sophos*",        // Sophos services
+        "McAfee*",        // McAfee services
+        "Symantec*",      // Symantec services
+        "CarbonBlack*",   // Carbon Black services
+        "CrowdStrike*",   // CrowdStrike Falcon Sensor Service
+        "Cylance*",       // Cylance services
+        "Sysmon"          // Sysmon service
+    ]);
+    (union isfuzzy=true
+        (
+            // Detects modification or stopping of a service using sc.exe
+            DeviceProcessEvents
+            | where ProcessCommandLine has_any ("sc.exe config", "sc.exe stop", "sc.exe delete")
+            // Check if the command line targets one of the security services
+            | where exists (
+                security_service from (security_services)
+                where ProcessCommandLine has security_service
+            )
+            // Potential for false positives from legitimate administrative scripts or software uninstallers.
+            // Consider filtering by InitiatingProcessFileName for known good processes.
+            // | where not(InitiatingProcessFileName in~ ('msiexec.exe', 'trustedinstaller.exe'))
+            | project
+                Timestamp,
+                DeviceName,
+                AccountName,
+                DetectionMethod = "SC.exe Service Modification",
+                Details = ProcessCommandLine,
+                InitiatingProcessFileName,
+                InitiatingProcessCommandLine,
+                ReportId,
+                DeviceEvents_DeviceProcessEvents_Id = EventId
+        ),
+        (
+            // Detects direct registry modification to disable a service
+            DeviceRegistryEvents
+            | where
+                // Path for service configurations
+                RegistryKey has @"SYSTEM\CurrentControlSet\Services\"
+                // The 'Start' value determines the service start type. A value of '4' means disabled.
+                and RegistryValueName == "Start"
+                and RegistryValueData == "4"
+            // Check if the modified service is in our list
+            | where exists (
+                security_service from (security_services)
+                where RegistryKey has security_service
+            )
+            // Potential for false positives from legitimate software uninstallers or updaters.
+            // Consider filtering by InitiatingProcessFileName for known good processes.
+            // | where not(InitiatingProcessFileName in~ ('msiexec.exe', 'trustedinstaller.exe'))
+            | project
+                Timestamp,
+                DeviceName,
+                AccountName,
+                DetectionMethod = "Registry Service Disabled",
+                Details = strcat("Registry Key '", RegistryKey, "' was modified to disable service."),
+                InitiatingProcessFileName,
+                InitiatingProcessCommandLine,
+                ReportId,
+                DeviceEvents_DeviceRegistryEvents_Id = EventId
+        )
+    )
+query_type: kql
+tactics:
+    - TA0005
+    - TA0002
+    - TA0003
+techniques:
+    - T1562.001
+    - T1569.002
+    - T1112
+tags:
+    - kql
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1562/001/

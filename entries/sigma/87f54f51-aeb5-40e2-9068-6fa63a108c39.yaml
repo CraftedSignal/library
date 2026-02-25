@@ -1,0 +1,57 @@
+id: 87f54f51-aeb5-40e2-9068-6fa63a108c39
+name: Skeleton Spider (FIN6) - WScript/CScript JavaScript Execution
+description: Detects suspicious execution of JavaScript via WScript or CScript, often indicative of initial access malware delivery by Skeleton Spider (FIN6) using .LNK files. This aligns with the "More_eggs Malware Delivery Chain" where .LNK files execute hidden JavaScript using wscript.exe.
+query: |-
+    title: Skeleton Spider (FIN6) - WScript/CScript JavaScript Execution
+    id: 6a7b8c9d-0e1f-2a3b-4c5d-6e7f8a9b0c1d
+    status: experimental
+    description: Detects suspicious execution of JavaScript via WScript or CScript, often indicative of initial access malware delivery by Skeleton Spider (FIN6) using .LNK files. This aligns with the "More_eggs Malware Delivery Chain" where .LNK files execute hidden JavaScript using wscript.exe.
+    author: Detections.ai
+    date: 2025-06-24
+    references:
+      - https://dti.domaintools.com/skeleton-spider-trusted-cloud-malware-delivery/
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_script_host:
+        - Image|endswith:
+            - '\wscript.exe'
+            - '\cscript.exe'
+      selection_javascript_extension:
+        CommandLine|contains:
+          - '.js'
+          - '.jse'
+      selection_parent_explorer:
+        ParentImage|endswith: '\explorer.exe'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts
+      - Software installations that use WScript/CScript for setup routines
+    level: high
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1204.002 # User Execution: Malicious File
+      - attack.t1059.007 # Command and Scripting Interpreter: JavaScript
+      - group.g0037 # FIN6
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1204.002
+    - T1059.007
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1204.002
+    - attack.t1059.007
+    - group.g0037
+author: Detections.ai
+version: "1"
+references:
+    - https://dti.domaintools.com/skeleton-spider-trusted-cloud-malware-delivery/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,23 @@
+id: 019b0293-5efc-750f-b2f6-6916e6f5afb9
+name: PowerShell LOLBAS Execution with Public Network Connection
+description: This rule detects PowerShell processes that are initiated by a LOLBAS binary and subsequently establish an outbound network connection to a public IP address. It leverages an external LOLBAS JSON data source to identify suspicious parent processes. This behavior could indicate an adversary using a Living Off The Land Binary or Script (LOLBAS) to execute PowerShell for malicious purposes, such as command and control or data exfiltration.
+query: "let timeWindow = 2m;\r\n// Load LOLBAS JSON from external source\r\nlet lolbas = externaldata(Name:string, Category:string, Description:string, Commands:string)\r\n[@\"https://lolbas-project.github.io/api/lolbas.json\"]\r\nwith(format=\"multijson\");\r\n// Join DeviceProcessEvents with LOLBAS list\r\nlet suspiciousProcesses = DeviceProcessEvents\r\n| where FileName in (\"powershell.exe\",\"pwsh.exe\",\"pwsh.dll\")\r\n| join kind=inner (lolbas) on $left.InitiatingProcessFileName == $right.Name\r\n    | project Timestamp, DeviceId, DeviceName, ProcessId, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName, LOLBAS_Category = Category, LOLBAS_Description = Description, TimeWindowStart = Timestamp - timeWindow, TimeWindowEnd = Timestamp + timeWindow, SHA1;\r\nsuspiciousProcesses\r\n| join kind=leftouter (\r\n    DeviceNetworkEvents\r\n    | project NetworkTimestamp = Timestamp, DeviceId, InitiatingProcessId,RemoteIP, RemotePort, RemoteUrl, Protocol, ActionType, LocalIP, LocalPort, RemoteIPTypem, ReportId\r\n) on DeviceId, $left.ProcessId == $right.InitiatingProcessId\r\n| where isnotempty( RemoteIP) and RemoteIPType == \"Public\"\r\n| where NetworkTimestamp between (TimeWindowStart .. TimeWindowEnd)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0010
+    - TA0005
+techniques:
+    - T1059.001
+    - T1059
+    - T1071.001
+    - T1041
+    - T1216
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "3"
+references:
+    - https://lolbas-project.github.io/api/lolbas.json

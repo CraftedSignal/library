@@ -1,0 +1,54 @@
+id: 5432c9c8-47e9-4fd7-854c-a10b7a48ae66
+name: Epsilon Red Ransomware Impersonated Domains
+description: This rule detects network connections and DNS queries to domains impersonating legitimate services, which are known to be used in the Epsilon Red ransomware campaign to deliver malicious HTA files.
+query: |
+    // Name: Epsilon Red Ransomware Impersonated Domains
+    // Author: detections.ai
+    // Date: 2025-08-01
+    // Description: This rule detects network connections to domains impersonating legitimate services, which are known to be used in the Epsilon Red ransomware campaign to deliver malicious HTA files.
+    // Tactics: Defense Evasion
+    // Techniques: T1036
+    // References: https://www.cloudsek.com/blog/threat-actors-lure-victims-into-downloading-hta-files-using-clickfix-to-spread-epsilon-red-ransomware
+    // False Positive Sensitivity: Medium. False positives are unlikely given the specificity of the IOCs, but could occur if the domains are sinkholed or no longer malicious.
+
+    // Define the list of malicious domains associated with the Epsilon Red campaign.
+    let maliciousDomains = dynamic([
+        "twtich.cc",
+        "capchabot.cc"
+    ]);
+    // Search across multiple network-related tables for connections to the specified domains.
+    (union isouter=true
+        (
+        // Look for connections in DeviceNetworkEvents (Microsoft Defender for Endpoint)
+        DeviceNetworkEvents
+        | where RemoteUrl has_any (maliciousDomains)
+        | extend MatchedDomain = RemoteUrl, EventSource = "DeviceNetworkEvents"
+        | project TimeGenerated, DeviceName, InitiatingProcessCommandLine, MatchedDomain, RemoteIP, ActionType, EventSource
+        ),
+        (
+        // Look for DNS queries in DnsEvents
+        DnsEvents
+        | where Name in (maliciousDomains)
+        | extend MatchedDomain = Name, EventSource = "DnsEvents"
+        | project TimeGenerated, DeviceName, ClientIP, MatchedDomain, EventSource
+        ),
+        (
+        // Look for connections in CommonSecurityLog (e.g., from firewalls, proxies)
+        CommonSecurityLog
+        | where isnotempty(DestinationHostName) and DestinationHostName in (maliciousDomains)
+        | extend MatchedDomain = DestinationHostName, EventSource = "CommonSecurityLog"
+        | project TimeGenerated, DeviceVendor, DeviceProduct, SourceIP, DestinationIP, MatchedDomain, EventSource, AdditionalExtensions
+        )
+    )
+    | extend timestamp = TimeGenerated, HostName = tostring(split(DeviceName, ".")[0]), Account = "" // Normalizing fields for entity mapping.
+query_type: kql
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1218.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cloudsek.com/blog/threat-actors-lure-victims-into-downloading-hta-files-using-clickfix-to-spread-epsilon-red-ransomware

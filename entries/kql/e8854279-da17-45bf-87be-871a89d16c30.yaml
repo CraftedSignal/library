@@ -1,0 +1,45 @@
+id: e8854279-da17-45bf-87be-871a89d16c30
+name: Tor Relay Connection Detection
+description: This detection identifies network connections to known Tor exit nodes using a CSV feed of Tor relay IP addresses, helping detect potential data exfiltration or command and control communications through Tor.
+query: |-
+    # Tor Relay Connection Detection (CSV Source)
+
+    ## Description
+    This detection identifies network connections to known Tor exit nodes using a CSV feed of Tor relay IP addresses. This can help identify potential data exfiltration or command and control communications through Tor.
+
+    ## Detection Logic
+    The query:
+    1. Imports Tor relay data from an external CSV source
+    2. Filters for IPv4 addresses only
+    3. Joins with device network events to find connections to Tor IPs
+    4. Enriches with device public IP information
+    5. Projects relevant fields for investigation
+
+    ## Query
+    ```kusto
+    let TorRelayData = (
+    externaldata (Nickname:string,Fingerprint:string,EntryAddress:string,IPAddress:string,Port:string,AddressType:string,Hostname:string,CountryCode:string,IsRunning:bool,RelayPublishDate:string,LastChangedIPData:string)
+    [h@'https://raw.githubusercontent.com/Shivammalaviya/Tor/main/torexitnodes.csv'] with (ignoreFirstRecord=true,format="csv")
+    | where AddressType == "IPv4"
+    );
+    TorRelayData
+    | join kind=inner DeviceNetworkEvents on $left.IPAddress == $right.RemoteIP
+    | join kind=inner (DeviceInfo | distinct DeviceId, PublicIP) on DeviceId
+    | project Timestamp, DeviceId, LocalPublicIP = PublicIP, LocalIP, RemoteIP, TorIP = IPAddress, Hostname, CountryCode, ActionType, InitiatingProcessFileName, InitiatingProcessFolderPath
+    ```
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Command and Control, Exfiltration
+    - **Technique**: T1090.003 - Proxy: Multi-hop Proxy
+
+    ## Severity
+    Medium to High (depending on context)
+
+    ## Investigation Steps
+    1. Identify the process initiating the Tor connection
+    2. Check if Tor usage is authorized for the user/device
+    3. Review data transfer volumes to/from Tor nodes
+    4. Look for other suspicious activities from the same device
+    5. Check if sensitive data was accessed before the Tor connection
+query_type: kql
+version: "1"

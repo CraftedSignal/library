@@ -1,0 +1,53 @@
+id: 019c8ec4-0cb3-73ff-9353-e8201f64dcf5
+name: Windows Admin Center Service Hijack Detection
+description: This rule detects when the legitimate Windows Admin Center (WAC) service ('SmeSvc.exe') is stopped, and shortly thereafter, a different, potentially malicious process starts listening on the WAC default port (TCP/6516). This behavior is a key indicator for the exploitation of CVE-2026-20965, where an attacker hijacks the service to intercept credentials and steal administrator access tokens.
+query: |
+    // Name: Windows Admin Center Service Hijack
+    // Author: adarsh pandey
+    // Date: 2026-02-24
+    // Description: This rule detects when the Windows Admin Center (WAC) service ('SmeSvc.exe') is stopped, and shortly thereafter, a different process starts listening on the WAC port (TCP/6516). This behavior is a key indicator for the exploitation of CVE-2026-20965, where an attacker hijacks the service to intercept credentials and steal administrator access tokens.
+    // MITRE ATT&CK: Impair Defenses: Disable or Modify Tools (T1562.001), Credential Access (TA0006)
+    // References: https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/
+    // False Positive Sensitivity: Medium
+    let timeWindow = 2m;
+    // Find events where the Windows Admin Center service is explicitly stopped.
+    let serviceStopEvents = DeviceProcessEvents
+    | where FileName in~ ("sc.exe", "net.exe")
+    | where ProcessCommandLine has "stop" and ProcessCommandLine has_any ("SmeSvc", "Windows Admin Center")
+    | project StopTime = TimeGenerated, DeviceName, ReportId_Stop = ReportId, CommandLine_Stop = ProcessCommandLine;
+    // Find network listening events on the WAC port from any process that is NOT the legitimate WAC service.
+    let rogueListenerEvents = DeviceNetworkEvents
+    | where ActionType == "ListenSuccess" and LocalPort == 6516
+    | where not(InitiatingProcessFileName =~ "SmeSvc.exe")
+    | project ListenTime = TimeGenerated, DeviceName, ReportId_Listen = ReportId, ProcessName_Listen = InitiatingProcessFileName, AccountName_Listen = InitiatingProcessAccountName;
+    // Join the two event types on the same device within the specified time window.
+    serviceStopEvents
+    | join kind=inner rogueListenerEvents on DeviceName
+    | where ListenTime between (StopTime .. (StopTime + timeWindow))
+    // Potential for False Positives: Legitimate administrative scripts or third-party management tools might restart the WAC service in a way that triggers this rule.
+    // Review the listening process and associated activity to determine legitimacy.
+    | project
+        Timestamp = ListenTime,
+        DeviceName,
+        StopTime,
+        ListenTime,
+        CommandLine_Stop,
+        ProcessName_Listen,
+        AccountName_Listen,
+        ReportId_Stop,
+        ReportId_Listen
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1569.002
+    - T1059.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://cymulate.com/blog/cve-2026-20965-azure-windows-admin-center-tenant-wide-rce/

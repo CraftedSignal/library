@@ -1,0 +1,37 @@
+id: 019c901c-80ad-7082-8885-50249cf9f2e6
+name: 10xprofit C2 and Exfiltration Domains
+description: Detects network connections to the 10xprofit backend infrastructure. Connections to these domains indicate the presence of a malicious browser extension and potential exfiltration of scraped e-commerce data or tracking activity.
+query: |
+    // Name: 10xprofit C2 and Exfiltration Domains
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects network connections to the 10xprofit backend infrastructure. Connections to these domains indicate the presence of a malicious browser extension and potential exfiltration of scraped e-commerce data or tracking activity.
+    // Severity: High
+    // Status: Available
+    // Tactics: Exfiltration, Command and Control
+    // Techniques: T1041
+    // References: https://socket.dev/blog/malicious-chrome-extension-performs-hidden-affiliate-hijacking
+    let MaliciousDomains = dynamic(["10xprofit.io", "app.10xprofit.io"]);
+    let BrowserProcesses = dynamic(["msedge.exe", "chrome.exe", "firefox.exe", "brave.exe", "vivaldi.exe"]);
+    DeviceNetworkEvents
+    // Filter for connections initiated by common web browsers.
+    | where InitiatingProcessFileName in~ (BrowserProcesses)
+    // Look for connections to the known malicious domains.
+    | where RemoteUrl has_any (MaliciousDomains)
+    // Summarize activity to reduce alert volume.
+    | summarize FirstSeen=min(Timestamp), LastSeen=max(Timestamp), ConnectionCount=count(), Urls=make_set(RemoteUrl, 5) by DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessFolderPath, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0003
+techniques:
+    - T1041
+    - T1176.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-chrome-extension-performs-hidden-affiliate-hijacking

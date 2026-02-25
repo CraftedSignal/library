@@ -1,0 +1,73 @@
+id: 019c398a-9338-7133-8b94-a4c75d468aec
+name: DeadVax Malware Activity Detection
+description: This rule detects activity associated with the DeadVax threat. It correlates network connections to specific malicious domains (w3s.link, mingyitc.com, ipfs.w3s, PurchaseOrder, bafybeiaj6jw2xhbppgji757tn3hg5uu6splaa5gyydkwnzwprzakcp44ve) with subsequent process creation or file modification events. Specifically, it looks for the creation of processes like 'mbs.exe' or scripts like 'rEgX.cmd', 'boot64x.w', or 'IntelDriver' within a two-hour window of the network connection. It also identifies specific command-line patterns involving 'mbs.exe' and 'rEgX.cmd' with 'Get-Content', file creations/modifications of 'boot64x.w' in 'IntelDriver' folders, creation of files ending with '_windows.dll_' in 'temp' or 'ProgramData' directories, and creation of '.bat' files in 'temp\temp' by scripting engines. Additionally, it correlates the creation of 'boot64x.w' in 'IntelDriver' with network connections to the malicious domains within a one-hour window, indicating a payload delivery followed by C2 communication.
+query: |
+    // Author: Daniel Jeremiah | Date: 2026/02/07
+    // Ref: https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+
+    /*
+    In this attack, malware is delivered through links or cloud storage. The attacker uses specific websites and services to host the fake documents. When a user clicks a link in a phishing email, they may be taken to one of these sites. Connections to those sites followed by script or malware activity on the same device within two hours indicates a successful delivery. This query correlates network connections to known bad domains with process creation that matches the malware chain.
+    */
+    let NetworkStage = DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "w3s.link" or RemoteUrl contains "mingyitc.com"
+            or RemoteUrl contains "ipfs.w3s" or RemoteUrl contains "PurchaseOrder"
+        | project Timestamp, DeviceName, RemoteUrl, InitiatingProcessFileName;
+    let ScriptStage = DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where ProcessCommandLine contains "mbs.exe" or ProcessCommandLine contains "rEgX.cmd"
+            or ProcessCommandLine contains "boot64x.w" or ProcessCommandLine contains "IntelDriver"
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName;
+    NetworkStage
+        | join kind=inner ScriptStage on DeviceName
+        | where (Timestamp - Timestamp1) between (-2h .. 2h)
+        | project Timestamp, DeviceName, RemoteUrl, ProcessCommandLine, InitiatingProcessFileName
+
+    DeviceProcessEvents
+        | where ActionType == "ProcessCreated"
+        | where FileName =~ "mbs.exe"
+        | where ProcessCommandLine contains "rEgX.cmd" and ProcessCommandLine contains "Get-Content"
+        | where InitiatingProcessFileName in ("cmd.exe", "rEgX.cmd", "conhost.exe", "WScript.exe")
+        | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+
+    DeviceFileEvents
+        | where ActionType in ("FileCreated", "FileModified")
+        | where FolderPath contains "IntelDriver" and FileName =~ "boot64x.w"
+        | where InitiatingProcessFileName in ("powershell.exe", "mbs.exe", "cmd.exe", "wscript.exe")
+        | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName
+
+    DeviceFileEvents
+        | where ActionType in ("FileCreated", "FileModified")
+        | where FileName endswith "_windows.dll_"
+        | where InitiatingProcessFileName in ("cmd.exe", "powershell.exe", "mbs.exe")
+        | where FolderPath contains "temp" or FolderPath contains "ProgramData"
+        | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName
+
+    DeviceFileEvents
+        | where ActionType in ("FileCreated", "FileModified")
+        | where FolderPath contains "temp\\temp" and FileName endswith ".bat"
+        | where InitiatingProcessFileName in ("wscript.exe", "cscript.exe")
+        | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName
+
+    DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "w3s.link" or RemoteUrl contains "mingyitc.com"
+            or RemoteUrl contains "ipfs.w3s" or RemoteUrl contains "bafybeiaj6jw2xhbppgji757tn3hg5uu6splaa5gyydkwnzwprzakcp44ve"
+        | project Timestamp, DeviceName, RemoteUrl, RemoteIP, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+    let PayloadStage = DeviceFileEvents
+        | where ActionType in ("FileCreated", "FileModified")
+        | where FileName =~ "boot64x.w" and FolderPath contains "IntelDriver"
+        | project Timestamp, DeviceName, InitiatingProcessFileName;
+    let C2Stage = DeviceNetworkEvents
+        | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+        | where RemoteUrl contains "mingyitc" or RemoteUrl contains "w3s.link"
+        | project Timestamp, DeviceName, RemoteUrl;
+    PayloadStage
+        | join kind=inner C2Stage on DeviceName
+        | where (Timestamp - Timestamp1) between (-1h .. 1h)
+        | project Timestamp, DeviceName, RemoteUrl, InitiatingProcessFileName
+query_type: kql
+tags:
+    - kql
+version: "2"

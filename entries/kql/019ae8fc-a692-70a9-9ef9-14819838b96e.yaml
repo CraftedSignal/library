@@ -1,0 +1,64 @@
+id: 019ae8fc-a692-70a9-9ef9-14819838b96e
+name: Device Registration using Windows Hello for Business after Device Code Phishing
+description: |-
+    This detection correlates suspicious device code authentication behaviour in Azure AD with a successful creation of a Windows Hello for Business (WHfB) credential within the same 24 hours.
+
+    Microsoft allows specific application and resource combinations (permitted by CA) access without a previously registered device. Even more, one of these combinations allows the registration of a device.
+
+    An access token issued for the Microsoft Authentication Broker application and the Intune Enrollment resource can be used to authenticate and initiate the device join process.
+
+    Therefore, an attacker can leverage the token to bypass CA, register device, and establish persistence. Once registered, attacker gets a Primary Refresh Token (PRT), valid for 90 days.
+
+    Attackers often push further to configure WHfB (Windows Hello For Business) on the registered device. WHfB issues TPM-backed, cryptographic credentials that Entra recognizes as a strong, phishing-resistant, passwordless authentication method.
+
+    Device registration unlocks persistence, but WHfB unlocks the ability to bypass stricter authentication-strength requirements.
+
+    Analysts: Check for IP mismatches, since in the Device Code authentication event we will see the victims IP, the WHfB registration event will contain the attackers IP.
+query: |-
+    let device_code = union AADNonInteractiveUserSignInLogs, SigninLogs
+      | extend StatusJson = parse_json(Status_dynamic)
+      | extend errorCode = tostring(StatusJson.errorCode)
+      | where OriginalTransferMethod == "deviceCodeFlow"
+      and ClientAppUsed == "Mobile Apps and Desktop clients"
+      and errorCode in ("0", "50199")
+      and isnotempty(UserId)
+      and isnotempty(IPAddress)
+      and isnotempty(Location)
+      and isnotempty(UserAgent)
+      and isnotempty(SessionId)
+      | summarize
+        set_errorCodes = make_set(errorCode),
+        set_userAgent = make_set(UserAgent),
+        set_location = make_set(Location),
+        set_application = make_set(AppDisplayName),
+        max_createdDateTime = max(CreatedDateTime)
+          by SessionId, UserId, UserPrincipalName, device_code_ip = IPAddress
+      | where array_length(set_errorCodes) == 2
+      and (array_length(set_userAgent) == 2 or array_length(set_location) == 2);
+    AuditLogs
+      | where Result == "success"
+      and ActivityDisplayName == "Add Windows Hello for Business credential"
+      and isnotempty(InitiatedBy.user.id)
+      | extend userId = tostring(InitiatedBy.user.id)
+      | join kind=inner device_code on userId
+      | extend time_diff_days = datetime_diff("day", TimeGenerated, ropcTime)
+      | where time_diff_days < 1
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0003
+    - TA0005
+techniques:
+    - T1078
+    - T1550
+    - T1136
+    - T1556
+    - T1098
+    - T1562
+tags:
+    - kql
+author: Will Shaw
+version: "1"
+references:
+    - https://www.wiz.io/blog/recent-oauth-attacks-detection-strategies

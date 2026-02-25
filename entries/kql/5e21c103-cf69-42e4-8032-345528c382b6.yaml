@@ -1,0 +1,19 @@
+id: 5e21c103-cf69-42e4-8032-345528c382b6
+name: ' Detect NTLM Hash Reuse Across Multiple Hosts'
+description: Detects suspicious reuse of NTLM authentication hashes by the same user account across multiple hosts within a short time window. This behavior may indicate lateral movement techniques such as pass-the-hash attacks or credential replay.
+query: "// Step 1: Identify NTLM logons across multiple hosts within a time range\r\nlet TimeRange = 1h;\r\nlet EventThreshold = 3;\r\nlet RelayWindow = 10m;\r\nlet NTLMRelayCandidates =\r\n    SecurityEvent\r\n    | where TimeGenerated >= ago(TimeRange)\r\n    | where EventID == 4624 and LogonType == 3\r\n    | where AuthenticationPackageName =~ \"NTLM\"\r\n    | summarize Count = count(), FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated), Hosts = make_set(Computer, 100)\r\n        by TargetUserName, TargetDomainName, IpAddress\r\n    | where Count >= EventThreshold and array_length(Hosts) > 1;\r\n// Step 2: Match with network connection data from the same IPs\r\nlet RemoteKEvt =\r\n    DeviceNetworkEvents\r\n    | where TimeGenerated >= ago(TimeRange)\r\n    | where RemoteIP in (NTLMRelayCandidates.IpAddress)\r\n    | project Timestamp = TimeGenerated, RemoteIP, DeviceName, RemotePort;\r\n// Step 3: Join NTLM candidates with matching network events\r\nNTLMRelayCandidates\r\n| join kind=inner (\r\n    RemoteKEvt\r\n) on $left.IpAddress == $right.RemoteIP\r\n| where (LastSeen - FirstSeen) < RelayWindow\r\n// Step 4: Enrich with process execution details\r\n| join kind=inner (\r\n    DeviceProcessEvents\r\n    | project TimeGenerated, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, InitiatingProcessFileName, FileName, RemotePort\r\n) on DeviceName\r\n| extend DeviceHost = DeviceName\r\n| project Timestamp, IpAddress, Hosts, Count, DeviceHost, InitiatingProcessAccountName, InitiatingProcessCommandLine, InitiatingProcessFileName, FileName, RemotePort\r\n| sort by LastSeen desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1550.002
+tags:
+    - ntlm
+    - lateral movement
+    - hash reuse
+    - security
+    - detection
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1550/002/

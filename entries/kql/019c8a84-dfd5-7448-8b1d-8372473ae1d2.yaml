@@ -1,0 +1,15 @@
+id: 019c8a84-dfd5-7448-8b1d-8372473ae1d2
+name: Obscura Ransomware Daemon Mode Execution
+description: Detects processes launched with the environment variable 'DAEMON' set to '1'. This is a specific internal flag used by the Obscura Go-binary to trigger its encryption phase after initial setup.
+query: "// Title: Obscura Ransomware Daemon Mode Execution\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects processes launched with the environment variable 'DAEMON' set to '1'. This is a specific internal flag used by the Obscura Go-binary to trigger its encryption phase after initial setup.\r\n// References: https://www.huntress.com/blog/obscura-ransomware-variant\r\n// MITRE ATT&CK: T1486\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Key part of the logic: check for the specific environment variable used by Obscura to trigger encryption\r\n| where ProcessEnvironmentVariables has \"DAEMON=1\"\r\n// FP Tuning: The 'DAEMON' environment variable could potentially be used by legitimate software.\r\n// Exclude known legitimate processes or parent processes to reduce noise.\r\n// For example: | where FileName !in (\"legit_daemon_app.exe\") and InitiatingProcessFileName !in (\"legit_parent.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ProcessEnvironmentVariables,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/obscura-ransomware-variant

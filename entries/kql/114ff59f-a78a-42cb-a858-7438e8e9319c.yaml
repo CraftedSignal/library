@@ -1,0 +1,24 @@
+id: 114ff59f-a78a-42cb-a858-7438e8e9319c
+name: Suspicious PowerShell Encoded Command Execution
+description: |
+    Detects the use of encoded PowerShell commands often associated with obfuscated or malicious script execution. The rule targets executions of 'powershell.exe' containing suspicious keywords like 'IEX', 'Invoke-WebRequest', or 'FromBase64String', and attempts to decode any Base64-encoded payloads. Common in malware delivery and post-exploitation activity.
+query: "let TimeWindow = ago(1h); \r\n// Define the time window for the query\r\nlet SuspiciousCommands = dynamic([\r\n    \"-EncodedCommand\",\r\n    \"FromBase64String\",\r\n    \"IEX \",\r\n    \"New-Object System.Net.WebClient\",\r\n    \"Invoke-Expression\",\r\n    \"Invoke-Command\",\r\n    \"Invoke-WebRequest\",\r\n    \"DownloadString\",\r\n    \"DownloadFile\"\r\n]); \r\n// Define suspicious PowerShell command patterns\r\nlet ExceptionsTable = datatable(Parent: string, GrandParent: string)[\r\n    \"gc_worker.exe\", \"services.exe\",\r\n]; \r\n// Define exceptions as a structured table\r\nlet Events = DeviceProcessEvents\r\n| where Timestamp > TimeWindow \r\n| where FileName == \"powershell.exe\" \r\n| where ProcessCommandLine has_any(SuspiciousCommands) \r\n| extend Encoded = extract(@\"-EncodedCommand\\s+([A-Za-z0-9+/=]+)\", 1, ProcessCommandLine) \r\n| extend DecodedCommand = base64_decode_tostring(Encoded) \r\n| extend Parent = tostring(InitiatingProcessFileName), GrandParent = tostring(InitiatingProcessParentFileName); \r\n// Preprocess events: apply time window, match on PowerShell, extract/parse encoded commands, normalize process chain\r\nEvents\r\n| join kind=anti (ExceptionsTable) on Parent, GrandParent \r\n// Remove any events that match the exception list based on both Parent and GrandParent"
+query_type: kql
+severity: medium
+techniques:
+    - T1059.001
+    - T1027
+    - T1564.003
+tags:
+    - PowerShell
+    - T1059.001
+    - EncodedCommand
+    - ThreatHunting
+    - Endpoint
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://learn.microsoft.com/en-us/defender-endpoint/advanced-hunting-overview
+    - https://learn.microsoft.com/en-us/windows/security/threat-protection/auditing/event-4688

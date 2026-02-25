@@ -1,0 +1,13 @@
+id: 019bbe98-01a5-7435-93d8-d92e4112bbcf
+name: Inbound Phishing or Malware Email Detected
+description: This rule detects inbound emails classified as phishing or malware by the email security system. It summarizes the total number of such messages, provides sample subjects, and counts how many were blocked, delivered to mailboxes, junked, or had other actions. The rule specifically focuses on emails that were delivered to a mailbox, indicating a potential bypass of initial security measures or a need for further investigation.
+query: "EmailEvents\n| where Timestamp > ago(1d)\n| where EmailDirection == \"Inbound\"\n| where ThreatTypes has_any (\"Phish\", \"Malware\")\n| summarize\n    total_messages = count(),\n    sample_subjects = make_set(Subject, 10),\n    blocked = countif(DeliveryAction in (\"Blocked\", \"Quarantined\")),\n    delivered_to_mailbox = countif(DeliveryAction in (\"Delivered\", \"DeliveredAsSpam\", \"Replaced\")),\n    junked = countif(DeliveryAction == \"Junked\"),\n    other_actions = countif(DeliveryAction !in (\"Blocked\",\"Quarantined\",\"Delivered\",\"DeliveredAsSpam\",\"Junked\",\"Replaced\")),\n    recipients = dcount(RecipientEmailAddress)\n  by SenderFromAddress\n  | where delivered_to_mailbox !=  \"0\" \n| sort by total_messages desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - kql
+version: "1"

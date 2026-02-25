@@ -1,0 +1,64 @@
+id: 019ab6c4-3f17-72ca-9636-ccc32d1993e6
+name: Sha1-Hulud NPM Worm Activity Detection
+description: 'Detects process execution patterns associated with the "Sha1-Hulud: The Second Coming" NPM supply chain attack. This includes the silent installation of the ''bun'' runtime during an ''npm install'' and a destructive file shredding command. The rule filters out legitimate manual installations by developers by checking the initiating parent process.'
+query: |
+    // Name: Sha1-Hulud NPM Worm Activity
+    // Author: detections.ai
+    // Date: 2025-11-24
+    // Severity: High
+    // Description: Detects process execution patterns associated with the "Sha1-Hulud: The Second Coming" NPM supply chain attack. This includes the silent installation of the 'bun' runtime during an 'npm install' and a destructive file shredding command.
+    // References: https://www.stepsecurity.io/blog/sha1-hulud-the-second-coming-zapier-ens-domains-and-other-prominent-npm-packages-compromised
+    // False Positives: Medium. Legitimate, albeit unusual, administrator actions could involve installing 'bun' via a script or using 'shred'. Review the parent process and user context to validate. Tuning may be required if your environment uses 'bun' or 'shred' in automated scripts.
+
+    DeviceProcessEvents
+    | where TimeGenerated > ago(1d)
+    // Look for the two main process-based IOCs
+    | where
+        (
+            // IOC 1: Silent installation of 'bun' runtime via curl or PowerShell's Invoke-RestMethod (irm)
+            // The malware uses this to set up its execution environment.
+            ProcessCommandLine has "bun.sh/install" and (ProcessCommandLine has "curl" or ProcessCommandLine has_any ("irm ", "iex "))
+        )
+        or
+        (
+            // IOC 2: Destructive shred command used to wipe files in the user's home directory.
+            ProcessCommandLine has "shred -uvz -n 1" and ProcessCommandLine has "xargs"
+        )
+    // Filter out legitimate manual installations by developers.
+    // The malware is typically spawned from a node/npm process, not an interactive shell.
+    // This is a potential area for tuning if your environment has different parent processes for package managers.
+    | where InitiatingProcessParentFileName !in ("explorer.exe", "bash", "zsh", "fish", "pwsh.exe")
+    | extend
+        Tactic = "Execution",
+        Technique = "T1059", // Command and Scripting Interpreter
+        Activity = case(
+            ProcessCommandLine has "bun.sh/install", "Sha1-Hulud: Bun Runtime Installation",
+            ProcessCommandLine has "shred -uvz", "Sha1-Hulud: Destructive Shred Command",
+            "Unknown Sha1-Hulud Activity"
+        )
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        Activity,
+        ProcessCommandLine,
+        ProcessId,
+        ParentProcessId,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+    - TA0040
+techniques:
+    - T1059
+    - T1195.002
+    - T1485
+tags:
+    - kql
+author: 'Pratik '
+version: "2"
+references:
+    - https://www.stepsecurity.io/blog/sha1-hulud-the-second-coming-zapier-ens-domains-and-other-prominent-npm-packages-compromised

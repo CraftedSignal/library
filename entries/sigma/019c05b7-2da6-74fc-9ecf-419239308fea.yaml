@@ -1,0 +1,64 @@
+id: 019c05b7-2da6-74fc-9ecf-419239308fea
+name: Stealthy Root-Level Account Creation
+description: Detects the creation of a local user account with root privileges (UID 0) using the 'useradd' command with the non-unique flag. This technique is used by threats like EncystPHP to create stealthy administrative accounts (e.g., 'newfpbx') for persistent access.
+query: |
+    title: Stealthy Root-Level Account Creation
+    id: e3fdb8a7-25ef-48f0-9a73-8b3f983097cc
+    status: experimental
+    description: Detects the creation of a local user account with root privileges
+      (UID 0) using the 'useradd' command with the non-unique flag. This technique
+      is used by threats like EncystPHP to create stealthy administrative accounts
+      (e.g., 'newfpbx') for persistent access.
+    references:
+      - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+    author: detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.t1136.001
+      - attack.t1068
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # Detects user creation utilities
+        Image|endswith:
+          - '/useradd'
+          - '/adduser'
+            # Detects flags to create a non-unique user (-o) with a specific UID (-u 0).
+            # The combination allows creating a duplicate root account with a different name.
+            # Note: This is a broad match and may generate FPs if ' 0' appears elsewhere in the command,
+            # e.g., in a group ID. Further tuning might be needed.
+        CommandLine|contains|all:
+          - '-o'
+          - '-u'
+          - ' 0' # Space before '0' to ensure it's a value, not part of another number.
+      filter_legit_root:
+        # Exclude commands that are explicitly creating/modifying the 'root' user.
+        CommandLine|endswith: ' root'
+      condition: selection and not filter_legit_root
+    falsepositives:
+      - Highly unusual but legitimate administrative scripts that create duplicate
+        root accounts for specific purposes.
+      - The logic could potentially false positive if a command uses '-u' and '-o'
+        and also contains ' 0' for a different parameter (e.g., group ID), though
+        this is unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136.001
+    - T1068
+tags:
+    - attack.t1136.001
+    - attack.t1068
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+data_sources:
+    - process_creation
+    - linux

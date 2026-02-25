@@ -1,0 +1,53 @@
+id: 019c0591-e11e-773d-b2e7-a366df3ee5fa
+name: Hidden Chrome Staging Directory Creation
+description: Detects the creation of a hidden directory under %LOCALAPPDATA%\Google Chrome. This technique is used by a Vietnamese threat actor associated with the PureRAT campaign to stage malicious components while blending in with legitimate application data.
+query: |
+    title: Hidden Chrome Staging Directory Creation
+    id: 8650f75d-55f4-44bf-8e9f-5899d8106f75
+    status: experimental
+    description: Detects the creation of a hidden directory under
+      %LOCALAPPDATA%\Google Chrome. This technique is used by a Vietnamese threat
+      actor associated with the PureRAT campaign to stage malicious components while
+      blending in with legitimate application data.
+    references:
+      - https://www.security.com/threat-intelligence/ai-purerat-phishing
+    author: detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.t1564.001
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith:
+          - '\cmd.exe'
+          - '\powershell.exe'
+        CommandLine|contains|all:
+          - 'attrib ' # Detects the attrib command
+          - '+h' # Sets the hidden attribute
+          - '+s' # Sets the system attribute
+          - '\AppData\Local\Google Chrome' # Specific staging directory used by the actor
+      condition: selection
+    falsepositives:
+      - Legitimate administrative scripts could potentially perform this action, but
+        it is highly unusual to set the system and hidden attributes on the Google
+        Chrome application data folder.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1564.001
+tags:
+    - attack.t1564.001
+    - attack.defense_evasion
+author: detections.ai
+version: "2"
+references:
+    - https://www.security.com/threat-intelligence/ai-purerat-phishing
+data_sources:
+    - process_creation
+    - windows

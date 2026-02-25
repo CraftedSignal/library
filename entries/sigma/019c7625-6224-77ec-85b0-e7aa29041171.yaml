@@ -1,0 +1,59 @@
+id: 019c7625-6224-77ec-85b0-e7aa29041171
+name: Suspicious 'icacls' Grant on JWrapper or SimpleHelp Folders
+description: Detects the use of 'icacls.exe' to grant 'Full Control' permissions to 'Everyone' on directories used by JWrapper and the SimpleHelp RMM tool. This behavior was observed in campaigns where threat actors use JWrapper to package and deliver the SimpleHelp RAT, and this command ensures the malware has unrestricted access to its installation folders.
+query: |
+    title: Suspicious 'icacls' Grant on JWrapper or SimpleHelp Folders
+    id: 38dec6c2-cd34-451a-873e-6be309e0f4ea
+    status: experimental
+    description: Detects the use of 'icacls.exe' to grant 'Full Control' permissions
+      to 'Everyone' on directories used by JWrapper and the SimpleHelp RMM tool.
+      This behavior was observed in campaigns where threat actors use JWrapper to
+      package and deliver the SimpleHelp RAT, and this command ensures the malware
+      has unrestricted access to its installation folders.
+    author: tim@detections.ai
+    references:
+      - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware
+    date: 2026-02-19
+    tags:
+      - attack.t1222.001
+      - attack.persistence
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_base:
+        Image|endswith: '\icacls.exe'
+        CommandLine|contains:
+          - 'ProgramData' # SimpleHelp/Jwrapper
+          - 'Users\Public'
+          - '\Temp'
+      selection_permissions:
+        CommandLine|contains:
+          # Detects granting Full Control to Everyone via SID or name
+          - 'grant *S-1-1-0:'
+          - 'grant Everyone:'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative scripts or software installers might perform
+        similar actions, although granting 'Everyone' 'Full Control' on a
+        ProgramData subfolder is uncommon and should be investigated.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+techniques:
+    - T1222.001
+tags:
+    - attack.t1222.001
+    - attack.persistence
+author: tim@detections.ai
+version: "3"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

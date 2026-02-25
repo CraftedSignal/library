@@ -1,0 +1,18 @@
+id: 89faeaf7-f753-43a2-b38a-e8c417c4f1ff
+name: Remote Service Creation followed by SMB tranfer
+description: 'KQL Query from file: Remote Service Creation followed by SMB tranfer'
+query: "\tlet start_time = ago(1d); \r\n\tlet pipename = dynamic([\"svcctl\", \"msagent_\", \"wkssvc\", \"DserNamePipe\", \"srvsvc_\", \"mojo.\", \"postex_\", \"status_\", \"MSSE-\", \"spoolss_\", \"win_svc\", \"ntsvcs\", \"winsock\", \"UIA_PIPE\"]); //pipe names from splunk research\r\n\tlet smb_executable_transfer = DeviceNetworkEvents //\tTransfer of executable over SMB, can be changed to any file type \r\n\t| where TimeGenerated >= start_time\r\n\t| where Protocol == \"SMB\" and InitiatingProcessFileName endswith \".exe\"\r\n\t| project TransferTime=TimeGenerated, DeviceName, RemoteIP, RemotePort, NetWorkProcess=InitiatingProcessFileName, EventType = \"SMB Executable Transfer\";\r\n\tlet scm_connection = DeviceEvents // connections to service control manager via namedpipes\r\n\t| where TimeGenerated >= start_time\r\n\t| where ActionType == \"NamedPipeEvent\"\r\n\t| extend AddFields = todynamic(AdditionalFields)\r\n\t| where split(tolower(AddFields.PipeName), \"\\\\\")[-1] has_any(pipename)\r\n\t| extend PipeName = AddFields.PipeName, PipeNameChild = split(tolower(AddFields.PipeName), \"\\\\\")[-1], FileOperation = AddFields.FileOperation\r\n\t| project SCMTime=TimeGenerated, DeviceName, PipeName, FileOperation,AccountName, EventType = \"SCM Connection\";\r\n\tlet service_creation = DeviceEvents //creation /starting of service\r\n\t| where ActionType contains \"ServiceInstalled\"\r\n\t| extend Field=todynamic(AdditionalFields)\r\n\t| extend ServiceName = tostring(Field.ServiceName), ServiceType=tostring(Field.ServiceType), StartType=tostring(Field.ServiceStartType), ServiceAccount=tostring(Field.ServiceAccount)\r\n\t| where ServiceType !=\"224\" and ServiceType !=\"208\" //excluding coomon per-user servicetype\r\n\t| project ServiceTime=TimeGenerated,DeviceName,ServiceName,ServiceType,StartType,ServiceAccount,ServiceCMD=ProcessCommandLine,ServiceParentCMD=InitiatingProcessCommandLine, EventType = \"Service Creation\";\r\n\tunion isfuzzy=true smb_executable_transfer, scm_connection, service_creation\r\n\t| serialize //preserve the order of events\r\n\t| extend TimeDifference = case(\r\n\t    EventType == \"SMB Executable Transfer\" and next(EventType) == \"SCM Connection\", SCMTime - TransferTime,\r\n\t    EventType == \"SCM Connection\" and next(EventType) == \"Service Creation\", ServiceTime - SCMTime,\r\n\t    timespan(0s)\r\n\t)\r\n\t| where TimeDifference between (0s .. 5m)\r\n| where isnotempty(NetWorkProcess)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1570
+tags:
+    - kql
+version: "1"
+references:
+    - |-
+      https://www.splunk.com/en_us/blog/security/named-pipe-threats.html
+
+      https://x.com/jaredcatkinson/status/1712517132205044225

@@ -1,0 +1,17 @@
+id: 69c6d46b-9c0c-4827-944d-4c8a3abe06c7
+name: Hunting Exchange Server 2016 and Exchange Server 2019
+description: On October 14, 2025, less than one month from now, Exchange Server 2016 and Exchange Server 2019 will reach end of support. It’s critical to upgrade now to remain supported and secure. This query check for all possible builds of Exchange Server 2016 and Exchange Server 2019.
+query: "let ExchangeBuilds=externaldata(Build:string, BuildDate:string, BuildShort:string, BuildLong:string )\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/ExchangeBuilds.csv'];\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessVersionInfoProductName has \"Microsoft® Exchange\"\r\n| summarize arg_max(TimeGenerated, *) by DeviceId\r\n| join ExchangeBuilds on $left.InitiatingProcessVersionInfoProductVersion == $right.BuildLong"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0043
+techniques:
+    - DS0009
+    - T1518
+    - T1592.002
+tags:
+    - kql
+author: Steven Lim
+version: "1"

@@ -1,0 +1,33 @@
+id: 0199edd3-854e-76db-88b2-cbf43c618cd1
+name: '[IA] - Detect LastPass Hack Emails attempts to trick users into installing Malware'
+description: "CyberSecurityNews has reported a raising case about a new wave of phishing emails masquerading as breach notifications from LastPass. \n\nTo summarise, these emails claim that the recipient’s account has been compromised and urge them to download a “security patch” to restore access.\nIn reality, the attached file is a sophisticated malware loader built to steal credentials and deploy additional malicious payloads onto the victim’s system.\n\nEach phishing message includes a ZIP attachment named 'LastPass_Security_Update' that contains an executable disguised as an MSI installer. When executed, the fake MSI installs a PowerShell script into the user’s AppData folder and schedules it to run via a scheduled task. The script then contacts a remote command-and-control server to download a second-stage payload capable of keylogging, taking screenshots, and moving laterally within corporate networks.\n\nThis following KQL Query is based on the IOA where the emails arrive with a .zip file attached and it content is a msi file. Using IOA instead the IOC (LastPass_Security_Update .zip) is more feasible because the malicious actors could easily change the zip name and the detection would not detect the mentioned threat."
+query: "let Email_Zips = EmailAttachmentInfo | where FileType has \"zip\" | project FileName;\nDeviceFileEvents\n| extend FileOriginReferrerUrl_ext = extract(@\"[^\\\\]+$\", 0, FileOriginReferrerUrl)\n| where isnotempty( FileOriginReferrerUrl)\n| join kind=inner ( DeviceEvents) on $left.InitiatingProcessUniqueId == $right.InitiatingProcessUniqueId\n| extend FileExtension = extract(@\"\\.([a-zA-Z0-9]+)$\", 1, FileName)\n| extend Source_Type = case(FileOriginReferrerUrl startswith \"https://\", \"\U0001F30E Web\",\"\U0001F4C2 File\")\n| join kind=inner (Email_Zips) on $left.FileOriginReferrerUrl_ext == $right.FileName\n| where FileName endswith \".msi\"\n| summarize total_Files= dcount(FileName), Files_after_execution= strcat(\"\U0001F5C2️ \",make_set(FileName)),make_set(FileExtension),make_set(ActionType),make_set(FolderPath),SHA256_Group=make_set(SHA2561) by InitiatingProcessUniqueId,AccountUpn = strcat(\"\U0001F469\U0001F3FB\U0001F4BB\U0001F9D1\U0001F3FE\U0001F4BB\",InitiatingProcessAccountUpn), Device = strcat(\"\U0001F4BB \",DeviceName), FileOriginReferrerUrl,Source_Type, OriginalFile=strcat(\"\U0001F6A9 \",FileOriginReferrerUrl_ext), ReportId, Timestamp, DeviceId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+    - TA0007
+    - TA0006
+    - TA0009
+    - TA0008
+techniques:
+    - T1566.001
+    - T1204.002
+    - T1059.001
+    - T1053.005
+    - T1105
+    - T1071.001
+    - T1083
+    - T1003
+    - T1113
+    - T1021
+tags:
+    - kql
+author: Sergio Albea
+version: "3"
+references:
+    - https://cybersecuritynews.com/beware-of-fake-lastpass-hack-emails/

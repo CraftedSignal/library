@@ -1,0 +1,17 @@
+id: 019ac4f1-79bf-77e8-a417-402b96272f85
+name: CHAMELEON#NET Time-Based Evasion via Chained Ping Commands
+description: Detects a defense evasion technique used by CHAMELEON#NET where the malware introduces significant delays using multiple 'ping 127.0.0.1 -n <number> > nul' commands chained together. This tactic is designed to bypass automated sandbox analysis by exceeding typical execution timeouts.
+query: "// Name: CHAMELEON#NET Time-Based Evasion via Ping\r\n// Author: MS detections.ai\r\n// Date: 2025-11-27\r\n// Description: Detects a defense evasion technique used by CHAMELEON#NET where the malware introduces significant delays using multiple 'ping 127.0.0.1 -n <number> > nul' commands chained together. This tactic is designed to bypass automated sandbox analysis by exceeding typical execution timeouts.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/\r\n// MITRE TTPs: T1497.003\r\n// Data Source: DeviceProcessEvents\r\nlet Timeframe = 7d;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(Timeframe)\r\n// The command is executed via the command interpreter, often with the /c flag.\r\n| where FileName =~ \"cmd.exe\"\r\n// The core of the technique is using ping for a local delay and redirecting the output.\r\n| where ProcessCommandLine has \"ping 127.0.0.1 -n\" and ProcessCommandLine has \"> nul\"\r\n// The key indicator is the use of multiple pings to create a significant delay, as seen in the CHAMELEON#NET campaign.\r\n| where countof(ProcessCommandLine, \"ping 127.0.0.1 -n\") >= 2\r\n// The commands are chained together to perform actions (like copy or execute) after the delay.\r\n| where ProcessCommandLine has \"&&\"\r\n// Potential for False Positives: Legitimate but complex administrative or installation scripts might use ping for delays.\r\n// However, the use of two or more chained pings to localhost is highly unusual and suspicious, making FPs unlikely.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1497.003
+    - T1497
+tags:
+    - kql
+version: "4"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/

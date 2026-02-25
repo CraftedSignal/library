@@ -1,0 +1,29 @@
+id: 019aa75d-89da-779a-9ec8-91e7955a89fe
+name: AWS Network Firewall Block Direct IP Connections
+description: This rule blocks connections made directly to IP addresses instead of domain names, a technique often used by malware to evade detection, leveraging AWS Network Firewall and Suricata.
+query: "title: AWS Network Firewall - Direct to IP Connections (HTTP/TLS)\nid: 202501026-202501027-anfw\nstatus: stable\ndescription: |\n  This rule showcases a common AWS Network Firewall configuration that blocks connections made directly to IP addresses\n  instead of domain names. Direct-to-IP connections are a common malware technique used to evade domain-based blocking,\n  DNS monitoring, and certificate validation. This applies to both HTTP (via Host header) and TLS (via SNI field).\n  This is a typical security control that customers configure to prevent command-and-control callbacks, malware downloads,\n  and data exfiltration. AWS Network Firewall uses Suricata as its underlying engine.\n  \n  Suricata Rules:\n  reject http $HOME_NET any -> any any (http.host; content:\".\"; pcre:\"/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/\"; msg:\"HTTP direct to IP via http host header (common malware download technique)\"; flow:to_server; sid:202501026;)\n  reject tls $HOME_NET any -> any any (tls.sni; content:\".\"; pcre:\"/^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$/\"; msg:\"TLS direct to IP via TLS SNI (common malware download technique)\"; flow:to_server; sid:202501027;)\nreferences:\n  - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html\n  - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/\n  - https://attack.mitre.org/techniques/T1071/001/\nauthor: AWS Network Firewall Customer Example\ndate: 2025/01/24\ntags:\n  - attack.command_and_control\n  - attack.t1071.001\n  - attack.defense_evasion\n  - attack.t1140\n  - attack.t1573\nlogsource:\n  category: firewall\n  product: aws_network_firewall\ndetection:\n  selection_http:\n    protocol: http\n    direction: outbound\n    source_network: internal\n    http_host|re: '^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$'\n  selection_tls:\n    protocol: tls\n    direction: outbound\n    source_network: internal\n    tls_sni|re: '^(?:[0-9]{1,3}\\.){3}[0-9]{1,3}$'\n  condition: selection_http or selection_tls\nfalsepositives:\n  - Legitimate applications connecting to internal services via IP\n  - Legacy systems that use IP-based connections\n  - IoT devices with hardcoded IP endpoints\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1071.001
+    - T1140
+    - T1573
+    - T1071
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.defense_evasion
+    - attack.t1140
+    - attack.t1573
+author: AWS Network Firewall Customer Example
+version: "2"
+references:
+    - https://docs.aws.amazon.com/network-firewall/latest/developerguide/suricata-examples.html
+    - https://aws.github.io/aws-security-services-best-practices/guides/network-firewall/
+    - https://attack.mitre.org/techniques/T1071/001/
+data_sources:
+    - firewall
+    - aws_network_firewall

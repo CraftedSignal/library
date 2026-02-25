@@ -1,0 +1,34 @@
+id: f42ccf80-74f5-4e61-9dd8-904560d456b0
+name: Mshta Launching Certutil with Malicious HTA
+description: Detects suspicious use of mshta.exe to execute HTA files followed by certutil.exe for potential data decoding operations related to executable file downloads.
+query: |-
+    | tstats `security_content_summaries` from datamodel=Endpoint.Processes
+        where (Processes.process_name="mshta.exe" OR Processes.process_name="certutil.exe")
+        by Processes.process_id, Processes.parent_process_id, Processes.process_name, Processes.process, Processes.command_line, Processes.user, Processes.dest, _time
+    | `drop_dm_object_name(Processes)`
+    | rename process_id as proc_id, parent_process_id as pproc_id, process_name as proc_name, process as proc, command_line as cmd, user as user, dest as dest
+    | join pproc_id [
+        | tstats `security_content_summaries` from datamodel=Endpoint.Processes
+            where Processes.process_name="mshta.exe"
+            by Processes.process_id, Processes.process, Processes.command_line, _time
+        | `drop_dm_object_name(Processes)`
+        | rename process_id as mshta_proc_id, process as mshta_proc, command_line as mshta_cmd, _time as mshta_time
+    ]
+    | where mshta_proc_id = pproc_id AND proc_name="certutil.exe"
+    | where (mshta_cmd LIKE "%temp%\\%.hta%" OR mshta_cmd LIKE "%AppData\\Local\\Temp\\%.hta%")
+        AND (cmd LIKE "%-decode%" AND (cmd LIKE "%temp%\\%" OR cmd LIKE "%AppData\\Local\\Temp\\%"))
+        AND (cmd LIKE "%.pdf" OR cmd LIKE "%.dll" OR cmd LIKE "%.txt" OR cmd LIKE "%.zip")
+    | `security_content_ctime(mshta_time)`
+    | fields _time, user, dest, mshta_proc, mshta_cmd, proc, cmd
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1218.005
+    - T1105
+tags:
+    - spl
+author: Rajshekar Vijay
+version: "1"

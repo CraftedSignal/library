@@ -1,0 +1,68 @@
+id: 019c3467-3a29-729a-b83b-29b4f4527239
+name: DevContainer Lifecycle Hook Abuse
+description: |
+    Detects the use of lifecycle hooks in `.devcontainer/devcontainer.json` files to execute potentially malicious commands. Adversaries can abuse hooks like `postCreateCommand` or `postStartCommand` in development environments like GitHub Codespaces to automatically run scripts upon container creation. This can be used to exfiltrate secrets, such as GitHub tokens, or establish further access.
+query: |
+    title: DevContainer Lifecycle Hook Abuse
+    id: ecd61bbc-01a7-4af4-a6bd-9bb5577b01ab
+    status: experimental
+    description: |
+      Detects the use of lifecycle hooks in `.devcontainer/devcontainer.json` files to execute potentially malicious commands. Adversaries can abuse hooks like `postCreateCommand` or `postStartCommand` in development environments like GitHub Codespaces to automatically run scripts upon container creation. This can be used to exfiltrate secrets, such as GitHub tokens, or establish further access.
+    references:
+      - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+    author: detections.ai
+    date: 2026-02-06
+    tags:
+      - attack.t1552.001
+      - attack.t1059.004
+      - attack.execution
+      - attack.collection
+    logsource:
+      category: file_event
+      product: osquery # This is an example, any file monitoring tool that can inspect content is suitable.
+    detection:
+      selection_file:
+        # Detects a devcontainer.json file being created or modified.
+        file.path|endswith: '/.devcontainer/devcontainer.json'
+      selection_hooks:
+        # Looks for the presence of specific devcontainer lifecycle hooks.
+        file.content|contains:
+          - '"postCreateCommand"'
+          - '"postStartCommand"'
+          - '"initializeCommand"'
+      selection_suspicious:
+        # Looks for keywords associated with secret access or data exfiltration.
+        file.content|contains:
+          - 'user-secrets-envs.json' # File containing Codespaces secrets
+          - 'ghu_' # GitHub token prefix
+          - 'env' # Command to dump environment variables
+          - 'curl'
+          - 'wget'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate projects may use these lifecycle hooks to run setup scripts,
+        which might involve downloading dependencies with `curl` or `wget`.
+      - Investigate the full command being executed to determine if it is malicious.
+        Tuning may be required to exclude known benign scripts or repositories.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0009
+    - TA0006
+techniques:
+    - T1552.001
+    - T1059.004
+tags:
+    - attack.t1552.001
+    - attack.t1059.004
+    - attack.execution
+    - attack.collection
+author: detections.ai
+version: "2"
+references:
+    - https://orca.security/resources/blog/hacking-github-codespaces-rce-supply-chain-attack/
+data_sources:
+    - file_event
+    - osquery

@@ -1,0 +1,13 @@
+id: 019bd5ad-536a-76dc-8525-1e016e6b1033
+name: New RDP Inbound Connection from Public IP to Previously Unseen Device
+description: |-
+    This detection identifies instances where a device receives an inbound Remote Desktop Protocol (RDP) connection from a public IP address for the first time in the last 24 hours.
+
+    The query works by establishing a baseline of devices that have historically (prior to the last 24 hours) accepted RDP connections from external sources. It then monitors current activity to find "First-Seen" RDP events on devices that do not exist in that baseline. By filtering for Public-to-Private IP traffic and correlating network events with successful logon events, this detection helps surface potential lateral movement or unauthorized external access attempts.
+query: "let PreviouslyRdpedIntoMachines =\r\nDeviceNetworkEvents\r\n    | where TimeGenerated < startofday(ago(1d))\r\n    | where ActionType == \"InboundConnectionAccepted\"\r\n    | where LocalIPType == \"Private\" and RemoteIPType == \"Public\"\r\n    | where LocalPort == 3389 or InitiatingProcessCommandLine =~ \"svchost.exe -k termsvcs -s TermService\"\r\n//\r\n| join (\r\nDeviceLogonEvents\r\n    | where TimeGenerated < startofday(ago(1d))\r\n    | where ActionType == \"LogonSuccess\"\r\n) on RemoteIP\r\n| distinct DeviceId;\r\n\r\nlet NewRdps =\r\nDeviceNetworkEvents\r\n    | where TimeGenerated >= startofday(ago(1d))\r\n    | where ActionType == \"InboundConnectionAccepted\"\r\n    | where LocalIPType == \"Private\" and RemoteIPType == \"Public\"\r\n    | where LocalPort == 3389 or InitiatingProcessCommandLine =~ \"svchost.exe -k termsvcs -s TermService\"\r\n| join (\r\n    DeviceLogonEvents\r\n    | where TimeGenerated >= startofday(ago(1d))\r\n    | where ActionType == \"LogonSuccess\"\r\n) on RemoteIP;\r\n\r\n\r\nNewRdps | join kind=leftanti (PreviouslyRdpedIntoMachines) on DeviceId\r\n| summarize by TimeGenerated, DeviceId, DeviceName, AccountName, LocalIP, LocalPort, RdpingIP = RemoteIP, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Hub4ra
+version: "3"

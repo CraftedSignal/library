@@ -1,0 +1,47 @@
+id: 019b30eb-e634-73b2-8382-d99eb6dfcac6
+name: Ransomware Self-Deletion Sequence (01flip)
+description: This rule detects a specific sequence of commands often used by ransomware, particularly the '01flip' variant, to self-delete after execution. The sequence involves 'ping.exe' for a delay, 'fsutil.exe' to zero out file data, and 'cmd.exe' to delete files. The rule correlates these events within a short timeframe, initiated by the same process on a given device.
+query: |
+    let TimeFrame = 10m;
+    // Define the patterns for each command in the 01flip self-deletion sequence.
+    let PingPattern = dynamic(["127.0.0.7", "-n", "5"]);
+    let FsutilPattern = dynamic(["file", "setzerodata", "offset=0"]);
+    let DelPattern = dynamic(["del", "/f", "/q"]);
+    DeviceProcessEvents
+    | where Timestamp > ago(TimeFrame)
+    // Filter for the specific processes involved in the self-deletion routine.
+    | where FileName in~ ("ping.exe", "fsutil.exe", "cmd.exe")
+    | extend Process = case(
+        FileName =~ "ping.exe" and ProcessCommandLine has_all (PingPattern), "PingDelay",
+        FileName =~ "fsutil.exe" and ProcessCommandLine has_all (FsutilPattern), "FsutilZero",
+        // The del command is executed by cmd.exe
+        FileName =~ "cmd.exe" and ProcessCommandLine has_all (DelPattern), "DelSelf",
+        "Other"
+      )
+    | where Process != "Other"
+    // Group events by the initiating process on a host within a short time window.
+    // This assumes the ransomware executable spawns these processes in quick succession.
+    | summarize Commands=make_set(Process), StartTime=min(Timestamp), EndTime=max(Timestamp) by DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessCommandLine, bin(Timestamp, 2m)
+    // Verify that all three components of the self-deletion sequence are present.
+    | where array_length(Commands) == 3 and Commands has_all ("PingDelay", "FsutilZero", "DelSelf")
+    // FP Tuning: While this specific sequence is highly suspicious, legitimate but unusual admin scripts could perform similar actions.
+    // Consider adding trusted InitiatingProcessCommandLine values to an exclusion list if false positives occur.
+    | project
+        StartTime,
+        EndTime,
+        DeviceId,
+        DeviceName,
+        InitiatingProcessId,
+        InitiatingProcessCommandLine,
+        Commands
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1070.004
+    - T1485
+tags:
+    - kql
+version: "2"

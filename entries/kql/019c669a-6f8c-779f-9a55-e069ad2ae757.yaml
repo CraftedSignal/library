@@ -1,0 +1,36 @@
+id: 019c669a-6f8c-779f-9a55-e069ad2ae757
+name: OpenClaw/Clawd Download via Common Utilities
+description: This rule detects attempts to download the 'clawd.bot' or 'openclaw.ai' installation scripts using various command-line tools. It specifically looks for the use of 'curl', 'wget', 'aria2c', 'fetch', 'powershell', 'pwsh', 'certutil', 'bitsadmin', or 'mshta' when their command lines contain either 'clawd.bot/install.sh' or 'openclaw.ai/install.sh'. This activity is indicative of potential malware deployment or initial access attempts related to the OpenClaw/Clawd threat.
+query: |
+    // OpenClaw / Clawd - download via curl, wget, PowerShell, or LOLBins (certutil, bitsadmin, mshta)
+    // Author: Daniel Jeremiah | Date: 2026/02/16
+    // LOLBins ref: https://lolbas-project.github.io/
+    // reference1 = "https://www.zscaler.com/blogs/product-insights/guide-openclaw-and-securing-it-zscaler "
+    // reference2 = "https://www.kaspersky.com/blog/openclaw-vulnerabilities-exposed/55263 "
+    DeviceProcessEvents
+    | where Timestamp >= ago(30d)
+    | where FileName in~ (
+        "curl.exe", "curl", "wget.exe", "wget",
+        "aria2c.exe", "aria2c", "fetch", "fetch.exe",
+        "powershell.exe", "pwsh.exe",
+        "certutil.exe", "bitsadmin.exe", "mshta.exe"
+        )
+    | where ProcessCommandLine has_any ("clawd.bot/install.sh", "openclaw.ai/install.sh")
+    | project Timestamp, DeviceName, AccountName, AccountDomain, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+    - TA0002
+techniques:
+    - T1105
+    - T1218
+    - T1059
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://www.zscaler.com/blogs/product-insights/guide-openclaw-and-securing-it-zscaler
+    - https://www.kaspersky.com/blog/openclaw-vulnerabilities-exposed/55263

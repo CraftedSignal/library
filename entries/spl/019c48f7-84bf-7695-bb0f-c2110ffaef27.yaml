@@ -1,0 +1,9 @@
+id: 019c48f7-84bf-7695-bb0f-c2110ffaef27
+name: Scheduled Task Created with with Explicit Credentials
+description: This rule detects the creation of scheduled tasks using `schtasks.exe` where the task is configured to run with elevated privileges (Administrator, SYSTEM, or NT AUTHORITY) and is intended for remote execution (indicated by the `/s` switch) but explicitly excludes local host targets. This pattern is often indicative of lateral movement or persistence mechanisms where an attacker establishes a scheduled task on a remote system to execute malicious code with high privileges.
+query: "index=windows source=WinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=1\r\n| search Image=\"*\\\\schtasks.exe\"\r\n| search CommandLine=\"*/create*\" CommandLine=\"*/s*\" CommandLine=\"*/tr*\" CommandLine=\"*/tn*\"\r\n| search CommandLine=\"*/ru*\"\r\n| search (CommandLine=\"*Administrator*\" OR CommandLine=\"*SYSTEM*\" OR CommandLine=\"*NT AUTHORITY*\")\r\n| search NOT (CommandLine=\"*/s localhost*\" OR CommandLine=\"*/s 127.0.0.1*\" OR CommandLine=\"*/s ::1*\")\r\n| table _time, ComputerName, User, ParentImage, ParentCommandLine, Image, CommandLine"
+query_type: spl
+severity: medium
+tags:
+    - spl
+version: "2"

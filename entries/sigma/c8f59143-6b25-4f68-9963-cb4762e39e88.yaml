@@ -1,0 +1,27 @@
+id: c8f59143-6b25-4f68-9963-cb4762e39e88
+name: Possible AppDomainManager Hijacking via Dfsvc Process
+description: |
+    This rule looks for a common hijacking method involving modification of the AppDomainManager in .NET applications. The 'dfsvc.exe' process can be relocated or renamed, and when paired with a crafted config file, may execute  malicious code from DomainManager.dll before the application loads.
+query: "title: Possible AppDomainManager Hijacking via Dfsvc Process\r\nid: 2db91a33-e2e6-480c-a21a-aeea7e525f47\r\nstatus: experimental\r\ndescription: >\r\n  This rule looks for a common hijacking method involving modification of the\r\n  AppDomainManager in .NET applications. The 'dfsvc.exe' process can be\r\n  relocated or renamed, and when paired with a crafted config file, may\r\n  execute  malicious code from DomainManager.dll before the application loads.\r\nauthor: Tim Peck\r\nreferences:\r\n  - https://3gstudent.github.io/Use-AppDomainManager-to-maintain-persistence\r\n  - https://docs.google.com/document/d/1jflrLim_N03PCRizqFWNyjkr3cxCls5iMBn0yoR-gfY\r\n  - https://www.pwc.com/gx/en/issues/cybersecurity/cyber-threat-intelligence/yellow-liderc-ships-its-scripts-delivers-imaploader-malware.html\r\n  - https://www.securonix.com/blog/shroudedsleep-a-deep-dive-into-north-koreas-ongoing-campaign-against-southeast-asia/\r\ndate: 2025/07/28\r\nlogsource:\r\n  product: windows\r\n  category: process_creation\r\n  service: sysmon\r\ndetection:\r\n  selection_ren:\r\n    - FileDescription: ClickOnce\r\n    - OriginalFileName: Dfsvc.exe\r\n  filter_ren:\r\n    Image|endswith: \\Dfsvc.exe\r\n  selection_mov:\r\n    Image|endswith: \\Dfsvc.exe\r\n  filter_mov:\r\n    ImagePath|contains:\r\n      - \\Windows\\Microsoft.NET\\\r\n      - \\Windows\\WinSxS\\\r\n  condition: (selection_ren and not filter_ren) or (selection_mov and not filter_mov)\r\nlevel: high\r\ntags:\r\n  - attack.defense_evasion\r\n  - attack.T1574.014\r\n  - threat.shrouded#sleep\r\n  - threat.imaploader\r\nfalsepositives:\r\n  - Custom packaging or installer software relocating legitimate .NET framework\r\n    executables\r\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1574.014
+tags:
+    - attack.defense_evasion
+    - attack.T1574.014
+    - threat.shrouded#sleep
+    - threat.imaploader
+author: Tim Peck
+version: "1"
+references:
+    - https://3gstudent.github.io/Use-AppDomainManager-to-maintain-persistence
+    - https://docs.google.com/document/d/1jflrLim_N03PCRizqFWNyjkr3cxCls5iMBn0yoR-gfY
+    - https://www.pwc.com/gx/en/issues/cybersecurity/cyber-threat-intelligence/yellow-liderc-ships-its-scripts-delivers-imaploader-malware.html
+    - https://www.securonix.com/blog/shroudedsleep-a-deep-dive-into-north-koreas-ongoing-campaign-against-southeast-asia/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

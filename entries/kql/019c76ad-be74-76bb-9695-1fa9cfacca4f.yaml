@@ -1,0 +1,63 @@
+id: 019c76ad-be74-76bb-9695-1fa9cfacca4f
+name: Ivanti EPMM Outbound Connection to OOB Service
+description: This rule detects outbound network connections from Ivanti EPMM appliances to known Out-of-Band (OOB) interaction services and tunneling platforms. This activity is often associated with automated reconnaissance and exploitation verification for vulnerabilities like CVE-2026-1281.
+query: |
+    // Name: Ivanti EPMM Outbound Connection to OOB Service
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-19
+    // Description: This rule detects outbound network connections from Ivanti EPMM appliances to known Out-of-Band (OOB) interaction services and tunneling platforms. This activity is often associated with automated reconnaissance and exploitation verification for vulnerabilities like CVE-2026-1281.
+    // Tags: T1071.001, T1572, CVE-2026-1281, Ivanti, OOB
+    // References: https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/
+    // False Positive Sensitivity: Medium
+    let lookback = 1d;
+    // Define a list of known Out-of-Band (OOB) and tunneling service domains
+    let oob_domains = dynamic([
+        "oast.fun",
+        "oast.live",
+        "oast.site",
+        "oast.me",
+        "interacth3.io",
+        "ngrok-free.app",
+        "ceye.io",
+        "requestrepo.com",
+        "eyes.sh",
+        "gobygo.net",
+        "introo.sh",
+        "ddns.1433.eu.org"
+    ]);
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(lookback)
+    // Filter for outbound connections to the specified OOB domains
+    | where RemoteUrl has_any (oob_domains)
+    // Scope the detection to processes related to the Ivanti EPMM application to increase fidelity
+    | where InitiatingProcessCommandLine has_any ("/mi/bin/", "/mi/tomcat/")
+    // Potential for False Positives: Legitimate administrative or development activities might use tunneling services like ngrok.
+    // If false positives occur, consider adding filters for specific Ivanti server hostnames or excluding known administrative accounts.
+    // For example: | where DeviceName has "<ivanti_server_hostname>"
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessAccountName,
+        RemoteUrl,
+        RemoteIP,
+        RemotePort,
+        InitiatingProcessCommandLine,
+        Activity = "Ivanti EPMM Outbound to OOB Service"
+    | extend
+        timestamp = TimeGenerated,
+        HostCustomEntity = DeviceName,
+        IPCustomEntity = RemoteIP,
+        UrlCustomEntity = RemoteUrl
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1572
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ivanti-cve-2026-1281-cve-2026-1340/

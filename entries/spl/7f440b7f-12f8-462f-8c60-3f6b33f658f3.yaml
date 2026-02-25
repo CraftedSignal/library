@@ -1,0 +1,50 @@
+id: 7f440b7f-12f8-462f-8c60-3f6b33f658f3
+name: Katz Stealer Browser Key Decryption File Creation
+description: Detects the creation of specific text files in the AppData directory, which is a known behavior of the Katz Stealer malware after it successfully decrypts and dumps browser master keys.
+query: |
+    --
+    -- Name: Katz Stealer Browser Key Decryption File Creation
+    --
+    -- Date: 2025-07-23
+    --
+    -- References:
+    -- - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/
+    --
+    -- Description:
+    -- Detects the creation of specific text files in the AppData directory, which is a known behavior of the Katz Stealer malware after it successfully decrypts and dumps browser master keys.
+    --
+    -- False Positive Sensitivity: Medium
+    --
+    -- Tags:
+    -- - Tactic: Credential Access
+    -- - Technique: T1555.003
+    -- - Malware: Katz Stealer
+    --
+    -- Recommended Scoping:
+    -- Update the initial search line with the appropriate index and sourcetypes for your environment's
+    -- endpoint file monitoring data (e.g., Sysmon EventCode 11, CrowdStrike Falcon, etc.).
+    --
+    (index=*) (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational EventCode=11) OR (sourcetype=crowdstrike:falcon:event:detailed event_simpleName=FileWritten)
+    -- key: normalize common field names for file creation events
+    | eval file_name = coalesce(TargetFilename, FileName), file_path = coalesce(TargetFilename, Path), process_name = coalesce(Image, ProcessName), host = coalesce(Computer, host), user = coalesce(User, user)
+    -- key: search for specific file names in the AppData directory
+    | where (file_name LIKE "decrypted_%_key.txt" AND file_path LIKE "%\\AppData\\Roaming\\%")
+    -- comment: The file names are highly specific to Katz Stealer's behavior. However, it's worth investigating the creating process to rule out any custom administrative scripts that might use similar naming conventions.
+    -- key: aggregate results to create a single alert per host and file
+    | stats count min(_time) as firstTime max(_time) as lastTime values(process_name) as creating_process by host, user, file_name, file_path
+    -- key: convert epoch time to a human-readable format
+    | convert ctime(firstTime) ctime(lastTime)
+    -- key: rename fields for better readability in alerts
+    | rename host as source_host
+query_type: spl
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1555.003
+tags:
+    - spl
+author: RW
+version: "1"
+references:
+    - https://www.sentinelone.com/blog/katz-stealer-powerful-maas-on-the-prowl-for-credentials-and-crypto-assets/

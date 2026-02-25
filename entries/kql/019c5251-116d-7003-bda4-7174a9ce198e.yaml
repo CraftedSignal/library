@@ -1,0 +1,17 @@
+id: 019c5251-116d-7003-bda4-7174a9ce198e
+name: Lazarus 'Graphalgo' Staging Path Creation
+description: Detects the creation of a 'startup.js' file in specific, non-standard subdirectories used by the Lazarus Group's 'Graphalgo' campaign to stage malicious payloads. These paths mimic legitimate application folders to evade detection.
+query: "// Name: Lazarus 'Graphalgo' Staging Path Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-12\r\n// Description: Detects the creation of a 'startup.js' file in specific, non-standard subdirectories used by the Lazarus Group's 'Graphalgo' campaign to stage malicious payloads. These paths mimic legitimate application folders to evade detection.\r\n// MITRE ATT&CK: T1037.005, T1547.001, T1027.002\r\n// References: https://www.reversinglabs.com/blog/inside-graphalgo\r\n// False Positive Sensitivity: Medium\r\n// Tags: Lazarus, Graphalgo, T1037.005, T1547.001, T1027.002, startup.js\r\nDeviceFileEvents\r\n// Look for file creation events, as this is the initial staging action.\r\n| where ActionType == \"FileCreated\"\r\n// The specific filename used by the malware.\r\n| where FileName =~ \"startup.js\"\r\n// These are the specific, unusual folder paths used by the Graphalgo campaign across Windows, Linux, and macOS.\r\n| where FolderPath has_any (\r\n    @\"\\AppData\\Local\\Google\\Chrome\\User Data\\Scripts\\\",\r\n    @\"\\AppData\\Local\\Scripts\\\",\r\n    @\"/.config/google-chrome/Scripts/\",\r\n    @\"/.config/Scripts/\",\r\n    @\"/Library/Application Support/Google/Chrome/Scripts/\",\r\n    @\"/Library/Application Support/Scripts/\"\r\n)\r\n// FP Mitigation: While these paths are unusual, a developer could potentially create a script with this name for a legitimate purpose.\r\n// Consider excluding known developer machines or specific project parent processes if false positives occur.\r\n// For example: `| where not(InitiatingProcessParentFileName in~ ('vscode.exe', 'jetbrains-rider.exe'))`\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1037.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.reversinglabs.com/blog/inside-graphalgo

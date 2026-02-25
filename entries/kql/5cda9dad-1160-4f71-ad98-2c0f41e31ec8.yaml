@@ -1,0 +1,25 @@
+id: 5cda9dad-1160-4f71-ad98-2c0f41e31ec8
+name: Zero-Click NTLM Hash Leak via LNK (CVE-2025-50154)
+description: Detects suspicious SMB/NTLM activity triggered by explorer.exe following recent .lnk file creation by script engines. This behavior aligns with the CVE-2025-50154 bypass of Microsoft’s NTLM credential leak patch (CVE-2025-24054), allowing zero-click NTLM hash disclosure and remote binary staging without execution.
+query: "// CVE-2025-50154: Explorer-triggered SMB after .LNK creation\r\nlet lookback = 1d;\r\nlet correlate_window_before = 5m;\r\nlet correlate_window_after  = 2m;\r\nlet smbPorts = dynamic([445,139]);\r\n// LNKs recently created by likely script tooling\r\nlet recentLnks =\r\n    DeviceFileEvents\r\n    | where Timestamp > ago(lookback)\r\n    | where ActionType == \"FileCreated\"\r\n    | where FileName endswith \".lnk\"\r\n    | where InitiatingProcessFileName in~ (\"powershell.exe\",\"wscript.exe\",\"cscript.exe\",\"cmd.exe\")\r\n      or InitiatingProcessCommandLine has_any (\".CreateShortcut(\", \"WScript.Shell\", \".lnk\")\r\n    | project DeviceId, LnkTS=Timestamp, LnkPath=FolderPath, LnkFile=FileName,\r\n              LnkCreator=InitiatingProcessFileName, LnkCreatorCmd=InitiatingProcessCommandLine;\r\n// Explorer talking SMB out (likely icon/target resolution)\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(lookback)\r\n| where InitiatingProcessFileName =~ \"explorer.exe\"\r\n| where Protocol == \"Tcp\" and RemotePort in (smbPorts)\r\n| extend IsPrivate = iff(isnotempty(RemoteIP), ipv4_is_private(RemoteIP), false)\r\n| where IsPrivate == false  // focus on external SMB; remove if you want internal as well\r\n| join kind=leftouter recentLnks on DeviceId\r\n| where LnkTS between (Timestamp - correlate_window_before .. Timestamp + correlate_window_after)\r\n| project Timestamp, DeviceName, InitiatingProcessAccountName, RemoteIP, RemotePort, RemoteUrl,\r\n          InitiatingProcessFileName, InitiatingProcessCommandLine,\r\n          LnkPath, LnkFile, LnkCreator, LnkCreatorCmd\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0008
+techniques:
+    - T1550.002
+    - T1105
+tags:
+    - CVE-2025-50154
+    - NTLM
+    - Zero-Click
+    - LNK
+    - SMB
+    - CredentialAccess
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://cymulate.com/blog/zero-click-one-ntlm-microsoft-security-patch-bypass-cve-2025-50154/

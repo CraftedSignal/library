@@ -1,0 +1,18 @@
+id: 019c7d7c-aaf3-7220-96de-146064b932c3
+name: ChatGPT Stealer Browser Extension Installation
+description: This rule detects the installation of known malicious browser extensions associated with the ChatGPT Stealer campaign. These extensions are designed to steal AI session tokens and conversation data by monitoring file creation or renaming events in directories where browser extensions are typically installed.
+query: "// Name: ChatGPT Stealer Extension IDs\r\n// Author: Nicholas Isakson\r\n// Date: 2026-02-20\r\n// Description: This rule detects the presence of known malicious browser extension IDs associated with the ChatGPT Stealer campaign. These extensions are known to steal AI session tokens and conversation data.\r\n// MITRE ATT&CK: T1176 (Browser Extensions)\r\n// References:\r\n// - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt/\r\n// - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/\r\n// - https://cybersecuritynews.com/16-malicious-chrome-extensions-as-chatgpt-enhancements/\r\n\r\n// Define the list of known malicious extension IDs\r\nlet MaliciousExtensionIDs = dynamic([\r\n    \"fnmihdojmnkclgjpcoonokmkhjpjechg\",\r\n    \"inhcgfpbfdjbjogdfjbclgolkmhnooop\",\r\n    \"gbcgjnbccjojicobfimcnfjddhpphaod\",\r\n    \"fppbiomdkfbhgjjdmojlogeceejinadg\"\r\n]);\r\n// Search for file events related to the installation of these extensions\r\nDeviceFileEvents\r\n// Filter for file creation or renaming, which occurs during installation\r\n| where ActionType in (\"FileCreated\", \"FileRenamed\")\r\n// Check if the file path or name contains any of the malicious extension IDs.\r\n| where FolderPath has_any (MaliciousExtensionIDs) or FileName has_any (MaliciousExtensionIDs)\r\n// To reduce potential false positives, consider adding more specific path filters to ensure the path is related to a known browser's extension directory.\r\n// For example: | where FolderPath has_all (@\"\\AppData\\Local\\\", @\"\\Extensions\\\") // Example for Windows\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+techniques:
+    - T1176.001
+tags:
+    - kql
+author: Nicholas Isakson
+version: "3"
+references:
+    - https://layerxsecurity.com/blog/how-we-discovered-a-campaign-of-16-malicious-extensions-chatgpt/
+    - https://www.ox.security/blog/malicious-chrome-extensions-steal-chatgpt-deepseek-conversations/
+    - https://cybersecuritynews.com/16-malicious-chrome-extensions-as-chatgpt-enhancements/

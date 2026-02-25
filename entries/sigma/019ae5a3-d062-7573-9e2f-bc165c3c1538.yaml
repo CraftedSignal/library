@@ -1,0 +1,62 @@
+id: 019ae5a3-d062-7573-9e2f-bc165c3c1538
+name: Next.js Server Action Prototype Pollution (CVE-2025-55182)
+description: |
+    Detects attempts to exploit CVE-2025-55182 (Next.js/React) via Server Actions.  Target is identified by the 'Next-Action' header or 'RSC' markers, combined with  JSON prototype pollution vectors in the body.
+query: |
+    title: Next.js Server Action Prototype Pollution (CVE-2025-55182)
+    id: cve-2025-55182-nextjs-action
+    status: stable
+    description: >
+      Detects attempts to exploit CVE-2025-55182 (Next.js/React) via Server
+      Actions.  Target is identified by the 'Next-Action' header or 'RSC' markers,
+      combined with  JSON prototype pollution vectors in the body.
+    author: Aaron Mog
+    date: 2025-12-03T00:00:00.000Z
+    references:
+      - https://github.com/vercel/next.js/releases/tag/v16.0.7
+      - https://www.wiz.io/blog/critical-vulnerability-in-react-cve-2025-55182
+    logsource:
+      category: web_server
+      service: apache
+    detection:
+      selection_server_action:
+        - http_headers|contains: Next-Action
+        - http_headers|contains: 'RSC: 1'
+        - cs-method: POST
+      selection_payload:
+        request_body|contains:
+          - '"__proto__"'
+          - \u005f\u005fproto\u005f\u005f
+          - \\u005f\\u005fproto\\u005f\\u005f
+          - '"constructor"'
+          - '"prototype"'
+      condition: selection_server_action and selection_payload
+    fields:
+      - c-ip
+      - cs-uri
+      - http_header_next_action
+    falsepositives:
+      - Security scanners (add scanner IP exclusions)
+    level: critical
+    tags:
+      - attack.initial_access
+      - attack.t1190
+    associated_cves:
+      - CVE-2025-55182
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+author: Aaron Mog
+version: "2"
+references:
+    - https://github.com/vercel/next.js/releases/tag/v16.0.7
+    - https://www.wiz.io/blog/critical-vulnerability-in-react-cve-2025-55182
+data_sources:
+    - web_server
+    - apache

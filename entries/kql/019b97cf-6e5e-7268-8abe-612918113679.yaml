@@ -1,0 +1,16 @@
+id: 019b97cf-6e5e-7268-8abe-612918113679
+name: Persistence via Startup URL File Creation
+description: This detection identifies the creation of an Internet Shortcut (.url) file in a user's Startup folder. This is a persistence mechanism (T1547.001) used by adversaries like the PHALT#BLYX campaign, which created a .url file pointing to a local executable using the 'file:///' protocol to launch malware at logon. The rule specifically looks for the creation of '.url' files in the Startup folder and includes a filter for a known IOC ('DeleteApp.url') from the PHALT#BLYX campaign, as well as excluding common legitimate processes like web browsers and explorer.exe as initiating processes.
+query: "// Name: Persistence via Startup URL\n// Author: detections.ai\n// Date: 2026-01-07\n// Description: This detection identifies the creation of an Internet Shortcut (.url) file in a user's Startup folder. This is a persistence mechanism (T1547.001) used by adversaries like the PHALT#BLYX campaign, which created a .url file pointing to a local executable using the 'file:///' protocol to launch malware at logon.\n// False Positive Sensitivity: Medium\n// Tactics: Persistence\n// Techniques: T1547.001\n// References: https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/\n\nDeviceFileEvents\n// Look for the creation of .url files.\n| where ActionType == \"FileCreated\" and FileName endswith \".url\"\n// Filter for files created in user or system-wide startup folders.\n| where FolderPath has @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"\n// FP Tuning: This detection is broad as standard EDR logs do not include file content to verify the 'file:///' protocol.\n// Legitimate software or user actions can create .url files in the startup folder.\n// To increase fidelity, filter for suspicious initiating processes or file names.\n| where \n    // Specific IOC from the PHALT#BLYX campaign.\n    FileName =~ \"DeleteApp.url\"\n    or\n    // The malware process itself creates the persistence file. Filter out common browsers and explorer.\n    InitiatingProcessFileName !in~ (\"explorer.exe\", \"msedge.exe\", \"chrome.exe\", \"firefox.exe\", \"iexplore.exe\")\n// NOTE: The most reliable indicator is a .url file containing 'URL=file:///'. This data is not typically available in DeviceFileEvents.\n// If available in your environment, ingest and parse .url file content to significantly improve this detection's accuracy.\n| project\n    TimeGenerated,\n    DeviceName,\n    FileName,\n    FolderPath,\n    SHA256,\n    InitiatingProcessAccountName,\n    InitiatingProcessFileName,\n    InitiatingProcessCommandLine,\n    ReportId,\n    InitiatingProcessId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.securonix.com/blog/analyzing-phaltblyx-how-fake-bsods-and-trusted-build-tools-are-used-to-construct-a-malware-infection/

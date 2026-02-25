@@ -1,0 +1,19 @@
+id: 019c5770-7187-73b8-95f4-effe809e494a
+name: Notepad Outbound SMB or Public Network Connection
+description: Detects Notepad.exe initiating outbound network connections, specifically over SMB (port 445) or to public IP addresses over HTTP/S. This behavior is highly anomalous and can indicate an attempt to exploit CVE-2026-20841 to trigger an NTLM relay attack for credential harvesting or to download a remote payload.
+query: "// Name: Notepad Outbound SMB or Public Network Connection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-13\r\n// Description: Detects Notepad.exe initiating outbound network connections, specifically over SMB (port 445) or to public IP addresses. This behavior is highly anomalous and can indicate an attempt to exploit CVE-2026-20841 to trigger an NTLM relay attack for credential harvesting or to download a remote payload.\r\n// References: https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/\r\n// MITRE ATT&CK: T1557.001, T1105\r\n// False Positive Sensitivity: Medium\r\nDeviceNetworkEvents\r\n// Look for network events originating from the Notepad process.\r\n| where InitiatingProcessFileName =~ \"Notepad.exe\"\r\n// Filter for connections over SMB (port 445) or to public IPs over HTTP/S.\r\n// SMB connections are a key indicator of NTLM relay attempts via file:// UNC paths.\r\n| where RemotePort == 445 or (RemotePort in (80, 443) and RemoteIPType == \"Public\")\r\n// FP Tuning: Notepad should not typically make outbound network connections.\r\n// If legitimate use cases exist in your environment (e.g., specific plugins or integrations),\r\n// consider excluding known safe remote IPs or URLs.\r\n// For example: | where not (RemoteIP in (\"1.2.3.4\") or RemoteUrl has \"safe.domain.com\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+    - TA0011
+techniques:
+    - T1557.001
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/microsoft/windows-11-notepad-flaw-let-files-execute-silently-via-markdown-links/

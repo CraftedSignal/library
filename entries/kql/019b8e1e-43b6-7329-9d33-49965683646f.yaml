@@ -1,0 +1,16 @@
+id: 019b8e1e-43b6-7329-9d33-49965683646f
+name: Unsigned WindowsApp Executable Making Suspicious Network Connections
+description: This rule detects unsigned executables originating from the WindowsApps directory that are making network connections to IP lookup services. This behavior can indicate a potentially malicious application attempting to identify its external IP address, possibly for command and control communication or reconnaissance. Common browsers are excluded from this detection to reduce false positives.
+query: "\r\n// Unsigned WindowsApps exe making suspicious network connections\r\n// Excludes common browsers\r\nlet IPLookupDomains = dynamic([\r\n    \"ip-api.com\", \"ipinfo.io\", \"ipify.org\", \"checkip\", \r\n    \"whatismyip\", \"myip.com\", \"ipecho.net\", \"icanhazip\"\r\n]);\r\nlet CommonBrowsers = dynamic([\r\n    \"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\",\r\n    \"vivaldi.exe\", \"opera.exe\", \"arc.exe\", \"chromium.exe\",\r\n    \"iexplore.exe\", \"microsoftedge.exe\", \"msedgewebview2.exe\",\r\n    \"browser.exe\", \"whale.exe\", \"waterfox.exe\", \"librewolf.exe\"\r\n]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessFolderPath startswith @\"C:\\Program Files\\WindowsApps\\\"\r\n| where RemoteUrl has_any (IPLookupDomains)\r\n| where not(InitiatingProcessFileName has_any (CommonBrowsers))\r\n| invoke FileProfile(InitiatingProcessSHA256, 1000)\r\n| where SignatureState != \"Valid\" or isempty(Signer)\r\n| project \r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessSHA256,\r\n    SignatureState,\r\n    Signer\r\n| summarize \r\n    Connections = count(),\r\n    min(Timestamp), max(Timestamp),\r\n    Devices = dcount(DeviceName)\r\n    by InitiatingProcessFileName, InitiatingProcessFolderPath, RemoteUrl, InitiatingProcessSHA256, Signer\r\n| order by Devices desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1071.001
+    - T1071
+    - T1553.002
+tags:
+    - kql
+version: "2"

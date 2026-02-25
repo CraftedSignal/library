@@ -1,0 +1,18 @@
+id: 5a012019-1075-435a-b535-1c0d960adfc6
+name: Executive Impersonation Campaign (First Name as Subject)
+description: This rule detects potential spearphishing attempts where the sender's email address is from Gmail, there are no attachments or URLs, and the subject line of the email matches the recipient's first name. This pattern is often used in highly targeted social engineering attacks to appear legitimate and bypass traditional email security controls.
+query: "EmailEvents\r\n| where Timestamp > ago(30d)\r\n| where SenderFromAddress endswith \"@gmail.com\"\r\n| where AttachmentCount == 0\r\n| where UrlCount == 0\r\n| join kind=leftouter (\r\n    IdentityInfo\r\n    | project AccountObjectId, GivenName, AccountDisplayName\r\n    | summarize arg_max(AccountObjectId, GivenName, AccountDisplayName) by AccountObjectId\r\n) on $left.RecipientObjectId == $right.AccountObjectId\r\n| extend RecipientFirstName = case(\r\n    isnotempty(GivenName), GivenName,\r\n    isnotempty(AccountDisplayName), tostring(split(AccountDisplayName, \" \")[0]),\r\n    tostring(split(RecipientObjectId, \"@\")[0])\r\n)\r\n| where isnotempty(RecipientFirstName)\r\n| where Subject =~ RecipientFirstName\r\n| where DeliveryAction != \"Blocked\"\r\n| project Timestamp, SenderFromAddress, RecipientEmailAddress, Subject, RecipientFirstName, DeliveryAction, DeliveryLocation, AuthenticationDetails, NetworkMessageId, ReportId\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1598
+tags:
+    - kql
+author: LindenSec
+version: "1"
+references:
+    - https://www.lindensec.com/post/detecting-executive-impersonation-campaigns-with-kql

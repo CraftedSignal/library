@@ -1,0 +1,16 @@
+id: 0fa2c9eb-b830-42c0-8eb7-068bde4bcab8
+name: ' CAR-2013-02-008: Simultaneous Logins on a Host'
+description: Detects if multiple users logged into a single machine within the same day.
+query: "// Author: MN\r\n// Rule Name: Simultaneous Logins on a Host\r\n// MITRE CAR ID: CAR-2013-02-008\r\n// MITRE ATT&CK: TA0001: Initial Access, T1078: Valid Accounts \r\n// Description: Detects if multiple users logged into a single machine within the same day.\r\n// Severity: Low\r\n//\r\nDeviceLogonEvents\r\n| where ActionType == \"LogonSuccess\"\r\n| where Timestamp between (ago(24h) .. now())\r\n| where not ((AccountName startswith \"dwm-\") or (AccountName startswith \"umfd-\"))\r\n| summarize FirstLogon = min(Timestamp),\r\n            LastLogon = max(Timestamp),\r\n            UserCount = dcount(AccountName),\r\n            Users = make_set(AccountName),\r\n            ReportId = any(ReportId),\r\n            DeviceId = any(DeviceId)\r\n    by DeviceName\r\n| where UserCount > 1\r\n| project Timestamp = LastLogon, DeviceId, ReportId, DeviceName, UserCount, Users, FirstLogon, LastLogon"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1078
+tags:
+    - kql
+author: Mena Nabil
+version: "1"
+references:
+    - https://car.mitre.org/analytics/CAR-2013-02-008/

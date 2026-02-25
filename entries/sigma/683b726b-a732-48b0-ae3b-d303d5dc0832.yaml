@@ -1,0 +1,87 @@
+id: 683b726b-a732-48b0-ae3b-d303d5dc0832
+name: Novel Covert C2 HazyBeacon Backdoor Activity
+description: Detects TTPs associated with the HazyBeacon backdoor, used by the threat cluster CL-STA-1020. This rule identifies the creation of a specific persistence service and the execution of custom exfiltration tools from the C:\ProgramData directory. This threat also uses C2 communication via AWS Lambda URLs (e.g., *.lambda-url.*.on.aws) from the mscorsvw.exe process, which should be monitored via network logs.
+query: |-
+    title: Novel Covert C2 HazyBeacon Backdoor Activity
+    id: 6c5ed6d5-7995-403f-8eb1-4e22c237269d
+    status: experimental
+    description: Detects TTPs associated with the HazyBeacon backdoor, used by the
+      threat cluster CL-STA-1020. This rule identifies the creation of a specific
+      persistence service and the execution of custom exfiltration tools from the
+      C:\ProgramData directory. This threat also uses C2 communication via AWS
+      Lambda URLs (e.g., *.lambda-url.*.on.aws) from the mscorsvw.exe process, which
+      should be monitored via network logs.
+    references:
+      - https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/
+    author: Kaung Khant Ko
+    date: 2025-07-15
+    tags:
+      - attack.persistence
+      - attack.t1543.003
+      - attack.execution
+      - attack.exfiltration
+      - attack.t1567.002
+      - attack.t1071.001
+      - malware.hazybeacon
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects the creation of the specific persistence service used by the actor
+      service_creation:
+        Image|endswith: '\sc.exe'
+        CommandLine|contains|all:
+          - 'create'
+          - 'msdnetsvc'
+          - 'binPath'
+          - 'mscorsvw.exe'
+        # Detects the execution of HazyBeacon payloads from a staging directory
+      payload_execution:
+        Image|startswith: 'C:\ProgramData\'
+        Image|endswith:
+          - '\GoogleGet.exe'
+          - '\google.exe'
+          - '\GoogleDrive.exe'
+          - '\GoogleDriveUpload.exe'
+          - '\Dropbox.exe'
+          - '\igfx.exe'
+        # Detects known hashes associated with the HazyBeacon campaign
+      hashes:
+        sha256:
+          - '4931df8650521cfd686782919bda0f376475f9fc5f1fee9d7cf3a4e0d9c73e30' # mscorsvc.dll
+          - 'd20b536c88ecd326f79d7a9180f41a2e47a40fcf2cc6a2b02d68a081c89eaeaa' # google.exe
+          - '304c615f4a8c2c2b36478b693db767d41be998032252c8159cc22c18a65ab498' # GoogleDrive.exe
+          - 'f0c9481513156b0cdd216d6dfb53772839438a2215d9c5b895445f418b64b886' # GoogleDriveUpload.exe
+          - '3255798db8936b5b3ae9fed6292413ce20da48131b27394c844ecec186a1e92f' # Dropbox.exe
+          - '279e60e77207444c7ec7421e811048267971b0db42f4b4d3e975c7d0af7f511e' # igfx.exe
+          - 'd961aca6c2899cc1495c0e64a29b85aa226f40cf9d42dadc291c4f601d6e27c3' # GoogleGet.exe
+      condition: 1 of them
+    falsepositives:
+      - Legitimate software installed or executed from the C:\ProgramData directory.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0010
+    - TA0011
+techniques:
+    - T1543.003
+    - T1567.002
+    - T1071.001
+tags:
+    - attack.persistence
+    - attack.t1543.003
+    - attack.execution
+    - attack.exfiltration
+    - attack.t1567.002
+    - attack.t1071.001
+    - malware.hazybeacon
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/windows-backdoor-for-novel-c2-communication/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,19 @@
+id: 0f22c728-38b2-44d0-93de-562f3ec6e4aa
+name: DefenderXDR - Suspicious drive-by shell spawned by browser
+description: KQL Query
+query: "// detect command shell execution from popular browser executables\r\n\r\nlet browserProcesses = dynamic([\"chrome.exe\", \"firefox.exe\", \"msedge.exe\", \"iexplore.exe\"]); //expand on this with additional executable names if required\r\nlet shellProcesses = dynamic([\"cmd.exe\", \"powershell.exe\"]);\r\n// Detecting shell processes spawned\r\nlet browserSpawningShell = DeviceProcessEvents\r\n| where InitiatingProcessFileName in (browserProcesses) and FileName in (shellProcesses)\r\n| project BrowserProcessId = InitiatingProcessId, ShellProcessId = ProcessId, DeviceId, TimeGenerated;\r\n// Detecting network activity from the shell\r\nlet shellNetworkActivity = DeviceNetworkEvents\r\n| where InitiatingProcessId in ((browserSpawningShell | project ShellProcessId))\r\n| project ShellProcessId = InitiatingProcessId, RemoteUrl, TimeGenerated;\r\n// Correlate all the events\r\nbrowserSpawningShell\r\n| join kind=inner (shellNetworkActivity) on ShellProcessId\r\n| project TimeGenerated, DeviceId, BrowserProcessId, ShellProcessId, RemoteUrl"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1189
+    - T1059
+    - T1204.001
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://github.com/dylanevans-cybersec/KQL-Queries/blob/main/DefenderXDR/Suspicious%20drive-by%20shell%20spawn

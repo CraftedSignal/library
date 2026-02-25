@@ -1,0 +1,11 @@
+id: 019c0a81-abdb-7503-87e3-648b48ef9053
+name: Malicious Emails Delivered With No AIR Triage
+description: This query will generate an alert for any emails that Defender AIR identifies as malicious but has taken no AIR actions.
+query: "//Variable to show emails that were triaged by Defender in the past 30 days\nlet AIRTriage =\n    EmailPostDeliveryEvents\n    | where TimeGenerated > ago(60d)        \n    | distinct \n        NetworkMessageId\n;\n//Variable to show emails that have been identified as Phishing/Spam but had not found in EmailPostDeliveryEvents\nlet noTriageEmails = \n    CloudAppEvents\n    //Only looks for emails that have been reported by users\n    | where\n        ActionType == \"UserSubmissionTriage\"\n    | extend \n        RawEventData = parse_json(RawEventData)\n    | extend \n        ObjectId = RawEventData.ObjectId\n    | extend\n        TriageVerdict = RawEventData.GradingResult.TriageVerdict\n    //Filtering out emails that are FP or have been triaged by Defender\n    | where\n        not(ObjectId has_any (AIRTriage))\n        and TriageVerdict != \"NotSpam\"\n        and TriageVerdict != \"Miscellaneous\"\n    | distinct \n        tostring(ObjectId),\n        tostring(TriageVerdict)\n;\n//Table to project email details\nEmailEvents\n| where \n    DeliveryAction != \"Blocked\"\n| join \n    kind=inner noTriageEmails\n    on $left.NetworkMessageId == $right.ObjectId\n//Project to use in Entities\n| project \n    TimeGenerated,\n    InternetMessageId,\n    DeliveryAction,\n    SenderFromAddress,\n    RecipientEmailAddress,\n    SenderIPv4,\n    Subject,\n    TriageVerdict"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+version: "1"

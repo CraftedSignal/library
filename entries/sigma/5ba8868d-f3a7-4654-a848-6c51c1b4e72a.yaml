@@ -1,0 +1,90 @@
+id: 5ba8868d-f3a7-4654-a848-6c51c1b4e72a
+name: Interlock RAT PHP Variant Execution and Associated Active IOCs and TTP´s
+description: Detects execution of the Interlock RAT PHP variant and associated activity by looking for specific execution parameters, initial download commands, and known malicious file hashes, domains, and IP addresses.
+query: |
+    title: "Interlock RAT PHP Variant Execution and Associated Active IOCs and TTP´s"
+    id: 000b8724-c47f-4f6b-b1bd-d829b6f6f3c8
+    status: experimental
+    description: Detects execution of the Interlock RAT PHP variant and associated
+      activity by looking for specific execution parameters, initial download
+      commands, and known malicious file hashes, domains, and IP addresses.
+    references:
+      - https://thedfirreport.com/2025/07/14/kongtuke-filefix-leads-to-new-interlock-rat-variant/
+    author: Chaitanya B (Mr.Alien)
+    date: 2025-07-15
+    tags:
+      - attack.execution
+      - attack.t1059
+      - attack.command_and_control
+      - attack.t1071.001
+      - malware.interlock_rat
+    logsource:
+      - product: windows
+        category: process_creation
+      - product: windows
+        category: network_connection
+      - product: windows
+        category: file_creation
+    detection:
+      selection_php_exec:
+        # Detects the core PHP RAT execution command (process_creation)
+        Image|contains: '\AppData\Roaming\php\php.exe'
+        CommandLine|contains|all:
+          - '-d extension=zip'
+          - '-d extension_dir=ext'
+          - '.cfg'
+      selection_psh_download:
+        # Detects the initial PowerShell downloader command (process_creation)
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+          - 'DownloadString'
+          - 'iex'
+          - '.trycloudflare.com'
+      selection_c2_domain:
+        # Detects network connections to known C2 domains (network_connection)
+        DestinationDnsDomain|contains:
+          - 'existed-bunch-balance-councils.trycloudflare.com'
+          - 'ferrari-rolling-facilities-lounge.trycloudflare.com'
+          - 'galleries-physicians-psp-wv.trycloudflare.com'
+          - 'evidence-deleted-procedure-bringing.trycloudflare.com'
+          - 'nowhere-locked-manor-hs.trycloudflare.com'
+          - 'ranked-accordingly-ab-hired.trycloudflare.com'
+          - 'deadly-programming-attorneys-our.trycloudflare.com'
+      selection_c2_ip:
+        # Detects network connections to known fallback C2 IPs (network_connection)
+        DestinationIp:
+          - '64.95.12.71'
+          - '184.95.51.165'
+      selection_hash:
+        # Detects the creation of the malicious config file by hash (file_creation)
+        Hashes|contains:
+          - 'SHA256=28a9982cf2b4fc53a1545b6ed0d0c1788ca9369a847750f5652ffa0ca7f7b7d3'
+          - 'SHA256=8afd6c0636c5d70ac0622396268786190a428635e9cf28ab23add939377727b0'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate custom PHP applications using a similar execution pattern from
+        user profile directories.
+      - Legitimate administrative scripts that download content from
+        trycloudflare.com.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059
+    - T1071.001
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.command_and_control
+    - attack.t1071.001
+    - malware.interlock_rat
+author: Chaitanya B (Mr.Alien)
+version: "1"
+references:
+    - https://thedfirreport.com/2025/07/14/kongtuke-filefix-leads-to-new-interlock-rat-variant/

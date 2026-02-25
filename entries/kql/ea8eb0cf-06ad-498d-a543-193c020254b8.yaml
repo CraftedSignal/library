@@ -1,0 +1,50 @@
+id: ea8eb0cf-06ad-498d-a543-193c020254b8
+name: 'Part 1: Custom DefenderXDR KQL detection for fake CrowdStrike email domain'
+description: KQL Query
+query: |
+    // Part 1: Custom DefenderXDR KQL detection for fake CrowdStrike email domain
+    // https://www.linkedin.com/posts/activity-7220616094514917377-a-lR/
+
+    // Configure as Detect & Purge:
+
+    EmailEvents
+    | where Timestamp > ago(1h)
+    | where EmailDirection == "Inbound"
+    | where LatestDeliveryAction == "Delivered"
+    | where SenderFromDomain contains "crowdstrike"
+    | where SenderFromDomain !endswith "crowdstrike.com" and
+    SenderFromDomain !endswith "litmos.com" and
+    SenderFromDomain !endswith "zoom.us"
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the filtering criteria, the following MITRE ATT&CK techniques are relevant:
+
+    // Phishing (T1566):
+    // T1566.001: Spearphishing Attachment
+    // T1566.002: Spearphishing Link
+    // T1566.003: Spearphishing via Service
+    // The query is looking for inbound emails that might be part of a phishing campaign, especially those masquerading as legitimate emails from known domains but with slight variations.
+    // Impersonation (T1071):
+    // T1071.003: Application Layer Protocol
+    // The query checks for emails from domains that contain “crowdstrike” but are not from the legitimate “crowdstrike.com” domain, indicating potential impersonation attempts.
+    // Command and Control (T1071):
+    // T1071.001: Web Protocols
+    // The query might help identify emails that could be part of a command and control communication setup, especially if the emails are from suspicious domains.
+query_type: kql
+tactics:
+    - TA0001
+    - TA0011
+    - TA0005
+techniques:
+    - T1566
+    - T1566.001
+    - T1566.002
+    - T1566.003
+    - T1071
+    - T1071.003
+    - T1071.001
+    - T1672
+tags:
+    - kql
+version: "1"

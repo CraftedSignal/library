@@ -1,0 +1,77 @@
+id: 019c66bf-d9bf-7733-9349-63d72645cbb1
+name: Chromium-based Browser Silent Execution via Command Line Flags
+description: |
+    Detects Chromium-based browsers (e.g., Microsoft Edge, Google Chrome) being launched with specific command-line arguments that attempt to hide the browser window (headless mode or positioning it off-screen).
+    This technique was observed in the "Operation MacroMaze" campaign, attributed to APT28, where it was used to silently execute scripts and exfiltrate data using legitimate services like webhook.site.
+query: |
+    title: Chromium-based Browser Silent Execution via Command Line Flags
+    id: b8104025-9334-4a26-a851-11c64128ef71
+    status: experimental
+    description: |
+      Detects Chromium-based browsers (e.g., Microsoft Edge, Google Chrome) being launched with specific command-line arguments that attempt to hide the browser window (headless mode or positioning it off-screen).
+      This technique was observed in the "Operation MacroMaze" campaign, attributed to APT28, where it was used to silently execute scripts and exfiltrate data using legitimate services like webhook.site.
+    author: tim@detections.ai
+    references:
+      - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+    date: 2026-02-16
+    tags:
+      - attack.g0007
+      - attack.t1566.001
+      - attack.t1204.002
+      - attack.t1059.003
+      - attack.t1027.002
+      - attack.t1048.003
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        Image|endswith:
+          - '\msedge.exe'
+          - '\chrome.exe'
+          - '\brave.exe'
+          - '\vivaldi.exe'
+      # Detects the headless execution flag
+      selection_headless:
+        CommandLine|contains: '--headless'
+      # Detects flags used to move the window off-screen, making it invisible to the user
+      selection_offscreen:
+        CommandLine|contains|all:
+          - '--window-size=1,1'
+          - '--window-position=10000,10000'
+      # Detects execution of local content, either from a data URI or a user's local directory
+      selection_content:
+        CommandLine|contains:
+          - 'data:text/html;base64'
+          - '%userprofile%'
+          - 'C:\Users\' # A more generic path to catch expanded userprofile variables
+      condition: selection_process and (selection_headless or selection_offscreen) and
+        selection_content
+    falsepositives:
+      - Legitimate automation or testing frameworks (Selenium, Playwright) might use
+        these flags to run browser-based tests.
+      - Some legitimate applications may launch browsers in headless mode for
+        background tasks, such as rendering content.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+    - TA0002
+techniques:
+    - T1048.003
+    - T1059
+tags:
+    - attack.g0007
+    - attack.t1566.001
+    - attack.t1204.002
+    - attack.t1059.003
+    - attack.t1027.002
+    - attack.t1048.003
+author: tim@detections.ai
+version: "3"
+references:
+    - https://lab52.io/blog/operation-macromaze-new-apt28-campaign-using-basic-tooling-and-legit-infrastructure/
+data_sources:
+    - process_creation
+    - windows

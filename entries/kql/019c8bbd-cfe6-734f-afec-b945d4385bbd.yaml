@@ -1,0 +1,15 @@
+id: 019c8bbd-cfe6-734f-afec-b945d4385bbd
+name: Cryptocurrency Mining Activity Detected
+description: This rule detects network connections to known cryptocurrency mining pools or processes associated with cryptocurrency mining. It identifies suspicious activity based on remote URLs, process names, and remote ports commonly used by miners.
+query: "let mining_domains = dynamic([\"connect.moneropool.com\",\"pool.supportxmr.com\",\"xmr.pool.minergate.com\",\"nanopool.org\",\"minexmr.com\",\"2miners.com\",\"nicehash.com\",\"f2pool.com\",\"herominers.com\",\"hashvault.pro\",\"slushpool.com\",\"c3pool.com\",\"moneroocean.stream\",\"xmrpool.eu\",\"hashcity.org\",\"prohashing.com\",\"miningpoolhub.com\",\"viabtc.com\",\"antpool.com\",\"poolin.com\",\"pool.binance.com\",\"eth.ethermine.org\",\"zec.ethermine.org\",\"rvn.herominers.com\"]);\r\nlet mining_ports = dynamic([3333,3334,4444,5555,5556,6666,7777,8888,9999,14444,25555]);\r\nlet mining_processes = dynamic([\"xmrig\",\"xmrstak\",\"cgminer\",\"bfgminer\",\"minerd\",\"cpuminer\",\"ethminer\",\"nheqminer\"]);\r\nDeviceNetworkEvents\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has_any (mining_domains) or InitiatingProcessFileName has_any (mining_processes) or (RemotePort in (mining_ports) and RemoteUrl has_any (\"pool\",\"stratum\",\"mining\",\"hash\",\"xmr\",\"eth\",\"btc\"))\r\n| project Timestamp, DeviceName, ActionType, RemoteUrl, RemoteIP, RemotePort, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessParentFileName, InitiatingProcessId, ReportId, AdditionalFields"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0011
+techniques:
+    - T1496
+    - T1071.001
+tags:
+    - kql
+version: "1"

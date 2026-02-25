@@ -1,0 +1,64 @@
+id: 019a0747-4e6f-737d-86ef-b6c0c4b2fe07
+name: Tykit Phishing Domains
+description: Detects DNS queries for domains associated with the Tykit phishing kit infrastructure. These domains are used for hosting phishing pages and for C2 exfiltration.
+query: |
+    title: Tykit Phishing Domains
+    id: 152b460e-dfe4-4f8d-8219-335df75e6bae
+    status: experimental
+    description: Detects DNS queries for domains associated with the Tykit phishing
+      kit infrastructure. These domains are used for hosting phishing pages and for
+      C2 exfiltration.
+    references:
+      - https://any.run/cybersecurity-blog/tykit-technical-analysis/
+    author: detections.ai
+    date: 2025-10-21
+    tags:
+      - attack.t1566.001
+      - attack.credential_access
+      - attack.command_and_control
+      - attack.t1071.001
+    logsource:
+      category: dns
+      product: any
+    detection:
+      selection_static:
+        dns.query|endswith:
+          # Static domains observed being used for C2 and exfiltration.
+          - 'segy.zip'
+          - 'segy.xyz'
+          - 'segy.cc'
+          - 'segy.shop'
+          - 'segy2.cc'
+      selection_pattern:
+        # This selection approximates the regex '^loginmicr(o|0)s.*?\\.([a-z]+)?\\d+\\.cc$' used for phishing pages.
+        dns.query|startswith:
+          - 'loginmicros'
+          - 'loginmicr0s'
+        dns.query|endswith: '.cc'
+      condition: selection_static or selection_pattern
+    falsepositives:
+      - The pattern-based detection for 'loginmicr(o|0)s*.cc' domains might generate
+        false positives if legitimate services use a similar naming convention,
+        although this is considered unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566
+    - T1566.002
+    - T1071.004
+tags:
+    - attack.t1566.001
+    - attack.credential_access
+    - attack.command_and_control
+    - attack.t1071.001
+author: detections.ai
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/tykit-technical-analysis/
+data_sources:
+    - dns
+    - any

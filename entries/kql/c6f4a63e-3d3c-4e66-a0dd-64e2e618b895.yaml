@@ -1,0 +1,32 @@
+id: c6f4a63e-3d3c-4e66-a0dd-64e2e618b895
+name: Non-admin Token Request for Admin Apps Detection
+description: This rule detects sign-in attempts by non-admin users to admin applications in Entra ID, including those initiated via tools like RoadTx targeting Azure AD PowerShell, to identify potential unauthorized access.
+query: |-
+    let ITAccounts=(_GetWatchlist('ITAccounts') | summarize make_set(ITAccounts));
+    // Materialize Dataset
+    let DataSetMat= materialize (SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where AppDisplayName has_any ("PowerShell", "CLI", "Command Line", "Management Shell")
+    // Get successful and failed due to no assignment logins
+    | where ResultType in ("0", "50105")
+    | summarize max(TimeGenerated) by UserPrincipalName, AppDisplayName, IPAddress, UserId, ResultType
+    // join IdentityInfo to get more information
+    | join kind=leftouter (IdentityInfo | where TimeGenerated > ago(14d) | summarize arg_max(TimeGenerated, *) by AccountObjectId ) on $left.UserId == $right.AccountObjectId
+    // exclude Accounts with Assigned Roles
+    | where array_length(AssignedRoles) == 0
+    // exclude known IT personnel Departments
+    | where Department !has "it" and Department !has "ict" and Department !has "operations"
+    // exclude service accounts
+    | where JobTitle != "Service Account");
+    // exclude IT accounts
+    let FIL= (DataSetMat
+    | extend ITAccounts= toscalar(ITAccounts)
+    | mv-expand ITAccounts
+    | where AccountUPN contains ITAccounts or AccountDisplayName contains ITAccounts);
+    DataSetMat
+    // exclude service accounts
+    | join kind=leftanti FIL on AccountUPN
+    | distinct  max_TimeGenerated, UserPrincipalName, AppDisplayName, IPAddress, JobTitle, Department, UserId, ResultType
+query_type: kql
+severity: medium
+version: "1"

@@ -1,0 +1,8 @@
+id: 019c48f8-f389-761e-804a-1003f8a089ed
+name: Large File Transfers to Non-Internal IPs via Tor
+description: This rule identifies potential large file transfers from internal hosts to external hosts over the Tor network. It specifically looks for files seen on the Tor network (index=onion) originating from a local source (local_orig=true) with a size greater than 500KB (seen_bytes>500000). It excludes transfers to private IP addresses. The rule then groups these transfers by source IP, destination IP, and seen bytes, and flags instances where the same transfer (defined by source, destination, and size) occurs 5 or more times.
+query: "index=onion source=\"/nsm/zeek/logs/current/files.log\" local_orig=true seen_bytes>500000\r\n| where NOT (cidrmatch(\"10.0.0.0/8\", 'id.resp_h') OR cidrmatch(\"172.16.0.0/12\", 'id.resp_h') OR cidrmatch(\"192.168.0.0/16\", 'id.resp_h'))\r\n| stats count by id.orig_h, id.resp_h, seen_bytes\r\n| where count >= 5\r\n| table id.orig_h, id.resp_h, seen_bytes, count"
+query_type: spl
+tags:
+    - spl
+version: "1"

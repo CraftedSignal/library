@@ -1,0 +1,78 @@
+id: 019ae5dd-ca06-7439-9146-a732492e66ff
+name: Next.js/React "Flight" Prototype Pollution (CVE-2025-55182)
+description: |
+    Detects attempts to exploit CVE-2025-55182 by injecting prototype pollution vectors  ("__proto__", "constructor") into React Server Component (RSC) or Next.js Server Action  requests. This vulnerability allows for Remote Code Execution via object serialization flaws.
+query: |
+    title: Next.js/React "Flight" Prototype Pollution (CVE-2025-55182)
+    id: cve-2025-55182-rsc-rce
+    status: stable
+    description: >
+      Detects attempts to exploit CVE-2025-55182 by injecting prototype pollution
+      vectors  ("__proto__", "constructor") into React Server Component (RSC) or
+      Next.js Server Action  requests. This vulnerability allows for Remote Code
+      Execution via object serialization flaws.
+    author: Aaron Mog - detections.ai
+    date: 2025-12-03T00:00:00.000Z
+    references:
+      - https://github.com/vercel/next.js/releases/tag/v16.0.7
+      - https://react.dev/blog/2025/12/03/server-components-security-update
+    logsource:
+      category: web_server
+      definition: Requires logging of HTTP Headers and Request Body.
+      service: apache
+    detection:
+      selection_transport_method:
+        cs-method: POST
+      selection_transport_indicators:
+        - http_headers|contains: Next-Action
+        - http_headers|contains: 'RSC: 1'
+        - cs-uri-query|contains: _rsc=
+        - http_content_type|contains: text/x-component
+      selection_attack_pattern:
+        request_body|contains:
+          - '"__proto__"'
+          - '"constructor"'
+          - '"prototype"'
+          - \u005f\u005fproto\u005f\u005f
+          - \u0063\u006f\u006e\u0073\u0074\u0072\u0075\u0063\u0074\u006f\u0072
+      condition: >-
+        selection_transport_method and selection_transport_indicators and
+        selection_attack_pattern
+    fields:
+      - c-ip
+      - cs-uri
+      - http_user_agent
+      - http_headers
+    falsepositives:
+      - Security scanners or Purple Team exercises (filter via Source IP)
+      - Rare legacy applications sending serialized JS objects in body (Unlikely in
+        RSC context)
+    level: critical
+    tags:
+      - attack.initial_access
+      - attack.t1190
+      - cve.2025.55182
+      - tech.nextjs
+      - tech.react
+    associated_cves:
+      - CVE-2025-55182
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - cve.2025.55182
+    - tech.nextjs
+    - tech.react
+author: Aaron Mog - detections.ai
+version: "2"
+references:
+    - https://github.com/vercel/next.js/releases/tag/v16.0.7
+    - https://react.dev/blog/2025/12/03/server-components-security-update
+data_sources:
+    - web_server
+    - apache

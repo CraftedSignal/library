@@ -1,0 +1,19 @@
+id: 0199c8d3-6c5c-744c-9e29-acaad2b68a28
+name: Pure malware family Behavior Detection
+description: |-
+    Checkpoint Researchers published an Article with a Behavior Analysis of the Pure Malware Family. This Query is based on the Analysis of the Researchers. thx to Checkpoint.
+    This rule detects the execution of PowerShell (powershell.exe or pwsh.exe) that contains obfuscated commands, specifically looking for the presence of '$env:TEMP' and 'ActiveXObject' or a combination of 'split', 'reverse', and 'join' in the command line. This PowerShell execution is correlated with the creation of a .LNK file within a 5-minute window prior to the PowerShell process start, suggesting the LNK file might be used as an initial execution vector for the obfuscated PowerShell command. This pattern is indicative of malware like PureCoder.
+query: "let PureCoderLNK = DeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".LNK\"\r\n| project LnkTimestamp = Timestamp, LnkFileName = FileName, LnkSHA1 = SHA1, DeviceId; // Renamed 'LnkTimestamp' for the subsequent join\r\nDeviceProcessEvents\r\n| where FileName in (\"powershell.exe\", \"pwsh.exe\")\r\n| where ProcessCommandLine has_all (\"$env:TEMP\", \"ActiveXObject\") or (ProcessCommandLine has_all (\"split\", \"reverse\") and ProcessCommandLine has \"join\")\r\n| project ProcessTimestamp = Timestamp, ProcessCommandLine, ProcessFileName = FileName, DeviceId, DeviceName, ReportId, SHA1 // Renamed 'ProcessTimestamp' and projected required columns\r\n// Join with the LNK events:\r\n| join kind=inner (\r\n    PureCoderLNK\r\n) on DeviceId // First join on the device (DeviceId)\r\n| where LnkTimestamp >= ProcessTimestamp and LnkTimestamp < (ProcessTimestamp + 5m) // Time window: LNK creation within 5 minutes after the process\r\n| project Timestamp = ProcessTimestamp, LnkTimestamp, TimeDifference = LnkTimestamp - ProcessTimestamp, DeviceName, ProcessCommandLine, LnkFileName, SHA1,  DeviceId, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204.001
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "4"
+references:
+    - https://research.checkpoint.com/2025/under-the-pure-curtain-from-rat-to-builder-to-coder/

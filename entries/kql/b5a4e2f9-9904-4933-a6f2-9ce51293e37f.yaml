@@ -1,0 +1,75 @@
+id: b5a4e2f9-9904-4933-a6f2-9ce51293e37f
+name: Suspicious ASEP Registry Modification
+description: This rule detects the creation or modification of registry values within common Auto-Start Extensibility Point (ASEP) Run keys. It specifically flags entries that point to suspicious file paths (e.g., C:\Users\Public\, C:\ProgramData\, temporary directories) or contain suspicious command-line interpreters (e.g., rundll32, mshta.exe, powershell.exe, wscript.exe, cscript.exe). The rule filters out modifications made by known legitimate processes to reduce false positives.
+query: |
+    // Name: Suspicious ASEP Registry Modification
+    // Author: Rica Grande
+    // Date: 2025-08-20
+    // Tactic: Persistence, Privilege Escalation
+    // Technique: T1547.001, Boot or Logon Autostart Execution: Registry Run Keys / Startup Folder
+    // References:
+    // - https://attack.mitre.org/techniques/T1547/001/
+    // - https://thedfirreport.com/2022/01/24/horabot-and-the-zombie-process/
+    // Description: This query detects the creation or modification of a value in a common ASEP (Auto-Start Extensibility Point) registry key that points to a suspicious file path or uses a suspicious process.
+    // False Positive Sensitivity: Medium
+    // ---
+    // Define the list of common ASEP Run keys to monitor.
+    let asep_run_keys = dynamic([
+        "\\Software\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "\\Software\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        "\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Run",
+        "\\Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\RunOnce",
+        "\\Software\\Microsoft\\Windows\\CurrentVersion\\Policies\\Explorer\\Run"
+    ]);
+    // Define suspicious file paths often used by malware for persistence.
+    let suspicious_paths = dynamic([
+        "C:\\Users\\Public\\",
+        "C:\\ProgramData\\",
+        "\\AppData\\Local\\Temp",
+        "\\AppData\\Roaming\\",
+        "C:\\Temp\\"
+    ]);
+    // Define known legitimate processes that modify these keys.
+    // FP Tuning: Add legitimate installer or application names specific to your environment to this list.
+    let legitimate_processes = dynamic([
+        "msiexec.exe",
+        "setup.exe",
+        "installer.exe",
+        "GoogleUpdate.exe",
+        "EdgeUpdate.exe"
+    ]);
+    DeviceRegistryEvents
+    | where ActionType == "RegistryValueSet"
+    // Filter for modifications to the specified ASEP Run keys.
+    | where RegistryKey has_any (asep_run_keys)
+    // Filter out modifications made by known legitimate processes.
+    | where InitiatingProcessFileName !in~ (legitimate_processes)
+    // Detect if the registry value data points to a suspicious path or contains a suspicious command.
+    | where RegistryValueData has_any (suspicious_paths) or RegistryValueData has_any ("rundll32", "mshta.exe", "powershell.exe", "wscript.exe", "cscript.exe")
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RegistryKey,
+        RegistryValueName,
+        RegistryValueData,
+        PreviousRegistryValueData
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1547.001
+    - T1218.011
+    - T1218.005
+    - T1059.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1547/001/
+    - https://thedfirreport.com/2022/01/24/horabot-and-the-zombie-process/

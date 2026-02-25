@@ -1,0 +1,16 @@
+id: 9828f6df-dc67-4eef-8958-729d5f4467ee
+name: Detect Suspicious ncrypt.dll usage by CLI tool or unknown process
+description: This detection rule uses a WDAC audit policy to ingest missing DeviceImageLoad events in MDE, and check for suspicious processes using the ncrypt.dll. More information on the attack scenario this is detection is applicable for can be found in the references.
+query: "let cli_tools = dynamic([\"powershell\", \"python\"]);\n// Get suspicious ncrypt.dll usage via WDAC audit policy\nDeviceEvents\n| where ActionType startswith \"AppControl\" and FileName =~ \"ncrypt.dll\"\n| invoke FileProfile(InitiatingProcessSHA1, 1000)\n| where (\n    // Flag CLI tools\n    InitiatingProcessFileName has_any (cli_tools) or \n    // Flag unknown processes\n    GlobalPrevalence < 250\n)\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1606
+    - T1555.004
+author: Robbe Van den Daele
+version: "1"
+references:
+    - https://hybridbrothers.com/detecting-non-privileged-windows-hello-abuse/
+    - https://github.com/dirkjanm/ROADtools/blob/master/winhello_assertion/hellopoc.ps1

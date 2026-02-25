@@ -1,0 +1,57 @@
+id: 6aabe275-6041-4b95-95fa-edb87780238c
+name: IOC with Raven Stealer Artifacts Detection
+description: Detects potential Raven Stealer activity by identifying known artifacts such as specific file paths, created filenames, command-line arguments, network connections, and file hashes.
+query: |
+    let raven_hashes = dynamic([
+        "2e0b41913cac0828faeba29aebbf9e1b36f24e975cc7d8fa7f49212e867a3b38",
+        "28d6fbbdb99e6aa51769bde016c61228ca1a3d8c8340299e6c78a1e004209e55",
+        "252fb240726d9590e55402cebbb19417b9085f08fc24c3846fc4d088e79c9da9"
+    ]);
+    union
+    (
+        // Detects indicators from file creation events.
+        DeviceFileEvents
+        | where
+            SHA256 in (raven_hashes)
+            or
+            (
+                // Note: Common filenames like 'passwords.txt' can be legitimate. Context is key for investigation.
+                FilePath has @"\AppData\Local\RavenStealer\"
+                or FileName in~ ("passwords.txt", "payment.txt", "autofill.txt")
+                or InitiatingProcessFolderPath has @"\RavenStealer\"
+            )
+    ),
+    (
+        // Detects indicators from process creation events.
+        DeviceProcessEvents
+        | where
+            SHA256 in (raven_hashes)
+            or
+            (
+                 // Note: The string 'Crypto Wallets' may appear in legitimate software or related discussions.
+                FolderPath has @"\RavenStealer\"
+                or ProcessCommandLine has_any ("RavenStealer", "Crypto Wallets", "api.telegram.org")
+            )
+    ),
+    (
+        // Detects indicators from network and DNS events.
+        DeviceNetworkEvents
+        | where
+            // Note: Legitimate use of the Telegram app will also trigger this. Correlate with other activity.
+            RemoteUrl has "api.telegram.org"
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+    - TA0006
+    - TA0011
+techniques:
+    - T1555.003
+    - T1041
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cyfirma.com/research/raven-stealer-unmasked-telegram-based-data-exfiltration/

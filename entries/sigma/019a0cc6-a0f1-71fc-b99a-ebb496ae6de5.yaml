@@ -1,0 +1,90 @@
+id: 019a0cc6-a0f1-71fc-b99a-ebb496ae6de5
+name: PowerShell Download and Execute Cradle Associated With PhantomCaptcha
+description: Detects the use of a PowerShell download cradle, a technique observed in the PhantomCaptcha campaign to download and execute a next-stage payload. This pattern often involves stealthy flags to evade detection.
+query: |
+    title: PowerShell Download and Execute Cradle Associated With PhantomCaptcha
+    id: 50a28e5c-7402-4c33-b24b-c4e9fe243c01
+    status: experimental
+    description: Detects the use of a PowerShell download cradle, a technique
+      observed in the PhantomCaptcha campaign to download and execute a next-stage
+      payload. This pattern often involves stealthy flags to evade detection.
+    references:
+      - https://www.sentinelone.com/labs/phantomcaptcha-multi-stage-websocket-rat-targets-ukraine-in-single-day-spearphishing-operation/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.t1059.001
+      - attack.t1105
+      - attack.execution
+      - attack.command_and_control
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_img:
+        - Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        - OriginalFileName:
+            - 'PowerShell.EXE'
+            - 'pwsh.dll'
+        # Detects commands used to download content from a remote source
+      selection_download:
+        CommandLine|contains:
+          - '(New-Object System.Net.WebClient).DownloadString'
+          - '(New-Object Net.WebClient).DownloadString'
+          - 'Invoke-WebRequest'
+          - 'IWR'
+          - 'Invoke-RestMethod'
+          - 'IRM'
+        # Detects commands used to execute the downloaded content
+      selection_execution:
+        CommandLine|contains:
+          - 'iex'
+          - 'Invoke-Expression'
+          - '[ScriptBlock]::Create'
+        # Detects common flags used to run PowerShell in a stealthy or non-interactive manner
+      selection_flags:
+        CommandLine|contains:
+          - '-NoP' # -NoProfile
+          - '-NonI' # -NonInteractive
+          - '-W Hidden' # -WindowStyle Hidden
+          - '-Exec Bypass' # -ExecutionPolicy Bypass
+          - '-EncodedCommand'
+          - '-e'
+        # Detects the specific parent process execution pattern mentioned in the report
+      selection_parent:
+        ParentImage|endswith: '\conhost.exe'
+        ParentCommandLine|contains: ' --headless '
+      condition: all of selection_img* and selection_download and selection_execution
+        and (1 of selection_flags or selection_parent)
+    falsepositives:
+      - Legitimate administrative or deployment scripts may use similar patterns.
+        Review the script content and context.
+      - The use of stealth flags or the specific parent process significantly
+        increases confidence. Consider tuning by adding more required flags or
+        filtering known safe scripts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059.001
+    - T1105
+    - T1027.010
+    - T1564.011
+tags:
+    - attack.t1059.001
+    - attack.t1105
+    - attack.execution
+    - attack.command_and_control
+author: detections.ai
+version: "3"
+references:
+    - https://www.sentinelone.com/labs/phantomcaptcha-multi-stage-websocket-rat-targets-ukraine-in-single-day-spearphishing-operation/
+data_sources:
+    - process_creation
+    - windows

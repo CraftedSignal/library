@@ -1,0 +1,16 @@
+id: 019c7665-f60f-750a-8851-5318f56f4677
+name: TrustConnect Masquerading Binary Execution
+description: Detects the execution of executables that masquerade as common collaboration tools (e.g., Teams, Zoom, Adobe) but have characteristics of the TrustConnect RAT. TrustConnect uses large (approx. 35MB) .NET Core single-file executables where the internal/original filename is a .dll, which is a mismatch from the .exe process name.
+query: "// Name: TrustConnect Masquerading Binary Execution\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the execution of executables that masquerade as common collaboration tools (e.g., Teams, Zoom, Adobe) but have characteristics of the TrustConnect RAT. TrustConnect uses large (approx. 35MB) .NET Core single-file executables where the internal/original filename is a .dll, which is a mismatch from the .exe process name.\r\n// MITRE ATT&CK: T1036.005 (Match Legitimate Name or Location), T1581.001 (Acquire Infrastructure: Domains)\r\n// References: https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat\r\n// False Positive Sensitivity: Medium. Legitimate installers for collaboration software can be large. The combination of a specific process name, a mismatched original filename (.dll), and the file size range helps to reduce false positives.\r\n// Tuning Suggestion: Consider adding exclusions for known software distribution tools or legitimate installer paths/hashes if legitimate software updates trigger this rule.\r\n// Define the list of suspicious executable and original file names associated with TrustConnect\r\nlet suspiciousExeNames = dynamic([\"MsTeams.exe\", \"ZoomWorkspace.exe\", \"AdobeReader.exe\", \"Proposal.exe\", \"GoogleMeet.exe\", \"Ssa.exe\", \"SpecialEvents.exe\", \"Installer.exe\"]);\r\nlet suspiciousDllNames = dynamic([\"MsTeams.dll\", \"ZoomWorkspace.dll\", \"AdobeReader.dll\", \"Proposal.dll\", \"GoogleMeet.dll\", \"Ssa.dll\", \"SpecialEvents.dll\", \"Installer.dll\"]);\r\nDeviceProcessEvents\r\n// Filter for process creation events\r\n| where ActionType == \"ProcessCreated\"\r\n// Filter for processes with a file size indicative of the TrustConnect payload (approx. 35MB)\r\n| where isnotempty(FileSize) and FileSize between (30000000 .. 45000000)\r\n// Match on the process executable name and the original file name from the version info\r\n| where FileName in~ (suspiciousExeNames) and ProcessVersionInfoOriginalFileName in~ (suspiciousDllNames)\r\n// Further refine by checking that the executable name doesn't match the original file name (e.g., MsTeams.exe having original name MsTeams.dll)\r\n| where tostring(split(FileName, \".\")[0]) == tostring(split(ProcessVersionInfoOriginalFileName, \".\")[0])\r\n// Add additional context for investigation\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    FileSize,\r\n    SHA1,\r\n    ProcessVersionInfoOriginalFileName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    ProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "3"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/dont-trustconnect-its-a-rat

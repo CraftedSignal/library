@@ -1,0 +1,51 @@
+id: 019bea0f-e2f4-7364-b8de-6015752e93a6
+name: Automated FortiGate Config Exfiltration
+description: This rule detects when a system configuration file is downloaded from a FortiGate device within 60 seconds of a successful SSO login from the same user and source IP. This rapid sequence of events is indicative of automated scripts used by attackers to exfiltrate device configurations immediately after gaining initial access.
+query: |
+    // Name: Automated FortiGate Config Exfiltration
+    // Author: detections.ai
+    // Date: 2026-01-23
+    // Description: This rule detects when a system configuration file is downloaded from a FortiGate device within 60 seconds of a successful SSO login from the same user and source IP. This rapid sequence of events is indicative of automated scripts used by attackers to exfiltrate device configurations immediately after gaining initial access.
+    // References:
+    // - https://arcticwolf.com/resources/blog/arctic-wolf-observes-malicious-configuration-changes-fortinet-fortigate-devices-via-sso-accounts/
+    // - https://www.fortinet.com/blog/psirt-blogs/analysis-of-sso-abuse-on-fortios
+    // False Positive Sensitivity: Medium
+    // MITRE TTPs: T1020, T1537
+
+    let timeframe = 60s;
+    // The table name 'Fortinet_Log_Event' is an example. Please replace with your actual table containing Fortinet logs.
+    let sso_logins = Fortinet_Log_Event
+        | where TimeGenerated > ago(timeframe * 2)
+        // Filter for successful SSO admin logins.
+        | where logid == "0100032001" and method == "sso" and status == "success"
+        | project LoginTime = TimeGenerated, devname, user, srcip;
+    Fortinet_Log_Event
+    | where TimeGenerated > ago(timeframe)
+    // Filter for configuration download events.
+    | where logid == "0100032095" and action == "download" and status == "success"
+    // Join config downloads with recent SSO logins from the same user and IP.
+    | join kind=inner (
+        sso_logins
+    ) on devname, user, srcip
+    // Correlate events that happen within the specified timeframe, indicating automation.
+    | where TimeGenerated - LoginTime between (0s .. timeframe)
+    // FP Tuning: A legitimate administrator might perform this action quickly. To reduce potential FPs, consider adding known admin IPs or accounts to an allowlist.
+    | project
+        TimeGenerated,
+        devname,
+        user,
+        srcip,
+        LoginTime,
+        msg
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1020
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog/arctic-wolf-observes-malicious-configuration-changes-fortinet-fortigate-devices-via-sso-accounts/
+    - https://www.fortinet.com/blog/psirt-blogs/analysis-of-sso-abuse-on-fortios

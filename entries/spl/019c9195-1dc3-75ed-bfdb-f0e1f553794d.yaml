@@ -1,0 +1,44 @@
+id: 019c9195-1dc3-75ed-bfdb-f0e1f553794d
+name: FortiGate AI-augmented operations and DCSync detection
+description: This rule detects suspicious network connections to known threat actor infrastructure associated with FortiGate exploitation, successful administrative or VPN logins to FortiGate devices from these IPs, and DCSync-style directory replication access (EventCode 4662) on Windows systems. The rule is composed of three distinct parts targeting different aspects of the attack chain.
+query: |+
+    ## FortiGate AI-augmented operations (AWS + CyberAndRamen)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Refs:
+    ## - https://aws.amazon.com/blogs/security/ai-augmented-threat-actor-accesses-fortigate-devices-at-scale/
+    ## - https://cyberandramen.net/2026/02/21/llms-in-the-kill-chain-inside-a-custom-mcp-targeting-fortigate-devices-across-continents/
+
+    ### Network/proxy/firewall: connections to reported threat actor infrastructure
+    (index=proxy OR index=firewall OR index=netflow) (dest_ip=212.11.64.250 OR dest_ip=185.196.11.225 OR src_ip=212.11.64.250 OR src_ip=185.196.11.225)
+    | stats count min(_time) as first_seen max(_time) as last_seen values(dest_port) as ports values(action) as actions values(url) as urls by src_ip, dest_ip
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Fortinet/FortiGate logs: successful admin/VPN logins from the reported infra IPs (tune field names)
+    (index=fortinet OR sourcetype=fortigate* OR sourcetype=fortinet*) (src=212.11.64.250 OR src=185.196.11.225)
+    | where (like(action,"%login%") OR like(msg,"%login%") OR like(eventtype,"%ssl%") OR like(eventtype,"%vpn%"))
+    | stats count min(_time) as first_seen max(_time) as last_seen values(user) as users values(action) as actions values(msg) as msgs by host, src
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### Windows Security: DCSync-style directory replication access (EventCode 4662)
+    (index=wineventlog OR index=endpoint) (EventCode=4662)
+    | eval Message=coalesce(Message,message)
+    | where like(Message,"%Replicating Directory Changes%")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Message) as examples by Computer, Account_Name
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0006
+    - TA0011
+techniques:
+    - T1003.006
+    - T1105
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://aws.amazon.com/blogs/security/ai-augmented-threat-actor-accesses-fortigate-devices-at-scale/
+    - https://cyberandramen.net/2026/02/21/llms-in-the-kill-chain-inside-a-custom-mcp-targeting-fortigate-devices-across-continents/

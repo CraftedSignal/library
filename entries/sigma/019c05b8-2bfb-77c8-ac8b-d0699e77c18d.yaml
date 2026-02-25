@@ -1,0 +1,58 @@
+id: 019c05b8-2bfb-77c8-ac8b-d0699e77c18d
+name: Unauthorized PBX Resource Enumeration
+description: Detects the execution of Asterisk PBX management commands to enumerate channels or peers, originating from a web server user. This behavior is indicative of a compromised web application or web shell, such as EncystPHP, being used to inspect or hijack telephony resources.
+query: |
+    title: Unauthorized PBX Resource Enumeration
+    id: b6ad321b-6173-4e8b-8ee4-1390c8e0b978
+    status: experimental
+    description: Detects the execution of Asterisk PBX management commands to
+      enumerate channels or peers, originating from a web server user. This behavior
+      is indicative of a compromised web application or web shell, such as
+      EncystPHP, being used to inspect or hijack telephony resources.
+    references:
+      - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+    author: detections.ai
+    date: 2026-01-28
+    tags:
+      - attack.impact
+      - attack.t1496
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_base:
+        Image|endswith: '/asterisk' # Detects the asterisk binary
+        User:
+          # Executed by common web server users
+          - 'www-data'
+          - 'apache'
+          - 'asterisk'
+      selection_cmd:
+        CommandLine|contains:
+          # Detects specific enumeration commands
+          - 'core show channels'
+          - 'sip show peers'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate web-based PBX management panels might perform these actions.
+        Tuning may be required to exclude known legitimate script paths or parent
+        processes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+    - TA0003
+techniques:
+    - T1496
+    - T1505.003
+tags:
+    - attack.impact
+    - attack.t1496
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp
+data_sources:
+    - process_creation
+    - linux

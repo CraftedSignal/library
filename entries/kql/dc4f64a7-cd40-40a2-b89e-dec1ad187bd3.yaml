@@ -1,0 +1,26 @@
+id: dc4f64a7-cd40-40a2-b89e-dec1ad187bd3
+name: '[VL] - New KSMBD DoS (CVE-2025-38501) can exhaust SMB connections via half-open TCP handshakes'
+description: |-
+    New KSMBD DoS (CVE-2025-38501) can exhaust SMB connections via half-open TCP handshakes — patch to Linux 6.1.15+ or rate-limit TCP/445 to mitigate.
+    This KQL query helps to hunt for connection attempts to port 445 across Linux endpoints in Defender XDR:
+query: |-
+    DeviceInfo
+    | where OSPlatform has "Linux"
+    | join kind=inner ( DeviceNetworkEvents) on $left.DeviceId == $right.DeviceId
+    | where RemotePort == 445
+    | extend Geo_ip = tostring(geo_info_from_ip_address(RemoteIP).country)
+    | summarize Connection_Attempts=count() by RemoteIP,Geo_ip,RemotePort, DeviceId, DeviceName
+    | order by Connection_Attempts
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.002
+tags:
+    - KQL
+    - Linux
+    - Sergio Albea
+    - kql
+author: Sergio Albea
+version: "1"

@@ -1,0 +1,21 @@
+id: f71abec4-804a-4a35-bc36-ac8124753c35
+name: Component Object Model (COM) Hijacking
+description: "This KQL detection is designed for use in Microsoft Defender for Endpoint Advanced Hunting or Microsoft Sentinel, depending on table availability. \n\nIt focuses on identifying two common persistence techniques used by threat actors:\n\nCOM hijacking via user-specific registry hives (InprocServer32 and LocalServer32), particularly when leveraged by .NET or PowerShell-based malware; and uncommon registry-based persistence through suspicious keys such as DelegateExecute, TreatAs, and ScriptletURL.\n\nThe KQL focusses on user-specific registry hives as they don't require elevated privileges to modify and is why we also ignore \"nt authority\" activity as this detection is focused on low hanging fruit that would be easily accessible to a threat actor initially for persistence without privilege escalation."
+query: "let dotNetOrPowerShellPersistence =\r\n    DeviceRegistryEvents\r\n    | where isnotempty(RegistryValueData)\r\n    | where RegistryKey has_any (\"HKEY_CURRENT_USER\", \"HKEY_USERS\")\r\n    | where RegistryKey has_any (\"LocalServer32\", \"InprocServer32\")\r\n    | where InitiatingProcessAccountDomain != \"nt authority\"\r\n    | where InitiatingProcessVersionInfoProductName has_any (\".NET\", \"powershell\")\r\n        or InitiatingProcessVersionInfoInternalFileName has_any (\".NET\", \"powershell\")\r\n        or InitiatingProcessVersionInfoOriginalFileName has_any (\".NET\", \"powershell\")\r\n    | extend DetectionType = \"PowerShell/.NET - COM Persistence\";\r\nlet suspiciousKeyPersistence =\r\n    DeviceRegistryEvents\r\n    | where isnotempty(RegistryValueData)\r\n    | where RegistryKey has_any (\"HKEY_CURRENT_USER\", \"HKEY_USERS\")\r\n    | where RegistryKey has_any (\"DelegateExecute\", \"TreatAs\", \"ScriptletURL\")\r\n    | where InitiatingProcessAccountDomain != \"nt authority\"\r\n    | extend DetectionType = \"Uncommon Persistence Key\";\r\ndotNetOrPowerShellPersistence\r\n| union suspiciousKeyPersistence"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1546.015
+    - T1546
+tags:
+    - kql
+version: "1"
+references:
+    - https://bohops.com/2018/06/28/abusing-com-registry-structure-clsid-localserver32-inprocserver32/
+    - https://bohops.com/2018/08/18/abusing-the-com-registry-structure-part-2-loading-techniques-for-evasion-and-persistence/
+    - https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/persistence_suspicious_com_hijack_registry
+    - https://specterops.io/blog/2025/05/28/revisiting-com-hijacking/

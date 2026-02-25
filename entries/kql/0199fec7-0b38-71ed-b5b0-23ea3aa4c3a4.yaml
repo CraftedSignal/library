@@ -1,0 +1,22 @@
+id: 0199fec7-0b38-71ed-b5b0-23ea3aa4c3a4
+name: 'Detect Suspicious Usage of Windows Subsystem for Linux (WSL) '
+description: Detects suspicious activity related to the Windows Subsystem for Linux (WSL), such as installing new distributions (especially penetration testing ones like Kali), importing custom images, or executing commands non-interactively. Attackers may use WSL to run malicious Linux binaries, hide artifacts, and evade defenses.
+query: "// Rule Name: Detect Suspicious Usage of Windows Subsystem for Linux (WSL)\r\n// Author: Arnold Chan\r\n// Date: 2025-10-20\r\n// Rule Description: Detects suspicious activity related to the Windows Subsystem for Linux (WSL), such as installing new distributions (especially penetration testing ones like Kali), importing custom images, or executing commands non-interactively. Attackers may use WSL to run malicious Linux binaries, hide artifacts and evade defenses.\r\n// References:\r\n//  - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1564-Hide%20artifacts\r\n//  - https://learn.microsoft.com/en-us/windows/wsl/install-manual\r\n//  - https://learn.microsoft.com/en-us/windows/wsl/install\r\n//  - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/\r\n//  - https://blog.f-secure.com/hunting-for-windows-subsystem-for-linux/\r\n//  - https://blog.lumen.com/no-longer-just-theory-black-l\r\n\r\nDeviceProcessEvents\r\n| where FileName =~ \"wsl.exe\"\r\n// Look for suspicious command-line arguments associated with WSL.\r\n| where ProcessCommandLine has_any (\"--install\", \"--import\", \"--exec\", \"-e\", \"--mount\")\r\n    // The installation of specific penetration testing distributions is highly suspicious.\r\n    or (ProcessCommandLine has \"--install\" and ProcessCommandLine has \"kali-linux\")\r\n| extend\r\n    // Extract the suspicious command for easier analysis.\r\n    SuspiciousFlag = extract(\"(-[a-z]|--[a-z-]+)\", 0, ProcessCommandLine)\r\n// False Positives: Legitimate use of WSL by developers or system administrators can trigger this alert, especially the '--install' flag.\r\n// Tuning: Consider excluding known developer user accounts or device groups if this generates noise in your environment.\r\n// For example: | where AccountUpn !in (\"developer1@contoso.com\", \"admin_user@contoso.com\")\r\n| project-reorder\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SuspiciousFlag,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1564
+    - T1059
+tags:
+    - kql
+version: "11"
+references:
+    - https://github.com/mdecrevoisier/EVTX-to-MITRE-Attack/tree/master/TA0005-Defense%20Evasion/T1564-Hide%20artifacts
+    - https://learn.microsoft.com/en-us/windows/wsl/install-manual
+    - https://learn.microsoft.com/en-us/windows/wsl/install
+    - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Wsl/
+    - https://blog.f-secure.com/hunting-for-windows-subsystem-for-linux/
+    - https://blog.lumen.com/no-longer-just-theory-black-l

@@ -1,0 +1,63 @@
+id: 019b2c93-a0a7-7548-8ba7-cc5e2eed22b6
+name: Anomalous MSBuild Network Connection
+description: |
+    Detects the legitimate Windows utility MSBuild.exe initiating any outbound network connections. MSBuild.exe is a software build tool and should not typically make network connections outside of development environments. This behavior is highly indicative of process hollowing, where malware injects itself into the MSBuild process to evade defenses, as seen in recent BlindEagle campaigns.
+query: |
+    title: Anomalous MSBuild Network Connection
+    id: fe50dff6-bd37-468d-9e02-1a7bea21af65
+    status: experimental
+    description: >
+      Detects the legitimate Windows utility MSBuild.exe initiating any outbound
+      network connections. MSBuild.exe is a software build tool and should not
+      typically make network connections outside of development environments. This
+      behavior is highly indicative of process hollowing, where malware injects
+      itself into the MSBuild process to evade defenses, as seen in recent
+      BlindEagle campaigns.
+    references:
+      - >-
+        https://www.zscaler.com/blogs/security-research/blindeagle-targets-colombian-government-agency-caminho-and-dcrat
+    author: tim@detections.ai
+    date: 2025-12-17T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1055.012
+    logsource:
+      category: network_connection
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith: \MSBuild.exe
+      filter_loopback:
+        DestinationIp:
+          - 127.0.0.1
+          - '::1'
+      filter_private:
+        DestinationIp:
+          - 10.0.0.0/8
+          - 172.16.0.0/12
+          - 192.168.0.0/16
+          - fc00::/7
+      condition: selection and not 1 of filter_*
+    falsepositives:
+      - Legitimate use of MSBuild for build processes that require network access to
+        fetch dependencies (e.g., from NuGet, Maven, or internal artifact
+        repositories).
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.012
+tags:
+    - attack.defense_evasion
+    - attack.t1055.012
+author: tim@detections.ai
+version: "5"
+references:
+    - https://www.zscaler.com/blogs/security-research/blindeagle-targets-colombian-government-agency-caminho-and-dcrat
+data_sources:
+    - network_connection
+    - windows

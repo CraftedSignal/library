@@ -1,0 +1,127 @@
+id: 019c90bd-35b3-737e-8cb1-51afabde353a
+name: AI Webchat as Covert C2 Proxy via WebView2
+description: This rule detects suspicious activity related to WebView2 processes interacting with AI webchat domains, potentially indicating covert command and control (C2) proxying or other malicious use. It looks for WebView2 traffic to specific AI domains (Grok, Copilot) originating from unusual parent processes, WebView2 access to Grok with URL parameter-driven prompt execution, and suspicious child process execution (cmd.exe, powershell.exe, calc.exe) where WebView2 is the parent process.
+query: |-
+    // AI webchat as covert C2 proxy (Microsoft KQL, Defender XDR Advanced Hunting)
+    // WebView2 driven browser emulation and suspicious follow on execution
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/
+
+    let AiDomains = dynamic(["grok.com","copilot.microsoft.com"]);
+    let AllowParent = dynamic(["msedge.exe","chrome.exe","firefox.exe","Teams.exe","OUTLOOK.EXE","WINWORD.EXE","EXCEL.EXE","POWERPNT.EXE"]);
+    let SuspChild = dynamic(["cmd.exe","powershell.exe","calc.exe"]);
+    let Lookback = 7d;
+
+    // 1) WebView2 traffic to AI webchat domains from an unusual parent
+    let WebView2ToAi =
+    DeviceNetworkEvents
+    | where TimeGenerated >= ago(Lookback)
+    | where InitiatingProcessFileName =~ "msedgewebview2.exe"
+    | extend Url = tostring(RemoteUrl)
+    | extend Host = tolower(tostring(parse_url(Url).Host))
+    | where Host in~ (AiDomains)
+    | where InitiatingProcessParentFileName !in~ (AllowParent)
+    | project TimeGenerated, DeviceId, DeviceName,
+              RemoteUrl, Host, RemoteIP, RemotePort,
+              InitiatingProcessAccountName,
+              InitiatingProcessParentFileName,
+              InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+              ReportId;
+
+    // 2) WebView2 to grok.com with parameter driven prompt execution (q=)
+    let WebView2GrokQ =
+    DeviceNetworkEvents
+    | where TimeGenerated >= ago(Lookback)
+    | where InitiatingProcessFileName =~ "msedgewebview2.exe"
+    | extend Url = tostring(RemoteUrl)
+    | extend Host = tolower(tostring(parse_url(Url).Host))
+    | extend Query = tostring(parse_url(Url).Query)
+    | where Host =~ "grok.com"
+    | where Query has "q="
+    | project TimeGenerated, DeviceId, DeviceName,
+              RemoteUrl, Host, Query, RemoteIP, RemotePort,
+              InitiatingProcessAccountName,
+              InitiatingProcessParentFileName,
+              InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+              ReportId;
+
+    // 3) Follow on suspicious child process execution where parent is msedgewebview2.exe
+    let SuspChildFromWebView2 =
+    DeviceProcessEvents
+    | where TimeGenerated >= ago(Lookback)
+    | where InitiatingProcessFileName =~ "msedgewebview2.exe"
+    | where FileName in~ (SuspChild)
+    | project TimeGenerated, DeviceId, DeviceName,
+              AccountName,
+              FileName, FolderPath, ProcessCommandLine, SHA256,
+              InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+              InitiatingProcessParentFileName,
+              ReportId;
+
+    // Output all three plus a simple correlation view
+    union isfuzzy=true
+    (
+      WebView2ToAi
+      | extend MatchType = "webview2_to_ai_domain_unusual_parent"
+      | project TimeGenerated, DeviceName, MatchType, RemoteUrl, Host, RemoteIP, RemotePort,
+                InitiatingProcessParentFileName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessAccountName, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      WebView2GrokQ
+      | extend MatchType = "webview2_grok_q_parameter"
+      | project TimeGenerated, DeviceName, MatchType, RemoteUrl, Host, RemoteIP, RemotePort,
+                InitiatingProcessParentFileName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessAccountName, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      SuspChildFromWebView2
+      | extend MatchType = "suspicious_child_from_webview2"
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteUrl = "", Host = "", RemoteIP = "", RemotePort = int(null),
+                InitiatingProcessParentFileName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessAccountName = AccountName, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // Correlation: AI domain access then suspicious child within 15 minutes on same device
+      WebView2ToAi
+      | join kind=inner (
+          SuspChildFromWebView2
+        ) on DeviceId
+      | where SuspChildFromWebView2.TimeGenerated between (WebView2ToAi.TimeGenerated .. WebView2ToAi.TimeGenerated + 15m)
+      | extend MatchType = "ai_domain_access_then_susp_child_within_15m"
+      | project TimeGenerated = WebView2ToAi.TimeGenerated,
+                DeviceName,
+                MatchType,
+                RemoteUrl = WebView2ToAi.RemoteUrl,
+                Host = WebView2ToAi.Host,
+                RemoteIP = WebView2ToAi.RemoteIP,
+                RemotePort = WebView2ToAi.RemotePort,
+                InitiatingProcessParentFileName = WebView2ToAi.InitiatingProcessParentFileName,
+                InitiatingProcessFileName = WebView2ToAi.InitiatingProcessFileName,
+                InitiatingProcessCommandLine = WebView2ToAi.InitiatingProcessCommandLine,
+                InitiatingProcessAccountName = WebView2ToAi.InitiatingProcessAccountName,
+                ChildProcessName = SuspChildFromWebView2.FileName,
+                ChildProcessCommandLine = SuspChildFromWebView2.ProcessCommandLine,
+                ChildProcessSHA256 = SuspChildFromWebView2.SHA256,
+                ReportId = WebView2ToAi.ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1090.002
+    - T1071.001
+    - T1059.001
+    - T1059.003
+    - T1102
+    - T1572
+tags:
+    - kql
+version: "4"
+references:
+    - https://research.checkpoint.com/2026/ai-in-the-middle-turning-web-based-ai-services-into-c2-proxies-the-future-of-ai-driven-attacks/

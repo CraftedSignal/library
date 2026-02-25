@@ -1,0 +1,10 @@
+id: 019b77d9-674f-7683-847c-df217b9a583f
+name: Hunting DarkSpectre
+description: https://www.koi.ai/blog/darkspectre-unmasking-the-threat-actor-behind-7-8-million-infected-browsers
+query: "let DSDomains=externaldata(Type:string,Value:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/DarkSpectreIOCs.csv']\r\n| where Type==\"domain\"\r\n| project Value;\r\nlet DSExtensions=externaldata(Type:string,Value:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/DarkSpectreIOCs.csv']\r\n| where Type==\"extensionid\"\r\n| project Value;\r\nlet DomainScan =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has_any(DSDomains);\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"FileCreated\"\r\n| where FileName has_any(DSExtensions)\r\n| union DomainScan"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "2"

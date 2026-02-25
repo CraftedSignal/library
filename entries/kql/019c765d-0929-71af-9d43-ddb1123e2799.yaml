@@ -1,0 +1,16 @@
+id: 019c765d-0929-71af-9d43-ddb1123e2799
+name: Arkanix Stealer Data Staging Folder Activity
+description: Detects the creation of JSON files within the '%LOCALAPPDATA%\Arkanix_lol\' directory. This folder is used by the Arkanix Stealer to stage stolen data before exfiltration, making this activity a strong indicator of infection.
+query: "// Name: Arkanix Data Staging Folder Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects the creation of JSON files within the '%LOCALAPPDATA%\\Arkanix_lol\\' directory. This folder is used by the Arkanix Stealer to stage stolen data before exfiltration, making this activity a strong indicator of infection.\r\n// References: https://securelist.com/arkanix-stealer/119006/\r\n// Tactics: Collection\r\n// Techniques: T1074.001\r\n// False Positive Sensitivity: Low\r\n// Detection Comment Level: Medium\r\nDeviceFileEvents\r\n// Filter for file creation events for higher fidelity\r\n| where ActionType == \"FileCreated\"\r\n// Filter for the specific staging directory used by Arkanix Stealer. The 'has' operator is used to match the unique folder name regardless of the user profile path.\r\n| where FolderPath has @\"\\Arkanix_lol\\\"\r\n// Filter for the JSON files where the stealer temporarily stores the collected data.\r\n| where FileName endswith \".json\"\r\n// False Positives: Highly unlikely due to the unique and hardcoded folder name 'Arkanix_lol'.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    DeviceId,\r\n    ActionType,\r\n    FolderPath,\r\n    FileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessMD5,\r\n    InitiatingProcessSHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1074.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securelist.com/arkanix-stealer/119006/

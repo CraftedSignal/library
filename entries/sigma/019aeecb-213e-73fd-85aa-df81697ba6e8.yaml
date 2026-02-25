@@ -1,0 +1,85 @@
+id: 019aeecb-213e-73fd-85aa-df81697ba6e8
+name: React2Shell Exploitation (CVE-2025-55182)
+description: |
+    Detects React2Shell exploitation attempts via prototype pollution and Node.js
+    gadget invocation. Covers vulnerability scanning, gadget testing, and active
+    RCE exploitation.
+query: |-
+    title: React2Shell Exploitation (CVE-2025-55182)
+    id: d3e8782d-a910-4cba-9b3e-1f1320fb83dd
+    status: stable
+    description: |
+      Detects React2Shell exploitation attempts via prototype pollution and Node.js
+      gadget invocation. Covers vulnerability scanning, gadget testing, and active
+      RCE exploitation.
+    references:
+      - https://securitylabs.datadoghq.com/articles/cve-2025-55182-react2shell-remote-code-execution-react-server-components/
+      - https://github.com/msanft/CVE-2025-55182
+      - https://github.com/PortSwigger/bambdas/blob/main/CustomScanChecks/CVE-2025-55182CVE-2025-66478-React2Shell.bambda
+    author: Tim Peck
+    date: 2025-12-05T00:00:00.000Z
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1190
+      - attack.t1059.007
+      - cve.2025.55182
+    logsource:
+      category: webserver
+      service: apache
+      product: linux
+    detection:
+      base:
+        http.method: POST
+        http.request.header.content-type|contains: multipart/form-data
+      nextjs_headers:
+        http.request.header|contains|all:
+          - Next-Action
+          - X-Nextjs-Request-Id
+      critical_patterns:
+        http.request.body.content|contains:
+          - __proto__
+          - $1:constructor:constructor
+          - '"_prefix":'
+          - vm#runInThisContext
+          - child_process#execSync
+          - process.mainModule.require
+          - '["$1:a:a"]'
+          - fs#readFileSync
+          - execSync("whoami
+          - execSync("id
+          - /etc/passwd
+          - dns.resolve
+          - .oastify.com
+      condition: base and nextjs_headers and critical_patterns
+    falsepositives:
+      - Authorized security scanning
+      - Penetration testing
+    level: critical
+    associated_cves:
+      - CVE-2025-55182
+      - CVE-2025-66478
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1190
+    - T1059.007
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1190
+    - attack.t1059.007
+    - cve.2025.55182
+author: Tim Peck
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/cve-2025-55182-react2shell-remote-code-execution-react-server-components/
+    - https://github.com/msanft/CVE-2025-55182
+    - https://github.com/PortSwigger/bambdas/blob/main/CustomScanChecks/CVE-2025-55182CVE-2025-66478-React2Shell.bambda
+data_sources:
+    - webserver
+    - linux
+    - apache

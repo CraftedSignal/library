@@ -1,0 +1,17 @@
+id: 019c2010-a112-723b-9779-6ad9f7104e79
+name: Detecting "Evil" Exchange Mail Rule Logic
+description: This query parses the complex JSON parameters of the New-TransportRule and Set-TransportRule commands to find instances where email is being secretly copied externally or security is being lowered.
+query: "// KQL Detection for Risky Exchange Transport Rule (ETR) Modifications\r\n// Highlights: External Blind Copies, Security Bypasses, and Forwarding\r\nlet Lookback = 30d;\r\nlet RiskyParams = dynamic([\"BlindCopyTo\", \"RedirectMessageTo\", \"SetSCL\"]);\r\nOfficeActivity\r\n| where TimeGenerated > ago(Lookback)\r\n| where RecordType == \"ExchangeAdmin\"\r\n| where Operation in (\"New-TransportRule\", \"Set-TransportRule\")\r\n// Filter for operations containing our risky parameters in the raw data first for performance\r\n| where Parameters has_any (RiskyParams)\r\n// Parse the Parameters JSON to get structured data\r\n| mv-apply Parameter = parse_json(Parameters) on (\r\n    extend Name = tostring(Parameter.Name), Value = tostring(Parameter.Value)\r\n)\r\n| where Name in (RiskyParams)\r\n// Logic to flag specific risky values\r\n| extend RiskType = case(\r\n    Name in (\"BlindCopyTo\", \"RedirectMessageTo\") and Value matches regex @\"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}\", \"Exfiltration: External Shadow Copy\",\r\n    Name == \"SetSCL\" and toint(Value) == -1, \"Evasion: Spam Filter Bypass (SCL -1)\",\r\n    \"Suspicious Configuration\"\r\n)\r\n| project \r\n    TimeGenerated,\r\n    AdminUser = UserId,\r\n    Operation,\r\n    RuleName = case(Operation == \"New-TransportRule\", tostring(parse_json(Parameters)[0].Value), \"Existing Rule\"),\r\n    RiskType,\r\n    ParameterName = Name,\r\n    ParameterValue = Value,\r\n    ClientIP = ClientIP,\r\n    OriginatingServer\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0005
+    - TA0009
+techniques:
+    - T1114.003
+    - T1114
+tags:
+    - kql
+author: Daniel Miller
+version: "1"

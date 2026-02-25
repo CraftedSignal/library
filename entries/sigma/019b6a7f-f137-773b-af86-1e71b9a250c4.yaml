@@ -1,0 +1,53 @@
+id: 019b6a7f-f137-773b-af86-1e71b9a250c4
+name: Valley RAT Registry Persistence
+description: Detects the creation or modification of registry values used by the Valley RAT malware to store its configuration and modular plugins. Silver Fox operators use this mechanism for persistence and to dynamically update C2 infrastructure.
+query: |
+    title: Valley RAT Registry Persistence
+    id: d6c3f4b2-279d-42cb-a74d-0074485807dc
+    status: experimental
+    description: Detects the creation or modification of registry values used by the
+      Valley RAT malware to store its configuration and modular plugins. Silver Fox
+      operators use this mechanism for persistence and to dynamically update C2
+      infrastructure.
+    references:
+      - https://www.cloudsek.com/blog/silver-fox-targeting-india-using-tax-themed-phishing-lures
+    author: tim@detections.ai
+    date: 2025-12-29
+    tags:
+      - attack.t1112
+      - attack.t1547.001
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection_plugin:
+        # Detects plugin storage using MD5 hash as subkey name
+        TargetObject|re: '.*\\Console\\0\\[a-f0-9]{32}$'
+      selection_c2:
+        # Detects C2 configuration updates
+        TargetObject|endswith: '\Console\IpDate'
+      condition: selection_plugin or selection_c2
+    falsepositives:
+      - Legitimate software using the 'Console' registry key with a conflicting
+        naming convention (e.g., 'IpDate' or a 32-character hex string as a subkey
+        name).
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1112
+    - T1547.001
+tags:
+    - attack.t1112
+    - attack.t1547.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.cloudsek.com/blog/silver-fox-targeting-india-using-tax-themed-phishing-lures
+data_sources:
+    - registry_set
+    - windows

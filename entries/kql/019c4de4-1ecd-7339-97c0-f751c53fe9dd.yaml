@@ -1,0 +1,20 @@
+id: 019c4de4-1ecd-7339-97c0-f751c53fe9dd
+name: Microsoft ClickFix - PowerShell to WScript Execution
+description: This rule detects a specific social engineering technique, dubbed 'ClickFix', where PowerShell is used to launch WScript or CScript. The detection specifically looks for PowerShell being initiated by explorer.exe, indicating a user interaction (e.g., clicking a malicious file or link), and then launching WScript.exe or cscript.exe. The PowerShell command line is expected to contain '-windowstyle minimized -Command' and 'Invoke-WebRequest', suggesting an attempt to download and execute a script in a hidden window.
+query: |
+    // Microsoft ClickFix - Lampion-style PowerShell to WScript
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://www.microsoft.com/en-us/security/blog/2025/08/21/think-before-you-clickfix-analyzing-the-clickfix-social-engineering-technique/
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName == "powershell.exe"
+    | where InitiatingProcessParentFileName == "explorer.exe"
+    | where FileName has_any ("WScript.exe", "cscript.exe")
+    | where ProcessCommandLine contains "\"PowerShell.exe\" -windowstyle minimized -Command"
+        and ProcessCommandLine has "Invoke-WebRequest"
+    | project TimeGenerated, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine
+query_type: kql
+tags:
+    - kql
+version: "2"

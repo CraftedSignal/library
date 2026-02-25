@@ -1,0 +1,18 @@
+id: 019aba69-a970-72ca-aa7d-9bf13d702062
+name: Shai-Hulud KQL from Unit 42 Threat Hunting
+description: This rule set detects several indicators of compromise related to the Shai-Hulud threat activity. It identifies specific malicious file hashes (SHA256) for 'bundle.js' files, the execution of the 'trufflehog' tool which is often abused for secrets discovery, the presence of a malicious YAML file named 'shai-hulud-workflow.yml', and network connections to 'webhook.site' domains, optionally with a specific URI, which are used for data exfiltration or command and control.
+query: "// Description: Detect malicious bundle.js file\r\nlet Hashes = dynamic([\r\n    \"46faab8ab153fae6e80e7cca38eab363075bb524edd79e42269217a083628f09\",\r\n    \"b74caeaa75e077c99f7d44f46daaf9796a3be43ecf24f2a1fd381844669da777\",\r\n    \"dc67467a39b70d1cd4c1f7f7a459b35058163592f4a9e8fb4dffcbba98ef210c\",\r\n    \"4b2399646573bb737c4969563303d8ee2e9ddbd1b271f1ca9e35ea78062538db\"\r\n]);\r\nunion DeviceProcessEvents, DeviceFileEvents\r\n| where SHA256 in (Hashes)\r\n\r\n// Description: Detects Trufflehog usage. Legitimate tool abused by threat actor for secrets discovery. False positives may occur if there is legitimate use.\r\nDeviceProcessEvents\r\n| where ProcessCommandLine has \"trufflehog\"\r\n\r\n// Description: Detect malicious YAML file\r\nDeviceFileEvents\r\n| where FileName == \"shai-hulud-workflow.yml\"\r\n\r\n// Description: Check for connections to any webhook.site domains in raw NGFW URL logs. Optional filter for specific URI observed in use by threat actor.\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_all (\"webhook.site\", \"bb8ca5f6-4175-45d2-b042-fc9ebb8170b7\")"
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+    - TA0001
+techniques:
+    - T1589.001
+    - T1195
+    - T1195.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/npm-supply-chain-attack/

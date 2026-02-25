@@ -1,0 +1,85 @@
+id: 019c8391-19b1-7715-bd0d-7b65b40f48a2
+name: Fake Windows 11 LunarApplication Persistence via TIP Registry
+description: |
+    Detects a combination of suspicious registry persistence under the Microsoft TIP AggregateResults key and PowerShell launched with ExecutionPolicy Unrestricted referencing LunarApplication. Based on publicly described artefacts and intended for tuning and validation.
+query: |
+    title: >-
+      Fake Windows 11 LunarApplication Persistence via TIP Registry
+    id: 8c0a1ad7-2c9f-4f17-9f49-2e5dcb0b45d2
+    status: experimental
+    description: >
+      Detects a combination of suspicious registry persistence under the Microsoft
+      TIP AggregateResults key and PowerShell launched with ExecutionPolicy
+      Unrestricted referencing LunarApplication. Based on publicly described
+      artefacts and intended for tuning and validation.
+    author: Daniel Jeremiah
+    date: 2026-02-21T00:00:00.000Z
+    references:
+      - >-
+        https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+    tags:
+      - attack.persistence
+      - attack.t1112
+      - attack.t1059.001
+    logsource:
+      product: windows
+      category: process_creation
+      service: sysmon
+    detection:
+      selection_process:
+        Category: Process Creation
+        Image|endswith:
+          - \powershell.exe
+          - \pwsh.exe
+        CommandLine|contains:
+          - '-ExecutionPolicy Unrestricted'
+          - LunarApplication
+          - \SYSTEM\Software\Microsoft\TIP\AggregateResults
+      selection_registry_sysmon:
+        EventID:
+          - 12
+          - 13
+          - 14
+        TargetObject|contains: \SYSTEM\Software\Microsoft\TIP\AggregateResults
+        Details|contains: LunarApplication
+      selection_registry_security:
+        EventID: 4657
+        ObjectName|contains: \SYSTEM\Software\Microsoft\TIP\AggregateResults
+        NewValue|contains: LunarApplication
+      condition: >-
+        selection_process or (selection_registry_sysmon or
+        selection_registry_security)
+    falsepositives:
+      - Unknown. The TIP AggregateResults key is uncommon for legitimate software,
+        but validate in your environment.
+    level: medium
+    fields:
+      - Image
+      - CommandLine
+      - ParentImage
+      - User
+      - TargetObject
+      - Details
+      - ObjectName
+      - NewValue
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0002
+techniques:
+    - T1112
+    - T1059.001
+tags:
+    - attack.persistence
+    - attack.t1112
+    - attack.t1059.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/facebook-ads-spread-fake-windows-11-downloads-that-steal-passwords-and-crypto-wallets
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

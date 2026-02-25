@@ -1,0 +1,93 @@
+id: 08eab202-b226-4323-8659-9fea77aecf77
+name: AppSuite PDF Editor Backdoor Activity
+description: Detects various activities associated with the AppSuite PDF Editor backdoor, a trojanized application with extensive backdoor capabilities. This rule looks for specific command-line execution, persistence mechanisms, and network communications.
+query: |
+    title: AppSuite PDF Editor Backdoor Activity
+    id: fa761166-f00b-47bd-80f7-2df0ec02cebd
+    status: experimental
+    description: Detects various activities associated with the AppSuite PDF Editor backdoor, a trojanized application with extensive backdoor capabilities. This rule looks for specific command-line execution, persistence mechanisms, and network communications.
+    references:
+      - https://www.gdatasoftware.com/blog/2025/08/38257-appsuite-pdf-editor-backdoor-analysis
+    author: detections.ai
+    date: 2025-09-07
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.command_and_control
+      - attack.t1059
+      - attack.t1547.001
+      - attack.t1053.005
+      - attack.t1071.001
+    logsource:
+        # This is a composite rule that uses fields from different log categories.
+        # Ensure you have logs for process_creation, scheduled_task_creation, registry_set, and network_connection.
+      product: windows
+    detection:
+        # Detects the backdoor being launched with its specific command line switches
+      selection_process:
+        Image|endswith: '\PDF Editor.exe'
+        CommandLine|contains:
+          - '--cm=--partialupdate'
+          - '--cm=--backupupdate'
+          - '--cm=--fullupdate'
+          - '--cm=--cleanup'
+
+        # Detects the creation of the primary scheduled tasks for persistence
+      selection_schtask:
+        TaskName:
+          - 'PDFEditorScheduledTask'
+          - 'PDFEditorUScheduledTask'
+            # The command executed by the tasks is also a strong indicator
+        CommandLine|contains|all:
+          - 'PDF Editor.exe'
+          - '--cm=--'
+
+        # Detects the creation of the Run key for persistence
+      selection_reg:
+        TargetObject|endswith: '\Software\Microsoft\Windows\CurrentVersion\Run\PDFEditorUpdater'
+        Details|contains: 'PDF Editor.exe'
+
+        # Detects C2 communication via the specific User-Agent
+      selection_network_ua:
+        UserAgent: 'PDFFusion/93HEU7AJ'
+
+        # Detects C2 communication to known domains
+      selection_network_domain:
+        DestinationDnsDomain|endswith:
+          - 'appsuites.ai'
+          - 'sdk.appsuites.ai'
+          - 'log.appsuites.ai'
+          - 'on.appsuites.ai'
+          - 'vault.appsuites.ai'
+
+      condition: 1 of them
+    falsepositives:
+      - The scheduled task names 'ShiftLaunchTask', 'OneLaunchLaunchTask', and 'WaveBrowser-StartAtLogin' mentioned in the report are not included here as they are more generic and could cause false positives if those applications are used legitimately.
+      - The domains and command-line arguments are highly specific to this threat and are unlikely to generate false positives.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0011
+    - TA0004
+techniques:
+    - T1059
+    - T1053.005
+    - T1547.001
+    - T1071.001
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.command_and_control
+    - attack.t1059
+    - attack.t1547.001
+    - attack.t1053.005
+    - attack.t1071.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.gdatasoftware.com/blog/2025/08/38257-appsuite-pdf-editor-backdoor-analysis
+data_sources:
+    - windows

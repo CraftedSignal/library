@@ -1,0 +1,39 @@
+id: 019c4328-0310-777a-b8d6-ff6d7a7e1d2f
+name: Suspicious Pythonw Payload Execution (ModeloRAT)
+description: Detects the execution of specific Python scripts (modes.py, extentions.py, or udp.pyw) using the silent pythonw.exe interpreter. This activity is associated with the ModeloRAT malware, which is used in the CrashFix campaign, indicating potential persistence or execution of malicious payloads.
+query: |
+    // Name: Suspicious Pythonw Payload Execution
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-09
+    // Description: Detects the execution of Python scripts (specifically modes.py, extentions.py, or udp.pyw) using the silent pythonw.exe interpreter, which is a common persistence and execution method for the ModeloRAT used in the CrashFix campaign.
+    // MITRE ATT&CK: T1059.006 (Python), T1547.001 (Registry Run Keys / Startup Folder)
+    // References: https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for command lines executing specific python scripts associated with ModeloRAT.
+    | where ProcessCommandLine has_any ("modes.py", "extentions.py", "udp.pyw")
+    // The malware uses pythonw.exe to execute silently without a console window.
+    | where InitiatingProcessFileName =~ "pythonw.exe" or ProcessCommandLine has "pythonw.exe"
+    // Potential False Positives: While the script names are specific to this threat, legitimate applications could potentially use similar names.
+    // Consider adding exclusions for known good software paths if false positives occur.
+    // Example: | where not InitiatingProcessFolderPath has_prefix "C:\\Program Files\\LegitPythonApp"
+    // Extract the script name for better context.
+    | extend MaliciousScriptName = extract(@'(\w+\.pyw?)', 0, ProcessCommandLine)
+    // Map key fields to entities for incident context and investigation.
+    | extend
+        AccountCustomEntity = AccountName,
+        HostCustomEntity = DeviceName,
+        FileCustomEntity = MaliciousScriptName,
+        CommandLineCustomEntity = ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/05/clickfix-variant-crashfix-deploying-python-rat-trojan/

@@ -1,0 +1,14 @@
+id: 019c1b92-7ca3-76ff-8446-f054909c81e5
+name: ClawdBot Malware Hash Detection
+description: This rule detects the presence or execution of known malicious file hashes associated with the ClawdBot campaign. It monitors file creation/modification events, process creation events, and module/image load events across devices for specific SHA256 hashes. The identified hashes correspond to components like 'Code.exe', 'zoomupdate.msi', 'DWrite.dll', 'extension.js', and 'run.bat', which are known to be part of the ClawdBot malware.
+query: "// Detect known malicious file hashes from ClawdBot campaign\r\nlet MaliciousHashes = dynamic([\r\n    \"e20b920c7af988aa215c95bbaa365d005dd673544ab7e3577b60fecf11dcdea2\", // Code.exe / zoomupdate.msi\r\n    \"d1e0c26774cb8beabaf64f119652719f673fb530368d5b2166178191ad5fcbea\", // DWrite.dll\r\n    \"adbcdb613c04fd51936cb0863d2417604db0cd04792ab7cae02526d48944c77b\", // extension.js\r\n    \"04ef48b104d6ebd05ad70f6685ade26c1905495456f52dfe0fb42f550bd43388\"  // run.bat\r\n]);\r\nunion\r\n(\r\n    DeviceFileEvents\r\n    | where Timestamp > ago(90d)\r\n    | where SHA256 in (MaliciousHashes)\r\n),\r\n(\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(90d)\r\n    | where SHA256 in (MaliciousHashes)\r\n),\r\n(\r\n    DeviceImageLoadEvents\r\n    | where Timestamp > ago(90d)\r\n    | where SHA256 in (MaliciousHashes)\r\n)\r\n| project \r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

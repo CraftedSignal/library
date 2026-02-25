@@ -1,0 +1,50 @@
+id: 019a92ac-531b-7360-935f-99c806dc259f
+name: GlassWorm C2 Activity via Solana Blockchain
+description: Detects network traffic to Solana RPC endpoints containing the wallet address associated with the GlassWorm malware. GlassWorm uses the Solana blockchain as a resilient C2 mechanism by querying for transactions from an attacker-controlled wallet.
+query: |
+    // Name: GlassWorm C2 Activity via Solana Blockchain
+    // Author: detections.ai
+    // Date: 2025-11-17
+    // Description: Detects network traffic to Solana RPC endpoints containing the wallet address associated with the GlassWorm malware. GlassWorm uses the Solana blockchain as a resilient C2 mechanism by querying for transactions from an attacker-controlled wallet.
+    // MITRE ATT&CK: T1102.004 (Web Service: Command and Control)
+    // References: https://www.koi.ai/blog/glassworm-first-self-propagating-worm-using-invisible-code-hits-openvsx-marketplace
+    // False Positive Sensitivity: Medium
+
+    // Define known GlassWorm IOCs
+    let glassworm_wallet = "28PKnu7RzizxBzFPoLp69HLXp9bJL3JFtT2s5QzHsEA2";
+    // Define known Solana RPC endpoints. This list can be expanded based on your environment's traffic.
+    let solana_rpc_domains = dynamic([
+        "api.mainnet-beta.solana.com",
+        "api.devnet.solana.com",
+        "api.testnet.solana.com",
+        "rpc.ankr.com" // Ankr provides public RPCs for many chains including Solana
+    ]);
+
+    // This query uses DeviceNetworkEvents and can only inspect the URL, not the request body.
+    // It may miss detections where the wallet address is sent in a POST request body.
+    DeviceNetworkEvents
+    | where Timestamp > ago(1d)
+    // Filter for traffic to known Solana RPC endpoints.
+    | where RemoteUrl has_any (solana_rpc_domains) or RemoteUrl has "solana"
+    // The core detection: search for the attacker's wallet address in the URL.
+    | where RemoteUrl has glassworm_wallet
+    | extend timestamp = Timestamp, HostName = DeviceName, Account = InitiatingProcessAccountUpn
+    // FP Mitigation: Legitimate cryptocurrency applications or security researchers analyzing the malware might trigger this alert.
+    // Consider filtering by specific processes or excluding known research machines if this becomes noisy.
+    // Example: | where InitiatingProcessFileName !in ("my_crypto_app.exe")
+    | project
+        timestamp,
+        HostName,
+        Account,
+        InitiatingProcessFileName,
+        LocalIP,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.koi.ai/blog/glassworm-first-self-propagating-worm-using-invisible-code-hits-openvsx-marketplace

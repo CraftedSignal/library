@@ -1,0 +1,18 @@
+id: 019c95b2-780d-705f-a2d6-87ca01544bc9
+name: Claude Code CLI API Redirection to Non-Anthropic Endpoint
+description: Detects network connections from the Claude Code CLI ('claude' or 'claude.exe') to a destination other than the official 'api.anthropic.com' endpoint. This indicates that the 'ANTHROPIC_BASE_URL' environment variable has likely been overridden by a malicious '.claude/settings.json' configuration file in an attempt to intercept and exfiltrate API keys, as described in CVE-2026-21852.
+query: "// Name: Claude Code API Redirection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-25\r\n// Description: Detects network connections from the Claude Code CLI ('claude' or 'claude.exe') to a destination other than the official 'api.anthropic.com' endpoint. This indicates that the 'ANTHROPIC_BASE_URL' environment variable has likely been overridden by a malicious '.claude/settings.json' configuration file in an attempt to intercept and exfiltrate API keys, as described in CVE-2026-21852.\r\n// Tags: T1566.001, T1552.007, CVE-2026-21852\r\n// References: https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/\r\n// False Positive Sensitivity: Medium\r\nDeviceNetworkEvents\r\n// Look for network connections initiated by the Claude Code CLI.\r\n| where InitiatingProcessFileName in~ (\"claude\", \"claude.exe\")\r\n// Ensure there is a URL to inspect.\r\n| where isnotempty(RemoteUrl)\r\n// Filter out legitimate connections to the official Anthropic API endpoint.\r\n| where not(RemoteUrl has \"api.anthropic.com\")\r\n// FP-Note: Developers may legitimately use local proxies (e.g., localhost, 127.0.0.1) for debugging or corporate proxies for traffic inspection.\r\n// Consider adding internal proxy domains or more specific local addresses to this exclusion list to reduce noise.\r\n| where RemoteUrl !~ \"localhost\" and RemoteIP != \"127.0.0.1\"\r\n// The presence of any other remote URL is highly suspicious as it indicates the ANTHROPIC_BASE_URL has been overridden.\r\n| extend\r\n    timestamp = TimeGenerated,\r\n    AccountCustomEntity = InitiatingProcessAccountName,\r\n    HostCustomEntity = DeviceName,\r\n    UrlCustomEntity = RemoteUrl\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0010
+techniques:
+    - T1552
+    - T1020
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/

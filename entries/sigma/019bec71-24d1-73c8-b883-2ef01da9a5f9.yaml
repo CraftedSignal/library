@@ -1,0 +1,43 @@
+id: 019bec71-24d1-73c8-b883-2ef01da9a5f9
+name: KONNI Scheduled Task Persistence with Obfuscated PowerShell
+description: This rule detects the KONNI malware's persistence mechanism, which involves creating a scheduled task disguised as a OneDrive startup task. The task is configured to execute hourly and launches an obfuscated PowerShell script. The detection logic specifically looks for the creation of a scheduled task using 'schtasks.exe' with hourly execution, a command line containing 'OneDrive' and 'Startup Task', and a hidden PowerShell window. Additionally, it detects the execution phase where 'powershell.exe' is launched by 'schtasks.exe', reading a file from 'C:\ProgramData\VljE', and performing XOR decryption. A third selection identifies obfuscated PowerShell execution involving 'Invoke-Expression', text encoding, and XOR decryption. The rule triggers if either the task creation pattern is observed or if both the task execution and obfuscated execution patterns are observed.
+query: |
+    title: KONNI Scheduled Task Persistence with Obfuscated PowerShell
+    id: d39afe24-3b0d-4caf-bf76-d46df4bc9b38
+    status: experimental
+    description: Detects KONNI scheduled task persistence mechanism disguised as OneDrive startup task with hourly execution and XOR-decrypted PowerShell backdoor
+    author: Daniel Jeremiah
+    date: 2025-01-23
+    references:
+        - https://research.checkpoint.com/2026/konni-targets-developers-with-ai-malware/
+    tags:
+        - attack.persistence
+        - attack.defense_evasion
+        - attack.t1053.005
+        - attack.t1059.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_task_creation:
+            Image|endswith: '\schtasks.exe'
+            CommandLine|re: '(?i)/create.*/sc\s+hourly.*/mo\s+1'
+            CommandLine|re: '(?i)(OneDrive.*Startup.*Task|Startup.*Task.*OneDrive)'
+            CommandLine|re: '(?i)(powershell.*-w\s+h|powershell.*-WindowStyle\s+Hidden)'
+        selection_task_execution:
+            Image|endswith: '\powershell.exe'
+            CommandLine|re: '(?i)(-w\s+h|-WindowStyle\s+Hidden)'
+            CommandLine|re: '(?i)(\[IO\.File\]::ReadAllBytes.*C:\\ProgramData\\VljE|ProgramData.*VljE.*ReadAllBytes)'
+            CommandLine|re: '(?i)(bxor|\^.*XOR)'
+            ParentImage|endswith: '\schtasks.exe'
+        selection_obfuscated_exec:
+            Image|endswith: '\powershell.exe'
+            CommandLine|re: '(?i)(iex\s+\$|Invoke-Expression.*\$|\.GetString.*iex)'
+            CommandLine|re: '(?i)(\[Text\.Encoding\]|UTF8\.GetString)'
+            CommandLine|re: '(?i)(bxor|XOR.*decrypt)'
+        condition: selection_task_creation or (selection_task_execution and selection_obfuscated_exec)
+    falsepositives:
+        - Legitimate scheduled tasks with similar patterns (check for OneDrive task name and hourly execution)
+    level: high
+query_type: sigma
+version: "2"

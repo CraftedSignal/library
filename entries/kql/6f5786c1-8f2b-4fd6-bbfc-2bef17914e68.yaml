@@ -1,0 +1,56 @@
+id: 6f5786c1-8f2b-4fd6-bbfc-2bef17914e68
+name: ClickFix-Style use of PowerShell to Potentially Install Malware
+description: This KQL/MDE query looks for the user of PowerShell initiated from explorer that could indicate Win+R or Win+X initiation. It will extract a URL from the command and display it if present
+query: |
+    // Name: ClickFix Style Command Execution via Explorer
+    // Author: detections.ai with adjustments by John Bambenek / jcb@bambenekconsulting.com
+    // Date: 2025-08-05
+    // Description: Detects suspicious command-line execution patterns consistent with the ClickFix attack vector, where a user is tricked into pasting and running malicious commands. This rule looks for command interpreters like PowerShell, CMD, and MSHTA being launched by explorer.exe (indicative of the Run dialog or Win+X menu) with command lines that download or execute remote code.
+    // References: https://unit42.paloaltonetworks.com/preventing-clickfix-attack-vector/
+    // False Positive Sensitivity: Medium
+
+    let commandInterpreters = dynamic(["powershell.exe", "cmd.exe", "mshta.exe", "cscript.exe", "curl.exe"]);
+    let downloadExecKeywords = dynamic([
+        "IEX", "Invoke-Expression", "DownloadString", "DownloadFile", "Net.WebClient", // PowerShell download/exec
+        "-enc", "-encoded", // PowerShell obfuscation
+        "certutil", "bitsadmin", // LOLBAS downloaders
+        "http:", "https:" // Protocol indicators
+    ]);
+    // Populate this with internal domains or other safe domains relevant for your organization
+    let safe_domains = pack_array("localhost", "127.0.0.1");
+
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    // Key Logic: Look for command interpreters spawned directly from explorer.exe.
+    // This is a common pattern for commands executed via the Run dialog (Win+R) or the Win+X menu.
+    | where InitiatingProcessFileName =~ "explorer.exe" and FileName in (commandInterpreters)
+    // Key Logic: Check for command lines containing keywords related to downloading or executing code.
+    | where ProcessCommandLine has_any (downloadExecKeywords)
+    // Combine patterns for higher fidelity based on the threat report
+    | where
+        (FileName =~ "powershell.exe" and ProcessCommandLine has_any ("IEX", "Invoke-Expression", "DownloadString", "Net.WebClient", "-enc", "-encoded")) or
+        (FileName =~ "cmd.exe" and ProcessCommandLine has_any ("curl", "certutil", "bitsadmin") and ProcessCommandLine has "http") or
+        (FileName =~ "mshta.exe" and ProcessCommandLine has "http") or
+        (FileName =~ "cscript.exe" and ProcessCommandLine has_any (".js", ".vbs", ".txt")) or
+        (FileName =~ "curl.exe" and ProcessCommandLine has "http")
+    | extend URL = tolower(extract(@"http[s]?;//[^\s/""\)\>,]+, 0, ProcessCommandLine"))
+    | where not(URL has_any (safe_domains))
+    // Potential False Positives: Power users or administrators may legitimately run similar commands from the Run dialog.
+    // Tuning Suggestion: Exclude known administrative scripts, tools, or specific command line patterns if they generate noise in your environment.
+    // For example: | where ProcessCommandLine !contains "C:\\AdminScripts\\tool.ps1"
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        URL
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: John Bambenek
+version: "1"

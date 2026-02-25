@@ -1,0 +1,14 @@
+id: 0199c11e-912b-719d-b9ca-10bb4e0ab63f
+name: Rclone Exfiltration from GoAnywhere or Shell
+description: Detects the use of the rclone tool with data transfer commands (copy, move, sync, copyto, moveto) originating from a GoAnywhere server process or common interactive shell processes (cmd.exe, powershell.exe). This activity is highly suspicious and could indicate data exfiltration.
+query: "let rclone_commands = dynamic([\"copy\", \"move\", \"sync\", \"copyto\", \"moveto\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n| where FileName =~ \"rclone.exe\"\r\n| where ProcessCommandLine has_any (rclone_commands)\r\n| where InitiatingProcessFolderPath contains @\"\\GoAnywhere\\\"\r\n    or InitiatingProcessFileName in~ (\"cmd.exe\", \"powershell.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFolderPath,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1048
+    - T1567
+tags:
+    - kql
+version: "1"

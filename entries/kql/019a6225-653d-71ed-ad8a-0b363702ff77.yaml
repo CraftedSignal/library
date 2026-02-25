@@ -1,0 +1,11 @@
+id: 019a6225-653d-71ed-ad8a-0b363702ff77
+name: First-time Sign-in from New Country
+description: Detect unauthorized access by identifying new country sign-ins for users through AADSignInEventsBeta analytics.
+query: "//First-time Sign-in from New Country or Location\n//Title: Detecting Sign-ins from New Countries Using AADSignInEventsBeta\n//Objective: Identify sign-in events where users have accessed resources from countries they haven't previously signed in from, using the AADSignInEventsBeta schema. This helps detect potential account compromise or unauthorized access.\n\nlet historical = materialize (\n    AADSignInEventsBeta\n    | where TimeGenerated between (ago(30d) .. ago(2d))\n    | summarize KnownCountries = make_set(Country) by AccountUpn\n);\nAADSignInEventsBeta\n| where TimeGenerated > ago(1d)\n| join kind=leftouter historical on AccountUpn\n| where isnotempty(Country)\n| extend IsNewCountry = iff(KnownCountries has Country, false, true)\n| where IsNewCountry == true\n| project TimeGenerated, AccountUpn, Country, IPAddress, City, Application\n\n//Hereâ\x80\x99s a breakdown of your KQL query line by line\n//Step 1: Create a historical reference of known countries per user\n\n//Purpose: Build a reference table of countries each user has signed in from over the past 30 to 2 days.\n//materialize: Optimizes performance by caching the result.\n//make_set(Country): Collects all unique countries per user\n\n//Step 2: Filter recent sign-ins (last 1 day)\n//Step 3: Join recent sign-ins with historical data\n//Purpose: Attach historical country data to each recent sign-in.\n//leftouter: Ensures all recent sign-ins are retained, even if no historical data exists.\n\n//Step 4: Filter out empty country values\n//Purpose: Remove sign-ins where country information is missing.\n\n//Step 5: Determine if the country is new for the user\n//Purpose: Flag sign-ins from countries not seen in the historical data.\n\n//Step 6: Filter for new country sign-ins\n//Purpose: Only keep sign-ins from new countries.\n\n//Step 7: Project relevant details\n//Purpose: Display key information for investigation."
+query_type: kql
+severity: medium
+techniques:
+    - T1078
+tags:
+    - kql
+version: "3"

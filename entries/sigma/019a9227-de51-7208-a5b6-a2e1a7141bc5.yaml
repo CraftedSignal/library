@@ -1,0 +1,59 @@
+id: 019a9227-de51-7208-a5b6-a2e1a7141bc5
+name: DigitStealer Dynamic Launch Agent Persistence
+description: Detects the creation of a Launch Agent .plist file used by the DigitStealer malware. This Launch Agent dynamically retrieves its payload from a DNS TXT record, a technique used for resilient persistence.
+query: |
+    title: DigitStealer Dynamic Launch Agent Persistence
+    id: 52d0457c-a59c-4a33-bf19-bb5710e7c29b
+    status: experimental
+    description: Detects the creation of a Launch Agent .plist file used by the
+      DigitStealer malware. This Launch Agent dynamically retrieves its payload from
+      a DNS TXT record, a technique used for resilient persistence.
+    references:
+      - https://www.jamf.com/blog/jtl-digitstealer-macos-infostealer-analysis/
+    author: detections.ai
+    date: 2025-11-17
+    tags:
+      - attack.persistence
+      - attack.t1543.001
+      - attack.t1071.004
+    logsource:
+      category: file_creation
+      product: macos
+    detection:
+      selection:
+        # Detects .plist files created in user LaunchAgents directories
+        TargetFilename|contains: '/Library/LaunchAgents/'
+        TargetFilename|endswith: '.plist'
+      keywords:
+        # Looks for keywords indicative of fetching and executing a payload from a DNS TXT record within the plist file
+        FileContents|contains|all:
+          - '<key>ProgramArguments</key>'
+          - 'dig'
+          - '+short'
+          - 'TXT'
+          - 'osascript'
+      condition: selection and keywords
+    falsepositives:
+      - Legitimate administrative scripts that use DNS TXT records to fetch
+        configuration are rare but possible.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0011
+techniques:
+    - T1543.001
+    - T1071.004
+tags:
+    - attack.persistence
+    - attack.t1543.001
+    - attack.t1071.004
+author: detections.ai
+version: "2"
+references:
+    - https://www.jamf.com/blog/jtl-digitstealer-macos-infostealer-analysis/
+data_sources:
+    - file_creation
+    - macos

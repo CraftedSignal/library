@@ -1,0 +1,17 @@
+id: 0c320c72-d1df-457e-8e7c-9a72a48c217f
+name: Sign-ins from Malicious IPs with Valid Credentials or Token Claims
+description: |-
+    This KQL detection rule identifies suspicious login attempts in the SigninLogs dataset where a sign-in was blocked because it originated from an IP address flagged for malicious activity.
+
+    The rule specifically focuses on cases where valid credentials or token claims were used during the authentication process.
+query: "SigninLogs\r\n| where ResultDescription == \"Sign-in was blocked because it came from an IP address with malicious activity\"\r\n| extend [\"Password Result Detail\"] = tostring(parse_json(AuthenticationDetails)[0].authenticationStepResultDetail), [\"MFA Result Detail\"] = tostring(parse_json(AuthenticationDetails)[1].authenticationStepResultDetail)\r\n| where ['Password Result Detail']  has_any (\"Correct password\", \"First factor requirement satisfied by claim in the token\")\r\n| project\r\n    TimeGenerated,\r\n    UserPrincipalName,\r\n    UserDisplayName,\r\n    IPAddress,\r\n    Location,\r\n    ResultType,\r\n    ResultDescription,\r\n    AppDisplayName,\r\n    ['Password Result Detail'],\r\n    ['MFA Result Detail'],\r\n    UserAgent"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+tags:
+    - kql
+author: Andre Zeemering
+version: "1"

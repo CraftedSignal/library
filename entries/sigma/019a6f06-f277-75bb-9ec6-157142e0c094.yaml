@@ -1,0 +1,59 @@
+id: 019a6f06-f277-75bb-9ec6-157142e0c094
+name: LANDFALL Spyware Exploitation via LD_PRELOAD
+description: Detects post-exploitation behavior of LANDFALL spyware on Samsung devices. After exploiting CVE-2025-21042, the spyware uses LD_PRELOAD to inject a malicious shared object (.so) from its working directory (`/data/data/com.samsung.ipservice/files/`) into the benign `/system/bin/id` process, often via a shell wrapper.
+query: |
+    title: LANDFALL Spyware Exploitation via LD_PRELOAD
+    id: 05d20a56-e89a-437a-9da6-58bf6cd14063
+    status: experimental
+    description: Detects post-exploitation behavior of LANDFALL spyware on Samsung
+      devices. After exploiting CVE-2025-21042, the spyware uses LD_PRELOAD to
+      inject a malicious shared object (.so) from its working directory
+      (`/data/data/com.samsung.ipservice/files/`) into the benign `/system/bin/id`
+      process, often via a shell wrapper.
+    references:
+      - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+    author: detections.ai
+    date: 2025-11-10
+    tags:
+      - attack.privilege_escalation
+      - attack.defense_evasion
+      - attack.t1548.004
+      - cve.2025.21042
+      - detection.emerging_threats
+    logsource:
+      product: linux # This rule is intended for Android systems, which are based on the Linux kernel.
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith: '/sh' # The command is dispatched via a shell wrapper as noted in the report.
+        CommandLine|contains|all:
+          - 'LD_PRELOAD=' # LD_PRELOAD is used to inject the malicious library.
+          - '/data/data/com.samsung.ipservice/files/' # Specific working directory for LANDFALL components.
+          - '.so' # The injected file is a shared object library.
+          - '/system/bin/id' # The benign process used to host the malicious code.
+      condition: selection
+    falsepositives:
+      - Legitimate applications using `LD_PRELOAD` from this specific directory,
+        although highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.006
+tags:
+    - attack.privilege_escalation
+    - attack.defense_evasion
+    - attack.t1548.004
+    - cve.2025.21042
+    - detection.emerging_threats
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/landfall-is-new-commercial-grade-android-spyware/
+data_sources:
+    - process_creation
+    - linux

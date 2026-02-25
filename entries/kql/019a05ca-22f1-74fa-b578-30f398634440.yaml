@@ -1,0 +1,13 @@
+id: 019a05ca-22f1-74fa-b578-30f398634440
+name: Unmasking MonsterV2 Behavioral Detection – ClickFix Campaign
+description: Detects potential TA585 / MonsterV2 command-and-control (C2) behavior linked to the ClickFix campaign. This rule identifies hosts that first contact api.ipify.org (used by malware to determine external IP) and subsequently connect to a non-private IP on port 7712 or known TA585 C2 infrastructure, indicating possible beaconing activity after initial reconnaissance.
+query: "let Lookback = 3d;\r\nlet PreC2Behaviour =\r\n    DeviceNetworkEvents\r\n    | where Timestamp > ago(Lookback)\r\n    | where RemoteUrl has \"api.ipify.org\"\r\n    | distinct DeviceName;\r\nlet TA585_C2_IPs = dynamic([\r\n    \"139.180.160.173\",\r\n    \"155.138.150.12\",\r\n    \"83.217.208.77\",\r\n    \"91.200.14.69\",\r\n    \"212.102.255.102\",\r\n    \"84.200.154.105\",\r\n    \"144.172.117.158\",\r\n    \"109.120.137.128\",\r\n    \"84.200.17.240\",\r\n    \"84.200.77.213\",\r\n    \"79.133.51.100\"\r\n]);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(Lookback)\r\n| where RemoteIP in (TA585_C2_IPs) and RemotePort == 7712\r\n| where DeviceName in (PreC2Behaviour)\r\n| project Timestamp, DeviceName, RemoteIP, RemotePort, RemoteUrl, LocalIP, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, InitiatingProcessAccountUpn, DeviceId, ReportId\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1071.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/when-monster-bytes-tracking-ta585-and-its-arsenal?utm_source=chatgpt.com

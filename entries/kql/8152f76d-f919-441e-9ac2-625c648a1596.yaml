@@ -1,0 +1,13 @@
+id: 8152f76d-f919-441e-9ac2-625c648a1596
+name: Wireless Connected Workstation Network Configuration and Geolocation
+description: This query is designed to inventory Wi-Fi-connected devices and their network configurations, identify public IP addresses in use, and geolocate those IPs to detect anomalies (e.g., a device showing a public IP from an unexpected country). It also provides visibility into network adapter details, including vendor and status.
+query: "## \U0001F50D KQL Description\n#### This query is designed to:\n#### 1.Inventory Wi-Fi-connected devices and their network configurations.\n#### 2.Identify public IP addresses in use.\n#### 3.Geolocate those IPs to detect anomalies (e.g., a device showing a public IP from an unexpected country).\n#### 4.Provide visibility into network adapter details, including vendor and status.\n## \U0001F9E9 MITRE ATT&CK Mapping\n#### Tactic:Discovery (TA0007)\n#### Technique: System Network Configuration Discovery (T1016)\n#### Sub-Technique: T1016.001 (Internet Connection Discovery)\n### Query:\n```KQL\nDeviceNetworkInfo\n| extend Network_Name = tostring(parse_json(ConnectedNetworks)[0][\"Name\"])\n| where isnotempty(Network_Name) and NetworkAdapterType has \"Wireless80211\"\n| extend IP_info = (todynamic(parse_json(IPAddresses)))\n| mv-expand IP_info\n| extend Ip_Received = tostring(parse_json(IP_info).IPAddress)\n| extend IP_Type = tostring(parse_json(IP_info).AddressType)\n| extend geo_ip = todynamic(geo_info_from_ip_address(Ip_Received).country)\n| mv-expand geo_ip\n| summarize  by  Network_Name, DefaultGateways, DnsAddresses,DeviceName, Ip_Received,IP_Type, tostring(geo_ip), NetworkAdapterName, NetworkAdapterStatus, NetworkAdapterType, NetworkAdapterVendor\n```\n"
+query_type: kql
+tactics:
+    - TA0007
+techniques:
+    - T1016
+    - T1016.001
+tags:
+    - kql
+version: "1"

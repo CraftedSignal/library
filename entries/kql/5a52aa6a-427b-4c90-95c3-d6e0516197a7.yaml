@@ -1,0 +1,30 @@
+id: 5a52aa6a-427b-4c90-95c3-d6e0516197a7
+name: Linux Syslog– Suspicious Use of curl or wget to External Domains
+description: |+
+    Detects suspicious use of curl or wget on Linux systems to download content from external domains. The detection extracts target domains from the command line arguments and filters out known legitimate destinations (e.g., GitHub, Linux package mirrors).
+
+    Optionally, it enriches results with data from the ThreatIntelligenceIndicator table to highlight known malicious domains associated with malware, C2, or APT activity. This can be used to prioritize alerts or support automated scoring.
+
+    The detection is based on syslog and is designed to reduce noise while preserving high-value findings.
+
+query: "let AllowedDomains = dynamic([\r\n    \"github.com\", \"raw.githubusercontent.com\", \"gitlab.com\", \r\n    \"packages.debian.org\", \"archive.ubuntu.com\"\r\n]);\r\n// Step 1: Find suspicious curl or wget usage\r\nDeviceProcessEvents\r\n| where OperatingSystem == \"Linux\"\r\n| where FileName in~ (\"curl\", \"wget\")\r\n| where ProcessCommandLine has_any (\"http\", \"https\")\r\n// Step 2: Extract the domain from the command line\r\n| extend targetDomain = extract(@\"https?://([^/\\s]+)\", 1, ProcessCommandLine)\r\n| where isnotempty(targetDomain)\r\n// Step 3: Exclude common/allowed domains to reduce noise\r\n| where targetDomain !in (AllowedDomains)\r\n// Step 4: (Optional) Join with Threat Intelligence — \r\n    | join kind=leftouter (\r\n   ThreatIntelligenceIndicator\r\n   | where Active == true\r\n   | where Description has_any (\"APT\", \"Malware\", \"C2\")  // Optional refinement\r\n   | project TIIndicator = Indicator, ThreatType, ConfidenceScore, ActivityGroupNames\r\n) on $left.targetDomain == $right.TIIndicator\r\n| extend TI_Hit = iff(isnotempty(ThreatType), \"Yes\", \"No\") */\r\n// Final output\r\n| project Timestamp, DeviceName, FileName, ProcessCommandLine, targetDomain\r\n          // , TI_Hit, ThreatType, ConfidenceScore, ActivityGroupNames // Uncomment if TI join used\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1105
+tags:
+    - linux
+    - sysmon
+    - wget
+    - curl
+    - ti
+    - t1105
+    - m365
+    - threatintel
+    - endpoint
+    - detection
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1105/

@@ -1,0 +1,43 @@
+id: 019c95aa-8e0c-745e-8636-2555cd78f334
+name: Suspicious .NET Utility Execution by Scripting Engine
+description: Detects the execution of legitimate .NET framework utilities (Aspnet_compiler.exe, RegAsm.exe, vbc.exe) launched by scripting engines like PowerShell or WScript. This behavior is a known TTP for process hollowing, as seen in Agent Tesla campaigns, where malware injects its code into a trusted process to evade defenses.
+query: |
+    // Name: Suspicious .NET Utility Execution by Scripting Engine
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-25
+    // Description: Detects the execution of legitimate .NET framework utilities (Aspnet_compiler.exe, RegAsm.exe, vbc.exe) launched by scripting engines like PowerShell or WScript. This behavior is a known TTP for process hollowing, as seen in Agent Tesla campaigns, where malware injects its code into a trusted process to evade defenses.
+    // MITRE ATT&CK: T1055.012
+    // False Positive Sensitivity: Medium
+    // References: https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    DeviceProcessEvents
+    // Define a list of .NET utilities commonly abused for process hollowing.
+    | where FileName in~ ("Aspnet_compiler.exe", "RegAsm.exe", "vbc.exe")
+    // Look for these utilities being launched by scripting engines, which is highly unusual.
+    | where InitiatingProcessFileName in~ ("powershell.exe", "wscript.exe", "cscript.exe")
+    // FP Tuning: Legitimate software deployment or build scripts might exhibit this behavior.
+    // If false positives occur, exclude known safe parent processes or command lines.
+    // Example: | where InitiatingProcessCommandLine !has "C:\\Path\\To\\Safe\\Script.ps1"
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0002
+techniques:
+    - T1055.012
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign

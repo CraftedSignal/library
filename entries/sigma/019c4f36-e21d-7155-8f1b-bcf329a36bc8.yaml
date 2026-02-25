@@ -1,0 +1,70 @@
+id: 019c4f36-e21d-7155-8f1b-bcf329a36bc8
+name: ClickFix PowerShell Payload
+description: Detects ClickFix-style PowerShell payloads based on command-line patterns and fake error prompts.
+query: |
+    title: ClickFix PowerShell Payload
+    id: 5c8a1fa3-4a8f-4f4d-9e3d-0b7b1f3e9c11
+    description: >-
+      Detects ClickFix-style PowerShell payloads based on command-line patterns and
+      fake error prompts.
+    status: experimental
+    author: zendannyy
+    references:
+      - >-
+        https://www.proofpoint.com/us/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape
+    tags:
+      - attack.t1204.002
+      - attack.t1059.001
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_click:
+        CommandLine|contains:
+          - Windows+R
+          - press Windows key + R
+          - Run dialog
+          - paste the following
+          - copy and paste
+      selection_ps:
+        CommandLine|contains:
+          - powershell.exe -w hidden
+          - powershell -windowstyle hidden
+          - powershell -nop -w hidden -ep bypass
+          - IEX (New-Object Net.WebClient).DownloadString
+          - '[Convert]::FromBase64String'
+      selection_obf:
+        CommandLine|contains:
+          - '-encodedcommand'
+          - '-enc '
+          - invoke-expression
+          - iex(
+      selection_err_1:
+        CommandLine|contains: Error Code
+      selection_err_2:
+        CommandLine|contains: verification required
+      selection_err_3:
+        CommandLine|contains: CAPTCHA
+      selection_err_4:
+        CommandLine|contains: Click Allow
+      condition: selection_click and selection_ps and selection_obf
+    falsepositives:
+      - Uncommon but legitimate scripted PowerShell usage with similar wording
+    level: high
+query_type: sigma
+severity: medium
+techniques:
+    - T1204.002
+    - T1059.001
+tags:
+    - attack.t1204.002
+    - attack.t1059.001
+author: zendannyy
+version: "1"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/security-brief-clickfix-social-engineering-technique-floods-threat-landscape
+data_sources:
+    - process_creation
+    - windows
+    - security

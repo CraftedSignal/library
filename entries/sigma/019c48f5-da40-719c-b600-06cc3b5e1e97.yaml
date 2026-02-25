@@ -1,0 +1,29 @@
+id: 019c48f5-da40-719c-b600-06cc3b5e1e97
+name: Palo Alto Authentication Command Injection Attempt
+description: This rule detects attempts at command injection within the username field during authentication on Palo Alto firewalls. It specifically looks for patterns indicative of shell injection, including backtick-wrapped payloads (relevant to CVE-2024-9474), command separators like ';', '&&', '||', command substitution using '$()', directory traversal attempts ('../', './'), and the presence of common command-line utilities such as 'wget', 'curl', 'chmod', 'sh', 'bash', and 'nc' within the authentication message. The detection is based on system logs that record user authentication attempts.
+query: "title: Palo Alto Authentication Command Injection\r\nid: b4c5d6e7-f8a9-0b1c-2d3e-4f5a6b7c8d9e\r\nstatus: experimental\r\ndescription: Detects command injection attempts in the username field during Palo Alto firewall authentication. Catches CVE-2024-9474 backtick-wrapped payloads and other shell injection patterns.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1190/\r\n    - https://attack.mitre.org/techniques/T1059.004/\r\n    - https://security.paloaltonetworks.com/CVE-2024-9474\r\n    - https://security.paloaltonetworks.com/CVE-2024-0012\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.initial-access\r\n    - attack.execution\r\n    - attack.t1190\r\n    - attack.t1059.004\r\n    - cve.2024-9474\r\n    - cve.2024-0012\r\nlogsource:\r\n    product: paloalto\r\n    service: system\r\n    definition: Requires authentication logging. Detects command injection in the username field via system logs.\r\ndetection:\r\n    selection_base:\r\n        message|contains: 'User '\r\n    selection_injection:\r\n        message|contains:\r\n            - 'User `'\r\n            - ';'\r\n            - '&&'\r\n            - '||'\r\n            - '$('\r\n            - '../'\r\n            - 'wget '\r\n            - 'curl '\r\n            - 'chmod '\r\n            - 'sh '\r\n            - 'bash '\r\n            - './'\r\n            - 'nc '\r\n    condition: selection_base and selection_injection\r\nfields:\r\n    - message\r\n    - src_ip\r\nfalsepositives:\r\n    - Security scanning tools\r\nlevel: critical"
+query_type: sigma
+severity: critical
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1190
+    - T1059.004
+tags:
+    - attack.initial-access
+    - attack.execution
+    - attack.t1190
+    - attack.t1059.004
+    - cve.2024-9474
+    - cve.2024-0012
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1190/
+    - https://attack.mitre.org/techniques/T1059.004/
+    - https://security.paloaltonetworks.com/CVE-2024-9474
+    - https://security.paloaltonetworks.com/CVE-2024-0012
+data_sources:
+    - paloalto
+    - system

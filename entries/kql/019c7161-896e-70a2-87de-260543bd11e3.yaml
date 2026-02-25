@@ -1,0 +1,20 @@
+id: 019c7161-896e-70a2-87de-260543bd11e3
+name: Suspicious Curl/Wget Pipeline Execution (ClickFix)
+description: This detection identifies suspicious command-line pipelines commonly used in "ClickFix" attacks. It specifically searches for the use of 'curl' or 'wget' to download a payload that is immediately executed via a shell, often hidden within a subshell `$(...)` or piped directly to an interpreter. This "download and execute" pattern is a high-fidelity indicator of a successful ClickFix lure, where a user has been tricked into running a malicious command.
+query: "// Name: ClickFix Suspicious Curl Pipeline\r\n// Description:\r\n// This detection identifies suspicious command-line pipelines commonly used in \"ClickFix\" attacks.\r\n// It specifically searches for the use of 'curl' or 'wget' to download a payload that is\r\n// immediately executed via a shell, often hidden within a subshell `$(...)` or piped\r\n// directly to an interpreter. This \"download and execute\" pattern is a high-fidelity\r\n// indicator of a successful ClickFix lure, where a user has been tricked into running\r\n// a malicious command.\r\n//\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n//\r\n// Mitre ATT&CK:\r\n// - T1059.004: Command and Scripting Interpreter: Unix Shell\r\n// - T1105: Ingress Tool Transfer\r\n// - T1566.002: Phishing: Spearphishing Link\r\n// References:\r\n// - https://objective-see.org/blog/blog_0x85.html\r\n// False Positive Sensitivity: Medium\r\nlet suspiciousProcesses = dynamic([\r\n    \"bash\",\r\n    \"sh\",\r\n    \"zsh\",\r\n    \"Terminal\",\r\n    \"iTerm.app\",\r\n    \"iTerm2\",\r\n    \"Warp\",\r\n    \"ghostty\",\r\n    \"kitty\"\r\n]);\r\nDeviceProcessEvents\r\n// Focus on shell interpreters or terminal emulators executing the command.\r\n| where FileName in (suspiciousProcesses)\r\n    // The command line uses a download utility like curl or wget.\r\n    and (ProcessCommandLine has \"curl\" or ProcessCommandLine has \"wget\")\r\n    // The command includes immediate execution via a pipe to a shell or through command substitution.\r\n    and (\r\n        ProcessCommandLine matches regex @\".*\\| *(bash|sh|zsh)\"\r\n        or ProcessCommandLine contains \"$(\"\r\n    )\r\n    // Further qualify by looking for flags commonly used to suppress output in malicious scripts.\r\n    and (\r\n        (ProcessCommandLine has \"curl\" and ProcessCommandLine has \"-s\" and ProcessCommandLine has \"-L\")\r\n        or (ProcessCommandLine has \"wget\" and (ProcessCommandLine has \"-q\" or ProcessCommandLine has \"--quiet\"))\r\n    )\r\n// Tuning and False Positive Considerations:\r\n// Legitimate administration, software installation (e.g., Homebrew), and developer scripts frequently use this\r\n// \"curl | bash\" pattern. This can lead to false positives in environments with heavy command-line usage.\r\n// To reduce noise, consider filtering for specific users, hosts, or excluding known-good parent processes or scripts.\r\n// For example: `and not (AccountName in (\"dev_user1\", \"admin_acct\") and InitiatingProcessFolderPath has \"/usr/local/bin/brew\")`\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    AccountName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0001
+techniques:
+    - T1059.004
+    - T1105
+    - T1566.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://objective-see.org/blog/blog_0x85.html

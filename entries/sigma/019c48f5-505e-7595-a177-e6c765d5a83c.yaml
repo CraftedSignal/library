@@ -1,0 +1,21 @@
+id: 019c48f5-505e-7595-a177-e6c765d5a83c
+name: Large File Transfer with text-plain MIME Type
+description: The rule detects large file transfers where the MIME type is declared as 'text/plain' but the file size exceeds 1,000,000 bytes. It specifically looks for files originating locally and excludes transfers to internal IP addresses. This behavior is often used by C2 frameworks to disguise binary payloads or exfiltrated data as harmless text to evade proxy inspection.
+query: "title: Potential Binary Data Transferred as text-plain MIME Type\r\nid: b2c3d4e5-f6a7-8901-2345-67890abcdef1\r\nstatus: experimental\r\ndescription: Detects large file transfers where the MIME type is declared as 'text/plain' but the file size exceeds normal thresholds for plain text content. This technique is often used by C2 frameworks (like Covenant) to disguise binary payloads or exfiltrated data as harmless text to evade proxy inspection.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1041/\r\n    - https://unit42.paloaltonetworks.com/exfiltration-techniques/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.exfiltration\r\n    - attack.t1041\r\nlogsource:\r\n    product: zeek\r\n    service: files\r\ndetection:\r\n    selection:\r\n        mime_type: 'text/plain'\r\n        seen_bytes|gt: 1000000\r\n        local_orig: true\r\n    filter_internal_dest:\r\n        id.resp_h|cidr:\r\n            - '10.0.0.0/8'\r\n            - '172.16.0.0/12'\r\n            - '192.168.0.0/16'\r\n            - '127.0.0.0/8'\r\n            - '169.254.0.0/16'\r\n    condition: selection and not filter_internal_dest\r\nfields:\r\n    - id.orig_h\r\n    - id.resp_h\r\n    - seen_bytes\r\n    - mime_type\r\nlevel: low\r\n"
+query_type: sigma
+severity: low
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - attack.exfiltration
+    - attack.t1041
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1041/
+    - https://unit42.paloaltonetworks.com/exfiltration-techniques/
+data_sources:
+    - zeek
+    - files

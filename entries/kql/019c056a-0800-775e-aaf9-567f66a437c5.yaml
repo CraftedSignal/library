@@ -1,0 +1,43 @@
+id: 019c056a-0800-775e-aaf9-567f66a437c5
+name: Tar.exe Output Redirected to Stdout
+description: Detects the execution of the native Windows tar.exe utility with flags that redirect the output to standard output (stdout) instead of a file. This behavior can indicate data being staged for exfiltration or piped to another tool for in-memory execution, bypassing file-based detections.
+query: |
+    // Name: Tar.exe Used to Redirect Archive Output to Stdout
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects the execution of the native Windows tar.exe utility with flags that redirect the output to standard output (stdout) instead of a file.
+    // MITRE ATT&CK: T1560.001, T1020
+    // References: https://ss64.com/nt/tar.html
+    DeviceProcessEvents
+    // medium: Look for tar.exe process execution.
+    | where FileName =~ "tar.exe"
+    // medium: Filter for command lines using the stdout flag (-O or --to-stdout).
+    // The regex is used to find the 'O' flag when it is combined with other flags (e.g., -xOf).
+    | where ProcessCommandLine has "--to-stdout" or ProcessCommandLine matches regex @"\s-[^\s]*O[^\s]*"
+    // medium: The -O flag redirects archive contents to standard output instead of a file on disk.
+    // This is a strong indicator of data being staged for exfiltration or piped to another tool for in-memory execution, bypassing file-based detections.
+    // medium: FP Tuning: Legitimate administrative scripts might use this feature, though it is uncommon.
+    // If false positives occur, consider excluding specific parent processes or known script paths.
+    | project-reorder
+        Timestamp,
+        DeviceName,
+        AccountName,
+        ProcessCommandLine,
+        ParentProcessFileName,
+        ParentProcessCommandLine,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+techniques:
+    - T1560.001
+    - T1020
+    - T1074
+tags:
+    - kql
+author: Paul
+version: "2"
+references:
+    - https://ss64.com/nt/tar.html

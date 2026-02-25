@@ -1,0 +1,17 @@
+id: 490d330d-ea6b-4089-9af6-bfc07c3617ba
+name: Cert.pl Phishing Domain List EmailUrl Detection
+description: This rule detects emails containing URLs that match domains identified as phishing domains by cert.pl. It joins email URL information with a regularly updated list of known malicious domains from cert.pl and then correlates these with email events to identify potential phishing attempts.
+query: "let CertPLDomainList= externaldata (UrlDomain: string) ['https://hole.cert.pl/domains/v2/domains.txt'] with (format='txt')\r\n| where UrlDomain !startswith \"#\";\r\nEmailUrlInfo\r\n| join kind=inner CertPLDomainList on UrlDomain\r\n| join EmailEvents on NetworkMessageId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"
+references:
+    - https://hole.cert.pl/domains/v2/domains.txt

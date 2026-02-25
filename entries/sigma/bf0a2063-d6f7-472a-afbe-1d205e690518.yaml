@@ -1,0 +1,27 @@
+id: bf0a2063-d6f7-472a-afbe-1d205e690518
+name: VSS backup deletion or resize
+description: Detects scenarios where an attacker attempts to delete or resize existing VSS backup.
+query: "title: VSS backup deletion or resize\ndescription: Detects scenarios where an attacker attempts to delete or resize existing VSS backup.\nreferences:\n- https://www.picussecurity.com/resource/blog/how-to-beat-nefilim-ransomware-attacks\n- https://www.itechtics.com/volume-shadow-copies/\n- https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/wbadmin\n- https://www.picussecurity.com/resource/blog/technique-to-delete-volume-shadow-copies-deviceiocontrol\n- https://thedfirreport.com/2021/12/13/diavol-ransomware/\n- https://www.mandiant.com/resources/chasing-avaddon-ransomware\n- https://blogs.vmware.com/security/2022/09/threat-report-illuminating-volume-shadow-deletion.html\n- https://fourcore.io/blogs/ryuk-ransomware-simulation-mitre-ttp\ntags:\n- attack.impact\n- attack.t1490\nauthor: mdecrevoisier\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_baseline: \n    EventID: 4688\n    NewProcessName|endswith: '\\vssadmin.exe'\n\n  selection_delete: # \"vssadmin.exe delete shadows /all /quiet\" \n    CommandLine|contains|all:\n      - shadows\n      - delete\n  selection_resize: # \"vssadmin resize shadowstorage /for=c: /on=c: /maxsize=401MB\"\n    CommandLine|contains|all:\n      - resize\n      - shadowstorage\n  condition: selection_baseline and (selection_delete or selection_resize)\nfalsepositives:\n- administrator cleaning outdated backup\nlevel: high"
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1490
+tags:
+    - attack.impact
+    - attack.t1490
+author: mdecrevoisier
+version: "1"
+references:
+    - https://www.picussecurity.com/resource/blog/how-to-beat-nefilim-ransomware-attacks
+    - https://www.itechtics.com/volume-shadow-copies/
+    - https://docs.microsoft.com/en-us/windows-server/administration/windows-commands/wbadmin
+    - https://www.picussecurity.com/resource/blog/technique-to-delete-volume-shadow-copies-deviceiocontrol
+    - https://thedfirreport.com/2021/12/13/diavol-ransomware/
+    - https://www.mandiant.com/resources/chasing-avaddon-ransomware
+    - https://blogs.vmware.com/security/2022/09/threat-report-illuminating-volume-shadow-deletion.html
+    - https://fourcore.io/blogs/ryuk-ransomware-simulation-mitre-ttp
+data_sources:
+    - process_creation
+    - windows

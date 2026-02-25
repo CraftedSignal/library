@@ -1,0 +1,49 @@
+id: 019c4c9f-258e-75e9-a676-8f2297185b2e
+name: Python Interpreter Masquerading as System Process
+description: Detects the execution of a Python interpreter that has been renamed to a common system process name, such as 'svchost.exe'. This is a known TTP used by malware like PXA Stealer to evade detection and blend in with normal system activity. The rule also attempts to correlate this activity with network connections to identify potential C2 communication.
+query: |
+    // Name: PXA Stealer-like Python Interpreter Masquerading
+    // Author: detections.ai
+    // Date: 2026-02-11
+    // Description: Detects the execution of a Python interpreter that has been renamed to a common system process name, such as 'svchost.exe'. This is a known TTP used by the PXA Stealer malware to evade detection and blend in with normal system activity.
+    // Reference: https://www.microsoft.com/en-us/security/blog/2026/02/02/infostealers-without-borders-macos-python-stealers-and-platform-abuse/
+    // False Positive Sensitivity: Medium. While highly suspicious, custom or poorly packaged internal applications might exhibit this behavior. Consider adding exclusions for known developer activities or specific file paths if false positives occur.
+
+    // Define a list of common system processes that might be used for masquerading.
+    let masquerade_processes = dynamic(["svchost.exe", "lsass.exe", "csrss.exe", "wininit.exe", "services.exe", "rundll32.exe"]);
+
+    // Find process events where the original filename from the binary's version info is a python interpreter, but the process name on disk is a common system binary.
+    DeviceProcessEvents
+    | where InitiatingProcessVersionInfoOriginalFileName in~ ("python.exe", "pythonw.exe")
+    | where InitiatingProcessFileName in~ (masquerade_processes)
+    // Correlate with network activity from the same process to enrich the alert with C2 information.
+    | join kind=leftouter (
+        DeviceNetworkEvents
+        | where InitiatingProcessVersionInfoOriginalFileName in~ ("python.exe", "pythonw.exe")
+        | where InitiatingProcessFileName in~ (masquerade_processes)
+    ) on InitiatingProcessId, DeviceId
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessVersionInfoOriginalFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessSHA256,
+        RemoteUrl,
+        RemoteIP,
+        RemotePort,
+        AccountName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1036
+    - T1036.003
+    - T1059.006
+tags:
+    - kql
+version: "5"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/02/infostealers-without-borders-macos-python-stealers-and-platform-abuse/

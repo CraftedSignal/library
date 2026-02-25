@@ -1,0 +1,15 @@
+id: 62c008aa-5ea4-4f67-8d0c-03c30bedc59e
+name: FortiWeb CVE-2025-52970 Out-of-Band Authentication Bypass Attempt
+description: Detects potential exploitation attempts against FortiWeb CVE-2025-52970. The detection looks for individual HTTP GET requests to a specific API endpoint with a crafted APSCOOKIE_FWEB cookie containing 'Era=9'. The rule enriches alerts with information about known malicious IPs without strictly filtering on them.
+query: "// Name: CVE-2025-25970 Actively Exploited OOB Auth Bypass at REST Endpoint\r\n// Author: Reyben T. Cortes\r\n// Date: 2025-08-25\r\n// Description: Detects potential exploitation attempts against FortiWeb CVE-2025-52970.\r\n// The detection looks for individual HTTP GET requests to a specific API endpoint with a crafted\r\n// APSCOOKIE_FWEB cookie containing 'Era=9'. The rule enriches alerts with information\r\n// about known malicious IPs without strictly filtering on them.\r\n// Reference: https://pwner.gg/blog/2025-08-13-fortiweb-cve-2025-52970\r\n// Tactic: Initial Access\r\n// Technique: T1190 - Exploit Public-Facing Application\r\n\r\n// Define the list of known malicious IPs associated with this activity for enrichment\r\nlet knownThreatIps = dynamic([\r\n    \"113.25.3.28\", \"113.25.13.159\", \"113.25.9.64\", \"85.237.206.105\",\r\n    \"85.237.206.10\", \"196.75.238.72\", \"193.138.7.140\", \"103.172.81.140\",\r\n    \"45.11.80.242\", \"121.122.33.117\", \"104.28.253.229\"\r\n]);\r\n\r\n// Target logs containing web traffic. CommonSecurityLog is often used for Fortinet devices.\r\n// Adjust the table name if your data is in a different table (e.g., W3CIISLog, DeviceNetworkEvents).\r\nCommonSecurityLog\r\n// Filter for GET requests to the vulnerable API endpoint\r\n| where DeviceAction == \"GET\" and RequestURL has \"/api/v2.0/system/status\"\r\n// Filter for the specific malicious cookie pattern.\r\n// Tuning recommendation: For higher fidelity, parse the cookie string instead of using 'contains' if benign traffic might also contain these substrings.\r\n| where AdditionalExtensions has \"APSCOOKIE_FWEB\"\r\n  and AdditionalExtensions contains \"Payload=\"\r\n  and AdditionalExtensions contains \"AuthHash=\"\r\n  // This regex ensures we match 'Era=9' and not 'Era=90', 'Era=91', etc., by checking for a non-digit character or end-of-string after 'Era=9'.\r\n  and AdditionalExtensions matches regex \"Era=9([^0-9]|$)\"\r\n// Enrich results by checking if the source IP is a known threat actor.\r\n| extend IsKnownThreatActorIp = SourceIP in (knownThreatIps)\r\n// Project relevant fields for investigation.\r\n| project TimeGenerated, SourceIP, RequestURL, IsKnownThreatActorIp, DeviceVendor, DeviceProduct, AdditionalExtensions\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://pwner.gg/blog/2025-08-13-fortiweb-cve-2025-52970

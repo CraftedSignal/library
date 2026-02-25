@@ -1,0 +1,9 @@
+id: 019c1090-f2fb-74f9-bf66-8d2878de348a
+name: Dynamic Suspicious Domain Detection
+description: This alert generates a log when a device onboarded is seen connecting to a known malicious domain within the ThreatIntelIndicators table. The TimeGenerated field should not be changed as the table refreshes every ~10 days.
+query: "let BadDomains = ThreatIntelIndicators\n    | where \n        TimeGenerated > ago(11d)\n        and ObservableKey == \"domain-name:value\"\n    | extend \n        RemoteUrl = ObservableValue\n    | summarize arg_max(TimeGenerated, Id) by\n        RemoteUrl;\nDeviceNetworkEvents\n    | extend \n        Domain = tostring(parse_url(RemoteUrl).Host)\n    | where \n        Domain has_any(BadDomains)\n    | project \n        TimeGenerated, ActionType, DeviceName, InitiatingProcessAccountName, Domain, InitiatingProcessFileName"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "2"

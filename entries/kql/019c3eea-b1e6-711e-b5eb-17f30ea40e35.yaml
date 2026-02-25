@@ -1,0 +1,20 @@
+id: 019c3eea-b1e6-711e-b5eb-17f30ea40e35
+name: Office Apps Outbound WebDAV Connection
+description: This rule detects Office applications (Word, Excel, PowerPoint) or Windows Explorer making outbound WebDAV connections to external, non-private IP addresses on standard web ports (80, 443). This behavior is associated with exploitation of vulnerabilities like CVE-2026-21509, potentially by threat actors such as APT28, to force authentication or exfiltrate data.
+query: "let office_apps = dynamic([\"winword.exe\", \"excel.exe\", \"powerpnt.exe\", \"explorer.exe\"]);\r\n// This rule detects Office applications making outbound WebDAV connections, a behavior associated with CVE-2026-21509 exploitation by APT28.\r\n// Tactic: Initial Access, Execution\r\n// Technique: T1566.001, T1203\r\n// Reference: https://blog.sekoia.io/apt28-operation-phantom-net-voxel/\r\n// False Positive Sensitivity: Medium. Legitimate use of WebDAV to connect to non-standard cloud services may trigger this alert.\r\n// Add known-good domains or IP addresses to the allowlist below to reduce noise.\r\nlet webdav_domain_allowlist = dynamic([\"sharepoint.com\", \"office.com\", \"onedrive.live.com\"]);\r\nDeviceNetworkEvents\r\n// Look for network connections from common Office applications or the Windows shell.\r\n| where InitiatingProcessFileName in~ (office_apps)\r\n// Focus on standard web ports used for WebDAV.\r\n| where RemotePort in (80, 443)\r\n// Exclude connections to private/internal IP addresses to focus on external threats.\r\n| where not(ipv4_is_private(RemoteIP))\r\n// Exclude connections to known benign Microsoft domains. This list may need to be expanded for your environment.\r\n| where not(parse_url(RemoteUrl).Host has_any (webdav_domain_allowlist))\r\n// The presence of a RemoteUrl from an Office app to an unknown external destination is a key indicator.\r\n| where isnotempty(RemoteUrl)\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessVersionInfo = strcat(InitiatingProcessVersionInfoOriginalFileName, \" \", InitiatingProcessVersionInfoProductVersion)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0006
+techniques:
+    - T1566.001
+    - T1203
+    - T1187
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://blog.sekoia.io/apt28-operation-phantom-net-voxel/

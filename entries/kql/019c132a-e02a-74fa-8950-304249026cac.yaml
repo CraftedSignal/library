@@ -1,0 +1,12 @@
+id: 019c132a-e02a-74fa-8950-304249026cac
+name: Investigation by Full Email Address
+description: This is a KQL script to automate investigation by full email address. This can be pitched as a workbook as well. Keep in mind all the extra stuff is there for automation, this doesn't need to be your day-to-day query. There's simpler stuff you can make it on the fly in a matter of seconds and give you similar results. This here is for extra information in case you need a single pane of glass.
+query: "//########################################################################\r\n//##  PLATFORM: Microsoft Exchange Online (Email Security Gateway)\r\n//##  AUTHOR: IGOR OLIVEIRA (#IO)\r\n//##  LOCATION: Microsoft Sentinel | Logs\r\n//##  TITLE: KQL to automate investigation of emails by full email address\r\n//########################################################################\r\nlet SampleTenantId = \"d1119byu-cfz5-4838-9104-4838ca14t122\";\r\nlet senderEmail = \"gmail.com\";\r\nlet Full_Email_Lookup =\r\n    EmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderFromAddress contains senderEmail\r\n    | summarize\r\n        emailCount = count(),\r\n        FirstEmailDate = min(TimeGenerated),\r\n        LastEmailDate = max(TimeGenerated)\r\n    by RecipientEmailAddress, SenderFromAddress;\r\nlet EmailSample =\r\n    EmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where SenderFromAddress contains senderEmail\r\n    | summarize arg_max(TimeGenerated, NetworkMessageId) by RecipientEmailAddress, SenderFromAddress;\r\nFull_Email_Lookup\r\n| join kind=inner (EmailSample) on RecipientEmailAddress, SenderFromAddress\r\n| extend\r\n    EmailDetails = strcat(\r\n    \"https://security.microsoft.com/emailentity?f=summary&startTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&endTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&id=\",\r\n    NetworkMessageId,\r\n    \"&recipient=\",\r\n    RecipientEmailAddress,\r\n    \"&tid=\",\r\n    SampleTenantId\r\n)\r\n| project FirstEmailDate, LastEmailDate, SenderFromAddress, RecipientEmailAddress, emailCount, EmailDetails\r\n| order by emailCount descte "
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Igor Oliveira
+version: "3"

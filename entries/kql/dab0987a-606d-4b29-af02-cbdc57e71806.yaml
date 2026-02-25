@@ -1,0 +1,25 @@
+id: dab0987a-606d-4b29-af02-cbdc57e71806
+name: 'Threat Hunt: Overly permissive or sensitive delegated permissions of OAuth applications'
+description: |-
+    Purpose: Hunts for risky OAuth applications in Microsoft 365 with overly permissive Microsoft Graph permissions.
+    Key Actions:
+    Finds enabled OAuth apps and retrieves their latest state (arg_max).
+    Expands permissions and flags sensitive ones (e.g., Mail.Send, Files.ReadWrite.All, User.ReadWrite.All, Sites.ReadWrite.All).
+    Notes publisher verification, origin, and last modification date.
+    Marks risky apps via HasRiskyPermissions flag.
+    Use Cases: Detects malicious consent grant phishing, overprivileged third-party apps, and integrations that could enable data theft or long-term access.
+query: "OAuthAppInfo\r\n| where AppStatus == \"Enabled\"\r\n| summarize arg_max(Timestamp, *) by OAuthAppId // Get latest state of each app based on its unique ID\r\n| mv-expand Permissions to typeof(dynamic) // 'Permissions' is now the dynamic object for each permission entry\r\n| extend\r\n    PermissionValue = tostring(Permissions.PermissionValue), // Directly access properties from 'Permissions'\r\n    Resource = tostring(Permissions.TargetAppDisplayName)   // Directly access properties from 'Permissions'\r\n| summarize\r\n    AllPermissions = make_set(strcat(Resource, \":\", PermissionValue)),\r\n    RiskyPermissions = make_set_if(PermissionValue,\r\n        Resource == \"Microsoft Graph\" and\r\n        PermissionValue has_any(\r\n            'MyFiles.Write',\r\n            'Files.ReadWrite.All',\r\n            'Sites.ReadWrite.All',\r\n            'AllSites.Write',\r\n            'Mail.Send',\r\n            'MailboxSettings.ReadWrite',\r\n            'User.ReadWrite.All'\r\n        )\r\n    ),\r\n    LastModified = max(Timestamp),\r\n    AppOrigin = take_any(AppOrigin),\r\n    // Ensure VerifiedPublisher is handled as a string for consistency\r\n    VerifiedPublisher = take_any(tostring(VerifiedPublisher))\r\n    by AppName, OAuthAppId // This 'by' clause ensures unique AppName/OAuthAppId combinations in the final output\r\n| extend HasRiskyPermissions = iff(array_length(RiskyPermissions) > 0, true, false)\r\n| project\r\n    AppName,\r\n    OAuthAppId,\r\n    VerifiedPublisher,\r\n    AppOrigin,\r\n    LastModified,\r\n    HasRiskyPermissions,\r\n    RiskyPermissions,\r\n    AllPermissions\r\n| order by HasRiskyPermissions desc, LastModified desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1098.003
+    - T1078.004
+    - T1550.001
+    - T1114.002
+    - T1020
+tags:
+    - kql
+author: AwaisM
+version: "1"
+references:
+    - https://www.oasis.security/blog/onedrive-file-picker-security-flaw-oasis-research

@@ -1,0 +1,13 @@
+id: 019c2a48-138f-7020-a00b-3ce2d3c0c4e7
+name: FortiGate Firewall Policy Change Outside Business Hours
+description: This rule detects configuration changes to Fortinet FortiGate firewall policies that occur outside of standard business hours (before 8 AM or after 5 PM NZDT). It specifically looks for actions like 'Move', 'Add', 'Enable', 'Delete', or 'Edit' on firewall policies. This can indicate unauthorized access or malicious activity, as legitimate changes are typically performed during business hours.
+query: "// Repo - T1584.008 - Fortigate config change outside of business hours\r\nlet timeRange = 1h;\r\nCommonSecurityLog\r\n| where TimeGenerated > ago(timeRange)\r\n| where DeviceVendor == 'Fortinet'\r\n| where DeviceEventCategory == 'event:system'\r\n| where DeviceAction has_any ('Move' , 'Add' , 'Enable' , 'Delete' , 'Edit')\r\n| where DeviceCustomString4 contains 'firewall.policy'\r\n// Convert to NZDT by adding 13 hours using datetime_add\r\n| extend LocalTime = datetime_add('hour', 13, TimeGenerated)\r\n| extend EventHour = datetime_part('hour', LocalTime)\r\n// Filter for out-of-office hours: before 8 AM or after 5 PM NZDT\r\n| where EventHour < 8 or EventHour > 17\r\n| sort by TimeGenerated desc\r\n| project TimeGenerated,DeviceExternalID,DeviceCustomString4,DestinationUserName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0042
+techniques:
+    - T1584.008
+tags:
+    - kql
+version: "4"

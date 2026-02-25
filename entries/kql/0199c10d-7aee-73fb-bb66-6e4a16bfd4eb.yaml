@@ -1,0 +1,15 @@
+id: 0199c10d-7aee-73fb-bb66-6e4a16bfd4eb
+name: Suspicious Sign-in After Phishing Link Click
+description: This rule detects suspicious sign-in attempts to Microsoft services (login.microsoftonline.com, graph.microsoft.com, outlook.office365.com) that occur within 30 minutes of a user clicking on a URL associated with these services. The sign-in is considered suspicious if it originates from a user agent commonly used by automated tools (e.g., axios, curl, python-requests, httpclient, Go-http-client) and is flagged with a 'atRisk' or 'high' risk level by Azure AD. This combination suggests a potential credential compromise following a phishing attempt, where an attacker might be using automated tools to leverage stolen credentials.
+query: "let SuspiciousSignins = SigninLogs\r\n| where isnotempty(UserAgent)\r\n| where UserAgent has_any (\"axios\", \"curl\", \"python-requests\", \"httpclient\", \"Go-http-client\")\r\n| where RiskState == \"atRisk\" or RiskLevelDuringSignIn == \"high\"\r\n| project SigninTime = TimeGenerated, UserPrincipalName, IPAddress, UserAgent, RiskState, RiskLevelDuringSignIn, AppDisplayName;\r\nlet SuspiciousClicks = UrlClickEvents\r\n| where isnotempty(Url)\r\n| where Url has_any (\"login.microsoftonline.com\", \"graph.microsoft.com\", \"outlook.office365.com\")\r\n| where IsClickedThrough == true\r\n| project ClickTime = TimeGenerated, AccountUpn, Url, IPAddress;\r\nSuspiciousClicks\r\n| join kind=inner SuspiciousSignins on $left.AccountUpn == $right.UserPrincipalName and $left.IPAddress == $right.IPAddress\r\n| where SigninTime between (ClickTime .. ClickTime + 30m)\r\n| project User = AccountUpn, IPAddress, Url, ClickTime, SigninTime, UserAgent, RiskState, RiskLevelDuringSignIn, AppDisplayName\r\n| order by SigninTime desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

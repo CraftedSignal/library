@@ -1,0 +1,16 @@
+id: 019c7659-cba1-7409-a4e4-a2ae9d16b3c3
+name: Arkanix Python Dependency Installation
+description: Detects a Python process spawning pip to install multiple libraries (requests, pycryptodome, psutil) in a short time frame, a behavior associated with the Arkanix Stealer's Python loader.
+query: "// Name: Arkanix Python Dependency Installation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-19\r\n// Description: Detects a Python process spawning pip to install multiple libraries (requests, pycryptodome, psutil) in a short time frame, a behavior associated with the Arkanix Stealer's Python loader.\r\n// References: https://securelist.com/arkanix-stealer/119006/\r\n// Tactics: Execution, Defense Evasion\r\n// Techniques: T1059.006, T1072.001\r\n// False Positive Sensitivity: Medium\r\n// Detection Comment Level: Medium\r\n// Define the time window for correlation\r\nlet timeframe = 5m;\r\n// Define the suspicious libraries associated with Arkanix\r\nlet suspiciousLibraries = dynamic([\"requests\", \"pycryptodome\", \"psutil\", \"pywin32\"]);\r\nDeviceProcessEvents\r\n// Filter for process creation events initiated by a Python interpreter\r\n| where InitiatingProcessFileName in~ (\"python.exe\", \"pythonw.exe\")\r\n// Filter for pip install commands\r\n| where ProcessCommandLine has \"pip\" and ProcessCommandLine has \"install\"\r\n// Filter for the specific libraries used by Arkanix\r\n| where ProcessCommandLine has_any (suspiciousLibraries)\r\n// Aggregate events by the parent process on a single host\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    LibraryCount = dcountif(ProcessCommandLine, ProcessCommandLine has_any(suspiciousLibraries)),\r\n    LibrariesInstalled = make_set(ProcessCommandLine)\r\n    by DeviceName, DeviceId, InitiatingProcessId, InitiatingProcessCommandLine\r\n// Apply the threshold: at least 2 of the suspicious libraries must be installed within the time window\r\n| where LibraryCount >= 2 and (EndTime - StartTime) <= timeframe\r\n// Potential for False Positives: Legitimate Python developers or automated software deployment scripts might perform similar actions.\r\n// Consider excluding known developer machines, CI/CD runners, or specific legitimate script paths if noise occurs.\r\n// Example: | where DeviceName !in (\"dev-machine-01\", \"ci-runner-x\")\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    DeviceName,\r\n    DeviceId,\r\n    InitiatingProcessCommandLine,\r\n    LibraryCount,\r\n    LibrariesInstalled"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.006
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securelist.com/arkanix-stealer/119006/

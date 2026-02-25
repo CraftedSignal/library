@@ -1,0 +1,13 @@
+id: 019c2a46-e6b9-71c9-9743-3b92271c2b3a
+name: Microsoft Teams External Communication from Non-Whitelisted Domains
+description: This rule detects Microsoft Teams chat or call activity initiated by external users whose domains are not present in a pre-defined whitelist. It specifically looks for 'ChatCreated' or 'CallParticipantDetail' actions from external users and filters out activity from known, whitelisted external domains. This can help identify potentially unauthorized or suspicious communication with external entities.
+query: "let lookbacktime = ago(1h);\r\nlet domain_whitelist = _GetWatchlist('external_teams_domains_whitelist') | project tolower(Domain);\r\nCloudAppEvents\r\n| where TimeGenerated >= lookbacktime \r\n| where Application == 'Microsoft Teams'\r\n| extend SourceTenant = split(AccountId,'@',1)\r\n| mv-expand SourceTenant\r\n| extend SourceTenant = tolower(tostring(SourceTenant))\r\n| where isnotempty(SourceTenant)\r\n| where IsExternalUser == true\r\n| where not(SourceTenant has_any (domain_whitelist))\r\n| where ActionType has_any ('ChatCreated','CallParticipantDetail')\r\n| extend Raw = parse_json(RawEventData)\r\n| extend L1 = Raw \r\n| evaluate bag_unpack(L1, \"\", \"keep_source\")\r\n| extend AppAccessContext_d = iif(isnull(Raw.AppAccessContext), dynamic({}), todynamic(Raw.AppAccessContext)),\r\n         ParticipantInfo_d = iif(isnull(Raw.ParticipantInfo), dynamic({}), todynamic(Raw.ParticipantInfo))\r\n| evaluate bag_unpack(AppAccessContext_d, \"AppAccessContext_\", \"keep_source\")\r\n| evaluate bag_unpack(ParticipantInfo_d, \"ParticipantInfo_\", \"keep_source\")\r\n| extend Members_d = iif(isnull(Raw.Members), dynamic([]), todynamic(Raw.Members))\r\n| mv-expand Member = Members_d\r\n| extend User_DisplayName    = tostring(Member.DisplayName),\r\n         User_UPN            = tostring(Member.UPN)\r\n| project TimeGenerated,SourceTenant,AccountId,Application,ActionType,User_DisplayName,User_UPN"
+query_type: kql
+tactics:
+    - TA0003
+    - TA0001
+techniques:
+    - T1133
+tags:
+    - kql
+version: "3"

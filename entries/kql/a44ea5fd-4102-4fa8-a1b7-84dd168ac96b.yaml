@@ -1,0 +1,17 @@
+id: a44ea5fd-4102-4fa8-a1b7-84dd168ac96b
+name: Suspicious rdp files in Outlook temporary folders
+description: Detection of spear-phishing emails containing a signed Remote Desktop Protocol (RDP) configuration file designed to connect to an actor-controlled server. In some cases, the threat actor attempted to enhance credibility by impersonating Microsoft employees and referencing other cloud providers in the phishing lures.dp files in Outlook temporary folders
+query: "// Find Windows 10 endpoints in the last hour\r\nlet SuspiciousRdpFilesinOutlookWin10 = DeviceProcessEvents\r\n| where Timestamp >= ago(1h)\r\n| where ProcessCommandLine has @'\\AppData\\Local\\Microsoft\\'\r\n    and ProcessCommandLine has @'\\Content.Outlook\\'\r\n    and ProcessCommandLine has @'.rdp';\r\n// Find Windows 11 endpoints in the last hour\r\nlet SuspiciousRdpFilesinOutlookWin11 = DeviceProcessEvents\r\n| where Timestamp >= ago(1h)\r\n| where ProcessCommandLine has @'\\AppData\\Local\\Microsoft\\Olk\\'\r\n    and ProcessCommandLine has @'.rdp';\r\nunion SuspiciousRdpFilesinOutlookWin10, SuspiciousRdpFilesinOutlookWin11\r\n| project Timestamp, ProcessCommandLine, AccountDomain, AccountName, DeviceId, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566.001
+tags:
+    - kql
+author: Andre Zeemering
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2024/10/29/midnight-blizzard-conducts-large-scale-spear-phishing-campaign-using-rdp-files/
+    - https://x.com/cyb3rops/status/1851880158640099675

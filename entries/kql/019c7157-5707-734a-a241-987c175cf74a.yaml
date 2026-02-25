@@ -1,0 +1,16 @@
+id: 019c7157-5707-734a-a241-987c175cf74a
+name: Jira Spam Campaign Malicious Domains
+description: This rule detects network connections to domains identified as malicious redirectors or landing pages used in a spam campaign that exploited Atlassian Jira. The domains are associated with phishing or malware distribution efforts.
+query: "// Name: Jira Spam Campaign Malicious Domains\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// MITRE TTPs: T1204.001\r\n// References:\r\n// - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html\r\n//\r\n// This rule detects network connections to domains used as redirectors or landing pages in a spam campaign that abused Atlassian Jira.\r\nlet malicious_domains = dynamic([\r\n    \"adrinal.com\",\r\n    \"barankinyserialxud.online\",\r\n    \"archicad3d.com\",\r\n    \"luckyktdm24.com\",\r\n    \"go.sparkpostmail1.com\"\r\n]);\r\nDeviceNetworkEvents\r\n// Filter for network connections to known malicious or redirector domains.\r\n| where RemoteUrl has_any (malicious_domains)\r\n// FP Tuning: go.sparkpostmail1.com is a legitimate email delivery service that can be abused for redirects.\r\n// Consider adding more context, like the initiating process (e.g., email clients), to reduce potential FPs from legitimate marketing emails.\r\n| project\r\n    TimeGenerated,\r\n    InitiatingProcessAccountName,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine,\r\n    ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/spam-campaign-abuses-atlassian-jira.html

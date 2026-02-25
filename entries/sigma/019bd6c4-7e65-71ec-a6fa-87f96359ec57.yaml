@@ -1,0 +1,59 @@
+id: 019bd6c4-7e65-71ec-a6fa-87f96359ec57
+name: PDF24 DLL Side-Loading of Cryptbase.dll
+description: Detects the legitimate 'pdf24.exe' process loading 'cryptbase.dll' from a non-standard directory. This is indicative of a DLL side-loading attack, a technique used by the PDFSIDER malware to achieve execution and bypass security controls.
+query: |
+    title: PDF24 DLL Side-Loading of Cryptbase.dll
+    id: bed92882-206b-4ff2-a577-ea00f849a9c0
+    status: experimental
+    description: Detects the legitimate 'pdf24.exe' process loading 'cryptbase.dll'
+      from a non-standard directory. This is indicative of a DLL side-loading
+      attack, a technique used by the PDFSIDER malware to achieve execution and
+      bypass security controls.
+    references:
+      - https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion
+    author: tim@detections.ai
+    date: 2026-01-19
+    tags:
+      - attack.defense_evasion
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        Image|endswith: '\pdf24.exe' # The legitimate application used for side-loading.
+        ImageLoaded|endswith: '\cryptbase.dll' # The DLL being hijacked.
+      filter:
+        ImageLoaded|startswith:
+          # Filter out legitimate loads from standard system directories.
+          - 'C:\Windows\System32\'
+          - 'C:\Windows\SysWOW64\'
+      condition: selection and not filter
+    falsepositives:
+      - Custom application packages could potentially bundle system DLLs, leading to
+        a false positive. Investigate the source of the pdf24.exe and the loaded
+        cryptbase.dll.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.002
+tags:
+    - attack.defense_evasion
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1574.002
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.resecurity.com/es/blog/article/pdfsider-malware-exploitation-of-dll-side-loading-for-av-and-edr-evasion
+data_sources:
+    - image_load
+    - windows

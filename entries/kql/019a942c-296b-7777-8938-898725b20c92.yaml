@@ -1,0 +1,14 @@
+id: 019a942c-296b-7777-8938-898725b20c92
+name: Unauthorized ntoskrnl.exe Execution
+description: This detection identifies instances where critical Windows kernel files (ntoskrnl.exe, ntoskml.exe, ntoskrnl64.exe) are executed or manipulated outside of standard system directories (e.g., C:\Windows\System32, C:\Windows\WinSxS). It focuses on processes exhibiting suspicious behaviours such as code injection, driver loading, hooking, or memory mapping/unmapping, while excluding benign system processes like services.exe, trustedinstaller.exe, and dism.exe. It also filters out temporary files created by common browsers (e.g., Chrome, Edge) to reduce false positives. This activity is indicative of potential malicious kernel-level manipulation, such as unauthorised drivers, rootkits, or other advanced persistent threats attempting to bypass security controls.
+query: "DeviceProcessEvents\r\n| where FileName in~ (\"ntoskrnl.exe\", \"ntoskml.exe\", \"ntoskrnl64.exe\")\r\n| where FolderPath !startswith @\"C:\\Windows\\System32\"\r\n    and FolderPath !startswith @\"C:\\Windows\\system32\"\r\n    and FolderPath !startswith @\"C:\\Windows\\WinSxS\"\r\n| where ProcessCommandLine has_any (\"load\", \"inject\", \"driver\", \"kernel\", \"hook\", \"map\", \"unmap\")\r\n| where InitiatingProcessFileName !in~ (\"services.exe\", \"trustedinstaller.exe\", \"dism.exe\")\r\n| where not(FolderPath endswith \".tmp\" and InitiatingProcessFileName in~ (\"chrome.exe\", \"msedge.exe\"))\r\n| project Timestamp, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1547.006
+    - T1055
+    - T1036
+    - T1027
+tags:
+    - kql
+version: "2"

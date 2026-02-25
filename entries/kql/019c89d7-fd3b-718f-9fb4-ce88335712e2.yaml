@@ -1,0 +1,17 @@
+id: 019c89d7-fd3b-718f-9fb4-ce88335712e2
+name: CVE-2026-1731 Malware and Web Shell Hashes
+description: This rule detects files associated with the exploitation of BeyondTrust CVE-2026-1731, including SparkRAT, VShell, and various web shells. A match is a high-fidelity indicator of compromise.
+query: "kql\r\n// Name: CVE-2026-1731 Malware and Web Shell Hashes\r\n// Author: Adarsh Pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects files associated with the exploitation of BeyondTrust CVE-2026-1731, including SparkRAT, VShell, and various web shells. A match is a high-fidelity indicator of compromise.\r\n// References: https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/\r\n// MITRE ATT&CK: T1544.003, T1505.003, T1059.004\r\n\r\n// Define the list of malicious SHA256 hashes identified in the campaign\r\nlet MaliciousHashes = dynamic([\r\n    \"9f431d5549a03aee92cfd2bdbbe90f1c91e965c99e90a0c9ad5a001f4e80c350\", // SparkRAT\r\n    \"98a7b0900a9072bb40af579ec372da7b27af12b15868394df51fefe290ab176b\", // VShell\r\n    \"66cceb2c2f1d9988b501832fd3b559775982e2fce4ab38fc4ffe71b74eafc726\", // maintenance.php\r\n    \"98442387d466f27357d727b3706037a4df12a78602b93df973b063462a677761\", // aws.php\r\n    \"cf83e1357eefb8bdf1542850d66d8007d620e4050b5715dc83f4a921d36ce9ce\", // file_save.php\r\n    \"cc2bc3750cc5125a50466f66ae4f2bedf1cac0e43477a78ed2fd88f3e987a292\", // Bash Script\r\n    \"4762e944a0ce1f9aef243e11538f84f16b6f36560ed6e32dfd9a5f99e17e8e50\", // Installer for SimpleHelp\r\n    \"679ee05d92a858b6fe70aeb6072eb804548f1732e18b6c181af122b833386afb\", // d6\r\n    \"0ecc867ce916d01640d76ec03de24d1d23585eb582e9c48a0364c62a590548ac\"  // Unknown\r\n]);\r\n// Search for file creation or modification events matching the known malicious hashes.\r\n// This is a high-fidelity detection; any match should be investigated.\r\nDeviceFileEvents\r\n| where SHA256 in (MaliciousHashes)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    ActionType,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+techniques:
+    - T1505.003
+    - T1059.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/beyondtrust-cve-2026-1731/

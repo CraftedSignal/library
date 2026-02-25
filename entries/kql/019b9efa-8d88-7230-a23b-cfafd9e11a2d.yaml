@@ -1,0 +1,18 @@
+id: 019b9efa-8d88-7230-a23b-cfafd9e11a2d
+name: Office Assistant Supply Chain Attack Detection
+description: This rule detects indicators associated with the 'Office Assistant' supply chain attack. It identifies malicious browser extensions by their IDs in file paths or names, and also detects known malicious file MD5s and C2 communication domains. The rule correlates file events and network events to provide a comprehensive view of the attack.
+query: "//https://ti.qianxin.com/blog/articles/office-assistant-supply-chain-attack-en/\r\n\r\nlet ExtensionMapping = datatable(\r\n    ExtensionID:string,\r\n    ExtensionName:string,\r\n    Campaign:string,\r\n    Browser:string\r\n)\r\n[\r\n    \"khhkikemcnffcibhcfgjegaapdimeead\",\"MadaoL Newtab\",\"Office Assistant\",\"edge\"\r\n];\r\nlet MaliciousExtensionIDs =\r\n    ExtensionMapping\r\n    | project ExtensionID;\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where FolderPath has_any (MaliciousExtensionIDs)\r\n   or FileName has_any (MaliciousExtensionIDs)\r\n| extend ExtensionID = extract(@\"([a-z]{32})\", 1, tolower(strcat(FolderPath, FileName)))\r\n| where isnotempty(ExtensionID)\r\n| lookup ExtensionMapping on ExtensionID\r\n| summarize\r\n    FirstSeen = min(Timestamp),\r\n    LastSeen  = max(Timestamp),\r\n    ExtensionsFound = make_set(ExtensionName),\r\n    ExtensionIDs    = make_set(ExtensionID),\r\n    Campaigns       = make_set(Campaign),\r\n    Browsers        = make_set(InitiatingProcessFileName),\r\n    FileFound       = make_set(FileName),\r\n    FolderFound     = make_set(FolderPath),\r\n    EventCount      = count()\r\n  by DeviceName, DeviceId\r\n| order by LastSeen desc\r\n\r\nlet md5_iocs = dynamic([\r\n  \"11bf1232bfef7377916cf665a9524398\",\r\n  \"4cf6b6611ef61e114bdf697339972315\",\r\n  \"ebfa0f0a9c1fe1feeea166a6ff933d0b\",\r\n  \"5f421f404c7eb7d78a797031b0bd0e14\",\r\n  \"deb35616612fe2ba7b496cb290983ee0\",\r\n  \"feb7613b75e90c22c57a484acae15e1a\",\r\n  \"908959dd4ad7d7a5e677b0d4daa5c6a0\"\r\n]);\r\nlet c2_domains = dynamic([\r\n  \"sg-xj-1306567145.cos.ap-guangzhou.myqcloud.com\",\r\n  \"mltab-1306567145.cos.ap-guangzhou.myqcloud.com\",\r\n  \"fh67k.com\",\r\n  \"eybyyffs.com\",\r\n  \"gey87.com\",\r\n  \"fk6u1.com\",\r\n  \"hty73.com\",\r\n  \"rh6yd.com\",\r\n  \"djt86.com\",\r\n  \"n3yj6.com\",\r\n  \"3d5d6.com\",\r\n  \"k5jy8.com\",\r\n  \"h7np2.com\",\r\n  \"g8ht6.com\",\r\n  \"e78y.com\",\r\n  \"api.g6ht.com\",\r\n  \"cjtab.com\",\r\n  \"d.giw36.com\"\r\n]);\r\nlet net = DeviceNetworkEvents\r\n| where RemoteUrl in (c2_domains)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    Indicator = tostring(RemoteUrl),\r\n    FileName = tostring(InitiatingProcessFileName),\r\n    MD5 = \"\",\r\n    EventType = \"Network\";\r\nlet file = DeviceFileEvents\r\n| where MD5 in (md5_iocs)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    Indicator = MD5,\r\n    FileName = FileName,\r\n    MD5 = MD5,\r\n    EventType = \"File\";\r\nunion net, file\r\n| sort by Timestamp desc\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1195.002
+    - T1195
+    - T1071.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://ti.qianxin.com/blog/articles/office-assistant-supply-chain-attack-en/

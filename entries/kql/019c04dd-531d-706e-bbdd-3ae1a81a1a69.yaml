@@ -1,0 +1,67 @@
+id: 019c04dd-531d-706e-bbdd-3ae1a81a1a69
+name: Office Application Making Unusual Outbound Connection
+description: Detects Microsoft Office applications establishing outbound network connections to non-private, non-Microsoft IP addresses. This behavior can be indicative of exploitation of vulnerabilities like CVE-2026-21509, where an embedded OLE object or malicious macro attempts to download a payload or beacon out.
+query: |
+    // Name: Office Application Making Unusual Outbound Connection
+    // Author: detections.ai
+    // Date: 2026-01-28
+    // Description: Detects Microsoft Office applications establishing outbound network connections to non-private, non-Microsoft IP addresses. This behavior can be indicative of exploitation of vulnerabilities like CVE-2026-21509, where an embedded OLE object or malicious macro attempts to download a payload or beacon out.
+    //
+    // Tactics: Command and Control, Initial Access
+    // Techniques: T1105, T1566.001
+    //
+    // References:
+    // - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509
+    //
+    // False Positive Sensitivity: Medium
+    // - Office applications legitimately connect to various Microsoft services (SharePoint, OneDrive, update servers). This rule attempts to filter common Microsoft domains, but a comprehensive list of your organization's M365 IP ranges should be added for tuning.
+    // - Legitimate plugins or add-ins may also make outbound connections.
+
+    let office_apps = dynamic([
+        "winword.exe",
+        "excel.exe",
+        "powerpnt.exe",
+        "outlook.exe"
+    ]);
+    // FP Tuning: Add your corporate and known good domains/IPs to this list.
+    let known_good_domains = dynamic([
+        "office.com",
+        "office.net",
+        "microsoft.com",
+        "live.com",
+        "sharepoint.com",
+        "onedrive.com"
+    ]);
+    DeviceNetworkEvents
+    // Filter for successful network connections initiated by a process
+    | where ActionType == "ConnectionSuccess"
+    // Filter for Office applications as the initiating process
+    | where InitiatingProcessFileName in~ (office_apps)
+    | where isnotempty(RemoteIP)
+    // Exclude connections to private, loopback, and link-local IP addresses
+    | where not(ipv4_is_private(RemoteIP)) and RemoteIP !in ("127.0.0.1", "::1") and not(ipv4_is_match(RemoteIP, "169.254.0.0/16"))
+    // FP Tuning: Exclude connections to known Microsoft/Office domains.
+    | where not (RemoteUrl has_any (known_good_domains))
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl,
+        ReportId,
+        ActionType
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1105
+    - T1566.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://msrc.microsoft.com/update-guide/vulnerability/CVE-2026-21509

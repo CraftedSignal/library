@@ -1,0 +1,106 @@
+id: 019a0c1e-29bf-726e-9cde-1b61bf904e38
+name: SharePoint ToolShell Vulnerability Exploitation Chain
+description: Detects multiple TTPs associated with the exploitation of SharePoint ToolShell vulnerabilities (e.g., CVE-2025-53770) by the threat actor Storm-2603. This includes the initial exploit attempt, webshell creation, defense evasion using a vulnerable driver, and C2 communication.
+query: |
+    title: SharePoint ToolShell Vulnerability Exploitation Chain
+    id: f656dcb2-c46a-4fd7-a46d-093c4e3e3e32
+    status: experimental
+    description: >-
+      Detects multiple TTPs associated with the exploitation of SharePoint ToolShell
+      vulnerabilities (e.g., CVE-2025-53770) by the threat actor Storm-2603. This
+      includes the initial exploit attempt, webshell creation, defense evasion using
+      a vulnerable driver, and C2 communication.
+    references:
+      - https://www.security.com/threat-intelligence/warlock-ransomware-origins
+      - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+      - https://research.checkpoint.com/2025/before-toolshell-exploring-storm-2603s-previous-ransomware-operations/
+    author: detections.ai
+    date: 2025-10-22
+    tags:
+      - attack.initial_access
+      - attack.persistence
+      - attack.defense_evasion
+      - attack.command_and_control
+      - attack.t1190
+      - attack.t1505.003
+      - attack.t1562.001
+      - cve.2025.49704
+      - cve.2025.49706
+      - cve.2025.53770
+      - cve.2025.53771
+    logsource:
+      # This is a composite rule that requires multiple log sources. Adapt the fields to your environment.
+      - category: webserver
+      - product: windows
+        category: file_event
+      - product: windows
+        category: driver_load
+      - category: network_connection
+    detection:
+      # Detects the initial exploit attempt via POST request to ToolPane.aspx
+      exploit:
+        category: webserver
+        cs-method: 'POST'
+        c-uri|endswith: '/ToolPane.aspx'
+      # Detects the creation of known webshells in the SharePoint LAYOUTS directory
+      webshell:
+        category: file_event
+        TargetFilename|endswith: '.aspx'
+        TargetFilename|contains:
+          - 'spinstall'
+          - 'spupdate'
+          - 'SpLogoutLayout'
+          - 'SP.UI.TitleView'
+          - 'queryruleaddtool'
+          - 'ClientId'
+        TargetDirectory|contains|all:
+          - 'Microsoft Shared\Web Server Extensions\'
+          - '\TEMPLATE\LAYOUTS\'
+      # Detects the loading of a vulnerable Baidu driver renamed to evade detection
+      byovd:
+        category: driver_load
+        ImageLoaded|endswith: '\googleapiutil64.sys'
+        Hashes|contains: 'SHA256=f6ee01303cf1d68015eee49f7dc7f26151a04ae642a47e49c70806931ce652d3'
+      # Detects C2 communication to a known Storm-2603 domain
+      c2_domain:
+        category: network_connection
+        DestinationDnsDomain|contains: 'update.updatemicfosoft.com'
+      # Detects C2 communication to a known Storm-2603 IP address
+      c2_ip:
+        category: network_connection
+        DestinationIp: '65.38.121.198'
+      condition: 1 of them
+    falsepositives:
+      - Legitimate administrative activities on SharePoint may involve POST requests
+        to 'ToolPane.aspx'. This part of the detection may be noisy and should be
+        correlated with other indicators if possible.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0003
+    - TA0005
+    - TA0011
+techniques:
+    - T1190
+    - T1505.003
+    - T1562.001
+tags:
+    - attack.initial_access
+    - attack.persistence
+    - attack.defense_evasion
+    - attack.command_and_control
+    - attack.t1190
+    - attack.t1505.003
+    - attack.t1562.001
+    - cve.2025.49704
+    - cve.2025.49706
+    - cve.2025.53770
+    - cve.2025.53771
+author: detections.ai
+version: "2"
+references:
+    - https://www.security.com/threat-intelligence/warlock-ransomware-origins
+    - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
+    - https://research.checkpoint.com/2025/before-toolshell-exploring-storm-2603s-previous-ransomware-operations/

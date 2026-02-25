@@ -1,0 +1,61 @@
+id: 019c71fb-7990-73ea-91a3-bdc3020ae984
+name: Suspicious Package Manager Repo Modifications
+description: |
+    Detection attempts to modify package manager configurations to point to potentially malicious repositories, enabling supply chain attacks through dependency confusion.
+query: |
+    title: Suspicious Package Manager Repo Modifications
+    id: ae48a614-07bf-4c55-ad40-2ca0391cb28f
+    status: experimental
+    description: >
+      Detection attempts to modify package manager configurations to point to
+      potentially malicious repositories, enabling supply chain attacks through
+      dependency confusion.
+    references:
+      - >-
+        https://owasp.org/www-project-top-10-ci-cd-security-risks/CICD-SEC-03-Dependency-Chain-Abuse
+    author: zendannyy
+    logsource:
+      product: github
+      category: file_event
+    detection:
+      selection_npm:
+        TargetFilename|endswith:
+          - .npmrc
+          - package.json
+        EventType: FileModify
+      selection_maven:
+        TargetFilename|contains:
+          - pom.xml
+          - settings.xml
+      selection_suspicious_repos:
+        FileContent|contains:
+          - registry=http://
+          - index-url=http://
+          - extra-index-url
+      selection_pip:
+        TargetFilename|contains:
+          - pip.conf
+          - pip.ini
+          - requirements.txt
+      selection_toml:
+        TargetFilename|contains:
+          - .toml
+      condition: 1 of selection_* and selection_suspicious_repos
+    level: medium
+    falsepositives:
+      - Automated build or deployment pipelines that modify package manager
+        configurations.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+    - T1195.001
+author: zendannyy
+version: "2"
+references:
+    - https://owasp.org/www-project-top-10-ci-cd-security-risks/CICD-SEC-03-Dependency-Chain-Abuse
+data_sources:
+    - file_event
+    - github

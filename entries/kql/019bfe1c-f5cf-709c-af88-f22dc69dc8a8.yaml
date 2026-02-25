@@ -1,0 +1,18 @@
+id: 019bfe1c-f5cf-709c-af88-f22dc69dc8a8
+name: PowerShell Steganography Payload Extraction from CDN
+description: Detects PowerShell scripts attempting to perform image steganography by loading System.Drawing assemblies and calling functions like GetPixel or LockBits to extract data. This technique was observed in an Amatera Stealer campaign where payloads were hidden in PNG files hosted on public CDNs.
+query: "DeviceEvents\r\n| where ActionType == \"PowerShellCommand\"\r\n| where AdditionalFields has_any (\"System.Drawing.Bitmap\", \"GetPixel\", \"LockBits\")\r\n| where AdditionalFields has_any (\"pbrd.co\", \"iili.io\", \"s6.imgcdn.dev\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessCommandLine,\r\n    ScriptBlock = todynamic(AdditionalFields).Command,\r\n    FileName,\r\n    ProcessId,\r\n    InitiatingProcessId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027.003
+    - T1059.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "2"
+references:
+    - https://blackpointcyber.com/blog/novel-fake-captcha-chain-delivering-amatera-stealer/

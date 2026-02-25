@@ -1,0 +1,19 @@
+id: 019c1f72-b675-778a-bfd5-3f48897ff325
+name: Notepad ++ Suspicious Curl Exfiltration to Temp.sh
+description: The malware used the legitimate curl.exe to upload data to temp[.]sh. This is a high-fidelity indicator as legitimate business processes rarely upload data to ephemeral pastebins via command line.
+query: "// KQL detection for Exfiltration via Curl to File Sharing Sites\r\n// Define suspicious domains associated with the campaign\r\nlet SuspiciousDomains = dynamic([\"temp.sh\", \"transfer.sh\", \"file.io\"]);\r\nDeviceProcessEvents\r\n| where Timestamp > ago(24h)\r\n// Focus on the Curl utility\r\n| where FileName =~ \"curl.exe\"\r\n// Look for upload flags (-F, --form, -T, --upload-file) combined with suspicious domains\r\n| where ProcessCommandLine has_any (\"-F\", \"--form\", \"-T\", \"--upload-file\") \r\n  and ProcessCommandLine has_any (SuspiciousDomains)\r\n| extend DestinationDomain = extract(@\"(temp\\.sh|transfer\\.sh|file\\.io)\", 1, ProcessCommandLine)\r\n| project\r\n    Timestamp,\r\n    DestinationDomain,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ParentFileName,      // If this is AutoUpdater.exe or GUP.exe, it confirms the attack\r\n    InitiatingProcessAccountName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1574
+    - T1059.003
+    - T1195.002
+    - T1055.003
+    - T1041
+    - T1082
+tags:
+    - kql
+author: Daniel Miller
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/notepad-plus-plus-update-feature-hijacked-by-chinese-state-hackers-for-months/

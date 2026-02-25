@@ -1,0 +1,28 @@
+id: b4e66639-500f-4b8b-ac0e-886abcbd2112
+name: Defender Antivirus Disabled or Tamper Attempt Detected
+description: |
+    This detection identifies attempts to disable Microsoft Defender Antivirus or bypass its protection mechanisms such as Tamper Protection or Real-Time Protection.
+
+    It leverages signals from Microsoft Defender for Endpoint (via DeviceEvents) as well as Windows Security Events (e.g., Event ID 5001 and 5004), which are triggered when antivirus services are modified or stopped.
+
+    Such behavior is commonly associated with defense evasion techniques used by threat actors or unauthorized administrative actions and should be investigated immediately.
+query: "// ===== Parameter =====\r\nlet lookback = 1h;\r\n// Relevante MDE-ActionTypes\r\nlet mde_actions = dynamic([\r\n  \"AntivirusTamperAttempt\",\r\n  \"AntivirusStatusChanged\",\r\n  \"AVStatusChanged\",\r\n  \"TamperProtectionBypassAttempt\",\r\n  \"RealTimeProtectionDisabled\"\r\n]);\r\n// Schlüsselbegriffe (lowercase prüfen)\r\nlet disable_terms = dynamic([\r\n  \"disabled\",\r\n  \"turned off\",\r\n  \"service stopped\",\r\n  \"real-time protection disabled\",\r\n  \"tamper protection disabled\",\r\n  \"antimalware service stopped\",\r\n  \"defender antivirus service stopped\"\r\n]);\r\n// ===== Quelle 1+3: Microsoft Defender for Endpoint (DeviceEvents) =====\r\nlet from_mde =\r\nDeviceEvents\r\n| where TimeGenerated >= ago(lookback)\r\n| where ActionType in (mde_actions)\r\n| extend Details = tostring(column_ifexists(\"AdditionalFields\",\"\"))\r\n| extend Account = tostring(column_ifexists(\"InitiatingProcessAccountName\", column_ifexists(\"AccountName\",\"\")))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    DeviceId = tostring(column_ifexists(\"DeviceId\",\"\")),\r\n    Account,\r\n    ActionType,\r\n    EventID = toint(\"\"),               // null-Int ohne null-Literal\r\n    Details,\r\n    Source = \"MDE.DeviceEvents\";\r\n// ===== Quelle 2: Windows SecurityEvent (5001 Status geändert, 5004 Dienst gestoppt) =====\r\nlet from_winsec =\r\nSecurityEvent\r\n| where TimeGenerated >= ago(lookback)\r\n| where EventID in (5001, 5004)\r\n| extend ActionType = case(\r\n        EventID == 5004, \"AntimalwareServiceStopped\",\r\n        EventID == 5001, \"AntimalwareStatusChanged\",\r\n        \"SecurityEvent\")\r\n| extend Details = tostring(column_ifexists(\"EventData\",\"\"))\r\n| extend Account = tostring(column_ifexists(\"SubjectUserName\",\"\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName = Computer,\r\n    DeviceId = tostring(\"\"),\r\n    Account,\r\n    ActionType,\r\n    EventID,\r\n    Details,\r\n    Source = \"Windows.SecurityEvent\";\r\n// ===== Union, Deaktivierung erkennen, Schwere setzen =====\r\nunion from_mde, from_winsec\r\n| extend _text = tolower(strcat(ActionType, \" \", Details))\r\n// 5004 immer melden; ansonsten Text auf Deaktivierung prüfen\r\n| where EventID == 5004 or _text has_any (disable_terms)\r\n// (Optional) Dedupe gegen Event-Flut:\r\n| summarize arg_max(TimeGenerated, *) by DeviceName, ActionType, bin(TimeGenerated, 15m)\r\n// Schweregrad\r\n| extend Severity = case(\r\n    ActionType has \"Tamper\", \"High\",\r\n    EventID == 5004, \"High\",\r\n    ActionType has \"Status\", \"Medium\",\r\n    \"Medium\")\r\n| project TimeGenerated, DeviceName, Account, ActionType, EventID, Details, Source, Severity\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1562
+    - T1562.001
+    - T1112
+tags:
+    - defender
+    - tamper
+    - antivirus
+    - security
+    - windows
+    - sentinel
+    - kql
+author: Michael Fajkus
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/001/
+    - https://techcommunity.microsoft.com/blog/microsoftsentinelblog/the-power-of-data-collection-rules-detect-disabling-windows-defender-real-time-p/4236540

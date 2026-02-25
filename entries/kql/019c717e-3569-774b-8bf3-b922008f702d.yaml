@@ -1,0 +1,18 @@
+id: 019c717e-3569-774b-8bf3-b922008f702d
+name: Malicious VSCode Configuration Modification
+description: Detects modification of the VSCode settings.json file by a process other than VSCode itself. This could indicate an attempt to exploit vulnerabilities where an attacker tricks a user into applying a malicious configuration to achieve remote code execution.
+query: "// Name: Malicious VSCode Configuration Modification\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-18\r\n// Description: Detects modification of the VSCode settings.json file by a process other than VSCode itself. This could indicate an attempt to exploit vulnerabilities like CVE-2025-65715, where an attacker tricks a user into applying a malicious configuration to achieve remote code execution.\r\n// References: https://www.bleepingcomputer.com/news/security/flaws-in-popular-vscode-extensions-expose-developers-to-attacks/\r\n// MITRE TTPs: T1204.002, T1562.001\r\n// False Positive Sensitivity: Medium\r\nDeviceFileEvents\r\n// Look for file creation or rename events, as overwriting a file is often logged as a creation.\r\n| where ActionType in (\"FileCreated\", \"FileRenamed\")\r\n// Target the specific VSCode configuration file.\r\n| where FileName =~ \"settings.json\"\r\n// Filter for common VSCode configuration paths for user, workspace, and remote server settings.\r\n| where FolderPath has_any (\"Code/User\", \"vscode-server/data/Machine\", \".vscode\")\r\n// Exclude modifications made by the VSCode application itself, which is the legitimate way to change settings.\r\n| where InitiatingProcessFileName !~ \"Code.exe\"\r\n// False Positive Tuning:\r\n// Legitimate activity, such as developers using scripts (PowerShell, bash) or \"dotfile manager\" tools to automate their environment setup, may trigger this alert.\r\n// If known scripts or tools are used in your environment, exclude them by their process name or command line.\r\n// For example:\r\n// | where InitiatingProcessFileName !~ \"dotfile-manager.exe\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    RequestAccountName,\r\n    InitiatingProcessAccountName,\r\n    ActionType,\r\n    FilePath = FolderPath,\r\n    FileName,\r\n    ModifyingProcess = InitiatingProcessFileName,\r\n    ModifyingProcessCommandLine = InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/flaws-in-popular-vscode-extensions-expose-developers-to-attacks/

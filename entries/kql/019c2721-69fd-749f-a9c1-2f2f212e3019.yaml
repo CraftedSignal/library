@@ -1,0 +1,27 @@
+id: 019c2721-69fd-749f-a9c1-2f2f212e3019
+name: Detection for Operation Neusploit (APT28) CVE-2026-21509 artifacts
+description: In this campaign, the threat actor leveraged specially crafted Microsoft RTF files to exploit CVE-2026-21509 and deliver malicious backdoors in a multi-stage infection chain. Due to significant overlaps in tools, techniques, and procedures (TTPs) between this campaign and those of the Russia-linked advanced persistent threat (APT) group APT28, we attribute this new campaign to APT28 with high confidence. Microsoft released an out-of-band update to address CVE-2026-21509 on January 26, 2026. ThreatLabz observed active in-the-wild exploitation on January 29, 2026.
+query: "// Comprehensive Detection for Operation Neusploit (APT28)\r\n// Targets: CVE-2026-21509 artifacts, MiniDoor, and PixyNetLoader/Covenant TTPs\r\nunion DeviceProcessEvents, DeviceFileEvents, DeviceRegistryEvents\r\n| where \r\n    // 1. Specific Filenames & Paths\r\n    FileName in~ (\"VbaProject.OTM\", \"EhStoreShell.dll\", \"SplashScreen.png\") \r\n    or FolderPath contains @\"\\Microsoft OneDrive\\setup\\Cache\\\"\r\n    \r\n    // 2. Scheduled Task Persistence\r\n    or (ProcessCommandLine has_all (\"schtasks\", \"/create\") and ProcessCommandLine has \"OneDriveHealth\")\r\n    \r\n    // 3. COM Hijacking (Registry Artifacts)\r\n    or RegistryKey has \"{D9144DCD-E998-4ECA-AB6A-DCD83CCBA16D}\"\r\n    or (RegistryKey contains @\"Software\\Classes\\CLSID\" and RegistryValueData has \"EhStoreShell.dll\")\r\n    \r\n    // 4. Known Mutexes & Dropper Command Lines\r\n    or ProcessCommandLine has_any (\"adjgfenkbe\", \"dvyubgbqfusdv32\")\r\n    \r\n    // 5. Outlook Security Downgrades\r\n    or (RegistryKey contains @\"\\Microsoft\\Office\\\" and RegistryValueName in~ (\"VBAWarnings\", \"AccessVBOM\") and RegistryValueData in (\"1\", \"4\"))\r\n\r\n| extend Phase = case(\r\n    FileName =~ \"VbaProject.OTM\", \"Initial Access (VBA Dropper)\",\r\n    ProcessCommandLine has \"OneDriveHealth\", \"Persistence (Scheduled Task)\",\r\n    RegistryKey has \"{D9144DCD-E998-4ECA-AB6A-DCD83CCBA16D}\", \"Persistence (COM Hijacking)\",\r\n    FileName =~ \"EhStoreShell.dll\" or FileName =~ \"SplashScreen.png\", \"Execution (PixyNetLoader)\",\r\n    \"General Neusploit Artifact\")\r\n\r\n| project TimeGenerated, DeviceName, Phase, ActionType, FileName, ProcessCommandLine, RegistryKey, RegistryValueData, InitiatingProcessCommandLine\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.001
+    - T1203
+    - T1106
+    - T1053.005
+    - T1204.002
+    - T1546.015
+    - T1137.006
+    - T1140
+    - T1480.002
+    - T1027.007
+    - T1027.003
+    - T1497.003
+    - T1114
+    - T1071.001
+    - T1102.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.zscaler.com/blogs/security-research/apt28-leverages-cve-2026-21509-operation-neusploit

@@ -1,0 +1,58 @@
+id: 019c2d42-e9e9-746a-8331-031b80a5192f
+name: RMM Execution of Remote Installer via msiexec.exe
+description: Detects when a Remote Monitoring and Management (RMM) tool or a known lure spawns 'msiexec.exe' to download and execute a remote installer. This behavior is often abused by threat actors to deploy secondary payloads like additional C2 tools, leveraging legitimate RMM functionality.
+query: |
+    kql
+    // Name: RMM Execution of Remote Scripts
+    // Author: detections.ai
+    // Date: 2026-02-05
+    // Description: Detects when a Remote Monitoring and Management (RMM) tool spawns a process to download and execute a remote installer. Threat actors abuse legitimate RMM functionality to deploy secondary payloads like other C2 tools.
+    // Tactics: Command and Control, Execution
+    // Techniques: T1219, T1059.001
+    // References: https://www.huntress.com/blog/series-of-unfortunate-rmm-events
+
+    // Define the list of RMM tools and known lures that may initiate the download.
+    let rmmAndLures = dynamic([
+        "GoToResolve.exe",
+        "ITarian.exe",
+        "PDQ.exe",
+        "Open Revised Contract (2).exe",
+        "Thanksgiving-iv.exe",
+        "EVITEINVITERSOLVELIST.exe",
+        "OPENINVITATION.exe",
+        "Contract Revised.exe"
+    ]);
+    DeviceProcessEvents
+    // Look for msiexec.exe, the Windows Installer component.
+    | where FileName =~ "msiexec.exe"
+    // Check if the parent process is a known RMM tool or lure.
+    | where InitiatingProcessFileName in~ (rmmAndLures)
+    // And the command line indicates it's installing a package from a remote URL.
+    | where ProcessCommandLine has_any ("/i http", "/i https")
+    // FP-TUNING: Legitimate software deployment via an RMM might use this technique.
+    // To reduce noise, consider adding exclusions for known-good software distribution domains or specific RMM tools used by your IT team.
+    // For example: | where ProcessCommandLine !has "legit-software-domain.com"
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        FolderPath,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1219
+    - T1218.007
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/series-of-unfortunate-rmm-events

@@ -1,0 +1,14 @@
+id: 019c8ec1-2c6b-72af-8a7f-549684411aba
+name: Mass Azure Resource Deletion (Wiper / Destructive Attack)
+description: This rule detects a high volume of Azure resource deletions by a single user within a short timeframe (30 minutes). This behavior is indicative of a destructive attack or wiper activity, where an adversary attempts to delete critical cloud infrastructure to disrupt operations or cause data loss. The rule specifically looks for 'delete' operations that were successful and counts them per caller and IP address, triggering an alert if the count exceeds a defined threshold.
+query: "// Detection: Mass Azure Resource Deletion (Wiper / Destructive Attack)\r\n// Author: Rudra Verma - CyberHawk Threat Intel\r\n// MITRE ATT&CK: T1485 - Data Destruction\r\n\r\nlet timeWindow        = 30m;\r\nlet deletionThreshold = 5;\r\nAzureActivity\r\n| where TimeGenerated > ago(1d)\r\n| where OperationNameValue has \"delete\"\r\n| where ActivityStatusValue =~ \"Success\"\r\n| summarize\r\n    DeleteCount      = count(),\r\n    DeletedResources = make_set(OperationNameValue, 20),\r\n    ResourceGroups   = make_set(ResourceGroup, 10),\r\n    Subscriptions    = make_set(SubscriptionId, 5)\r\n    by Caller, CallerIpAddress, bin(TimeGenerated, timeWindow)\r\n| where DeleteCount >= deletionThreshold\r\n| extend AlertDescription = strcat(\r\n    \"User '\", Caller, \"' performed \",\r\n    DeleteCount, \" Azure resource deletions within 30 minutes — potential destructive activity\")\r\n| project-reorder TimeGenerated, Caller, CallerIpAddress,\r\n                  DeleteCount, DeletedResources, ResourceGroups\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1485
+tags:
+    - kql
+author: Rudra Verma - CyberHawk
+version: "4"

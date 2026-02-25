@@ -1,0 +1,17 @@
+id: b55cab7f-6949-4cd2-a176-ae061680888e
+name: Kubernetes Pod Creation in Kube Namespace by Non-System Account
+description: This rule detects the creation of Kubernetes pods by non-system service accounts within namespaces that start with 'kube'. This could indicate an attempt to establish persistence or escalate privileges within the Kubernetes cluster by creating malicious pods in critical system namespaces.
+query: "GCPOakPlatProduction_CL\r\n| where protoPayload_methodName_s == \"io.k8s.core.v1.pods.create\"\r\n| where protoPayload_authenticationInfo_principalEmail_s !startswith \"system\"\r\n| where protoPayload_response_metadata_namespace_s startswith \"kube\"\r\n| project TimeGenerated, RequestedBy = protoPayload_authenticationInfo_principalEmail_s, Resource = protoPayload_request_metadata_labels_k8s_app_s"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1098.006
+    - T1053.007
+    - DS0014
+tags:
+    - kql
+version: "1"

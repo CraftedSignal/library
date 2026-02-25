@@ -1,0 +1,22 @@
+id: 2394bf67-773b-4a3f-af0e-8007cf75ede7
+name: Newly Registered Typosquatting Domain Detection
+description: "\U0001F4CC Description\n\nThreat actors frequently register lookalike domains to support malicious activities such as phishing attacks, drive-by compromises, and command-and-control (C2) operations. This KQL hunting query is designed to help identify potential phishing and typosquatting domains that may be targeting your organization or its third-party vendors.\n\n\U0001F50D Threat Intelligence Feed\n\nThe hunting query utilizes data from the SANS Internet Storm Center (ISC) API, which provides access to newly registered domains.\n\nAPI Endpoint:\nhttps://isc.sans.edu/api/recentdomains/today?json\n\nUse Cases:\n\nThreat intelligence enrichment\nDetection of suspicious or malicious domains\nSecurity log correlation\nReturned Data Fields:\n\nDomain name\nRegistration date\nIP address\nType\nAdditional metadata (if available)\nQuery by Date (Optional):\nExample: https://isc.sans.edu/api/recentdomains/2025-07-08?json\n\n\U0001F3AF ATT&CK Framework Mapping\n\nTechnique: Acquire Infrastructure: Domains\nID: T1583.001\nReference: MITRE ATT&CK"
+query: "let newlyRegisteredDomains = externaldata (\n    domainname: string,\n    ip: string,\n    type: string,\n    firstseen: string) ['https://isc.sans.edu/api/recentdomains/today?json'] with(format='multijson');\n// Replace this list with your organization's name and common typosquatting variants.\nlet possibleTyposquattingOrgDomains = dynamic([\n    \"myorganisation\", \"0rganisattion\", \"myorgaanisation\"]); \n// Replace with relevant third-party vendors and their common typosquatting variants.\nlet possibleTyposquattingThirdPartyDomains = dynamic([\n    \"microsoft\", \"mlcrosofft\", \"m1crosoft\", \"microsfot\",\n    \"amazon\", \"amaz0n\", \"amzon\", \"amazn\", \"amaz0n\",\n    \"okta\", \"oktaa\", \"0kta\",\n    \"salesforce\", \"salesforcce\", \"saleforce\", \"safesforce\"]); \nnewlyRegisteredDomains\n| where domainname has_any (possibleTyposquattingOrgDomains)\n     or domainname has_any (possibleTyposquattingThirdPartyDomains)\n| extend PhishingTyposquattingCategory = case(\n         domainname has_any (possibleTyposquattingOrgDomains), \"Possible Phishing/Typosquatting Domains Targeting My Org\",\n         domainname has_any (possibleTyposquattingThirdPartyDomains), \"Possible Phishing/Typosquatting Targeting Third Party Domains\",\n         \"Unknown\")\n| project firstseen, domainname, ip, type, PhishingTyposquattingCategory"
+query_type: kql
+severity: medium
+tactics:
+    - TA0042
+    - TA0001
+    - TA0043
+techniques:
+    - T1583.001
+    - T1566
+    - T1566.002
+    - T1598
+tags:
+    - KQL
+    - kql
+author: Nounou Mbeiri
+version: "1"
+references:
+    - https://isc.sans.edu/api/

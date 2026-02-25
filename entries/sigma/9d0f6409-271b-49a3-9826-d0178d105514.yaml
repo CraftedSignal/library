@@ -1,0 +1,76 @@
+id: 9d0f6409-271b-49a3-9826-d0178d105514
+name: NSA and Others Provide Guidance to Counter China State-Sponsored Actors Targeting Critical Infrastructure Organizations
+description: Detects a sequence of commands on Cisco IOS devices used to capture network traffic, specifically targeting TACACS+ on TCP port 49, and then exfiltrate it. This technique, detailed in a CISA advisory on PRC state-sponsored actors, is used to harvest credentials from network traffic.
+query: |
+    id: 83b19d6a-9552-432c-ac2b-5d9e0f3366b3
+    status: experimental
+    title: NSA and Others Provide Guidance to Counter China State-Sponsored Actors
+      Targeting Critical Infrastructure Organizations
+    description: Detects a sequence of commands on Cisco IOS devices used to capture
+      network traffic, specifically targeting TACACS+ on TCP port 49, and then
+      exfiltrate it. This technique, detailed in a CISA advisory on PRC
+      state-sponsored actors, is used to harvest credentials from network traffic.
+    references:
+      - https://media.defense.gov/2025/Aug/22/2003786665/-1/-1/0/CSA_COUNTERING_CHINA_STATE_ACTORS_COMPROMISE_OF_NETWORKS.PDF
+    author: detections.ai
+    date: 2025-08-28
+    tags:
+      - attack.credential_access
+      - attack.t1040
+      - attack.t1005
+      - attack.exfiltration
+    logsource:
+      product: cisco_ios
+      category: network
+    detection:
+      # These commands will likely be found in command accounting logs (e.g., TACACS+).
+      # The field name for the command may vary, e.g., 'command', 'cli_command', 'message'.
+      capture_setup:
+        CommandLine|contains|all:
+          - 'monitor'
+          - 'capture'
+          - 'match'
+          - 'eq 49' # Detects capture of TACACS+ traffic on its standard port.
+      capture_export:
+        CommandLine|contains|all:
+          - 'monitor'
+          - 'capture'
+          - 'export' # Detects exporting the capture to a file.
+          - 'bootflash:' # Common staging location mentioned in the report.
+      exfil:
+        CommandLine|contains|all:
+          - 'copy'
+          - 'bootflash:' # Exfiltrating from the common staging location.
+        CommandLine|contains:
+          - 'ftp://' # Exfiltration via FTP.
+          - 'tftp://' # Exfiltration via TFTP.
+      condition: capture_setup and (capture_export or exfil)
+    falsepositives:
+      - Legitimate network troubleshooting by administrators. However, capturing
+        TACACS+ traffic and immediately exfiltrating it is highly suspicious.
+        Investigate the user performing the action and correlate with authorized
+        change management tickets. The use of capture names like 'mycap' or
+        filenames like 'tac.pcap' can increase confidence.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+    - TA0006
+    - TA0007
+    - TA0009
+techniques:
+    - T1040
+    - T1005
+tags:
+    - attack.credential_access
+    - attack.t1040
+    - attack.t1005
+    - attack.exfiltration
+author: detections.ai
+version: "1"
+references:
+    - https://media.defense.gov/2025/Aug/22/2003786665/-1/-1/0/CSA_COUNTERING_CHINA_STATE_ACTORS_COMPROMISE_OF_NETWORKS.PDF
+data_sources:
+    - network
+    - cisco_ios

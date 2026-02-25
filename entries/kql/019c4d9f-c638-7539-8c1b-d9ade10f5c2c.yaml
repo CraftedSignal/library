@@ -1,0 +1,35 @@
+id: 019c4d9f-c638-7539-8c1b-d9ade10f5c2c
+name: UNC1069 / AI-themed Social Engineering Activity
+description: Detects possible information stealer activity linked to AI themed lures by flagging suspicious programs launched from Downloads or Temp, connections to Telegram bot endpoints, and Python scripts run from Temp with stealer related keywords in the command line.v
+query: |-
+    // UNC1069 / AI-themed social engineering. Google / Mandiant.
+    // Author: Daniel Jeremiah | Date: 2026/02/11
+    // Ref: https://cloud.google.com/blog/topics/threat-intelligence/cybercriminals-weaponize-fake-ai-websites
+
+    // Executable launched from Temp/Downloads with parent explorer or archive
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where (InitiatingProcessFileName in ("explorer.exe", "WinRAR.exe", "7z.exe", "msiexec.exe") or InitiatingProcessFileName contains "7z")
+    | where FolderPath contains "Temp" or FolderPath contains "Downloads" or FolderPath contains @"AppData\Local\Temp"
+    | where FileName endswith ".exe"
+    | project Timestamp, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessFileName;
+
+    // Telegram API (bot token) - common infostealer exfil
+    DeviceNetworkEvents
+    | where ActionType in ("ConnectionSuccess", "ConnectionAttempt")
+    | where RemoteUrl contains "api.telegram.org" and RemoteUrl contains "/bot"
+    | project Timestamp, DeviceName, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine;
+
+    // Python with stealer-like command line from temp
+    DeviceProcessEvents
+    | where ActionType == "ProcessCreated"
+    | where InitiatingProcessFileName in ("python.exe", "python3.exe")
+    | where ProcessCommandLine contains "telegram" or ProcessCommandLine contains "steal" or ProcessCommandLine contains "wallet" or ProcessCommandLine contains "cookie" or (ProcessCommandLine contains "Temp" and ProcessCommandLine contains ".py")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine, InitiatingProcessFileName
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/cybercriminals-weaponize-fake-ai-websites

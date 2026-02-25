@@ -1,0 +1,18 @@
+id: 019b0470-75db-7733-bb3b-2a7f1c3e46e0
+name: AWS IAM Role Assumed by New Identity
+description: Detects when an AWS IAM role is assumed by an identity that has not used that specific role within a historical 7-day window. This behavior can indicate lateral movement, privilege escalation, compromised credentials, or a deviation from normal workload patterns. The rule excludes AWS internal service identities to focus on human and workload actors.
+query: "```\r\nAuthor: Tayvion P. (@tayontech)\r\nDescription: Detects IAM roles being assumed by an identity that has not used the same role within the configured historical window (7 days). \r\nSudden usage of a previously unused or dormant role can indicate lateral movement, privilege escalation, compromised credentials, or deviation from normal workload behavior. \r\nThe detection excludes AWS internal service identities to focus on human and workload actors.\r\n\r\ntags:\r\n  - attack.initial_access\r\n  - attack.privilege_escalation \r\n  - attack.t1078.004 \r\n  - attack.t1550.001 \r\n```\r\n\r\nindex=cloudtrail eventName=\"AssumeRole\"\r\n  | search\r\n      NOT userIdentity.type = \"AWSService\"\r\n      NOT userIdentity.arn = <service-account> // filter known service accounts\r\n\r\n\r\n  | eval is_recent = if(\r\n          _time >= relative_time(now(), \"-15m@s\")\r\n          AND _time < relative_time(now(), \"@s\"),\r\n          1, 0\r\n      )\r\n\r\n  | eval is_hist = if(\r\n          _time >= relative_time(now(), \"-7d\")\r\n          AND _time < relative_time(now(), \"-15m@s\"),\r\n          1, 0\r\n      )\r\n  | stats\r\n      max(is_recent) as has_recent\r\n      max(is_hist)   as has_hist\r\n      earliest(eval(if(is_recent=1, _time, null()))) as initial_detection_time\r\n      values(sourceIPAddress)    as src_ips\r\n      values(user_agent)         as user_agents\r\n      values(aws_account_id)     as cloud_accounts\r\n      values(userIdentity.type)  as identity_types\r\n    by userIdentity.arn requestParameters.roleArn\r\n\r\n  | where has_recent=1 AND has_hist=0 AND isnotnull(initial_detection_time)\r\n\r\n  | stats\r\n      min(initial_detection_time)       as initial_detection_time\r\n      values(src_ips)                   as src_ip\r\n      values(requestParameters.roleArn) as assumed_roles\r\n      values(identity_types)            as identity_types\r\n      values(cloud_accounts)            as cloudaccount\r\n      values(user_agents)               as useragent\r\n    by userIdentity.arn\r\n  | rename userIdentity.arn as user_arn\r\n  | eval initial_detection_time = strftime(initial_detection_time, \"%F %H:%M:%S %Z\")"
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0004
+    - TA0001
+    - TA0005
+    - TA0003
+techniques:
+    - T1078.004
+    - T1550.001
+tags:
+    - spl
+version: "1"

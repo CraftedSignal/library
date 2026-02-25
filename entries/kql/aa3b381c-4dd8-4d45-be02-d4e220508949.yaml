@@ -1,0 +1,31 @@
+id: aa3b381c-4dd8-4d45-be02-d4e220508949
+name: Microsoft Defender Advanced Hunting Copilot Activities
+description: KQL Query
+query: "//Microsoft Defender Advanced Hunting Copilot Activities\n//https://www.linkedin.com/pulse/microsoft-defender-advanced-hunting-copilot-activities-steven-lim-cudyc/\n\nCloudAppEvents\n| where ActionType == @\"CopilotInteraction\"\n| extend UserID = tostring(RawEventData.UserId)\n| extend CopilotData = todynamic(RawEventData.CopilotEventData)\n| extend CopilotAccessResources = (CopilotData.AccessedResources)\n| extend CopilotAppHost = tostring(CopilotData.AppHost)\n| extend CopilotContexts = tostring(CopilotData.Contexts)\n| extend CopilotType = tostring(CopilotData.Type)\n| extend CopilotMessageIds = tostring(CopilotData.MessageIds)\n| extend CopilotThreadId = tostring(CopilotData.ThreadId)\n| project Timestamp, UserID, CopilotAccessResources, CopilotAppHost, \nCopilotContexts, CopilotType, CopilotMessageIds, CopilotThreadId\n// Copilot Interaction Data Formatted\n// Insert your hunting query for copilot related activities.\n\n//The below Defender custom KQL detection rule detects potential Copilot abuse by threat actors at regular interval.\n\nCloudAppEvents\n| where Timestamp > ago(1h)\n| where IPTags has_any (\"Brute force attacker\", \"Password spray attacker\", \"malicious\", \"Possible Hackers\", \"Tor\")\n| where ActionType == \"CopilotInteraction\" \n\n//Detect token theft via AiTM phishing attack whereby token is then used to conduct copilot activities for data summarization and extraction.\n\nlet AnomalousTokenRequestId=\nSecurityAlert\n| where TimeGenerated > ago(30d)\n| where AlertName == \"Anomalous Token\"\n| mv-expand todynamic(Entities)\n| project Entities\n| extend RequestId = tostring(Entities.RequestId)\n| distinct RequestId;\nlet CopilotClientIP=\nSigninLogs\n| where TimeGenerated > ago(30d)\n| where AppDisplayName contains \"copilot\"\n| distinct IPAddress;\nAADUserRiskEvents\n| where TimeGenerated > ago(30d)\n| where RequestId has_any(AnomalousTokenRequestId)\n| where IpAddress has_any(CopilotClientIP) \n| project TimeGenerated, UserPrincipalName, RiskEventType, RiskLevel, DetectionTimingType, IpAddress, Location\n\n//Detect malicious Copilot external data search via Microsoft Graph Connectors. This detection is useful when your Copilot has external plugin enabled and access external corporate data via plugin through graph connectors.\n\nlet CopilotIPs =\nMicrosoftGraphActivityLogs\n| where TimeGenerated > ago(30d)\n| where RequestUri contains \"Microsoft365Copilot@communication.microsoft.com\"\n| distinct IPAddress;\nSigninLogs\n| where TimeGenerated > ago(30d)\n| where RiskEventTypes contains \"maliciousIPAddress\" \n| where IPAddress has_any (CopilotIPs)\n\n//Microsoft Defender for Cloud App added the application \"Microsoft Copilot for Microsoft 365\", it will be easier to threat hunt using the activity log or using advance hunting KQL.\n\nCloudAppEvents\n| where Application == \"Microsoft Copilot for Microsoft 365\"\n\n//Identify token theft through AiTM phishing attacks, where stolen tokens are exploited for Copilot activities involving data summarization and extraction from a non-malicious IP. Leverage Sentinel Behavior Analytics to detect initial logins from new ISPs (potentially threat actors) and correlate this IP data with Copilot activities from CloudAppEvents.\n\nlet FirstTimeUserConnectedISPIP =\nBehaviorAnalytics\n| where TimeGenerated > ago(7d)\n// Behaviour Analytics detecting user first time connected to a new ISP\n| where tostring(ActivityInsights.FirstTimeUserConnectedViaISP) == \"True\"\n| where ActivityType == \"LogOn\"\n| where SourceDevice == \"\"          // Non-corporate endpoint\n| where InvestigationPriority > 0   // Suspicious Session\n| project SourceIPAddress;\nCloudAppEvents\n| where ActionType == \"CopilotInteraction\"\n// Correlating copilot activities from the new ISP IP\n| where IPAddress has_any(FirstTimeUserConnectedISPIP)\n\n\n// MITRE ATT&CK Mapping\n\n// Initial Access\n// T1078: Valid Accounts - Detecting anomalous token usage and new ISP connections can indicate compromised accounts.\n// Execution\n// T1059: Command and Scripting Interpreter - Copilot interactions can be seen as automated scripting activities.\n// Persistence\n// T1078: Valid Accounts - Persistent access through stolen tokens.\n// Privilege Escalation\n// T1078: Valid Accounts - Using stolen tokens to escalate privileges.\n// Defense Evasion\n// T1078: Valid Accounts - Using valid accounts to evade detection.\n// Credential Access\n// T1550: Use Alternate Authentication Material - Token theft via AiTM phishing attacks.\n// Discovery\n// T1083: File and Directory Discovery - Accessing resources and contexts via Copilot.\n// Collection\n// T1114: Email Collection - Data summarization and extraction activities.\n// Command and Control\n// T1071: Application Layer Protocol - Copilot interactions over application protocols.\n// Exfiltration\n// T1041: Exfiltration Over C2 Channel - Data extraction via Copilot activities.\n"
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0002
+    - TA0008
+    - TA0007
+    - TA0009
+    - TA0011
+    - TA0010
+    - TA0043
+techniques:
+    - T1078
+    - T1059
+    - T1550
+    - T1083
+    - T1114
+    - T1071
+    - T1041
+    - T1566
+    - T1598
+    - T1566.002
+tags:
+    - kql
+version: "1"

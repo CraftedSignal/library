@@ -1,0 +1,55 @@
+id: 019c1f82-bd95-71d8-b99e-1655fccf5710
+name: Interlock RAT Deceptive Scheduled Tasks
+description: Detects persistence mechanisms used by the Interlock RAT, which leverages specific, deceptive scheduled task names related to Defrag, Chkdsk, and TimeSync to maintain a foothold on compromised systems.
+query: |
+    title: Interlock RAT Deceptive Scheduled Tasks
+    id: 616a206f-f500-4c7c-8a10-f35fe17b47c9
+    status: experimental
+    description: Detects persistence mechanisms used by the Interlock RAT, which
+      leverages specific, deceptive scheduled task names related to Defrag, Chkdsk,
+      and TimeSync to maintain a foothold on compromised systems.
+    references:
+      - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+    author: detections.ai
+    date: 2026-02-02
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      category: scheduled_task
+      product: windows
+    detection:
+      selection:
+        TaskName:
+          # Specific scheduled task paths and names used by Interlock RAT for persistence
+          - '\Microsoft\Windows\Defrag\ScheduledDefrags'
+          - '\Microsoft\Windows\Chkdsk\TempDefrag'
+          - '\TimeSyncDrive'
+          - '\TimeSyncroDriver'
+          - '\TimeSync'
+          - '\TimeSyncro'
+      condition: selection
+    falsepositives:
+      - These task names are highly specific to Interlock RAT activity. However,
+        legitimate software could potentially use similar names, although it is
+        unlikely. Validate the associated command line or executable path for any
+        matches.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: detections.ai
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/interlock-ransomware-new-techniques-same-old-tricks
+data_sources:
+    - scheduled_task
+    - windows

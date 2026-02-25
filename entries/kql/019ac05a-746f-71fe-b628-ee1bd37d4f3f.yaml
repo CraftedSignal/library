@@ -1,0 +1,17 @@
+id: 019ac05a-746f-71fe-b628-ee1bd37d4f3f
+name: Potentially Abnormal Parent Process for regedit.exe
+description: This rule detects instances where 'regedit.exe' is launched by a parent process that is not commonly associated with its execution. It specifically filters out common legitimate parent processes like 'explorer.exe', 'msiexec.exe', and 'cmd.exe', and also excludes parent processes originating from standard Windows and Program Files directories. This helps to identify suspicious or unauthorized attempts to modify the Windows Registry.
+query: "// Potentially Abnormal Parent Process for regedit.exe\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where FileName has_any ( \"regedit.exe\")\r\n| where not(InitiatingProcessFileName in~ (\"explorer.exe\", \"msiexec.exe\", \"cmd.exe\"))\r\n| where InitiatingProcessFolderPath !startswith @\"C:\\Windows\"\r\n| where InitiatingProcessFolderPath !startswith @\"C:\\Program Files\"\r\n| where InitiatingProcessFolderPath !startswith @\"C:\\Program Files (x86)\"\r\n|summarize count() by InitiatingProcessFileName,InitiatingProcessSHA1\r\n|invoke FileProfile(InitiatingProcessSHA1, 1000)\r\n\r\n// you can tune this query by filtering out trusted Signers/Publishers \r\n// look for low global prevalence etc :D \r\n// --- enjoy your hunt, fell free to add tuning ideas in the coments "
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0002
+techniques:
+    - T1112
+    - T1059
+tags:
+    - kql
+author: 'F S '
+version: "2"

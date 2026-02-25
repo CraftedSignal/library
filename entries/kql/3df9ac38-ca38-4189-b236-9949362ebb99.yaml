@@ -1,0 +1,33 @@
+id: 3df9ac38-ca38-4189-b236-9949362ebb99
+name: EDR and AV Killer - A Large Scale Driver Exploitation Detection
+description: KQL Query
+query: |
+    // EDR and AV Killer - A Large Scale Driver Exploitation Detection
+    // https://research.checkpoint.com/2025/large-scale-exploitation-of-legacy-driver/
+
+    let Truesight202Variants=externaldata(FileHash:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/SHA-256-Truesight-Driver-Variants-Ver202.txt'];
+    let EDRKillerFileHashes =
+    Truesight202Variants
+    | project FileHash;
+    DeviceFileEvents
+    | where TimeGenerated > ago(90d)
+    | where InitiatingProcessSHA256 has_any(EDRKillerFileHashes) or SHA256 has_any(EDRKillerFileHashes)
+    //
+    // EDR & AV Killer
+    // The legacy Truesight.sys driver (version 2.0.2) has 2,500+ variants bypassing the latest
+    // Microsoft Vulnerable Driver Blocklist and common detection mechanisms. The above KQL scan
+    // across DeviceFileEvents for the past 90 days for potential truesight.sys variant presence.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1562.001
+    - T1562.006
+    - T1014
+    - T1547.006
+tags:
+    - kql
+version: "1"

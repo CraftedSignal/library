@@ -1,0 +1,17 @@
+id: 019a1239-e01a-72ad-986e-0594f378f281
+name: Brazil scam Zapgrande
+description: Detect the patten  execution  of the the brazilian malware Zapgrande
+query: "let zip=\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".zip\"\r\n| project DeviceId,ZipTimestamp =Timestamp,ZipFolderPath=FolderPath,ZipFileName=FileName;\r\nlet lnk =\r\nDeviceFileEvents\r\n| where ActionType == \"FileCreated\"\r\n| where FileName endswith \".lnk\"\r\n| project DeviceId, LnkTimestamp = Timestamp, LnkFolderPath = FolderPath, LnkFileName = FileName;\r\nlet pwsh =\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName == \"cmd.exe\"\r\n| where FileName in (\"powershell.exe\", \"POWERSHELL.EXE\", \"powershell_ise.exe\", \"POWERSHELL_ISE.EXE\")\r\n| where ProcessCommandLine has_any (\"Net.WebClient\",\"DownloadFile\",\"Invoke-WebRequest\",\"iwr\",\"Invoke-Shellcode\",\"http:\",\r\n\"New-Object System.Net.Sockets.TcpClient\",\"IEX\",\"Invoke-Expression\",\"DownloadString\") or ProcessCommandLine contains \"base64\" \r\nor ProcessCommandLine contains \"-EcondedCommand\" or ProcessCommandLine contains \"-enc\"\r\n| project DeviceId, PWSHTimestamp = Timestamp, DeviceName, AccountName, CommandLine_PS = ProcessCommandLine;\r\nzip\r\n| join kind=inner (lnk) on DeviceId\r\n| join kind=inner (pwsh) on DeviceId\r\n| where LnkTimestamp >= ZipTimestamp\r\n| where PWSHTimestamp >= LnkTimestamp\r\n| where PWSHTimestamp between (LnkTimestamp .. 5m)\r\n| project Timestamp_Zip = ZipTimestamp,Timestamp_LNK = LnkTimestamp,Timestamp_PS = PWSHTimestamp,DeviceName,AccountName,ZipFileName,\r\nLnkFileName,CommandLine_PS\r\n| summarize  count() by  DeviceName,AccountName,ZipFileName,LnkFileName,CommandLine_PS\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1204
+    - T1059
+tags:
+    - kql
+author: Enzima45
+version: "4"

@@ -1,0 +1,63 @@
+id: 019b99ca-7fc3-730d-a00e-9da8aca55617
+name: VMware VMCI Device Disabling via Devcon
+description: Detects the use of the Microsoft Device Console (devcon.exe) to disable VMware Virtual Machine Communication Interface (VMCI) devices. This is a preparatory step observed in the 'MAESTRO' toolkit to gain exclusive hardware access before loading a malicious driver for a VM escape exploit.
+query: |
+    title: VMware VMCI Device Disabling via Devcon
+    id: 6b103748-791b-43c1-87ce-bfb4a53db928
+    status: experimental
+    description: >-
+      Detects the use of the Microsoft Device Console (devcon.exe) to disable VMware
+      Virtual Machine Communication Interface (VMCI) devices. This is a preparatory
+      step observed in the 'MAESTRO' toolkit to gain exclusive hardware access
+      before loading a malicious driver for a VM escape exploit.
+    references:
+      - https://www.huntress.com/blog/esxi-vm-escape-exploit
+    author: tim@detections.ai
+    date: 2026-01-07T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1562.001
+      - cve.2025.22224
+      - cve.2025.22225
+      - cve.2025.22226
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_base:
+        Image|endswith: '\devcon.exe'
+        CommandLine|contains: 'disable'
+      selection_device:
+        CommandLine|contains:
+          - 'PCI\VEN_15AD&DEV_0740'
+          - 'ROOT\VMWVMCIHOSTDEV'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate administrative or troubleshooting activity may involve disabling
+        these devices, although it is uncommon. Context and user performing the
+        action should be investigated.
+    level: high
+    associated_cves:
+      - CVE-2025-22224
+      - CVE-2025-22225
+      - CVE-2025-22226
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense_evasion
+    - attack.t1562.001
+    - cve.2025.22224
+    - cve.2025.22225
+    - cve.2025.22226
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.huntress.com/blog/esxi-vm-escape-exploit
+data_sources:
+    - process_creation
+    - windows

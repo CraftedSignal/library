@@ -1,0 +1,14 @@
+id: 8d7e1e47-afc9-4916-84f2-a1791e53b8ff
+name: CVE-2024-43452 PoC Detection
+description: 'KQL Query from file: CVE-2024-43452 PoC Detection'
+query: "// CVE-2024-43452 PoC Detection\n\n// As the year begins, we've encountered a second significant Windows exploit. A Proof of Concept (PoC) has been released for CVE-2024-43452, a Windows Registry Elevation of Privilege vulnerability (CVSS 7.5) affecting Windows 11 23H2. This PoC, created by Mateusz Jurczyk from Google Project Zero, was inspired by Gabriel Landau’s research on registry vulnerabilities. (Link available in the comments)\n// CVE-2024-43452 PoC: https://project-zero.issues.chromium.org/issues/42451731\n//Fellow defenders, I have developed an advanced hunting DefenderXDR KQL to detect the use of this PoC with high accuracy. Deploy it wisely to prevent abuse by red teams and threat actors.\n\nlet VulnerableEndpoint =\nDeviceTvmSoftwareVulnerabilities \n| where CveId == \"CVE-2024-43452\"\n| distinct DeviceName;\nlet ExeWithLP =\nDeviceFileEvents\n| where ActionType == @\"FileCreated\"\n| where FileName endswith \".exe\"\n| invoke FileProfile(\"SHA1\",1000)\n| where GlobalPrevalence <= 50\n| join kind=leftouter DeviceFileCertificateInfo on SHA1\n| where SignatureState == @\"Unsigned\"\n| distinct FileName; // An unsual low prevalence unsigned .exe created\nlet EPwithCMDRun =\nDeviceEvents \n| where InitiatingProcessCommandLine has \".exe\" and InitiatingProcessCommandLine has \".dat\"\n| where FileName has_any(ExeWithLP)\n| distinct DeviceName; // Command line execution with low prevalence exe and .dat file\nDeviceNetworkEvents\n| where RemotePort == \"445\"\n| where ActionType == \"ConnectionSuccess\"\n| where DeviceName has_any (EPwithCMDRun) // Successful outbound SMB connection\n| where DeviceName has_any (VulnerableEndpoint) // Not Patch - Vulnerable\n\n\n// MITRE ATT&CK\n"
+query_type: kql
+tactics:
+    - TA0004
+    - TA0008
+techniques:
+    - T1068
+    - T1021.002
+tags:
+    - kql
+version: "1"

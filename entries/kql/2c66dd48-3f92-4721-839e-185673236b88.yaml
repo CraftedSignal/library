@@ -1,0 +1,15 @@
+id: 2c66dd48-3f92-4721-839e-185673236b88
+name: Sentinel Timeroasting KQL detection
+description: 'KQL Query from file: Sentinel Timeroasting KQL detection'
+query: "// Sentinel Timeroasting KQL detection\n\n// https://github.com/SecuraBV/Timeroast\n// Timeroasting takes advantage of Windows' NTP authentication mechanism, allowing unauthenticated attackers to effectively request a password hash of any computer or trust account by sending an NTP request with that account's RID. This is not a problem when computer accounts are properly generated, but if a non-standard or legacy default password is set this tool allows you to brute-force those offline.\n\n// By default, Windows checks NTP (Network Time Protocol) roughly once every hour\n// Abnormal NTP connections indicate possible timeroasting activities conducted\n\nlet TimeRoastingTrigger = 3;\nlet NTPDeviceIPs =\nCommonSecurityLog\n| where TimeGenerated > ago(1h)\n| where ApplicationProtocol has \"ntp\"\n| where ipv4_is_private(DestinationIP)\n| distinct DestinationIP;\nDeviceNetworkEvents\n| where LocalIP has_any(NTPDeviceIPs)\n| where Protocol == \"Udp\"\n| summarize Count=count() by RemoteIP\n| sort by Count desc\n| where Count > TimeRoastingTrigger \n\n\n// MITRE ATT&CK \n"
+query_type: kql
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+    - T1110.004
+    - T1552
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,26 @@
+id: 019c48f4-660c-75ca-ba10-fd6f73a589ce
+name: SSH Authentication from External IP Address
+description: This rule detects successful SSH authentication attempts originating from IP addresses that are not classified as private (non-RFC1918). It specifically looks for log entries indicating 'Accepted password' or 'Accepted publickey' and then filters out source IP addresses that fall within common private IPv4 ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16). The rule is designed to identify SSH access from external networks, which might be unusual in environments where SSH is expected to be primarily internal. It does not account for IPv6 private addresses.
+query: "title: SSH Authentication from External IP Address\r\nid: 568059a8-ae50-42af-a40b-ce1c7f867a6c\r\nstatus: experimental\r\ndescription: |\r\n    Detects SSH authentication from external (non-RFC1918) IP addresses.\r\n    Useful for monitoring environments where SSH should primarily occur from internal networks.\r\nreferences:\r\n    - https://attack.mitre.org/techniques/T1078/\r\n    - https://attack.mitre.org/techniques/T1133/\r\nauthor: SimSpace\r\ndate: 2026-01-19\r\ntags:\r\n    - attack.initial-access\r\n    - attack.t1078\r\n    - attack.t1133\r\nlogsource:\r\n    product: linux\r\n    service: sshd\r\n    definition: Uses keyword matching. IPv4 only - does not filter IPv6 private addresses.\r\ndetection:\r\n    selection_auth:\r\n        - 'Accepted password'\r\n        - 'Accepted publickey'\r\n    filter_rfc1918:\r\n        src_ip|startswith:\r\n            - '10.'\r\n            - '172.16.'\r\n            - '172.17.'\r\n            - '172.18.'\r\n            - '172.19.'\r\n            - '172.20.'\r\n            - '172.21.'\r\n            - '172.22.'\r\n            - '172.23.'\r\n            - '172.24.'\r\n            - '172.25.'\r\n            - '172.26.'\r\n            - '172.27.'\r\n            - '172.28.'\r\n            - '172.29.'\r\n            - '172.30.'\r\n            - '172.31.'\r\n            - '192.168.'\r\n            - '127.'\r\n            - '169.254.'\r\n    condition: selection_auth and not filter_rfc1918\r\nfields:\r\n    - src_ip\r\n    - user\r\nfalsepositives:\r\n    - Remote employees accessing from home or public networks\r\n    - Administrators connecting from non-corporate locations\r\n    - Legitimate third-party vendor access\r\n    - Cloud-based bastion hosts or jump servers\r\n    - Users on VPNs with external exit IPs\r\nlevel: low"
+query_type: sigma
+severity: low
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1078
+    - T1133
+tags:
+    - attack.initial-access
+    - attack.t1078
+    - attack.t1133
+author: SimSpace
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1078/
+    - https://attack.mitre.org/techniques/T1133/
+data_sources:
+    - linux
+    - sshd

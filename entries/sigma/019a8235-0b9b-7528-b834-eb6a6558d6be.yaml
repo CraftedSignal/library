@@ -1,0 +1,49 @@
+id: 019a8235-0b9b-7528-b834-eb6a6558d6be
+name: Suspicious Script Spawning Executable in AppData
+description: Detects the execution of an executable file from the AppData\Local directory by the Windows Script Host (wscript.exe or cscript.exe). This behavior is unusual and was observed in the CHAMELEON#NET campaign where JavaScript droppers were used to launch subsequent stages.
+query: |
+    title: Suspicious Script Spawning Executable in AppData
+    id: 79ae003b-4cb6-4fb7-b904-90fbd5a1abb0
+    status: experimental
+    description: Detects the execution of an executable file from the AppData\Local directory by the Windows Script Host (wscript.exe or cscript.exe). This behavior is unusual and was observed in the CHAMELEON#NET campaign where JavaScript droppers were used to launch subsequent stages.
+    references:
+      - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+    author: detections.ai
+    date: 2025-11-14
+    tags:
+      - attack.execution
+      - attack.t1059.007
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection:
+            # Detects Windows Script Host as the parent process
+        ParentImage|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+            # Detects a child process that is an executable
+        Image|endswith: '.exe'
+            # Detects the executable running from a temporary user directory
+        Image|contains: '\AppData\Local\'
+      condition: selection
+    falsepositives:
+        # Some legitimate software installers or updaters might exhibit this behavior, although it is uncommon.
+      - Legitimate installers or auto-update processes.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.007
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/chameleonnet-a-deep-dive-into-multi-stage-net-malware-leveraging-reflective-loading-and-custom-decryption-for-stealthy-operations/
+data_sources:
+    - process_creation
+    - windows

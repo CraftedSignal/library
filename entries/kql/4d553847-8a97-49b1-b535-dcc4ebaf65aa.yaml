@@ -1,0 +1,48 @@
+id: 4d553847-8a97-49b1-b535-dcc4ebaf65aa
+name: Entra ID Administrative Role (AD-Sync)
+description: 'KQL Query from file: Entra ID Administrative Role (AD-Sync)'
+query: |
+    // Entra ID Administrative Role (AD-Sync)
+
+    IdentityInfo
+    | where Timestamp > ago(30d)
+    | where AssignedRoles != ""
+    | mv-expand AssignedRoles
+    | extend EntraAdminRole = tostring(AssignedRoles)
+    | where OnPremSid != ""
+    | distinct EntraAdminRole, AccountUpn
+    | where AccountUpn != ""
+    | sort by EntraAdminRole asc
+
+    // MITRE ATT&CK Mapping
+
+    // Based on the operations and objectives of the KQL code, the following MITRE ATT&CK techniques are relevant:
+
+    // T1078 - Valid Accounts:
+    // The query filters and expands assigned roles, which can help identify the use of valid accounts with specific roles.
+    // T1087 - Account Discovery:
+    // The query retrieves distinct combinations of roles and UPNs, which aligns with discovering accounts and their associated roles.
+    // T1071 - Application Layer Protocol:
+    // Filtering by OnPremSid and AccountUpn can help detect unusual or unauthorized use of application layer protocols for accessing resources.
+    // T1556 - Modify Authentication Process:
+    // The query’s focus on assigned roles and on-premises SIDs can help detect modifications to authentication processes or roles.
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0007
+    - TA0011
+    - TA0006
+techniques:
+    - T1078
+    - T1087
+    - T1071
+    - T1556
+    - T1556.007
+    - T1098.005
+    - T1055.011
+tags:
+    - kql
+version: "1"

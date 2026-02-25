@@ -1,0 +1,12 @@
+id: 019beb84-7c3b-7298-a931-b3fd027b10a5
+name: Automate by Subject
+description: Of course you can get an easier version to simply search emails by subject, this is too verbose. But this is used to make a workbook that will display a set of information about the incident and give you the possibility to click on a button, generate this and visit the incident's page.
+query: "//################################################################\r\n//##  PLATFORM: Microsoft Exchange Online (Email Security Gateway)\r\n//##  AUTHOR: IGOR OLIVEIRA (#IO)\r\n//##  LOCATION: Microsoft Sentinel | Logs\r\n//##  TITLE: KQL to automate phishing investigation by Subject\r\n//################################################################\r\nlet subjectAutoInvestigation = {Subject-Line};\r\nlet SampleTenantId = \"a4187cae-cdf5-1276-9884-4668cd08d129\";\r\nlet Subject_Lookup =\r\nEmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where Subject contains subjectAutoInvestigation\r\n    | summarize \r\n        emailCount = count(),\r\n        FirstEmailDate = min(TimeGenerated),\r\n        LastEmailDate = max(TimeGenerated)\r\n    by RecipientEmailAddress, Subject;\r\nlet EmailSample =\r\n    EmailEvents\r\n    | where TimeGenerated > ago(90d)\r\n    | where Subject contains subjectAutoInvestigation\r\n    | summarize arg_max(TimeGenerated, NetworkMessageId) by RecipientEmailAddress, Subject;\r\nSubject_Lookup\r\n| join kind=inner (EmailSample) on RecipientEmailAddress, Subject\r\n| extend\r\n    EmailDetails = strcat(\r\n    \"https://security.microsoft.com/emailentity?f=summary&startTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&endTime=\",\r\n    tostring(TimeGenerated),\r\n    \"&id=\",\r\n    NetworkMessageId,\r\n    \"&recipient=\",\r\n    RecipientEmailAddress,\r\n    \"&tid=\",\r\n    SampleTenantId\r\n)\r\n| project FirstEmailDate, LastEmailDate, RecipientEmailAddress, Subject, emailCount, EmailDetails\r\n| order by emailCount desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Igor Oliveira
+version: "4"

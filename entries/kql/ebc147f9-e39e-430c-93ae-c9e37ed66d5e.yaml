@@ -1,0 +1,36 @@
+id: ebc147f9-e39e-430c-93ae-c9e37ed66d5e
+name: Hunting chrome extension with hidden tracking
+description: 'KQL Query from file: Hunting chrome extension with hidden tracking'
+query: |4
+    // KQL 1 - First Version
+    let SecureAnnex=externaldata(extension_id:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/SecureAnnexIOCs.csv'];
+    let MID =
+    SecureAnnex
+    | project extension_id;
+    DeviceFileEvents
+    | where ActionType == "FileCreated" or ActionType == "FileModified" or ActionType == "FileRenamed"
+    | where FileName endswith ".crx"
+    | where FileName has_any(MID)
+
+    // KQL 2 - Optimized Version
+
+    let SecureAnnex=externaldata(extension_id:string, extension_name:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/SecureAnnexIOCs.csv']
+    with (format='csv', ignoreFirstRecord=true);
+    DeviceFileEvents
+    | where ActionType == "FileCreated" or ActionType == "FileModified"
+    | where FileName endswith ".crx"
+    | extend ExtensionIDVersion = tostring(split(FileName, '.')[0])
+    | extend ExtensionID = tolower(split(ExtensionIDVersion, '_')[0])
+    | summarize arg_max(TimeGenerated, *) by DeviceName, ExtensionID
+    | join SecureAnnex on $left.ExtensionID == $right.extension_id
+query_type: kql
+tactics:
+    - TA0003
+techniques:
+    - T1176.001
+    - T1176
+tags:
+    - kql
+version: "1"

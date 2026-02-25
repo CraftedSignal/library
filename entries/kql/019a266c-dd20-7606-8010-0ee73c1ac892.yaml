@@ -1,0 +1,37 @@
+id: 019a266c-dd20-7606-8010-0ee73c1ac892
+name: 'Security Hardening : Devices Without Recent Antivirus Scan'
+description: |-
+    This query identifies onboarded devices in the environment that have not completed a successful antivirus scan within the last 30 days. It provides visibility into endpoint compliance, ensuring that all devices are actively monitored and protected by Microsoft Defender or other antivirus solutions.
+
+    Maintaining up-to-date AV scan activity is critical as devices without recent scans may harbor unobserved threats or be at increased risk of compromise.
+query: |-
+    // ----------------------------------------------------------
+    // MS Defender HUNT: Endpoints missing AV scans in last 30 days
+    // ----------------------------------------------------------
+    let Timerange = 30d;
+    let DevicesWithAVScan = DeviceEvents
+        | where ActionType == "AntivirusScanCompleted" and Timestamp > ago(Timerange)
+        | summarize max(Timestamp) by DeviceId;
+    DeviceInfo
+    | where OnboardingStatus == "Onboarded"
+      and isnotempty(OSVersion)
+      and OSPlatform in ("Windows10", "Windows10WVD", "Windows11", "WindowsServer2012R2", "WindowsServer2016", "WindowsServer2019", "WindowsServer2022", "macOS", "RedHat", "CentOS", "Ubuntu", "OracleLinux", "SUSELinux", "Debian", "Fedora", "AmazonLinux")
+      and Timestamp > ago(Timerange)
+    | summarize LastSeen = arg_max(Timestamp, *) by DeviceId
+    | join kind=leftanti (DevicesWithAVScan) on DeviceId
+    | extend LastSuccessfulAVScan = strcat("Not in the last ", format_timespan(Timerange, 'd'), " days")
+    | extend DeviceType = case(
+        OSPlatform == "Windows7", "Not Supported", // Windows 7 is not supported for most checks
+        OSPlatform == "Windows8.1" or OSPlatform == "Windows10" or OSPlatform == "Windows11" or OSPlatform == "WindowsServer2012R2" or OSPlatform == "WindowsServer2016" or OSPlatform == "WindowsServer2019" or OSPlatform == "WindowsServer2022", "Supported",
+        OSPlatform == "macOS", "Supported",
+        OSPlatform == "RedHat" or OSPlatform == "CentOS" or OSPlatform == "Ubuntu" or OSPlatform == "OracleLinux" or OSPlatform == "SUSELinux" or OSPlatform == "Debian" or OSPlatform == "Fedora" or OSPlatform == "AmazonLinux", "Supported",
+        "Unknown"
+    )
+    | project LastSeen, DeviceId, DeviceName, MachineGroup, OSPlatform, OSVersion, DeviceType, LastSuccessfulAVScan, JoinType
+    | sort by DeviceType, MachineGroup, OSPlatform
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: IronBr@nded
+version: "1"

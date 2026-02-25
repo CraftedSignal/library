@@ -1,0 +1,32 @@
+id: 46b0094c-e883-4be3-afba-553d78c019c5
+name: HTTP Client Tools Exploitation for ATO Detection
+description: 'KQL Query from file: HTTP Client Tools Exploitation for ATO Detection'
+query: |+
+    // HTTP Client Tools Exploitation for ATO Detection
+
+    // https://www.proofpoint.com/us/blog/threat-insight/http-client-tools-exploitation-account-takeover-attacks
+
+    let HTTPClientTools=externaldata(RawData:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/Proofpoint_HTTPClientTools_ATO.txt']
+    | parse RawData with IOC:string;
+    let HTTPClientToolsIOC =
+    HTTPClientTools
+    | project IOC;
+    CloudAppEvents
+    | where TimeGenerated > ago(1h)
+    | where UserAgent has_any(HTTPClientToolsIOC) and ISP has_any(HTTPClientToolsIOC)
+
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0043
+    - TA0002
+techniques:
+    - T1098
+    - T1136
+    - T1592.004
+    - T1203
+tags:
+    - kql
+version: "1"

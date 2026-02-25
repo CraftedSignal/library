@@ -1,0 +1,59 @@
+id: 019b4bdf-0228-7308-bb6b-f5567ef05e22
+name: Vulnerable WindowsCodecs.dll Loaded By Non-Standard Process
+description: |
+    Detects the loading of a vulnerable version of WindowsCodecs.dll (related to CVE-2025-50165) by non-standard applications. This could indicate an attempt to exploit the vulnerability in a custom or unexpected application context.
+query: |
+    title: Vulnerable WindowsCodecs.dll Loaded By Non-Standard Process
+    id: ae4ccf8e-f86f-4ff4-ad41-b679ead163af
+    status: experimental
+    description: >
+      Detects the loading of a vulnerable version of WindowsCodecs.dll (related to
+      CVE-2025-50165) by non-standard applications. This could indicate an attempt
+      to exploit the vulnerability in a custom or unexpected application context.
+    references:
+      - >-
+        https://www.welivesecurity.com/en/eset-research/revisiting-cve-2025-50165-critical-flaw-windows-imaging-component/
+    author: timdetections.ai
+    date: 2025-12-23T00:00:00.000Z
+    tags:
+      - attack.t1057
+      - cve.2025.50165
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        ImageLoaded|endswith: \WindowsCodecs.dll
+        ImageVersion: 10.0.26100.4768
+      filter:
+        Image|endswith:
+          - \explorer.exe
+          - \Photos.exe
+          - \msedge.exe
+          - \chrome.exe
+          - \brave.exe
+      condition: selection and not filter
+    falsepositives:
+      - Legitimate third-party applications that use this specific version of the
+        DLL for image processing might trigger this rule. Tuning may be required to
+        add other legitimate applications to the filter.
+    level: medium
+    associated_cves:
+      - CVE-2025-50165
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1057
+tags:
+    - attack.t1057
+    - cve.2025.50165
+author: timdetections.ai
+version: "3"
+references:
+    - https://www.welivesecurity.com/en/eset-research/revisiting-cve-2025-50165-critical-flaw-windows-imaging-component/
+data_sources:
+    - image_load
+    - windows

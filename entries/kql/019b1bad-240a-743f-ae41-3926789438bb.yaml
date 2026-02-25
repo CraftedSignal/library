@@ -1,0 +1,71 @@
+id: 019b1bad-240a-743f-ae41-3926789438bb
+name: WebKit Browser Spawning Shell or Script Interpreter on macOS
+description: Detects when a WebKit-based browser process on macOS spawns a shell or script interpreter. This is highly suspicious and can indicate successful exploitation of a browser vulnerability for initial code execution.
+query: |
+    // Name: WebKit Browser Spawning Shell or Script Interpreter
+    // Author: Chaitanya Bobhate
+    // Date: 2025-12-14
+    // Description: Detects when a WebKit-based browser process on macOS spawns a shell or script interpreter. This is highly suspicious and can indicate successful exploitation of a browser vulnerability, such as CVE-2025-43529 or CVE-2025-14174, for initial code execution.
+    // MITRE ATT&CK: T1203 (Exploitation for Client Execution)
+    // False Positive Sensitivity: Medium
+    // References: https://thehackernews.com/2025/12/apple-issues-security-updates-after-two.html
+
+    let timeframe = 1d;
+
+    // Define parent processes. On Apple platforms, all browsers use the WebKit engine.
+    let ParentProcesses = dynamic([
+        "Safari",
+        "WebKit",
+        "WebContent",
+        "Google Chrome",
+        "Firefox",
+        "Microsoft Edge"
+    ]);
+
+    // Define suspicious child processes (shells and script interpreters)
+    let ChildProcesses = dynamic([
+        "sh",
+        "bash",
+        "zsh",
+        "python",
+        "python3",
+        "perl",
+        "osascript" // AppleScript interpreter can also be used post-exploitation
+    ]);
+
+    DeviceProcessEvents
+    | where Timestamp > ago(timeframe)
+    // Focus on process creation events on macOS
+    | where ActionType == "ProcessCreated" and OSPlatform == "macOS"
+    // Filter for a WebKit-based browser being the initiating process
+    | where InitiatingProcessFileName in (ParentProcesses)
+    // Check if the process created is a shell or script interpreter
+    | where FileName in (ChildProcesses)
+    // False Positive Tuning: Some developer tools or browser extensions may legitimately spawn shells.
+    // Exclude known benign command lines or parent-child process relationships to reduce noise.
+    // For example: | where not (InitiatingProcessFileName == "Google Chrome" and ProcessCommandLine contains "some_dev_tool_argument")
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        AccountName,
+        ParentProcessId,
+        ProcessId
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1203
+    - T1059
+    - T1059.002
+    - T1059.006
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/12/apple-issues-security-updates-after-two.html

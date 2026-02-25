@@ -1,0 +1,19 @@
+id: 0199b2a4-5b9c-71ef-bdb0-d3b98aa5cd7a
+name: DefenderXDR Weekly OSINT Indicators Scan 29 Sep 2025
+description: KQL Query
+query: "let WeeklyOSINT=externaldata(Type:string, Value:string, Source:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/WeeklyOSINT29Sep2025.csv'];\r\nlet OSINTSHA256 =\r\nWeeklyOSINT\r\n| where Type == \"hash_sha256\"\r\n| project Value;\r\nlet OSINTSHA1 =\r\nWeeklyOSINT\r\n| where Type == \"hash_sha1\"\r\n| project Value;\r\nlet OSINTMD5 =\r\nWeeklyOSINT\r\n| where Type == \"hash_md5\"\r\n| project Value;\r\nlet OSINTDOMAIN =\r\nWeeklyOSINT\r\n| where Type == \"domain\"\r\n| project Value;\r\nlet OSINTURL =\r\nWeeklyOSINT\r\n| where Type == \"url\"\r\n| project Value;\r\nlet OSINTIP =\r\nWeeklyOSINT\r\n| where Type == \"ip\"\r\n| project Value;\r\nlet ScanEmailAttachments =\r\nEmailAttachmentInfo\r\n| where Timestamp > ago(30d)\r\n| where SHA256 has_any(OSINTSHA256);\r\nlet ScanEmailURLs =\r\nEmailUrlInfo\r\n| where Timestamp > ago(30d)\r\n| where UrlDomain has_any(OSINTDOMAIN) or Url has_any(OSINTURL);\r\nlet ScanEndpointFiles =\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"FileCreated\"\r\n| where MD5 has_any(OSINTMD5) or SHA1 has_any(OSINTSHA1) or SHA256 has_any(OSINTSHA256);\r\nlet ScanEndpointNetwork1 =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteIP has_any (OSINTIP) or RemoteUrl has_any (OSINTDOMAIN);\r\nlet ScanEndpointNetwork2 =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"HttpConnectionInspected\"\r\n| extend ConnectInfo = todynamic(AdditionalFields)\r\n| extend HttpHost = ConnectInfo.host\r\n| where HttpHost has_any(OSINTDOMAIN);\r\nunion ScanEmailAttachments, ScanEmailURLs, ScanEndpointFiles, ScanEndpointNetwork1, ScanEndpointNetwork2"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1566.001
+    - T1566.002
+    - T1071.001
+    - T1071.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://security.microsoft.com/intel-explorer/articles/c2170e24

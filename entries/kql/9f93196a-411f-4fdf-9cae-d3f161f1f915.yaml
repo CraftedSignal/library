@@ -1,0 +1,20 @@
+id: 9f93196a-411f-4fdf-9cae-d3f161f1f915
+name: Suspicious Driver Load
+description: |-
+    This KQL query analyzes driver load events on Windows endpoints to detect malicious activity. It specifically looks for drivers (.sys files) being loaded from non-standard, user-writable directories.
+
+    The query checks for DriverLoad events and filters for files ending with .sys. It then narrows the results to drivers loaded from suspicious folders like \Users\, \AppData\, and \Temp\. The query uses a comprehensive exclusion list to filter out known legitimate drivers from these locations, such as those related to Windows Defender, specific gaming anti-cheat software, or hardware utilities like CPU-Z, which often operate from temporary directories. The final output is a list of suspicious driver load events that may indicate a malicious driver being executed on the system.
+query: "DeviceEvents\r\n| where ActionType == \"DriverLoad\"\r\n| where FileName endswith \".sys\"\r\n| where FolderPath has_any (\"\\\\Users\\\\\", \"\\\\AppData\\\\Local\\\\Temp\\\\\", \"\\\\ProgramData\\\\\", \"\\\\Windows\\\\Temp\\\\\", \"%temp%\")\r\n| extend ImageName = tostring(parse_json(AdditionalFields).ImageName)\r\n| extend ImageMD5 = tostring(parse_json(AdditionalFields).ImageMD5)\r\n//exclude legitimate Driver Path\r\n| where not (ImageName matches regex @\"\\\\Device\\\\HarddiskVolume(0|[1-9]|1[0-5])\\\\(ProgramData\\\\Microsoft\\\\Windows Defender\\\\Platform\\\\|Windows\\\\System32\\\\DriverStore\\\\FileRepository\\\\|Windows\\\\System32\\\\MpEngineStore\\\\|TwinCAT\\\\|Windows\\\\System32\\\\drivers\\\\|ProgramData\\\\Microsoft\\\\Windows Defender\\\\Definition Updates\\\\|Program Files \\(x86\\)\\\\Common Files\\\\BattlEye\\\\|Windows\\\\WinSxS\\\\amd64_microsoft-windows|Program Files\\\\|Windows\\\\Installer\\\\|Program Files \\(x86\\)\\\\Samsung\\\\|Windows\\\\WinSxS\\\\|Windows\\\\System32\\\\|Program Files \\(x86\\)\\\\EasyAntiCheat_EOS\\\\|ProgramData\\\\Microsoft\\\\Windows Defender\\\\platform\\\\)\")\r\n| where not (ImageName endswith @\"TrueCrypt\\truecrypt-x64.sys\")\r\n| where not (FileName matches regex @\"cpuz[0-9]+_x64\\.sys$\")\r\n//exclude false positives\r\n| where FileName !in~ (\"ALSysIO64.sys\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1543.003
+    - T1014
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

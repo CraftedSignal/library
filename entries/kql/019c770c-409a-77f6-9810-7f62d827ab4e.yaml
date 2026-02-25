@@ -1,0 +1,16 @@
+id: 019c770c-409a-77f6-9810-7f62d827ab4e
+name: Suspicious SSH Tunneling Spawned by OpenClaw-Derived AI Agents
+description: |-
+    This detection identifies potentially malicious SSH tunneling activity initiated by OpenClaw‑derived AI agents, including earlier variants such as Clawdbot and Moltbot. OpenClaw is known to operate with extensive access to the underlying operating system and command‑line interface, creating opportunities for misuse when vulnerable or misconfigured. Instances of OpenClaw have been shown to expose sensitive automation capabilities, making them a high‑risk launching point for unauthorized system‑level actions.
+
+    The rule specifically looks for SSH or Plink processes executed with tunneling or proxying flags (such as -L, -R, -D, -oProxyCommand, and similar switches commonly associated with port forwarding, lateral movement, credential exfiltration, covert channels, and SOCKS proxy creation). When these commands originate from OpenClaw, Clawdbot, or Moltbot processes, it may indicate that an AI agent has been compromised or repurposed to establish unauthorized remote access pathways.
+query: "DeviceProcessEvents\r\n| where ProcessVersionInfoOriginalFileName has_any (\"ssh\", \"plink\")\r\n| where InitiatingProcessVersionInfoOriginalFileName has_any (\"openclaw\", \"clawdbot\", \"moltbot\")\r\n| where ProcessCommandLine has_any (\"-oProxyCommand\",\" -o \", \" -L \", \" -R \", \" -D \", \" -J \", \" -N \", \" -T \", \" -F \")"
+query_type: kql
+severity: medium
+techniques:
+    - T1572
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.kaspersky.com/blog/openclaw-vulnerabilities-exposed/55263/

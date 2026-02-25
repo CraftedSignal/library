@@ -1,0 +1,19 @@
+id: 019c8a63-4b8d-77da-99a3-de37dbb1a3e8
+name: ServiceNow Malicious Record Management AI Agent Invocation (BodySnatcher CVE-2025-12420)
+description: 'This rule detects attempts to invoke the now-removed "Record management AI agent" (ID: 6d5486763b5712107bbddb9aa4e45a72) via the Virtual Agent API. This specific agent was leveraged in the BodySnatcher (CVE-2025-12420) proof-of-concept exploit to create backdoor administrator accounts.'
+query: "// Name: ServiceNow Malicious Record Management AI Agent Invocation\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: This rule detects attempts to invoke the now-removed \"Record management AI agent\" (ID: 6d5486763b5712107bbddb9aa4e45a72) via the Virtual Agent API. This specific agent was leveraged in the BodySnatcher (CVE-2025-12420) proof-of-concept exploit to create backdoor administrator accounts.\r\n// False Positives: Low. This agent was removed by ServiceNow. Any attempt to invoke it is highly suspicious and likely indicates malicious activity or reconnaissance based on the public exploit details.\r\n// References: https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/\r\n// Tactic: Persistence, Privilege Escalation\r\n// Technique: T1136.002, T1078.004\r\nlet time_window = 1h;\r\nlet servicenow_domains = dynamic([]); // Add your ServiceNow instance domains here, e.g., [\"myinstance.service-now.com\"]\r\nlet malicious_agent_id = \"6d5486763b5712107bbddb9aa4e45a72\"; // Corresponds to the \"Record management AI agent\"\r\n// Assuming a table like 'HttpLogs' with fields for URL, HTTP Method, and Request Body.\r\n// Adjust table and field names (e.g., Url, HttpMethod, HttpRequestBody) for your environment.\r\nHttpLogs\r\n| where TimeGenerated > ago(time_window)\r\n// Filter for POST requests to the Virtual Agent API endpoint\r\n| where HttpMethod == \"POST\" and Url has \"/api/sn_va_as_service/bot/integration\"\r\n// Optional: Filter to only your known ServiceNow domains to reduce noise from internet-wide scanning.\r\n| where isempty(servicenow_domains) or Url has_any (servicenow_domains)\r\n// Perform an initial check on the raw request body for performance before parsing JSON\r\n| where HttpRequestBody has \"agent_id_from_external_agent\" and HttpRequestBody has malicious_agent_id\r\n| extend RequestBody = todynamic(HttpRequestBody)\r\n// Check for the specific malicious agent ID in the context variables\r\n| where RequestBody.contextVariables.agent_id_from_external_agent == malicious_agent_id\r\n| project\r\n    TimeGenerated,\r\n    SrcIpAddr,\r\n    Url,\r\n    HttpMethod,\r\n    HttpUserAgent,\r\n    HttpRequestBody,\r\n    ImpersonatedUserEmail = tostring(RequestBody.metadata.email_id),\r\n    Objective = tostring(RequestBody.contextVariables.objective_from_external_agent)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+techniques:
+    - T1136.002
+    - T1078.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://appomni.com/ao-labs/bodysnatcher-agentic-ai-security-vulnerability-in-servicenow/

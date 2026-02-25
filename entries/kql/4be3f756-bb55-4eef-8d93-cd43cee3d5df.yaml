@@ -1,0 +1,58 @@
+id: 4be3f756-bb55-4eef-8d93-cd43cee3d5df
+name: Specific Malware Component Detection
+description: This detection identifies file events related to a specific set of malware files that appear to be part of a malicious toolkit, indicating a compromise.
+query: |-
+    # Specific Malware Files Detection
+
+    ## Description
+    This detection identifies file events related to a specific set of malware files that appear to be part of a malicious toolkit. The presence of these files together indicates a compromise.
+
+    ## Detection Logic
+    The query monitors for file events involving:
+    - Process initiated by `svchost.txt` (suspicious)
+    - Multiple malware components:
+      - `Calldriver.exe`
+      - `Driver.sys`
+      - `dll.dll`
+      - `kill.bat`
+      - `speedmem2.hg`
+
+    ## Query
+    ```kusto
+    DeviceFileEvents
+    | where ((InitiatingProcessFolderPath endswith @"\svchost.txt")
+    and FolderPath contains @"\Calldriver.exe"
+    and FolderPath contains @"\Driver.sys"
+    and FolderPath contains @"\dll.dll"
+    and FolderPath contains @"\kill.bat"
+    and FolderPath contains @"\speedmem2.hg")
+    ```
+
+    ## File Analysis
+    - **svchost.txt**: Masquerading as legitimate svchost process
+    - **Calldriver.exe**: Likely loads malicious driver
+    - **Driver.sys**: Kernel-level component for rootkit functionality
+    - **dll.dll**: Generic malicious DLL
+    - **kill.bat**: Batch script to terminate security processes
+    - **speedmem2.hg**: Unknown component, possibly memory manipulation
+
+    ## MITRE ATT&CK Mapping
+    - **Tactic**: Defense Evasion, Persistence
+    - **Technique**: T1036 - Masquerading
+    - **Technique**: T1543 - Create or Modify System Process
+    - **Technique**: T1547 - Boot or Logon Autostart Execution
+
+    ## Severity
+    Critical
+
+    ## Investigation Steps
+    1. Immediately isolate affected systems
+    2. Preserve these files for malware analysis
+    3. Check if Driver.sys was loaded into kernel
+    4. Review what kill.bat targeted
+    5. Look for persistence mechanisms
+    6. Check for lateral movement
+    7. Perform full system scan with updated signatures
+    8. Rebuild system if rootkit is confirmed
+query_type: kql
+version: "1"

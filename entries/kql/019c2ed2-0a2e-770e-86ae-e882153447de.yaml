@@ -1,0 +1,19 @@
+id: 019c2ed2-0a2e-770e-86ae-e882153447de
+name: DKnife AitM C2 Beacon Detection
+description: This query detects network traffic patterns associated with the DKnife Adversary-in-the-Middle (AitM) framework. Specifically, it looks for triggers used by the DarkNimbus backdoor to request C2 information from a compromised gateway. This includes HTTP requests to a specific Baidu URL used by the Android variant and UDP traffic to port 8005 used by the Windows variant.
+query: "// Name: DKnife AitM C2 Beacon\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-05\r\n// Description: This query detects network traffic patterns associated with the DKnife Adversary-in-the-Middle (AitM) framework. Specifically, it looks for triggers used by the DarkNimbus backdoor to request C2 information from a compromised gateway.\r\n// Tactic: Command and Control\r\n// Technique: T1071.001 (Web Protocols), T1557.002 (ARP Poisoning)\r\n// False Positive Sensitivity: Medium\r\n// References: https://blog.talosintelligence.com/knife-cutting-the-edge/\r\n(union isfuzzy=true\r\n    (\r\n        // Detects HTTP requests to the Baidu URL used by the Android DarkNimbus variant\r\n        DeviceNetworkEvents\r\n        | where RemoteUrl has \"fanyi.baidu.com/query_config_dk\"\r\n    ),\r\n    (\r\n        // Detects UDP traffic to port 8005 used by the Windows DarkNimbus variant\r\n        DeviceNetworkEvents\r\n        | where ActionType == \"NetworkConnectionSuccess\" and Protocol == \"Udp\" and RemotePort == 8005\r\n        // Note: This logic detects the UDP connection to the specific port. Inspecting the UDP payload for the \"DKGETMMHOST\" string requires deep packet inspection capabilities, which may not be available in this log source.\r\n        // An alert on this clause alone could be a potential false positive and should be correlated with other activity or investigated further.\r\n    )\r\n)\r\n| project-reorder\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl,\r\n    Protocol,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0006
+    - TA0009
+techniques:
+    - T1071.001
+    - T1557
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.talosintelligence.com/knife-cutting-the-edge/

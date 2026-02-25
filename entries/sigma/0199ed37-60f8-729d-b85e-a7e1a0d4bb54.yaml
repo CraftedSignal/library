@@ -1,0 +1,71 @@
+id: 0199ed37-60f8-729d-b85e-a7e1a0d4bb54
+name: Execution via Embedded Lua Interpreter
+description: Detects processes loading a Lua library (DLL), which could indicate the execution of an embedded Lua script for post-exploitation. This technique was demonstrated in the LOLMIL (Living Off the Land Models and Inference Libraries) research where an autonomous malware used an embedded Lua interpreter to run dynamically generated code.
+query: |
+    title: Execution via Embedded Lua Interpreter
+    id: cb00f7ac-b9ba-489c-868c-5404dbc230f0
+    status: experimental
+    description: Detects processes loading a Lua library (DLL), which could indicate
+      the execution of an embedded Lua script for post-exploitation. This technique
+      was demonstrated in the LOLMIL (Living Off the Land Models and Inference
+      Libraries) research where an autonomous malware used an embedded Lua
+      interpreter to run dynamically generated code.
+    references:
+      - https://dreadnode.io/blog/lolmil-living-off-the-land-models-and-inference-libraries?utm_source=social&utm_medium=social&utm_campaign=lolmil
+    author: detections.ai
+    date: 2025-10-16
+    tags:
+      - attack.execution
+      - attack.t1059.005
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection:
+        # Detects the loading of common Lua runtime libraries
+        ImageLoaded|endswith:
+          - '\lua.dll'
+          - '\lua51.dll'
+          - '\lua52.dll'
+          - '\lua53.dll'
+          - '\lua54.dll'
+          - '\liblua.dll'
+      filter_legit_apps:
+        # Filter for legitimate applications known to use Lua for scripting or plugins
+        Image|endswith:
+          # Network and Security Tools
+          - '\wireshark.exe'
+          - '\nmap.exe'
+          - '\mpengine.exe'
+            # Windows Defender
+            # Games and Game Launchers
+          - '\wow.exe'
+          - '\wowclassic.exe'
+          - '\robloxplayerbeta.exe'
+          - '\factorio.exe' # Media and Utility Software
+          - '\vlc.exe'
+          - '\obs64.exe' # Server Software
+          - '\redis-server.exe'
+          - '\nginx.exe'
+      condition: selection and not filter_legit_apps
+    falsepositives:
+      - Legitimate software that uses an embedded Lua interpreter for scripting or
+        plugin functionality.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.011
+tags:
+    - attack.execution
+    - attack.t1059.005
+author: detections.ai
+version: "3"
+references:
+    - https://dreadnode.io/blog/lolmil-living-off-the-land-models-and-inference-libraries?utm_source=social&utm_medium=social&utm_campaign=lolmil
+data_sources:
+    - image_load
+    - windows

@@ -1,0 +1,12 @@
+id: 0199c1f9-c036-775d-b176-1dd7b13dd7b6
+name: Palo Alto Scanning Surges Detection
+description: 'KQL Query from file: Palo Alto Scanning Surges Detection'
+query: "let PaloAttempts=externaldata(Subnet:string,ASN:string,Number:int,Percentage:string )\r\n[h'https://raw.githubusercontent.com/GreyNoise-Intelligence/gn-research-supplemental-data/refs/heads/main/2025-10-06-palo-alto-login-scanner/2025-10-06-palo-alto-login-scanner-cidrs.csv']\r\nwith (format='csv', ignoreFirstRecord=true);\r\nlet PaloASNs = \r\nPaloAttempts\r\n| extend AutonomousSystemNo = extract(@\"(\\d+)\", 1, ASN)\r\n| distinct AutonomousSystemNo;\r\nSigninLogs\r\n| where TimeGenerated > ago(7d)\r\n| where tostring(AutonomousSystemNumber) has_any(PaloASNs)\r\n| where AppDisplayName == \"Palo Alto Networks - GlobalProtect\""
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "2"
+references:
+    - https://www.greynoise.io/blog/palo-alto-scanning-surges

@@ -1,0 +1,94 @@
+id: 1d002b6d-5b8e-42b8-9748-fc0d0e878d71
+name: CORNFLAKE.V3 Initial Access - PowerShell Download Cradle
+description: Detects the initial PowerShell download cradle associated with ClickFix/CORNFLAKE.V3 campaigns. This activity is often the result of a user being tricked into pasting and running a command from a malicious website.
+query: |
+    // Name: CORNFLAKE.V3 Initial Access - PowerShell Download Cradle
+    // Description: Detects the initial PowerShell download cradle associated with ClickFix/CORNFLAKE.V3 campaigns. This activity is often the result of a user being tricked into pasting and running a command from a malicious website.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor
+    DeviceProcessEvents
+    | where InitiatingProcessFileName =~ "explorer.exe" // Execution from explorer.exe can indicate user interaction (e.g., Win+R Run dialog).
+    | where FileName =~ "powershell.exe"
+    // The command line includes arguments for running hidden (-w h), downloading (irm/iwr), and executing in memory (iex).
+    | where ProcessCommandLine has_all ("-w", "h", "irm", "iex") or ProcessCommandLine has_all ("-w", "h", "iwr", "iex")
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, FileName, ProcessCommandLine, AccountName
+
+
+    // Name: CORNFLAKE.V3 Execution via Node.js or PHP
+    // Description: Detects the execution of the CORNFLAKE.V3 backdoor script using either node.exe or php.exe launched by PowerShell from a suspicious path.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor
+    DeviceProcessEvents
+    | where InitiatingProcessFileName =~ "powershell.exe"
+    // The malware drops its execution environment into the user's AppData\Roaming directory.
+    | where FolderPath has @"\AppData\Roaming\"
+    | where (
+        // Node.js variant uses the -e argument to execute a script string.
+        (FileName =~ "node.exe" and ProcessCommandLine has "-e") or
+        // PHP variant uses -d, executes a file without a .php extension, and passes '1' as an argument.
+        (FileName =~ "php.exe" and ProcessCommandLine has "-d" and ProcessCommandLine endswith " 1" and not(ProcessCommandLine has ".php"))
+    )
+    // Comment: Legitimate development or administrative scripts might use similar patterns. However, execution from AppData initiated by PowerShell is highly suspicious. Consider tuning by adding process command-line details of the parent powershell.exe process.
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, FolderPath, ProcessCommandLine, AccountName
+
+
+    // Name: CORNFLAKE.V3 Post-Exploitation Command Execution
+    // Description: Detects CORNFLAKE.V3 executing post-exploitation commands for reconnaissance. The backdoor uses node.exe or php.exe to spawn shells and other system utilities.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor
+    DeviceProcessEvents
+    | where InitiatingProcessFileName in ("node.exe", "php.exe")
+    // The parent backdoor process runs from the AppData\Roaming directory.
+    | where InitiatingProcessFolderPath has @"\AppData\Roaming\"
+    // The backdoor spawns various utilities for system and network reconnaissance.
+    | where FileName in~ ("cmd.exe", "powershell.exe", "arp.exe", "systeminfo.exe", "tasklist.exe", "nltest.exe", "setspn.exe", "wmic.exe", "chcp.com")
+    // Comment: While some legitimate applications might use Node.js to spawn shell commands, the combination with the parent process path in AppData is highly suspicious. Further tuning could involve examining the command lines of the child processes for specific recon commands.
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessFolderPath, FileName, ProcessCommandLine, AccountName
+
+
+    // Name: CORNFLAKE.V3 Persistence via Run Key
+    // Description: Detects the persistence mechanism used by CORNFLAKE.V3. The malware creates a registry Run key to ensure it executes automatically upon user logon.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor
+    DeviceRegistryEvents
+    | where ActionType == "RegistryValueSet"
+    // The malware establishes persistence via the HKCU Run key.
+    | where RegistryKey has @"\Software\Microsoft\Windows\CurrentVersion\Run"
+    // The registry value contains the path to the interpreter (node.exe or php.exe) located in the AppData folder.
+    | where RegistryValueData has @"\AppData\" and (RegistryValueData has "node.exe" or RegistryValueData has "php.exe")
+    | project-reorder Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName, InitiatingProcessCommandLine
+
+
+    // Name: CORNFLAKE.V3 Initial Component Download
+    // Description: Hunts for the initial download of the Node.js or PHP runtime by the dropper script. This is often one of the first network indicators of a CORNFLAKE.V3 infection.
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor
+    DeviceNetworkEvents
+    | where InitiatingProcessFileName in ("powershell.exe", "mshta.exe")
+    // The dropper downloads legitimate software packages from their official sites to build the execution environment.
+    | where RemoteUrl has_any ("nodejs.org", "windows.php.net")
+    // Comment: This query may generate false positives in environments where developers or administrators use PowerShell to legitimately download or manage Node.js or PHP. To reduce noise, correlate this activity with other suspicious behaviors or restrict the scope to non-developer workstations.
+    | project-reorder Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0011
+    - TA0007
+techniques:
+    - T1204.004
+    - T1059.001
+    - T1059.003
+    - T1059.006
+    - T1547.001
+    - T1105
+    - T1082
+    - T1016
+    - T1049
+    - T1057
+    - T1033
+    - T1012
+    - T1007
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/analyzing-cornflake-v3-backdoor

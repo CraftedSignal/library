@@ -1,0 +1,15 @@
+id: 019b0518-2167-768a-bbe1-b9148f201bed
+name: Anomalous AWS Access Denied API Calls
+description: Detects anomalous increases in AWS API calls resulting in "AccessDenied" errors for a single identity and source IP address, relative to that identity's historical baseline over the past 30 days. Sudden increases in denied requests or the variety of APIs being denied may indicate reconnaissance, permission probing, or misconfigured automation attempts by an adversary.
+query: "```\r\nAuthor: Tayvion P. (@tayontech)\r\nDesription:\r\nDetect Anomalous AccessDenied AWS API calls for a single identity and source IP,  relative to that identity historical baseline over the past 30 days.\r\nSudden increases in denied requests or API variety may indicate reconnaissance, permission probing, or misconfigured automation.\r\ntags:\r\n  - attack.discovery\r\n  - attack.t1069.003\r\n  - attack.t1110.004\r\n```\r\n\r\n\r\nindex=cloudtrail errorCode=\"AccessDenied\" earliest=-30d latest=now()\r\n  | bin _time span=15m\r\n\r\n  | stats\r\n      count                        as access_denied_count\r\n      min(_time)                   as initial_detection_time\r\n      values(eventName)            as eventName\r\n      values(awsRegion)            as awsregion\r\n      values(errorMessage)         as error_messages\r\n      values(user_agent)           as useragent\r\n      dc(eventName)                as unique_apis\r\n    by _time, aws_account_id, sourceIPAddress, userIdentity.arn, userIdentity.type\r\n\r\n  | anomalydetection\r\n      access_denied_count\r\n      action=annotate\r\n      BY aws_account_id sourceIPAddress userIdentity.arn\r\n\r\n  | eval isOutlier = if(probable_cause != \"\", \"1\", \"0\")\r\n  | where isOutlier=1 AND _time >= relative_time(now(), \"-15m@s\") AND _time <  relative_time(now(), \"@s\")\r\n  | rename sourceIPAddress as src_ip, aws_account_id as cloud_account\r\n  | eval initial_detection_time = strftime(_time,\"%F %H:%M:%S %Z\")\r\n  | rename userIdentity.arn as userarn, userIdentity.type as userIdentity_type"
+query_type: spl
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1069.003
+    - T1526
+    - T1580
+tags:
+    - spl
+version: "1"

@@ -1,0 +1,25 @@
+id: 019b0859-5609-75a8-82a1-11c0c50e53d2
+name: Detect React2Shell (CVE-2025-55182) Post‑Exploitation Activity from Web Servers
+description: This rule query identifies likely post‑exploitation activity associated with React2Shell (CVE-2025-55182) in which Part 1 identifies web servers spawning unusual child processes (such as command shells or system utilities) combined with suspicious command-line patterns, which may indicate post-exploitation behavior following a compromise. and part 2 detects web servers making outbound network connections to known malicious IPs or hostnames, or to domains associated with tunneling services (e.g., trycloudflare.com), suggesting potential command-and-control activity or data exfiltration.
+query: "let lookback = 17d;\r\n// Define a list of common web server process names.\r\nlet web_server_processes = dynamic(['w3wp.exe', 'node.exe', 'httpd.exe', 'httpd', 'nginx.exe', 'nginx', 'apache2', 'tomcat.exe']);\r\n// Define a list of suspicious child processes often used for post-exploitation.\r\nlet suspicious_child_processes = dynamic(['cmd.exe', 'powershell.exe', 'pwsh.exe', 'sh', 'bash', 'zsh', 'csh', 'whoami.exe', 'hostname.exe', 'ipconfig.exe', 'ifconfig', 'net.exe', 'net1.exe', 'quser.exe', 'qwinsta.exe', 'curl.exe', 'wget.exe', 'certutil.exe', 'bitsadmin.exe', 'rundll32.exe', 'mshta.exe']);\r\n// Define a list of command-line patterns associated with malicious activity.\r\nlet suspicious_command_patterns = dynamic(['trufflehog', 'gitleaks', '169.254.169.254', 'metadata.google.internal', 'raw.githubusercontent.com/C3Pool/xmrig_setup', 'raw.githubusercontent.com/nezhahq/scripts', 'wget -qO-', 'trycloudflare.com', 'reactOnMynuts', 'C:\\\\Users\\\\Public\\\\Documents\\\\healthcheck.dll', 'setup_c3pool_miner.bat']);\r\n// Define a list of known malicious IPs and hostnames.\r\nlet known_malicious_hosts = dynamic(['193.34.213.150', '154.89.152.240', '107.174.123.91', '38.165.44.205', '216.238.68.169', '78.153.140.16', '80.64.16.241', '45.76.155.14', '2.56.176.35', 'gfxnick.emerald.usbx.me', 'api.qtss.cc', 'proxy1.ip2worlds.vip']);\r\n(union isfuzzy=true\r\n    // Part 1: Detect suspicious child processes spawned by web servers.\r\n    (DeviceProcessEvents\r\n    | where TimeGenerated > ago(lookback)\r\n    | where InitiatingProcessFileName in~ (web_server_processes)\r\n    | where FileName in~ (suspicious_child_processes) and ProcessCommandLine has_any (suspicious_command_patterns)\r\n    | extend Activity = \"React2Shell Post-Exploitation Process\", Tactic = \"Execution\"\r\n    | project TimeGenerated, Activity, Tactic, DeviceName, ParentProcess = InitiatingProcessFileName, ChildProcess = FileName, CommandLine = ProcessCommandLine, Rule = \"CVE-2025-55182 - React2Shell Post-Exploitation\"),\r\n    // Part 2: Detect suspicious network connections from web servers.\r\n    (DeviceNetworkEvents\r\n    | where TimeGenerated > ago(lookback)\r\n    | where InitiatingProcessFileName in~ (web_server_processes)\r\n    // Filter out private and loopback addresses.\r\n    | where not (ipv4_is_private(RemoteIP) or RemoteIP in (\"127.0.0.1\", \"::1\"))\r\n    // FP Note: Legitimate web server activity might involve connections to services like Cloudflare Tunnel (trycloudflare.com).\r\n    // Consider adding exclusions for known good destinations if false positives occur.\r\n    | where RemoteIP in (known_malicious_hosts)\r\n        or RemoteUrl has_any (known_malicious_hosts)\r\n        or RemoteUrl has \".trycloudflare.com\"\r\n    | extend Activity = \"React2Shell Post-Exploitation C2\", Tactic = \"Command and Control\"\r\n    | project TimeGenerated, Activity, Tactic, DeviceName, ProcessName = InitiatingProcessFileName, ProcessCommandLine = InitiatingProcessCommandLine, RemoteIP, RemoteUrl, RemotePort, Rule = \"CVE-2025-55182 - React2Shell Post-Exploitation C2\")\r\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+    - TA0007
+    - TA0043
+techniques:
+    - T1059
+    - T1059.001
+    - T1071
+    - T1071.001
+    - T1102
+    - T1218.005
+    - T1218.011
+    - T1016
+    - T1589.001
+tags:
+    - kql
+version: "3"

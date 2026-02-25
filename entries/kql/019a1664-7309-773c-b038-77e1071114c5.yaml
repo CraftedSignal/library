@@ -1,0 +1,16 @@
+id: 019a1664-7309-773c-b038-77e1071114c5
+name: Clickfix detection
+description: Thu rule focus in identity suspicious powershell commands execuded from the the windows "EXECUTE" box (WIN+R)
+query: "DeviceRegistryEvents \r\n| where InitiatingProcessFileName == \"explorer.exe\"\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey has  @\"\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\"\r\n| where tolower(RegistryValueData) has \"powershell\"\r\n| project RUNMRUTimestamp=Timestamp,DeviceId,InitiatingProcessAccountName,DeviceName,RegistryValueName,RegistryValueData,InitiatingProcessFileName,\r\nInitiatingProcessCommandLine\r\n//optinional\r\n| join kind=inner (\r\n    DeviceProcessEvents \r\n    | where InitiatingProcessFileName == \"explorer.exe\"\r\n    | where FileName == \"powershell.exe\"\r\n    | where ProcessCommandLine has_any (\"Net.WebClient\",\"DownloadFile\",\"Invoke-WebRequest\",\"iwr\",\"Invoke-Shellcode\",\"http:\",\r\n    \"New-Object System.Net.Sockets.TcpClient\",\"IEX\",\"Invoke-Expression\",\"DownloadString\",\"base64\",\"-EcondedCommand\",\"-enc\")\r\n    | project PWSHTimestamp=Timestamp,DeviceId,DeviceName,ActionType,User=AccountName\r\n) on DeviceName\r\n| where RUNMRUTimestamp  between (PWSHTimestamp .. 5m)\r\n| project RUNMRUTimestamp,PWSHTimestamp,User,DeviceName,RegistryValueName,RegistryValueData,InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1059.001
+tags:
+    - kql
+author: Enzima45
+version: "6"

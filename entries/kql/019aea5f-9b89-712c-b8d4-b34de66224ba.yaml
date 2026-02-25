@@ -1,0 +1,57 @@
+id: 019aea5f-9b89-712c-b8d4-b34de66224ba
+name: Matrix Push C2 Framework
+description: This detection looks for browser network traffic to URLs containing common social engineering keywords and common web page file extensions, while excluding trusted domains. This activity is associated with the Matrix Push C2 framework, which uses malicious browser notifications to lure users to phishing pages.
+query: |
+    // Name: Browser URL with Phishing-Related Keywords
+    // Author: detections.ai
+    // Date: 2025-12-04
+    // Description: This detection looks for browser network traffic to URLs containing common social engineering keywords. This activity is associated with the Matrix Push C2 framework, which uses malicious browser notifications to lure users to phishing pages.
+    // False Positive Sensitivity: Medium
+    // Tactics: Initial Access
+    // Techniques: T1566.001, T1566.002
+    // References: https://thehackernews.com/2025/11/matrix-push-c2-uses-browser.html
+
+    // Define the time window for the search
+    let lookback = 1d;
+    // Define keywords commonly used in phishing URLs
+    let phishingKeywords = dynamic(["verify", "update", "suspicious-login", "account-alert", "password-reset", "security-check", "confirm-identity"]);
+    // Define file extensions commonly seen in phishing pages to increase specificity
+    let phishingFileExtensions = dynamic([".php", ".html", ".htm"]);
+    // Define common web browser processes
+    let browserProcesses = dynamic(["chrome.exe", "firefox.exe", "msedge.exe", "iexplore.exe", "opera.exe", "safari.exe"]);
+    // Define trusted top-level domains to exclude from the search.
+    // FP Tuning: This list should be customized for your environment to reduce false positives from legitimate services.
+    let trustedDomains = dynamic([".microsoft.com", ".google.com", ".office.com", ".apple.com", ".windowsupdate.com"]);
+    DeviceNetworkEvents
+    | where Timestamp > ago(lookback)
+    // Filter for traffic initiated by a web browser
+    | where InitiatingProcessFileName in~ (browserProcesses)
+    // Filter for network events where the URL contains one of the phishing keywords
+    | where RemoteUrl has_any (phishingKeywords)
+    // Further refine by looking for common web page file extensions to reduce FPs from API calls or other non-page requests
+    | where RemoteUrl has_any (phishingFileExtensions)
+    // Extract the domain from the URL to filter out trusted sites
+    | extend UrlDomain = tostring(parse_url(RemoteUrl).Host)
+    | where isnotempty(UrlDomain)
+    // Exclude connections to known trusted domains
+    | where not(UrlDomain has_any (trustedDomains) or UrlDomain endswith_cs (trustedDomains))
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        RemoteUrl,
+        RemoteIP,
+        InitiatingProcessAccountUpn,
+        UrlDomain
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://thehackernews.com/2025/11/matrix-push-c2-uses-browser.html

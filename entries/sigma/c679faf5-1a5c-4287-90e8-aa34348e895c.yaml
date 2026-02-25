@@ -1,0 +1,52 @@
+id: c679faf5-1a5c-4287-90e8-aa34348e895c
+name: Google OAuth Redirect URI Parsing Confusion Attempt
+description: Detects attempts to exploit a URL parsing confusion vulnerability in OAuth redirect URIs, potentially leading to account takeover, based on a specific pattern involving multiple '@' symbols and IPv6 literals as described in the referenced article.
+query: |-
+    title: Google OAuth Redirect URI Parsing Confusion Attempt
+    id: c8f1d2e3-a4b5-6c7d-8e9f-0123456789ab
+    related:
+        - https://infosecwriteups.com/google-cloud-account-takeover-via-url-parsing-confusion-c5e47389b7c7
+    status: experimental
+    description: Detects attempts to exploit a URL parsing confusion vulnerability in OAuth redirect URIs, potentially leading to account takeover, based on a specific pattern involving multiple '@' symbols and IPv6 literals as described in the referenced article.
+    references:
+        - https://infosecwriteups.com/google-cloud-account-takeover-via-url-parsing-confusion-c5e47389b7c7
+    author: Aaron Mog
+    date: 2025/05/08
+    logsource:
+        category: web
+        # product: proxy # Adjust product based on your logging environment (e.g., proxy, firewall, webserver)
+    detection:
+        selection:
+            # Look for the redirect_uri parameter in the URL/Query string
+            # Adjust field names based on your log source schema (e.g., url, http.url, query)
+            url|query|http.url:
+                - '*redirect_uri=*'
+        condition_parsing_confusion:
+            # Check for the specific pattern from the article: scheme://[...@]@[...@]@...
+            # This pattern involves scheme (://), IPv6 literal start ([), multiple '@' symbols.
+            # The pattern '*://*[*@*[*@*' captures scheme:// followed by [, then @, then [, then @.
+            # This is highly specific to the demonstrated exploit payload structure.
+            url|query|http.url:
+                - '*redirect_uri=*://*[*@*[*@*'
+        condition: selection and condition_parsing_confusion
+    falsepositives:
+        - Legitimate applications using highly unusual and malformed redirect URIs (unlikely for this specific pattern).
+    level: high
+    tags:
+        - attack.initial_access
+        - attack.t1566.001 # Phishing: Spearphishing Link
+        - attack.credential_access
+        - attack.t1552.006 # Unsecured Credentials: OAuth Tokens
+        - vulnerability.exploit
+        - cti
+query_type: sigma
+severity: medium
+tags:
+    - attack.initial_access
+    - attack.t1566.001
+    - attack.credential_access
+    - attack.t1552.006
+    - vulnerability.exploit
+    - cti
+author: Aaron Mog
+version: "1"

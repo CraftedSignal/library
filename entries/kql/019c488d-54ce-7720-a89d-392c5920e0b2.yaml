@@ -1,0 +1,19 @@
+id: 019c488d-54ce-7720-a89d-392c5920e0b2
+name: Azure VM Run Command Followed by Managed Identity Token Acquisition
+description: Detects when a VM Run Command is executed successfully, followed by the VM's Managed Identity authenticating to Azure Resource Manager. This pattern may indicate an attacker using Run Command to steal MI tokens for lateral movement.
+query: "// Name: Azure VM Run Command Followed by Managed Identity Token Acquisition\n// Author: tim@detections.ai\n// Date: 2026-02-10\n// Severity: High\n// Description: Detects when a VM Run Command is executed successfully, followed by the \n//   VM's Managed Identity authenticating to Azure Resource Manager. This pattern may \n//   indicate an attacker using Run Command to steal MI tokens for lateral movement.\n// MITRE ATT&CK: T1059 (Command and Script Interpreter), T1550.001 (Application Access Token)\nlet timeframe = 30m;\nlet lookback = 1h;\n// Step 1: Find successful 'runCommand' actions on VMs\nlet RunCommandEvents = AzureActivity\n    | where TimeGenerated > ago(lookback)\n    | where OperationNameValue =~ \"Microsoft.Compute/virtualMachines/runCommand/action\"\n    | where ActivityStatusValue =~ \"Success\"\n    | extend VMResourceId = tolower(_ResourceId)\n    | extend VMName = tolower(tostring(split(VMResourceId, \"/\")[-1]))\n    | project \n        RunCommandTime = TimeGenerated, \n        VMResourceId,\n        VMName,\n        RunCommandCaller = Caller, \n        RunCommandCallerIp = CallerIpAddress,\n        SubscriptionId,\n        ResourceGroup;\n// Step 2: Find successful Managed Identity sign-ins to Azure Resource Manager\nlet MISignIns = AADManagedIdentitySignInLogs\n    | where TimeGenerated > ago(lookback)\n    | where ResultType == 0  // Success\n    | where ResourceDisplayName =~ \"Azure Resource Manager\"\n    // Extract VM name from ServicePrincipalName if it follows standard naming\n    | extend ServicePrincipalNameLower = tolower(ServicePrincipalName)\n    | project\n        SignInTime = TimeGenerated,\n        ServicePrincipalId,\n        ServicePrincipalNameLower,\n        SignInIpAddress = IPAddress,\n        SignInUserAgent = UserAgent,\n        SignInLocation = Location;\n// Step 3: Correlate - Run Command on VM followed by MI sign-in from that VM\nRunCommandEvents\n| join kind=inner (MISignIns) on $left.VMName == $right.ServicePrincipalNameLower\n// Ensure temporal ordering: sign-in happens AFTER run command within timeframe\n| where SignInTime between (RunCommandTime .. (RunCommandTime + timeframe))\n| extend TimeDelta = SignInTime - RunCommandTime\n| project-reorder\n    SignInTime,\n    RunCommandTime,\n    TimeDelta,\n    VMName,\n    VMResourceId,\n    RunCommandCaller,\n    RunCommandCallerIp,\n    ServicePrincipalId,\n    SignInIpAddress,\n    SignInUserAgent,\n    SignInLocation\n// Sentinel entity mapping\n| extend \n    AccountCustomEntity = RunCommandCaller,\n    IPCustomEntity = RunCommandCallerIp,\n    AzureResourceCustomEntity = VMResourceId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+    - TA0005
+techniques:
+    - T1059
+    - T1550.001
+tags:
+    - kql
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.abstract.security/blog/moving-laterally-through-abuse-of-managed-identities-attached-to-vms

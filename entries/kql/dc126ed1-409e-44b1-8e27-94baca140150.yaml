@@ -1,0 +1,19 @@
+id: dc126ed1-409e-44b1-8e27-94baca140150
+name: New External Teams Chat from an Unknown Domain
+description: This detection identifies when a one-on-one Microsoft Teams chat is initiated with an external domain that has not been observed in previous Teams chats (past 90 days) or recent email communications (past 15 days). This may indicate a new, potentially unsolicited or suspicious contact attempting to engage with an internal user, which could represent a social engineering attempt or early-stage reconnaissance.
+query: "// Define Trusted Domains\r\nlet TrustedDomains = pack_array(\"trusted-partner.com\", \"known-vendor.com\");\r\nlet MyOrgDomain = \"mydomain.com\";\r\n// Parse domains from where a Microsoft Teams 1:1 chat is created\r\nlet parse_domains =\r\n    CloudAppEvents\r\n    | where Application == \"Microsoft Teams\"\r\n    | where ActionType == \"ChatCreated\"\r\n    | where tostring(RawEventData.CommunicationType) == \"OneOnOne\"\r\n    // Extract domain from AccountId\r\n    | extend ExternalDomain_1 = tolower(tostring(split(AccountId, '@')[1]))\r\n    // Safely extract domain from ParticipatingDomains[1] if it exists\r\n    | extend ParticipantInfo = parse_json(tostring(RawEventData.ParticipantInfo))\r\n    | extend ParticipatingDomains = iif(ParticipantInfo has \"ParticipatingDomains\", parse_json(tostring(ParticipantInfo.ParticipatingDomains)), dynamic([]))\r\n    | extend Participating_External_Domain = iif(array_length(ParticipatingDomains) > 1, tolower(tostring(ParticipatingDomains[1])), \"\")\r\n    // Use fallback logic to combine domains\r\n    | extend ExternalDomain_2 = iff(isempty(ExternalDomain_1), Participating_External_Domain, \"\")\r\n    | extend ExternalDomains = strcat(ExternalDomain_1, ExternalDomain_2)\r\n    // Extract UPNs of chat participants\r\n    | extend Members = parse_json(tostring(RawEventData.Members))\r\n    | extend User1_UPN = tostring(Members[0].UPN)\r\n    | extend User2_UPN = tostring(Members[1].UPN);\r\n// Identify known external chat domains from the past 90 to 15 days\r\nlet knownDomains =\r\n    CloudAppEvents\r\n    | where TimeGenerated > ago(90d) and TimeGenerated < ago(15d)\r\n    | join kind=inner parse_domains on TimeGenerated\r\n    | where ExternalDomains !in (TrustedDomains)\r\n    | summarize by ExternalDomains, User1_UPN, User2_UPN, TimeGenerated;\r\n// Identify external chat domains from the past 15 days that are not trusted or previously known\r\nlet ChatDomains =\r\n    CloudAppEvents\r\n    | where TimeGenerated > ago(15d)\r\n    | join kind=inner parse_domains on TimeGenerated\r\n    | where ExternalDomains !in (TrustedDomains)\r\n    | where ExternalDomains !in (knownDomains)\r\n    | summarize by ExternalDomains, User1_UPN, User2_UPN, TimeGenerated;\r\n// Identify external email sender domains from the past 15 days\r\nlet TrustedEmailDomains = \r\n    EmailEvents\r\n    | where TimeGenerated > ago(15d)\r\n    | where SenderFromDomain !in (TrustedDomains) and tolower(SenderFromDomain) != tolower(MyOrgDomain)\r\n    | summarize arg_max(TimeGenerated, *) by InternetMessageId // Get latest delivery event per message\r\n    | where DeliveryLocation contains \"Inbox\" and LatestDeliveryLocation contains \"Inbox\"\r\n    | extend SenderDomain = tolower(SenderFromDomain)\r\n    | summarize by SenderDomain, RecipientEmailAddress;\r\n// Final result: chat domains not seen before and not present in recent email communications\r\nChatDomains\r\n| where ExternalDomains !in (TrustedEmailDomains)\r\n| project TimeGenerated, ExternalDomains, User1_UPN, User2_UPN\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+    - TA0009
+techniques:
+    - T1566
+    - T1566.002
+    - T1598
+    - T1114
+tags:
+    - kql
+author: Luís Meneses
+version: "1"

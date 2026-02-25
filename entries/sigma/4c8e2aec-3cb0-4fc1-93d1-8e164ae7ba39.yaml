@@ -1,0 +1,89 @@
+id: 4c8e2aec-3cb0-4fc1-93d1-8e164ae7ba39
+name: EncryptHub Exploits CVE-2025-26633 for Fickle Stealer
+description: Detects common PowerShell download cradles used to download and execute payloads from a remote source, a technique frequently used by threat actors like EncryptHub for initial access after a successful social engineering attempt.
+query: |
+    title: Russian Group EncryptHub (also known as LARVA-208 and Water Gamayun) Exploits MSC CVE-2025-26633, aka MSC EvilTwin to Deploy Fickle Stealer Malware
+    id: b507302c-435d-4fe8-a87b-b38a4330421c
+    status: experimental
+    description: Detects common PowerShell download cradles used to download and execute payloads from a remote source. This technique is frequently used by threat actors like EncryptHub for initial access after a successful social engineering attempt.
+    status: experimental
+    author: Chaitanya B (Mr.Alein)
+    date: 2025-08-19
+    references:
+      - https://www.trustwave.com/en-us/resources/blogs/spiderlabs-blog/when-hackers-call-social-engineering-abusing-brave-support-and-encrypthubs-expanding-arsenal/
+      - https://cloud.google.com/blog/topics/threat-intelligence/unc3886-espionage-group-juniper-tinyshell
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      # --- PowerShell Execution / Loader ---
+      selection_ps:
+        Image|endswith: '\powershell.exe'
+        CommandLine|contains_any:
+          - 'Invoke-RestMethod'
+          - 'Invoke-Expression'
+          - 'DownloadString'
+          - 'runner.ps1'
+          - 'build.ps1'
+          - 'pay.ps1'
+          - '-ExecutionPolicy Bypass'
+          - '-nop'
+          - '-w hidden'
+
+      # --- File-based Indicators (EvilTwin MSC + DLL sideload) ---
+      selection_files:
+        TargetFilename|contains:
+          - '\Windows\System32\en-US\'
+          - '\WF.msc'
+          - '\*.msc'
+          - '\userenv.dll'
+        Image|endswith:
+          - '\launcher.exe'
+          - '\mmc.exe'
+
+      # --- Mock Directory Masquerading ---
+      selection_mockdir:
+        TargetFilename|contains: 'C:\Windows \System32'
+
+      # --- Network C2 Indicators ---
+      selection_domains:
+        DestinationHostname|contains:
+          - 'cjhsbam.com'
+          - 'rivatalk.net'
+          - '0daydreams.net'
+          - 'safesurf.fastdomain-uoemathhvq.workers.dev'
+          - 'api.rivatalk.net'
+      selection_ips:
+        DestinationIp|contains:
+          - '185.33.86.220'
+
+      condition: selection_ps or selection_files or selection_mockdir or selection_domains or selection_ips
+    fields:
+      - Timestamp
+      - DeviceName
+      - User
+      - Image
+      - CommandLine
+      - TargetFilename
+      - DestinationIp
+      - DestinationHostname
+      - InitiatingProcessFileName
+    falsepositives:
+      - Legitimate admin scripts or troubleshooting with PowerShell
+      - Custom MSC files in rare enterprise use
+      - Verify domains before enforcement
+    level: critical
+    tags:
+      - attack.t1566.002   # Phishing via Teams/Service
+      - attack.t1059.001   # PowerShell
+      - attack.t1059.003   # Windows Command Shell
+      - attack.t1203       # Exploitation for Execution
+      - attack.t1546.008   # MSC EvilTwin
+      - attack.t1574.002   # DLL Sideloading
+      - attack.t1036       # Masquerading (fake directory)
+      - attack.t1071.001   # Web Protocol C2
+      - attack.t1573.001   # Encrypted C2
+      - attack.t1090.003   # SOCKS Proxy
+      - attack.t1041       # Exfiltration over C2
+query_type: sigma
+version: "1"

@@ -1,0 +1,46 @@
+id: 019c9062-a75b-7038-b63e-d4da10cfa37b
+name: PeckBirdy Persistence Artifact Creation
+description: Detects the creation of the '___unique_id___' file in a temporary directory. This file is a specific artifact used by the PeckBirdy JScript framework to store a persistent victim identifier.
+query: |
+    // Name: PeckBirdy Persistence Artifact Creation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-24
+    // Description: Detects the creation of the '___unique_id___' file in a temporary directory. This file is a specific artifact used by the PeckBirdy JScript framework to store a persistent victim identifier.
+    // Tactics: Query, System Information Discovery, Malicious File
+    // Techniques: T1012, T1082, T1204.002
+    // False Positive Sensitivity: Medium
+    // References: https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html
+    DeviceFileEvents
+    // Look for file creation events
+    | where ActionType == "FileCreated"
+    // The specific filename used by PeckBirdy to store a victim ID
+    | where FileName == "___unique_id___"
+    // The file is typically created in a temporary folder.
+    | where FolderPath has_any (@"\Temp\", @"\tmp\")
+    // FP Tuning: The filename '___unique_id___' is distinctive. However, if legitimate applications are found to create this file,
+    // consider excluding them by InitiatingProcessFileName.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        FileName,
+        FolderPath,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1012
+    - T1082
+    - T1204.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/peckbirdy-script-framework.html

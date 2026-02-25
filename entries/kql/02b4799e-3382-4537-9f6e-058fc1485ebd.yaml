@@ -1,0 +1,27 @@
+id: 02b4799e-3382-4537-9f6e-058fc1485ebd
+name: Banana Squad C2 Communication Detection
+description: Detects network connections to known command and control (C2) domains associated with the 'Banana Squad' threat actor using specific domain patterns and URL paths.
+query: |-
+    // Title: Banana Squad C2 Communication Detection
+    // Description: Detects network connections to known command and control (C2) domains and URLs associated with the 'Banana Squad' threat actor, which exploits trojanized GitHub repositories. This activity indicates potential post-compromise communication.
+    // Author: Detections.ai
+    // Date: 2025-06-23
+    // References: https://www.reversinglabs.com/blog/threat-actor-banana-squad-exploits-github-repos-in-new-campaign
+    // Tactics: Command and Control
+    // Techniques: T1071.001 (Application Layer Protocol: Web Protocols), T1102 (Web Service)
+    // Severity: High
+    DeviceNetworkEvents
+    | where RemoteUrl has_any ("bananasquad.ru", "dieserbenni.ru", "1312services.ru")
+      and RemoteUrl has "/paste"
+    | project Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort, ActionType, InitiatingProcessAccountName, InitiatingProcessAccountSid, ReportId
+    | extend AccountName = InitiatingProcessAccountName, AccountSid = InitiatingProcessAccountSid
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1102
+tags:
+    - kql
+version: "1"

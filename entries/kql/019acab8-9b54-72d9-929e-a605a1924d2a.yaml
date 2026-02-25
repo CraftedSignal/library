@@ -1,0 +1,53 @@
+id: 019acab8-9b54-72d9-929e-a605a1924d2a
+name: User Signed into External Teams Tenant
+description: Detects when an internal user successfully authenticates as a guest to an external Microsoft Teams tenant. This could be legitimate B2B collaboration, but it can also be abused by attackers to lure users into a malicious tenant where security controls (like Safe Links/Safe Attachments) are not enforced.
+query: |
+    // Name: User Signed into External Teams Tenant
+    // Author: detections.ai
+    // Date: 2025-11-28
+    // Description: Detects when an internal user successfully authenticates as a guest to an external Microsoft Teams tenant. This could be legitimate B2B collaboration, but it can also be abused by attackers to lure users into a malicious tenant where security controls (like Safe Links/Safe Attachments) are not enforced.
+    // False Positives: Legitimate collaboration with external partners, vendors, or customers.
+    // Tactic: Initial Access
+    // Technique: T1566.002, Phishing: Spearphishing Link
+    // References: https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html
+
+    // Define a list of trusted external tenant IDs to reduce false positives from legitimate business collaboration.
+    // This list should be populated with the Tenant IDs of known partners.
+    let trusted_tenants = dynamic([]);
+
+    SigninLogs
+    // Filter for successful sign-ins to Microsoft Teams
+    | where AppDisplayName has "Microsoft Teams" and ResultType == 0
+    // Identify internal users ('Member') accessing an external resource tenant
+    | where UserType == "Member" and CrossTenantAccessType == "b2bCollaboration"
+    // Ensure the resource tenant is different from the user's home tenant
+    | where isnotempty(ResourceTenantId) and isnotempty(HomeTenantId) and ResourceTenantId != HomeTenantId
+    // Exclude sign-ins to known, trusted partner tenants. This is the primary tuning mechanism for this rule.
+    | where ResourceTenantId !in (trusted_tenants)
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        makeset(IPAddress),
+        makeset(Location)
+        by UserPrincipalName, UserDisplayName, ResourceTenantId, ResourceDisplayName, bin(TimeGenerated, 1d)
+    | project
+        StartTime,
+        EndTime,
+        UserPrincipalName,
+        UserDisplayName,
+        ExternalTenantName = ResourceDisplayName,
+        ExternalTenantId = ResourceTenantId,
+        SourceIPs = set_IPAddress,
+        SourceLocations = set_Location
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://thehackernews.com/2025/11/ms-teams-guest-access-can-remove.html

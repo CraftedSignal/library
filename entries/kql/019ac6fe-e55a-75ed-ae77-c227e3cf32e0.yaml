@@ -1,0 +1,47 @@
+id: 019ac6fe-e55a-75ed-ae77-c227e3cf32e0
+name: Project AK47 DLL Side-Loading Detection
+description: Detects DLL side-loading techniques used by Project AK47 loaders. This involves legitimate executables like 7z.exe or clink_x86.exe loading malicious DLLs with similar names from the same directory.
+query: |
+    // Name: Project AK47 DLL Side-Loading
+    // Author: detections.ai
+    // Date: 2025-11-27
+    // Description: Detects DLL side-loading techniques used by Project AK47 loaders. This involves legitimate executables like 7z.exe or clink_x86.exe loading malicious DLLs with similar names from the same directory.
+    // References: https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/
+    // MITRE ATT&CK: T1574.002 (DLL Side-Loading)
+    // False Positive Sensitivity: Medium. Legitimate applications might use similarly named DLLs. Tuning may be required by excluding known-good file paths or hashes.
+
+    DeviceImageLoadEvents
+    // The report identifies specific executable/DLL pairs used for side-loading.
+    | where
+        (InitiatingProcessFileName =~ "7z.exe" and FileName =~ "7z.dll") or
+        (InitiatingProcessFileName =~ "clink_x86.exe" and FileName =~ "clink_dll_x86.dll")
+    // FP Tuning: The legitimate 7-Zip installation is typically in "C:\Program Files\7-Zip\".
+    // Sideloading often occurs from user-writable directories like AppData, Temp, or Public.
+    // Consider adding a filter like: | where not(InitiatingProcessFolderPath has_all (@"C:\Program Files", "7-Zip"))
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessSHA256,
+        FileName,
+        FolderPath,
+        SHA256
+    // Map entities for investigation.
+    | extend
+        timestamp = TimeGenerated,
+        HostName = DeviceName,
+        Process = InitiatingProcessFileName,
+        File = FileName
+query_type: kql
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ak47-activity-linked-to-sharepoint-vulnerabilities/

@@ -1,0 +1,17 @@
+id: 019a422d-8556-7379-9882-c5fb5467dfa3
+name: Detect Potential Etherhiding Activity
+description: Detects network connections to blockchain APIs that are indicative of EtherHiding techniques, specifically those used by UNC5342 to retrieve malicious payloads. It identifies connections to domains containing keywords like 'explorer', 'block', 'cypher', 'eth', 'bit', 'coin', or 'crypto', combined with suspicious URL patterns such as 'eth_call' (a read-only function call for smart contracts) or 'apiKey=freekey' (a common free API key used by threat actors).
+query: "// Author: Dylan Evans (detections.ai/user/decksy), (github.com/dylanevans-cybersec/KQL-Queries)\r\n// Date: 2025-11-02\r\n// Description: Detects connections to blockchain APIs that are indicators of new EtherHiding techniques used by UNC5342 to retrieve malicious payloads.\r\n// TTPs: T1102.002, T1566.002\r\n// Observed Threat Actors: UNC5342\r\n\r\n// Define known blockchain explorer domains used for EtherHiding\r\nlet blockchainExplorerPatterns = dynamic([\r\n    \"explorer\", \"block\", \"cypher\", \"eth\", \"bit\", \"coin\", \"crypto\"\r\n]);\r\n// Define suspicious URL patterns associated with UNC5342's JADESNOW malware\r\nlet suspiciousPatterns = dynamic([\r\n    \"eth_call\", // Read-only function call used to retrieve data from smart contracts\r\n    \"apiKey=freekey\" // Free API key provided by ethplorer service, used commonly by threat actors\r\n]);\r\n// Currently commented out to increase scope of detection\r\n// Define processes that might initiate these requests (browsers, script hosts)\r\n// let initiatingProcesses = dynamic([\r\n//     \"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"iexplore.exe\", \"wscript.exe\", \"cscript.exe\", \"node.exe\"\r\n// ]);\r\nDeviceNetworkEvents\r\n// Filter for network connections from relevant processes\r\n//| where InitiatingProcessFileName in~ (initiatingProcesses)\r\n// Filter for connections to the specified blockchain explorer domains\r\n| where RemoteUrl has_any (blockchainExplorerPatterns)\r\n// Filter for URLs containing suspicious patterns\r\n| where RemoteUrl has_any (suspiciousPatterns)\r\n| project ReportId, DeviceId, Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102.002
+    - T1566.001
+tags:
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/dprk-adopts-etherhiding

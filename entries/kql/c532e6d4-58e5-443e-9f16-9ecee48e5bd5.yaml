@@ -1,0 +1,17 @@
+id: c532e6d4-58e5-443e-9f16-9ecee48e5bd5
+name: 'Suspicious volume of screenshot activity '
+description: This rule detects processes that are taking an unusually high number of screenshots within a defined timeframe. It identifies screenshot activity by looking for specific action types like "ScreenshotTaken", file creations with common image extensions (.png, .jpg, .jpeg, .bmp, .gif, .tiff), and process command lines containing common Windows API calls related to screen capturing (e.g., BitBlt, GetDC, PrintWindow, CopyFromScreen). The rule aggregates these events per device and triggers an alert if the total number of screenshots exceeds a configurable threshold.
+query: "// High Volume Screenshot Activity Detection\r\n// Detects processes making an unusually high number of screenshots in the set timeframe\r\n// Created by Dylan Evans (detections.ai/user/decksy)\r\nlet TimeWindow = 24h; // Adjust lookback time \r\nlet ScreenshotThreshold = 7; // Adjust based on environment\r\nDeviceEvents\r\n| where Timestamp >= ago(TimeWindow)\r\n| where ActionType in (\"ScreenshotTaken\", \"FileCreated\")\r\n// Look for screenshot-related API calls and file creations\r\n| where (ActionType == \"ScreenshotTaken\") or (ActionType == \"FileCreated\" and (FileName endswith \".png\" or FileName endswith \".jpg\" or FileName endswith \".jpeg\" or FileName endswith \".bmp\" or FileName endswith \".gif\" or FileName endswith \".tiff\")) or (ProcessCommandLine contains \"BitBlt\" or ProcessCommandLine contains \"GetDC\" or ProcessCommandLine contains \"CreateCompatibleDC\" or ProcessCommandLine contains \"GetWindowDC\" or ProcessCommandLine contains \"PrintWindow\" or ProcessCommandLine contains \"ScreenCapture\" or ProcessCommandLine contains \"CopyFromScreen\" or ProcessCommandLine contains \"Graphics.CopyFromScreen\")\r\n| extend Processes = tolower(tostring(split(InitiatingProcessFileName, \"\\\\\")[-1]))\r\n// Aggregate by screenshots per device\r\n| summarize TotalScreenshots = count(), Processes = make_set(Processes), NoOfUniqueProcesses = dcount(Processes), CommandLines = make_set(InitiatingProcessCommandLine, 10), FirstActivity = min(Timestamp), LastActivity = max(Timestamp) by DeviceId, DeviceName\r\n// Apply threshold based on total screenshots per device\r\n| where TotalScreenshots >= ScreenshotThreshold\r\n// Calculate activity duration\r\n| extend ScreenshotsPerHour = todouble(TotalScreenshots) / todouble(datetime_diff('hour', LastActivity, FirstActivity) + 1)\r\n// Output focused on device-level screenshot analysis\r\n| project DeviceName, DeviceId, TotalScreenshots, ScreenshotsPerHour, NoOfUniqueProcesses, Processes, CommandLines, FirstActivity, LastActivity\r\n| order by TotalScreenshots desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1113
+tags:
+    - screencapture
+    - screenshot
+    - spyware
+    - kql
+author: Dylan Evans
+version: "1"

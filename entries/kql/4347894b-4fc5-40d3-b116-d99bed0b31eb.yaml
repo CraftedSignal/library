@@ -1,0 +1,50 @@
+id: 4347894b-4fc5-40d3-b116-d99bed0b31eb
+name: SAP NetWeaver Attack by Chinese Threat Actor Impact Assessment
+description: KQL Query
+query: |
+    // SAP NetWeaver Attack by Chinese Threat Actor Impact Assessment
+    // https://www.forescout.com/blog/threat-analysis-sap-vulnerability-exploited-in-the-wild-by-chinese-threat-actor/
+
+    let InternetFacing =
+    DeviceInfo
+    | where IsInternetFacing == true and isnotempty(PublicIP)
+    | distinct DeviceId;
+    let SAPNetweaver =
+    DeviceProcessEvents
+    | where TimeGenerated > ago(90d)
+    | where InitiatingProcessVersionInfoProductName has "netweaver"
+    | summarize arg_max(TimeGenerated, *) by DeviceId
+    | where DeviceId has_any(InternetFacing);
+    let ForescoutIOC=externaldata(Type:string, Value:string, Source:string)
+    [h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/Chaya_004-IOC10May2025.csv'];
+    DeviceNetworkEvents
+    | where TimeGenerated > ago(30d)
+    | join ForescoutIOC on $left.RemoteIP == $right.Value
+    | where ActionType has "ConnectionSuccess" or ActionType has "InboundConnectionAccepted"
+    | where DeviceId has_any(SAPNetweaver)
+    | summarize NoOfHits=count() by DeviceName, ActionType, RemoteIP
+    | sort by NoOfHits desc
+query_type: kql
+tactics:
+    - TA0005
+    - TA0003
+    - TA0006
+    - TA0043
+    - TA0007
+    - TA0008
+    - TA0001
+    - TA0011
+    - TA0010
+techniques:
+    - T1198
+    - T1553.003
+    - T1003.002
+    - T1597.001
+    - T1016.001
+    - T1534
+    - T1190
+    - T1071.001
+    - T1048.003
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,13 @@
+id: 0199c10c-2f4f-75b8-93e8-e1826bbc9761
+name: Sign-in from VPN IP Address
+description: This rule identifies successful user sign-ins originating from IP addresses known to belong to VPN services. It leverages an external list of VPN IP ranges to correlate with Azure AD SigninLogs. This can indicate an attempt to bypass geo-restrictions, hide true origin, or could be legitimate use of a VPN by an employee.
+query: "let VPNRanges = externaldata (IpRange:string) \r\n[@'https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt'] with (format=txt);\r\nSigninLogs\r\n| where isnotempty(IPAddress)\r\n| evaluate ipv4_lookup(VPNRanges, IPAddress, IpRange)\r\n| project TimeGenerated, UserPrincipalName, IPAddress, UserAgent"
+query_type: kql
+severity: medium
+techniques:
+    - DS0015
+tags:
+    - kql
+version: "1"
+references:
+    - https://raw.githubusercontent.com/X4BNet/lists_vpn/main/output/vpn/ipv4.txt

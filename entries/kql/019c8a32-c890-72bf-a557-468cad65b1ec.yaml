@@ -1,0 +1,19 @@
+id: 019c8a32-c890-72bf-a557-468cad65b1ec
+name: DLL Sideloading via wab.exe for Credential Access
+description: Detects the Windows Address Book process (wab.exe) loading sspicli.dll from a non-standard location. This technique is used by attackers to hijack a legitimate process for credential theft from LSASS, bypassing some security controls.
+query: "// Name: DLL Sideloading via wab.exe for Credential Access\r\n// Author: adarsh pandey\r\n// Date: 2026-02-23\r\n// Description: Detects the Windows Address Book process (wab.exe) loading sspicli.dll from a non-standard location. This technique is used by attackers to hijack a legitimate process for credential theft from LSASS, bypassing some security controls.\r\n// Tactics: Credential Access, Defense Evasion\r\n// Techniques: T1574.002, T1003.001\r\n// False Positive Sensitivity: Medium\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/\r\nDeviceImageLoadEvents\r\n// Look for the Windows Address Book process loading a DLL.\r\n| where InitiatingProcessFileName =~ \"wab.exe\"\r\n// Filter for the specific DLL being sideloaded.\r\n| where FileName =~ \"sspicli.dll\"\r\n// The legitimate sspicli.dll resides in System32 or SysWOW64. Loading from other paths is highly suspicious.\r\n| where not(FolderPath has_any (\"\\\\Windows\\\\System32\\\\\", \"\\\\Windows\\\\SysWOW64\\\\\"))\r\n// Potential for False Positives: Some legitimate software installers or portable applications might bundle their own versions of system DLLs.\r\n// Consider excluding specific legitimate application paths if they are known to cause noise in your environment.\r\n// For example: | where not(InitiatingProcessFolderPath has \"C:\\\\Program Files\\\\LegitSoftware\\\\\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+    - T1003.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/06/active-exploitation-solarwinds-web-help-desk/

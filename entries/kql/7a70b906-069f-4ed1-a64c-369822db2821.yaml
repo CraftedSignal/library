@@ -1,0 +1,24 @@
+id: 7a70b906-069f-4ed1-a64c-369822db2821
+name: Detecting Scattered Spider Clicks
+description: This rule detects network connections, email activity, URL clicks, and Teams messages that involve domains commonly used by threat actor group Scattered Spider. It specifically looks for domains containing '-servicedesk.', '-okta.', '-sso.', '-cms.', '-helpdesk.', or 'oktalogin-'. The rule aims to identify potential phishing attempts or suspicious activity targeting SSO/helpdesk credentials by monitoring interactions with these specific domain patterns across multiple data sources.
+query: "let SSDomains = dynamic([\"-servicedesk.\", \"-okta.\", \"-sso.\", \"-cms.\", \"-helpdesk.\", \"oktalogin-\"]); // domains from https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (SSDomains)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| project Timestamp, DeviceName, AccountUPN = InitiatingProcessAccountUpn, Url = RemoteUrl, ReportId\r\n| extend Source = \"Network\"\r\n| union (\r\nEmailUrlInfo\r\n| where Url has_any (SSDomains)\r\n| join EmailEvents on NetworkMessageId\r\n| where DeliveryAction != \"Blocked\"\r\n| project Timestamp, AccountUPN = RecipientEmailAddress, Url, ActionType = DeliveryAction, Source = \"Email\", EmailSubject = Subject, Sender = SenderFromAddress\r\n)\r\n| union (\r\nUrlClickEvents\r\n| where Url has_any (SSDomains)\r\n| where ActionType == \"ClickAllowed\"\r\n| project Timestamp, AccountUPN = AccountUpn, Url, ActionType, Source = \"SafeLinks\"\r\n)\r\n| union (\r\nMessageEvents\r\n| join kind=inner (\r\n    MessageUrlInfo\r\n    | where UrlDomain has_any (SSDomains)\r\n) on TeamsMessageId\r\n| extend ParsedRecipients = parse_json(RecipientDetails)\r\n| mv-expand Recipient = ParsedRecipients\r\n| extend AccountUPN = tostring(Recipient.RecipientSmtpAddress)\r\n| project Timestamp, AccountUPN, Sender = SenderEmailAddress, TeamsThreadName = ThreadName, Url, Source = \"Teams\"\r\n)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - Scattered Spider
+    - UNC3944
+    - Star Fraud
+    - Octo Tempest
+    - Scatter Swine
+    - Muddled Libra
+    - the Com
+    - kql
+author: Dylan Evans
+version: "1"
+references:
+    - https://www.cisa.gov/sites/default/files/2025-07/aa23-320a-scattered-spider_1.pdf

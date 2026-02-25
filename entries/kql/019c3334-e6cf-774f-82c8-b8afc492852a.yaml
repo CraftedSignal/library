@@ -1,0 +1,57 @@
+id: 019c3334-e6cf-774f-82c8-b8afc492852a
+name: macOS Trusted Binary Requirement Extraction for TCC Bypass
+description: Detects the 'codesign' utility being used to extract code-signing requirements from trusted macOS system binaries. This is a key step used by malware to forge TCC permissions and inherit the privileges of trusted applications. The rule specifically looks for 'codesign' execution with '-d' and '--requirements' flags targeting common trusted binaries, initiated by scripting interpreters.
+query: |
+    // Name: macOS Trusted Binary Requirement Extraction
+    // Author: detections.ai
+    // Date: 2026-02-06
+    // Description: Detects the 'codesign' utility being used to extract code-signing requirements from trusted macOS system binaries. This is a key step used by malware to forge TCC permissions and inherit the privileges of trusted applications.
+    // MITRE ATT&CK: T1553.006, T1059.002
+    // References: https://www.darktrace.com/blog/applescript-abuse-unpacking-a-macos-phishing-campaign
+    // False Positive Sensitivity: Medium. Legitimate developer or system administration activity might involve inspecting code signing requirements. The filter for specific parent processes helps reduce this noise.
+    // For higher fidelity, correlate this event with a subsequent 'csreq' process execution by the same InitiatingProcessFileName or on the same device within a short time window.
+
+    // Define the list of trusted macOS binaries often targeted for this technique.
+    let trustedBinaries = dynamic([
+        "Finder.app",
+        "Terminal.app",
+        "osascript",
+        "Script Editor.app",
+        "bash"
+    ]);
+    DeviceProcessEvents
+    // Look for the execution of the 'codesign' utility, which is used to manage code signatures.
+    | where FileName =~ "codesign"
+    // Ensure the command is specifically for extracting designated requirements.
+    | where ProcessCommandLine has_all ("-d", "--requirements")
+    // Check if the command targets one of the known trusted binaries.
+    | where ProcessCommandLine has_any (trustedBinaries)
+    // This activity is often initiated by a script. Filtering for script interpreters can reduce false positives from legitimate developer tools.
+    | where InitiatingProcessFileName in~ ("osascript", "sh", "bash", "zsh", "Script Editor")
+    // Extract the targeted binary from the command line for easier analysis.
+    | extend TargetBinary = extract(@".* (/[^ ]+(?:(?:\.app)|(?:/Contents/MacOS/[^ ]+)|(?:/bin/[^ ]+))).*", 1, ProcessCommandLine)
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        TargetBinary
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1553.006
+    - T1059.002
+    - T1553
+    - T1059
+tags:
+    - kql
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.darktrace.com/blog/applescript-abuse-unpacking-a-macos-phishing-campaign

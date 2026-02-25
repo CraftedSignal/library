@@ -1,0 +1,22 @@
+id: 019a69c6-be6e-741b-a6bb-2344ca03025e
+name: LeakyStealer Second Stage Execution
+description: Detects child processes spawned by "MicrosoftEdgeUpdateCore.exe" when it is located in the AppData directory. This behavior is characteristic of the LeakyStealer malware executing downloaded payloads or system commands as part of its post-exploitation activities.
+query: "title: LeakyStealer Second Stage Execution\r\nid: 97b2cce9-52d2-4914-9055-34ac4a435922\r\nstatus: experimental\r\ndescription: Detects child processes spawned by \"MicrosoftEdgeUpdateCore.exe\"\r\n  when it is located in the AppData directory. This behavior is characteristic\r\n  of the LeakyStealer malware executing downloaded payloads or system commands\r\n  as part of its post-exploitation activities.\r\nreferences:\r\n  - https://hybrid-analysis.blogspot.com/2025/11/leakyinjector-and-leakystealer-duo.html\r\nauthor: detections.ai, Georg Lauenstein\r\ndate: 2025-11-09\r\ntags:\r\n  - attack.t1105\r\n  - attack.t1059.003\r\nlogsource:\r\n  category: process_creation\r\n  product: windows\r\ndetection:\r\n  selection:\r\n    ParentImage|contains: '\\AppData\\Roaming\\' # The malware copies itself to the Roaming AppData directory, which is a non-standard location for this executable.\r\n    ParentImage|endswith: '\\MicrosoftEdgeUpdateCore.exe' # Identifies the parent process name used by LeakyStealer.\r\n  filter_legit_location:\r\n    ParentImage|startswith:\r\n      # Legitimate instances of MicrosoftEdgeUpdateCore.exe are typically found in Program Files.\r\n      - 'C:\\Program Files (x86)\\Microsoft\\EdgeUpdate\\'\r\n      - 'C:\\Program Files\\Microsoft\\EdgeUpdate\\'\r\n  condition: selection and not filter_legit_location\r\nfalsepositives:\r\n  - Other malware could potentially use the same file name and location.\r\nlevel: high\r\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059.003
+tags:
+    - attack.t1105
+    - attack.t1059.003
+author: detections.ai, Georg Lauenstein
+version: "3"
+references:
+    - https://hybrid-analysis.blogspot.com/2025/11/leakyinjector-and-leakystealer-duo.html
+data_sources:
+    - process_creation
+    - windows

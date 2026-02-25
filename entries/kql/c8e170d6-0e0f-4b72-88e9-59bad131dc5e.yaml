@@ -1,0 +1,22 @@
+id: c8e170d6-0e0f-4b72-88e9-59bad131dc5e
+name: 'Threat Hunt: Potential Password Policy Discovery | Enumeration'
+description: |-
+    Detects command-line and PowerShell attempts to discover Windows domain/local password policies, which adversaries use to plan brute-force attacks or credential exploitation.
+
+    Each command is a reconnaissance step to answer:
+    "How many guesses can I make before lockout?"
+    "What password complexity rules exist?"
+    "Which domains have weaker policies?"
+
+    This aligns with MITRE’s definition of T1201.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)  // Adjust time window as needed\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\", \"powershell_ise.exe\")\r\n| where ProcessCommandLine has_any (\r\n    // Classic command-line enumeration\r\n    \"net accounts\",\r\n    \"net accounts /domain\",\r\n    \"whoami /all\",\r\n    \"nltest /domain_trusts\",\r\n    // PowerShell cmdlets\r\n    \"Get-ADDefaultDomainPasswordPolicy\",\r\n    \"Get-DomainPolicy\",\r\n    \"Get-DomainPolicyData\",\r\n    \"SystemAccess\",\r\n    \"(Get-DomainPolicy).SystemAccess\",\r\n    \"MinimumPasswordLength\",\r\n    \"PasswordHistoryCount\",\r\n    // Common module usage\r\n    \"PowerView\",\r\n    \"NetGPO\",\r\n    \"DSInternals\"\r\n    )\r\n| extend CommandLineEvidence = extract(@\"^(.*?)(net accounts|Get-ADDefaultDomainPasswordPolicy|SystemAccess|MinimumPasswordLength).*\", 0, ProcessCommandLine)\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    CommandLineEvidence,\r\n    InitiatingProcessParentFileName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+techniques:
+    - T1201
+    - T1087
+    - T1069
+tags:
+    - kql
+author: AwaisM
+version: "1"
