@@ -27,12 +27,16 @@ jobs:
           UPSTREAM_REFRESH_TOKEN: ${{ secrets.UPSTREAM_REFRESH_TOKEN }}
 
       - name: Rotate refresh token
-        if: always() && hashFiles('.new-refresh-token') != ''
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPO: ${{ github.repository }}
           TOKEN_FILE: ${{ github.workspace }}/.new-refresh-token
-        run: gh secret set UPSTREAM_REFRESH_TOKEN --repo "$REPO" < "$TOKEN_FILE"
+        run: |
+          if [ -f "$TOKEN_FILE" ]; then
+            gh secret set UPSTREAM_REFRESH_TOKEN --repo "$REPO" < "$TOKEN_FILE"
+            echo "Refresh token rotated"
+          fi
 
       - uses: stefanzweifel/git-auto-commit-action@v5
         with:
