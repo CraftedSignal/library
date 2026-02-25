@@ -7,18 +7,22 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: .github/mirror
     steps:
       - uses: actions/checkout@v4
 
       - name: Resolve Go version
         id: go-version
-        run: echo "version=$(grep -oP '(?<=golang:)\S+' .github/go/Dockerfile)" >> "$GITHUB_OUTPUT"
+        run: echo "version=$(grep -oP '(?<=golang:)\S+' ../go/Dockerfile)" >> "$GITHUB_OUTPUT"
 
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ steps.go-version.outputs.version }}
+          cache-dependency-path: .github/mirror/go.sum
 
-      - run: go run ./.github/mirror --output-dir .
+      - run: go run . --output-dir "$GITHUB_WORKSPACE"
         env:
           UPSTREAM_REFRESH_TOKEN: ${{ secrets.UPSTREAM_REFRESH_TOKEN }}
 
