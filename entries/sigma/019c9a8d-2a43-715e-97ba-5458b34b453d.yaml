@@ -1,0 +1,59 @@
+id: 019c9a8d-2a43-715e-97ba-5458b34b453d
+name: Dohdoor Suspicious Program Run From ProgramData
+description: Detects a Windows program being run from a shared folder instead of its normal location, with an unusual command added. This can be a sign that a clean program was copied and used to run a harmful file.
+query: |
+    title: "Dohdoor Suspicious Program Run From ProgramData"
+    id: 8f6a6a4e-3c78-4d7f-9f39-9a74a6b289aa
+    status: experimental
+    description: Detects a Windows program being run from a shared folder instead of
+      its normal location, with an unusual command added. This can be a sign that a
+      clean program was copied and used to run a harmful file.
+    author: Daniel Jeremiah
+    date: 2026-02-26
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_image_names:
+        Image|endswith:
+          - '\Fondue.exe'
+          - '\mblctr.exe'
+          - '\ScreenClippingHost.exe'
+      selection_suspicious_location:
+        Image|contains:
+          - '\ProgramData\'
+          - '\Users\Public\'
+      selection_c2_arg:
+        CommandLine|contains: '/111111?sub=s'
+      condition: selection_image_names and selection_suspicious_location and selection_c2_arg
+    falsepositives:
+      - Software packaging or testing that runs copied Windows tools from shared
+        folders
+    level: high
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+      - attack.execution
+      - attack.t1059
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1574.002
+    - T1059
+    - DS0009
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+    - attack.execution
+    - attack.t1059
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - process_creation
+    - windows

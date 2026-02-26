@@ -1,0 +1,48 @@
+id: 019c90bf-468d-7479-9c50-60636a900292
+name: SSHStalker Botnet Activity
+description: This rule detects activities associated with the SSHStalker botnet. It identifies outbound IRC-like network traffic on common IRC ports (6667, 6697, 7000) over TCP. It also looks for persistence mechanisms by monitoring writes to common cron job directories and files on Linux systems. Additionally, the rule detects log tampering attempts by monitoring writes to critical system log files such as /var/run/utmp, /var/log/wtmp, and /var/log/lastlog. Finally, it identifies on-host compilation activities, specifically the execution of compilers (gcc, cc, clang) or build tools (make) within suspicious temporary directories like /tmp, /var/tmp, or /dev/shm, which can indicate malware compilation.
+query: |+
+    // SSHStalker botnet (Linux): cron persistence + log tampering + outbound IRC + on-host compilation
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Ref: https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en
+
+    // Outbound IRC-like traffic (tune ports for your environment)
+    event.category: network and event.type: (start or connection or allowed) and
+    destination.port: (6667 or 6697 or 7000) and network.transport: "tcp"
+
+    // Cron persistence artifact writes (Linux)
+    event.category: file and
+    file.path: (
+      "/etc/crontab" or
+      "/etc/cron.d/*" or
+      "/etc/cron.hourly/*" or
+      "/etc/cron.daily/*" or
+      "/var/spool/cron/*"
+    )
+
+    // Log tampering on utmp/wtmp/lastlog (Linux)
+    event.category: file and
+    file.path: ("/var/run/utmp" or "/var/log/wtmp" or "/var/log/lastlog")
+
+    // On-host compilation on servers (gcc/make) — high-signal when uncommon in prod
+    event.category: process and
+    process.name: ("gcc" or "cc" or "clang" or "make") and
+    process.working_directory: ("/tmp" or "/var/tmp" or "/dev/shm")
+
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1053.003
+    - T1070.002
+    - T1027.004
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en

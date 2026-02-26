@@ -1,0 +1,101 @@
+id: 019c90bd-bc6c-749a-8ffd-aa8cd585312c
+name: Booking.com Phishing Campaign Detection
+description: This rule detects phishing attempts related to a Booking.com campaign. It identifies suspicious URLs containing 'op_token' or 'tpo_token' parameters, often combined with paths like 'complaint' or 'reserv', on non-Booking.com domains. It specifically looks for punycode domains (e.g., 'xn--*'), lookalike domains (e.g., '*booklng*', '*mgmnt*', '*portal*'), and specific high-signal punycode domains identified in reports. The rule also includes a pattern for partner kit redirect URLs with 'tpo_token' on 'booklng' subdomains. Additionally, it suggests looking for specific email patterns from Gmail senders with subjects like 'Automatic reply', 'Availability', or 'Reservation' that contain embedded URLs matching 'complaint?op_token='.
+query: |-
+    // Booking.com phishing campaign hunts (Microsoft KQL - Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers
+
+    let BookingLegitDomains = dynamic(["booking.com","admin.booking.com"]);
+    let PunycodeSpotDomains = dynamic([
+      "xn--dmn-5cd6q.xn--bking-jyea.xn--cm-fmc",
+      "xn--bking-jyea.xn--cm-fmc"
+    ]);
+
+    union isfuzzy=true
+    (
+      // 1) Proxy web: op_token lure on non Booking domains plus lookalike patterns
+      DeviceNetworkEvents
+      | extend Url = tostring(RemoteUrl)
+      | where isnotempty(Url)
+      | extend Host = tostring(parse_url(Url).Host),
+               Path = tostring(parse_url(Url).Path),
+               Query = tostring(parse_url(Url).Query)
+      | where Query has "op_token="
+      | where Path has_any (dynamic(["complaint","complint","reserv"]))
+      | where Host !in~ (BookingLegitDomains)
+      | where Host startswith "xn--" or Host has "booklng" or Host has "mgmnt" or Host has "portal"
+      | extend MatchType = "proxy_op_token_complaint_non_booking_lookalike"
+      | project TimeGenerated, DeviceName, MatchType, Url, Host, Path, Query, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // 2) Proxy web: partner kit redirect pattern booklng plus tpo_token
+      DeviceNetworkEvents
+      | extend Url = tostring(RemoteUrl)
+      | where isnotempty(Url)
+      | extend Host = tostring(parse_url(Url).Host),
+               Path = tostring(parse_url(Url).Path),
+               Query = tostring(parse_url(Url).Query)
+      | where Url has "sign-in/" and Query has "tpo_token="
+      | where Host has "booklng"
+      | extend MatchType = "proxy_partnerkit_signin_tpo_token_booklng"
+      | project TimeGenerated, DeviceName, MatchType, Url, Host, Path, Query, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // 4) High signal punycode domains from report spot checks
+      DeviceNetworkEvents
+      | extend Url = tostring(RemoteUrl)
+      | where isnotempty(Url)
+      | extend Host = tostring(parse_url(Url).Host),
+               Path = tostring(parse_url(Url).Path),
+               Query = tostring(parse_url(Url).Query)
+      | where Host in~ (PunycodeSpotDomains)
+      | extend MatchType = "proxy_high_signal_punycode_domain"
+      | project TimeGenerated, DeviceName, MatchType, Url, Host, Path, Query, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // 3) Email telemetry idea: gmail sender plus subjects, then look for complaint op_token URLs
+      // Works when EmailEvents and EmailUrlInfo are available and connected
+      EmailEvents
+      | where SenderFromAddress endswith "@gmail.com"
+      | where Subject has_any ("Automatic reply","Availability","Reservation")
+      | join kind=leftouter (
+          EmailUrlInfo
+          | project NetworkMessageId, Url
+        ) on NetworkMessageId
+      | extend UrlLower = tolower(tostring(Url)),
+               Host = tostring(parse_url(UrlLower).Host),
+               Path = tostring(parse_url(UrlLower).Path),
+               Query = tostring(parse_url(UrlLower).Query)
+      | where isnotempty(UrlLower)
+      | where Query has "op_token="
+      | where Path has "complaint"
+      | where Host !in~ (BookingLegitDomains)
+      | extend MatchType = "email_gmail_sender_subjects_with_complaint_op_token_url"
+      | project TimeGenerated, RecipientEmailAddress, SenderFromAddress, Subject, MatchType, Url, Host, Path, Query, NetworkMessageId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0042
+    - TA0009
+techniques:
+    - T1566
+    - T1566.002
+    - T1204.001
+    - T1204
+    - T1583.001
+    - T1114
+    - T1608.005
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers

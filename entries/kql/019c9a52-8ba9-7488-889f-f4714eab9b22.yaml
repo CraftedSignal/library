@@ -1,0 +1,10 @@
+id: 019c9a52-8ba9-7488-889f-f4714eab9b22
+name: Microsoft Copilot Jailbreak Detected
+description: This rule detects instances where a 'jailbreak' attempt is identified within a Microsoft Copilot interaction. It specifically looks for CopilotInteraction events where the 'JailbreakDetected' flag is set to true in the message data.
+query: "CloudAppEvents\r\n| where ActionType == \"CopilotInteraction\"\r\n| project-away AppInstanceId, ActivityObjects, IsAdminOperation, IsExternalUser, Type\r\n| extend EventData = RawEventData.CopilotEventData\r\n| extend \r\n    AppHost = tostring(EventData.AppHost),\r\n    ThreadId = tostring(EventData.ThreadId),\r\n    Messages = EventData.Messages,\r\n    Resources = EventData.AccessedResources\r\n| mv-expand Messages\r\n| extend \r\n    MessageId = tostring(Messages.Id),\r\n    isPrompt = tobool(Messages.isPrompt),\r\n    JailbreakDetected = tobool(Messages.JailbreakDetected)\r\n| project-away Messages, EventData\r\n| where JailbreakDetected != 0 \r\n| where isnotempty(JailbreakDetected)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

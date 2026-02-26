@@ -1,0 +1,85 @@
+id: 019c9a90-1477-707f-bd7b-e5a44c8d17c1
+name: Dohdoor Malware Hunting Pack
+description: This rule identifies various activities associated with the Dohdoor malware campaign, combining multiple detection heuristics into a single result set. It looks for PowerShell executing curl to download batch scripts, copied Windows tools run from shared folders with unusual arguments, suspicious DLL loads from shared folders, and network connections to C2-style domains identified in the campaign.
+query: |-
+    let TimeWindow = 30d;
+
+    // Dohdoor hunting pack
+    // Author: Daniel Jeremiah
+    // Combines multiple checks into one result set with a HuntType label.
+    // Reference: https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+
+    let Hunt1_PowerShellCurlBatch =
+    DeviceProcessEvents
+    | where Timestamp > ago(TimeWindow)
+    | where FileName =~ "curl.exe"
+    | where InitiatingProcessFileName in~ ("powershell.exe", "pwsh.exe")
+    | where ProcessCommandLine has_any (".bat", ".cmd")
+    | project Timestamp, DeviceName, AccountName,
+              HuntType = "PowerShell starts curl to download a batch script",
+              Evidence = ProcessCommandLine,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              FileName, FolderPath, ProcessId, InitiatingProcessId, ReportId;
+
+    let Hunt2_CopiedWindowsToolsWithUnusualArgument =
+    DeviceProcessEvents
+    | where Timestamp > ago(TimeWindow)
+    | where FileName in~ ("Fondue.exe", "mblctr.exe", "ScreenClippingHost.exe")
+    | where FolderPath has_any (@"C:\ProgramData\", @"C:\Users\Public\")
+    | where ProcessCommandLine has "/111111?sub=s"
+    | project Timestamp, DeviceName, AccountName,
+              HuntType = "Copied Windows tool run from a shared folder with an unusual argument",
+              Evidence = ProcessCommandLine,
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              FileName, FolderPath, ProcessId, InitiatingProcessId, ReportId;
+
+    let Hunt3_SuspiciousDllLoadFromSharedFolder =
+    DeviceImageLoadEvents
+    | where Timestamp > ago(TimeWindow)
+    | where FileName in~ ("propsys.dll", "batmeter.dll")
+    | where FolderPath has_any (@"C:\ProgramData\", @"C:\Users\Public\")
+    | project Timestamp, DeviceName,
+              AccountName = InitiatingProcessAccountName,
+              HuntType = "Library file with a common Windows name loaded from a shared folder",
+              Evidence = strcat(FileName, " loaded from ", FolderPath),
+              InitiatingProcessFileName, InitiatingProcessCommandLine = "",
+              FileName, FolderPath, ProcessId = InitiatingProcessId, InitiatingProcessId, ReportId;
+
+    let Hunt4_NetworkPivotOnC2StyleStrings =
+    DeviceNetworkEvents
+    | where Timestamp > ago(TimeWindow)
+    | where RemoteUrl has_any ("MswInSofTUpDloAd", "DEEPinSPeCTioNsyStEM", ".OnLiNe", ".DeSigN", ".SoFTWARe")
+       or RemoteDomain has_any ("MswInSofTUpDloAd", "DEEPinSPeCTioNsyStEM", ".OnLiNe", ".DeSigN", ".SoFTWARe")
+    | project Timestamp, DeviceName,
+              AccountName = InitiatingProcessAccountName,
+              HuntType = "Connection to a domain pattern described in the campaign",
+              Evidence = coalesce(RemoteUrl, RemoteDomain),
+              InitiatingProcessFileName, InitiatingProcessCommandLine,
+              FileName = InitiatingProcessFileName,
+              FolderPath = "",
+              ProcessId = InitiatingProcessId,
+              InitiatingProcessId,
+              ReportId;
+
+    union isfuzzy=true
+    Hunt1_PowerShellCurlBatch,
+    Hunt2_CopiedWindowsToolsWithUnusualArgument,
+    Hunt3_SuspiciousDllLoadFromSharedFolder,
+    Hunt4_NetworkPivotOnC2StyleStrings
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059
+    - T1071.001
+    - T1036.003
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/

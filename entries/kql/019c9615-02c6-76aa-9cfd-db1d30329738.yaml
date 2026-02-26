@@ -1,0 +1,143 @@
+id: 019c9615-02c6-76aa-9cfd-db1d30329738
+name: Developer-Targeting Campaign using Malicious Next.js Repositories
+description: This rule detects activity associated with a developer-targeting campaign leveraging malicious Next.js repositories. It identifies suspicious network connections to known Vercel staging domains and C2 IPs/ports/paths, as well as suspicious process execution patterns involving Node.js or VS Code related processes, and file events related to specific repository artifacts or sensitive file access by developer-adjacent processes. The detection logic covers network communication, process execution, and file system activities indicative of this specific threat.
+query: |-
+    // Developer-targeting campaign using malicious Next.js repositories (Microsoft KQL, Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/
+
+    let Lookback = 30d;
+
+    let VercelStagingDomains = dynamic([
+      "api-web3-auth.vercel.app",
+      "oracle-v1-beta.vercel.app",
+      "monobyte-code.vercel.app",
+      "ip-checking-notification-kgm.vercel.app",
+      "vscodesettingtask.vercel.app",
+      "price-oracle-v2.vercel.app",
+      "coredeal2.vercel.app",
+      "ip-check-notification-03.vercel.app",
+      "ip-check-wh.vercel.app",
+      "ip-check-notification-rkb.vercel.app",
+      "ip-check-notification-firebase.vercel.app",
+      "ip-checking-notification-firebase111.vercel.app",
+      "ip-check-notification-firebase03.vercel.app"
+    ]);
+
+    let C2IPs = dynamic([
+      "87.236.177.9",
+      "147.124.202.208",
+      "163.245.194.216",
+      "66.235.168.136"
+    ]);
+
+    let C2Port = 3000;
+
+    let C2Paths = dynamic([
+      "/api/errormessage",
+      "/api/handleerrors",
+      "/api/reporterrors",
+      "/api/hsocketnext",
+      "/api/hsocketresult",
+      "/upload",
+      "/uploadsecond",
+      "/uploadend"
+    ]);
+
+    let VercelApiHints = dynamic([
+      "/api/auth",
+      "/api/getmoralisdata",
+      "/api/settings"
+    ]);
+
+    let RepoArtifactNames = dynamic([
+      "next.config.js",
+      "tasks.json",
+      "jquery.min.js",
+      "auth.js",
+      "collection.js",
+      "env-setup.js"
+    ]);
+
+    union isfuzzy=true
+    (
+      // Network: Node or VS Code adjacent traffic to Vercel staging, plus C2 on port 3000 and known paths
+      DeviceNetworkEvents
+      | where TimeGenerated >= ago(Lookback)
+      | extend Url = tostring(RemoteUrl)
+      | where isnotempty(Url) or RemoteIP in (C2IPs)
+      | extend Host = tolower(tostring(parse_url(Url).Host)),
+               Path = tolower(tostring(parse_url(Url).Path))
+      | where
+          (Host in (VercelStagingDomains))
+          or (RemoteIP in (C2IPs) and RemotePort == C2Port)
+          or (RemoteIP in (C2IPs) and Path in (C2Paths))
+          or (Host in (VercelStagingDomains) and Path has_any (VercelApiHints))
+      | extend MatchType = case(
+          RemoteIP in (C2IPs) and RemotePort == C2Port and Path in (C2Paths), "c2_ip_port_3000_known_path",
+          RemoteIP in (C2IPs) and RemotePort == C2Port, "c2_ip_port_3000",
+          Host in (VercelStagingDomains) and Path has_any (VercelApiHints), "vercel_staging_api_path",
+          Host in (VercelStagingDomains), "vercel_staging_domain",
+          "network_other"
+        )
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteIP, RemotePort, RemoteUrl, Host, Path,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName,
+                InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // Process: suspicious Node usage patterns seen in the write up (VS Code tasks, env-setup.js, server startup)
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FileName in~ ("node.exe","node","Code.exe","npm.cmd","npm.exe")
+      | where ProcessCommandLine has_any ("env-setup.js",".vscode","tasks.json","runOn","folderOpen","npm run dev","server/server.js","new Function(","process.env","AUTH_API")
+          or ProcessCommandLine has_any (RepoArtifactNames)
+      | extend MatchType = "suspicious_dev_workflow_execution"
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName, FileName, FolderPath, ProcessCommandLine, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName,
+                InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // File: presence or access of repo artefacts used as execution entry points
+      DeviceFileEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FileName in~ (RepoArtifactNames) or FolderPath has @"\.vscode\"
+      | extend MatchType = "repo_artifact_file_event"
+      | project TimeGenerated, DeviceName, MatchType,
+                ActionType, FileName, FolderPath, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName,
+                InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // File: suspicious access to sensitive files from developer adjacent processes
+      DeviceFileEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FileName has_any (".env", ".env.local", "Cookies", "Login Data", "History")
+      | where InitiatingProcessFileName in~ ("node","node.exe","Code.exe","chrome.exe")
+      | extend MatchType = "sensitive_file_access_from_dev_process"
+      | project TimeGenerated, DeviceName, MatchType,
+                ActionType, FileName, FolderPath,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0042
+    - TA0001
+    - TA0005
+techniques:
+    - T1071.001
+    - T1059.007
+    - T1588.002
+    - T1566.001
+    - T1027
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/

@@ -1,0 +1,39 @@
+id: 019c9af9-8229-72cd-a02b-c2b89d5bb812
+name: Hidden Windows Process Execution via PowerShell
+description: Detects the use of the PowerShell 'Start-Process' cmdlet with parameters ('-WindowStyle Hidden', '-NoNewWindow') to execute a process without a visible window. This specific execution pattern was used by the Windows payload (msinit.exe) of the 'ambar-src' malware to evade user detection.
+query: |
+    // Name: Hidden Windows Process Execution via PowerShell
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-26
+    // Description: Detects the use of the PowerShell 'Start-Process' cmdlet with parameters ('-WindowStyle Hidden', '-NoNewWindow') to execute a process without a visible window. This specific execution pattern was used by the Windows payload (msinit.exe) of the 'ambar-src' malware to evade user detection.
+    // MITRE TTPs: T1564.003
+    // References: https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src
+    let timeframe = 1d;
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Look for PowerShell command lines that use Start-Process with specific flags to hide the new process window.
+    | where ProcessCommandLine has_all ("Start-Process", "-WindowStyle", "Hidden", "-NoNewWindow")
+    // Potential for False Positives: Legitimate administrative or deployment scripts may use these flags to run background tasks without interrupting the user.
+    // Consider adding exclusions for known-good scripts or parent processes if false positives occur.
+    // For example: | where not (InitiatingProcessFileName in~ ('SCCM.exe', 'IntuneManagementExtension.exe'))
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src

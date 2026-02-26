@@ -1,0 +1,56 @@
+id: 019c9af8-6301-73f8-adda-7e335efce251
+name: Suspicious npm Lifecycle Script Execution with Networking Utility
+description: Detects instances where an npm or node process spawns a shell, which in turn executes a command-line networking utility like curl or wget. This behavior is indicative of a malicious pre/post-install script used in supply chain attacks, such as the one seen with the 'ambar-src' package.
+query: |
+    // Name: Suspicious npm Lifecycle Script Execution
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-26
+    // Description: Detects instances where an npm or node process spawns a shell, which in turn executes a command-line networking utility like curl or wget. This behavior is indicative of a malicious pre/post-install script used in supply chain attacks, such as the one seen with the 'ambar-src' package.
+    // MITRE TTPs: T1546.004, T1071.001
+    // References: https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src
+    let timeframe = 1h;
+    // Define the parent processes associated with npm package management.
+    let parentProcesses = dynamic(["npm.exe", "node.exe", "npm", "node"]);
+    // Define the shell interpreters that could be spawned.
+    let childProcesses = dynamic(["cmd.exe", "powershell.exe", "sh", "bash"]);
+    // Define the suspicious command-line tools used for downloading payloads.
+    let suspiciousTools = dynamic(["curl", "wget"]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Look for a shell process being created by a node or npm process.
+    // Note: The parent process field name might be InitiatingProcessFileName, ParentProcessName, etc., depending on the schema.
+    | where InitiatingProcessFileName has_any (parentProcesses) and FileName has_any (childProcesses)
+    // Check if the shell's command line invokes a networking tool. The 'has_any' operator is case-insensitive.
+    | where ProcessCommandLine has_any (suspiciousTools)
+    // Potential for False Positives: Legitimate npm packages may use install scripts to download necessary binaries or dependencies.
+    // Consider adding exclusions for known-good build processes, repositories, or specific command lines if noise is observed.
+    // For example: | where not (InitiatingProcessFolderPath contains @"C:\agent\_work\" and ProcessCommandLine contains "download.my-corp.com")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        ParentProcessName = InitiatingProcessFileName,
+        ParentProcessCommandLine = InitiatingProcessCommandLine,
+        ChildProcessName = FileName,
+        ChildProcessCommandLine = ProcessCommandLine,
+        FolderPath,
+        MD5,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1195.002
+    - T1059
+    - T1105
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src

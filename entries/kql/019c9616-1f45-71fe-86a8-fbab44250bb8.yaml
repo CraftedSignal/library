@@ -1,0 +1,109 @@
+id: 019c9616-1f45-71fe-86a8-fbab44250bb8
+name: Developer-Targeting Campaign Indicators
+description: This rule detects various indicators associated with a developer-targeting campaign, including Node.js fetching remote JavaScript from untrusted PaaS domains, dynamic loader behavior in next.config.js, repeated beaconing to C2 paths, detached child Node interpreters, directory enumeration and exfiltration behavior, and suspicious access to sensitive files on developer machines.
+query: |-
+    // Developer-targeting campaign hunting queries (Microsoft KQL, Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/
+
+    let Lookback = 14d;
+
+    // Stage 1 and 2 PaaS indicators from the blog
+    let PaaSIndicators = dynamic(["vercel.app", "api-web3-auth", "oracle-v1-beta"]);
+
+    // Known C2 style paths from the blog
+    let C2PathsBeacon = dynamic(["/api/errormessage", "/api/handleerrors"]);
+    let ExfilPaths = dynamic(["/api/hsocketnext", "/api/hsocketresult", "/upload", "/uploadsecond", "/uploadend"]);
+
+    // Repo artefacts and developer sensitive files
+    let RepoArtefacts = dynamic(["next.config.js", "tasks.json"]);
+    let SensitiveFiles = dynamic([".env", ".env.local", "Cookies", "Login Data", "History"]);
+
+    union isfuzzy=true
+    (
+        // 1) Node.js fetching remote JavaScript from untrusted PaaS domains (C2 stage 1 and 2)
+        DeviceNetworkEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where InitiatingProcessFileName in~ ("node", "node.exe")
+        | where tostring(RemoteUrl) has_any (PaaSIndicators)
+        | extend MatchType = "node_fetch_untrusted_paas"
+        | project TimeGenerated, DeviceName, MatchType,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine,
+                  RemoteUrl, RemoteIP, RemotePort, ReportId
+    ),
+    (
+        // 2) Detection of next.config.js dynamic loader behaviour (readFile to eval)
+        DeviceProcessEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where FileName in~ ("node", "node.exe")
+        | where ProcessCommandLine has_any ("next dev", "next build")
+        | where ProcessCommandLine has_any ("eval", "new Function", "readFile")
+        | extend MatchType = "next_config_dynamic_loader"
+        | project TimeGenerated, DeviceName, MatchType,
+                  ProcessCommandLine, InitiatingProcessCommandLine, ReportId
+    ),
+    (
+        // 3) Repeated short interval beaconing to attacker C2 paths
+        DeviceNetworkEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where InitiatingProcessFileName in~ ("node", "node.exe")
+        | where tostring(RemoteUrl) has_any (C2PathsBeacon)
+        | summarize BeaconCount = count(),
+                    FirstSeen = min(TimeGenerated),
+                    LastSeen = max(TimeGenerated)
+            by DeviceName, InitiatingProcessCommandLine, RemoteUrl
+        | where BeaconCount > 10
+        | extend MatchType = "node_beaconing_threshold"
+        | project FirstSeen, LastSeen, DeviceName, MatchType, BeaconCount, InitiatingProcessCommandLine, RemoteUrl
+        | project-rename TimeGenerated = LastSeen
+    ),
+    (
+        // 4) Detection of detached child Node interpreters (node from parent node, endswith "-")
+        DeviceProcessEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where InitiatingProcessFileName in~ ("node", "node.exe")
+        | where FileName in~ ("node", "node.exe")
+        | where ProcessCommandLine endswith "-"
+        | extend MatchType = "detached_child_node_interpreter"
+        | project TimeGenerated, DeviceName, MatchType,
+                  InitiatingProcessCommandLine, ProcessCommandLine, ReportId
+    ),
+    (
+        // 5) Directory enumeration and exfil behaviour
+        DeviceNetworkEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where tostring(RemoteUrl) has_any (ExfilPaths)
+        | extend MatchType = "hsocket_or_upload_exfil_paths"
+        | project TimeGenerated, DeviceName, MatchType,
+                  RemoteUrl, RemoteIP, RemotePort,
+                  InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
+    ),
+    (
+        // 6) Suspicious access to sensitive files on developer machines
+        DeviceFileEvents
+        | where TimeGenerated >= ago(Lookback)
+        | where FileName has_any (SensitiveFiles)
+        | where InitiatingProcessFileName in~ ("node", "node.exe", "Code.exe", "chrome.exe")
+        | extend MatchType = "sensitive_file_access_dev_context"
+        | project TimeGenerated, DeviceName, MatchType,
+                  FileName, FolderPath, InitiatingProcessFileName, InitiatingProcessCommandLine, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0002
+    - TA0007
+techniques:
+    - T1071.001
+    - T1567.002
+    - T1059.007
+    - T1083
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/

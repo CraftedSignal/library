@@ -1,0 +1,14 @@
+id: 019c9a17-ec63-77a1-b198-e5957119cd3d
+name: Attempt to Disable Auditd Service
+description: Detects attempts to disable or stop the 'auditd' service on Linux systems using common service management utilities like systemctl, service, chkconfig, or update-rc.d. This activity could indicate an adversary attempting to impair defenses and avoid logging of their malicious actions.
+query: "// Attempt to Disable Auditd Service\r\nDeviceProcessEvents\r\n| where ProcessCommandLine has_any (\"auditd\", \"auditd.service\")\r\n| where FileName in~ (\"systemctl\", \"service\", \"chkconfig\", \"update-rc.d\")\r\n| where (\r\n    (FileName =~ \"systemctl\" and ProcessCommandLine has_any (\"disable\", \"stop\", \"kill\", \"mask\")) or\r\n    (FileName =~ \"service\" and ProcessCommandLine has \"stop\") or\r\n    (FileName =~ \"chkconfig\" and ProcessCommandLine has \"off\") or\r\n    (FileName =~ \"update-rc.d\" and ProcessCommandLine has_any (\"remove\", \"disable\"))\r\n)\r\n// Exclude legitimate package scripts\r\n| where InitiatingProcessFileName !~ \"auditd.prerm\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.012
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

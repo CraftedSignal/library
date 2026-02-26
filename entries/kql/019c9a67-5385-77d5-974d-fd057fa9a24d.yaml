@@ -1,0 +1,17 @@
+id: 019c9a67-5385-77d5-974d-fd057fa9a24d
+name: Phishing Detection using VIP Names from a Watchlist
+description: |-
+    This query should be executed when you are searching for phishing attempts that try to deceive users by using a VIP name.
+
+    For example, if your name is "Jesus Mary Joseph", the query will split the name into parts and alert you if attackers attempt to forge the message with one of these DisplayNames: Jesus Mary, Jesus Joseph.
+
+    You can automate a list of legitimate senders by using another Watchlist together with Azure Logic Apps, which will help reduce the number of false positives.
+query: "// Author: Vicente Neto\r\n// Date: 02/26/2026\r\n// This query should be executed when you are searching for phishing attempts that try to deceive users by using a VIP name.\r\n// For example, if your name is \"Jesus Mary Joseph\", the query will split the name into parts and alert you if attackers \r\n// attempt to forge the message with one of these DisplayNames: Jesus Mary, Jesus Joseph.\r\n// You can automate a list of legitimate senders by using another Watchlist together with Azure Logic Apps, \r\n// which will help reduce the number of false positives.\r\n\r\nlet DisplayNames = _GetWatchlist('$WatchListAlias')\r\n    | project DisplayName;\r\nlet FinalNames = DisplayNames\r\n    | extend NameParts = split(DisplayName, \" \")\r\n    | extend FirstName = NameParts[0]\r\n    | mv-expand AdditionalName = array_slice(NameParts, 1, array_length(NameParts))\r\n    | project NewName = strcat(FirstName, \" \", AdditionalName);\r\nEmailEvents\r\n| where not(SenderFromAddress has_any (LegitimateSenders))\r\n| where SenderDisplayName has_any (FinalNames) or SenderDisplayName has_any (DisplayNames) or SenderDisplayName has_any (VariatedVIPNames)\r\n| project\r\n    TimeGenerated,\r\n    NetworkMessageId,\r\n    SenderFromAddress,\r\n    SenderDisplayName,\r\n    Subject,\r\n    RecipientEmailAddress,\r\n    DeliveryLocation"
+query_type: kql
+severity: medium
+techniques:
+    - T1566
+tags:
+    - kql
+author: Vicente Neto
+version: "3"

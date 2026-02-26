@@ -1,0 +1,52 @@
+id: 019c90bf-a572-7074-9322-343e680fa457
+name: Dell RecoverPoint VM (CVE-2026-22769)
+description: This rule detects activity associated with UNC6201 exploiting Dell RecoverPoint VM (CVE-2026-22769), which involves the SLAYSTYLE/BRICKSTORM/GRIMBOLT malware. It identifies attempts to deploy WAR files via Tomcat Manager, suspicious WAR file uploads or modifications in Tomcat directories on Linux appliances, modifications to a persistence script named 'convert_hosts.sh', network communication with a GRIMBOLT C2 endpoint (149.248.11.71), and specific file hashes linked to the threat actor.
+query: |+
+    // UNC6201 exploiting Dell RecoverPoint VM (CVE-2026-22769) -> SLAYSTYLE/BRICKSTORM/GRIMBOLT
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Ref: https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day
+
+    // Web logs: Tomcat Manager WAR deployment (RecoverPoint VM)
+    url.path: "/manager/text/deploy" or url.original: "*PUT /manager/text/deploy*"
+
+    // Host: suspicious WAR upload / Tomcat directories on appliance (Linux)
+    file.path: (
+      "/var/lib/tomcat9/*.war" or
+      "/var/cache/tomcat9/Catalina/*" or
+      "/home/kos/auditlog/fapi_cl_audit_log.log"
+    )
+
+    // Host: persistence script modified (convert_hosts.sh)
+    file.path: "/home/kos/kbox/src/installation/distribution/convert_hosts.sh"
+
+    // Network: GRIMBOLT C2 endpoint
+    url.original: "wss://149.248.11.71/rest/apisession" or destination.ip: "149.248.11.71"
+
+    // File hash matches (published)
+    file.hash.sha256: (
+      "24a11a26a2586f4fba7bfe89df2e21a0809ad85069e442da98c37c4add369a0c" or
+      "dfb37247d12351ef9708cb6631ce2d7017897503657c6b882a711c0da8a9a591" or
+      "92fb4ad6dee9362d0596fda7bbcfe1ba353f812ea801d1870e37bfc6376e624a" or
+      "aa688682d44f0c6b0ed7f30b981a609100107f2d414a3a6e5808671b112d1878" or
+      "2388ed7aee0b6b392778e8f9e98871c06499f476c9e7eae6ca0916f827fe65df" or
+      "320a0b5d4900697e125cebb5ff03dee7368f8f087db1c1570b0b62f5a986d759" or
+      "90b760ed1d0dcb3ef0f2b6d6195c9d852bcb65eca293578982a8c4b64f51b035" or
+      "45313a6745803a7f57ff35f5397fdf117eaec008a76417e6e2ac8a6280f7d830"
+    )
+
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1505.003
+    - T1071.001
+    - DS0022
+    - DS0017
+tags:
+    - kql
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/unc6201-exploiting-dell-recoverpoint-zero-day

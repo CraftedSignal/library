@@ -1,0 +1,49 @@
+id: 019c9ab0-0e2d-7528-9ccf-09acea0a728e
+name: Dohdoor C2 Communication via DNS-over-HTTPS (DoH)
+description: Detects processes associated with Dohdoor malware making network connections to Cloudflare's DNS-over-HTTPS service for C2 domain resolution.
+query: |
+    title: Dohdoor C2 Communication via DNS-over-HTTPS (DoH)
+    id: 9530e681-0ae4-49d0-ae47-41e40f7c474c
+    status: experimental
+    description: Detects processes associated with Dohdoor malware making network
+      connections to Cloudflare's DNS-over-HTTPS service for C2 domain resolution.
+    author: detections.ai
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    date: 2026-02-26
+    tags:
+      - attack.t1071.001
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # Processes targeted for hollowing by Dohdoor
+        Image|endswith:
+          - '\wksprt.exe'
+          - '\OpenWith.exe'
+          - '\ImagingDevices.exe'
+          - '\wab.exe'
+        # Dohdoor uses Cloudflare's DoH service for C2 resolution
+        DestinationHostname: 'cloudflare-dns.com'
+        DestinationPort: 443
+      condition: selection
+    falsepositives:
+      - This behavior is highly anomalous. It is possible, but unlikely, that
+        legitimate privacy software could proxy traffic through these processes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.t1071.001
+author: detections.ai
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - network_connection
+    - windows

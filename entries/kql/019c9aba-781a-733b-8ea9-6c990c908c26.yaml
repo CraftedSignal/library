@@ -1,0 +1,17 @@
+id: 019c9aba-781a-733b-8ea9-6c990c908c26
+name: Unauthorized DNS-over-HTTPS (DoH) Abuse by Dohdoor
+description: Detects non-browser processes making DNS-over-HTTPS (DoH) queries to Cloudflare's DNS service. This specific behavior is used by the Dohdoor backdoor to resolve its C2 domains while evading traditional DNS monitoring. The rule specifically looks for connections to Cloudflare's DoH service (1.1.1.1 or cloudflare-dns.com on port 443 with the /dns-query path) from processes that are not common web browsers. The fidelity is significantly increased by the optional check for the 'insomnia' User-Agent, which is characteristic of the Dohdoor malware.
+query: "// Name: Unauthorized DNS-over-HTTPS (DoH) Abuse by Dohdoor\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-26\r\n// Description: Detects non-browser processes making DNS-over-HTTPS (DoH) queries to Cloudflare's DNS service. This specific behavior is used by the Dohdoor backdoor to resolve its C2 domains while evading traditional DNS monitoring.\r\n// False Positives: Medium. Other legitimate non-browser applications or system services may use DoH. The specific User-Agent check for 'insomnia' greatly increases fidelity. Without it, further tuning by excluding known good processes may be required.\r\n// References: https://blog.talosintelligence.com/new-dohdoor-malware-campaign/\r\n// Tags: T1071.004, T1568.002\r\n// Define a list of legitimate browser processes that commonly use DoH\r\nlet browserProcesses = dynamic([\"chrome.exe\", \"firefox.exe\", \"msedge.exe\", \"brave.exe\", \"opera.exe\"]);\r\nDeviceNetworkEvents\r\n// Filter for network connections to Cloudflare's DoH service over HTTPS\r\n| where (RemoteIP == \"1.1.1.1\" or RemoteUrl has \"cloudflare-dns.com\") and RemotePort == 443\r\n// Look for the specific URI path used for DoH queries\r\n| where RemoteUrl has \"/dns-query\"\r\n// Exclude common web browsers to focus on anomalous process behavior\r\n| where not(InitiatingProcessFileName in~ (browserProcesses))\r\n// The Dohdoor malware specifically uses the 'insomnia' user agent for its DoH queries.\r\n// This is a high-fidelity indicator. The location of User-Agent data can vary by log source.\r\n// Uncomment and adjust the following line if User-Agent is available in a field like AdditionalFields.\r\n// | where AdditionalFields has \"User-Agent: insomnia/11.3.0\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    RemotePort,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+    - T1568.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/

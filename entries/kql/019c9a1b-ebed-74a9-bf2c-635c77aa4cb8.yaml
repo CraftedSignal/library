@@ -1,0 +1,15 @@
+id: 019c9a1b-ebed-74a9-bf2c-635c77aa4cb8
+name: Attempt to Disable Syslog Service
+description: Detects attempts to disable or stop syslog services (syslog, rsyslog, syslog-ng) using common system utilities like systemctl, service, chkconfig, or update-rc.d. This activity could indicate an adversary attempting to impair defenses by preventing logging of their actions.
+query: "// Attempt to Disable Syslog Service\r\nDeviceProcessEvents\r\n| where ProcessCommandLine has_any (\"syslog\", \"rsyslog\", \"syslog-ng\", \"syslog.service\", \"rsyslog.service\", \"syslog-ng.service\")\r\n| where FileName in~ (\"systemctl\", \"service\", \"chkconfig\", \"update-rc.d\")\r\n| where (\r\n    (FileName =~ \"systemctl\" and ProcessCommandLine has_any (\"disable\", \"stop\", \"kill\", \"mask\")) or\r\n    (FileName =~ \"service\" and ProcessCommandLine has \"stop\") or\r\n    (FileName =~ \"chkconfig\" and ProcessCommandLine has \"off\") or\r\n    (FileName =~ \"update-rc.d\" and ProcessCommandLine has_any (\"remove\", \"disable\"))\r\n)\r\n// Exclude known log rotation or HUP signals\r\n| where InitiatingProcessFileName !~ \"rsyslog-rotate\"\r\n| where ProcessCommandLine !has \"HUP\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562
+    - T1562.006
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

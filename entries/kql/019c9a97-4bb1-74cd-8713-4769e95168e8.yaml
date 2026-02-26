@@ -1,0 +1,10 @@
+id: 019c9a97-4bb1-74cd-8713-4769e95168e8
+name: Excessive Copilot Prompt Activity
+description: Detects when a user generates an unusually high number of prompts to Copilot within a short period (e.g., 50 prompts in an hour). This could indicate automated activity, data exfiltration attempts, or misuse of the Copilot service.
+query: "CopilotActivity\r\n| where RecordType == \"CopilotInteraction\"\r\n| extend LLM = parse_json(LLMEventData)\r\n| extend Messages = LLM.Messages\r\n| mv-expand Messages\r\n| where tostring(Messages.isPrompt) == \"true\"\r\n| summarize PromptCount = count() by ActorName, bin(TimeGenerated, 1h)\r\n| where PromptCount > 50        // adjust threshold"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

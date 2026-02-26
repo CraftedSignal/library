@@ -1,0 +1,57 @@
+id: 019c9ab1-c272-758d-9c7f-6f9638f943fb
+name: Dohdoor Process Hollowing
+description: Detects legitimate Windows processes, known to be targeted by Dohdoor for process hollowing, making outbound network connections. This is highly indicative of the injected Dohdoor payload communicating with its C2 server.
+query: |
+    title: Dohdoor Process Hollowing
+    id: b3ac29ce-a7d8-45b2-b527-1e186a3877d9
+    status: experimental
+    description: Detects legitimate Windows processes, known to be targeted by
+      Dohdoor for process hollowing, making outbound network connections. This is
+      highly indicative of the injected Dohdoor payload communicating with its C2
+      server.
+    author: detections.ai
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    date: 2026-02-26
+    tags:
+      - attack.t1055.012
+      - attack.command_and_control
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # List of legitimate processes targeted by Dohdoor for process hollowing
+        Image|endswith:
+          - '\OpenWith.exe'
+          - '\wksprt.exe'
+          - '\ImagingDevices.exe'
+          - '\wab.exe'
+      filter_local:
+        # Exclude common loopback and local traffic to reduce potential noise
+        DestinationIp:
+          - '127.0.0.1'
+          - '::1'
+      condition: selection and not filter_local
+    falsepositives:
+      - These processes do not typically make outbound network connections. False
+        positives are unlikely but could occur in unusual system configurations.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+    - TA0005
+    - TA0004
+techniques:
+    - T1055.012
+tags:
+    - attack.t1055.012
+    - attack.command_and_control
+author: detections.ai
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - network_connection
+    - windows

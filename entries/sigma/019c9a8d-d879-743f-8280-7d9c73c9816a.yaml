@@ -1,0 +1,54 @@
+id: 019c9a8d-d879-743f-8280-7d9c73c9816a
+name: Dohdoor Possible Harmful DLL Loaded From Shared Folder
+description: Detects a library file with a common Windows name being loaded from a shared folder instead of the Windows folders. This can be a sign that a fake library file is being used to run harmful code.
+query: |
+    title: Dohdoor Possible Harmful DLL Loaded From Shared Folder
+    id: 7e27a1e2-0e28-4af6-8f1f-30eb7cf0ef7d
+    status: experimental
+    description: >-
+      Detects a library file with a common Windows name being loaded from a shared
+      folder instead of the Windows folders. This can be a sign that a fake library
+      file is being used to run harmful code.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_dll:
+        ImageLoaded|endswith:
+          - \propsys.dll
+          - \batmeter.dll
+      selection_non_system_path:
+        ImageLoaded|contains:
+          - \ProgramData\
+          - \Users\Public\
+      condition: selection_dll and selection_non_system_path
+    falsepositives:
+      - Very uncommon, review the full path and file signer
+    level: high
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+author: Daniel Jeremiah
+version: "1"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - image_load
+    - windows
+    - sysmon

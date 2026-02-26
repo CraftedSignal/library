@@ -1,0 +1,19 @@
+id: 019c9ab9-1559-71ea-818f-7ca819b569d7
+name: Dohdoor LOLBin Sideloading Detection
+description: Detects the execution of legitimate Windows binaries from suspicious public or shared locations, a technique used by the Dohdoor malware campaign to sideload a malicious DLL.
+query: "// Name: Dohdoor LOLBin Sideloading\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-26\r\n// Description: Detects the execution of legitimate Windows binaries from suspicious public or shared locations. This is a technique used by the Dohdoor malware campaign to sideload a malicious DLL.\r\n// False Positives: Medium. Legitimate installers or updaters may occasionally copy and execute system binaries from these locations. Review the parent process and command line for context.\r\n// References: https://blog.talosintelligence.com/new-dohdoor-malware-campaign/\r\n// Tags: T1574.002, T1218.011\r\nDeviceProcessEvents\r\n// Define the list of legitimate executables abused by Dohdoor\r\n| where FileName in~ (\"Fondue.exe\", \"mblctr.exe\", \"ScreenClippingHost.exe\")\r\n// Look for execution from suspicious directories identified in the campaign\r\n| where FolderPath startswith @\"C:\\ProgramData\\\" or FolderPath startswith @\"C:\\Users\\Public\\\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+    - T1218.011
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/

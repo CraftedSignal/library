@@ -1,0 +1,67 @@
+id: 019c9af9-2aa6-732f-b8a3-cb352ba0ae0f
+name: Yandex Cloud Function C2 Activity
+description: Detects outbound network traffic or DNS queries to the Yandex Cloud Functions domain (functions.yandexcloud.net). This domain was used as a C2 relay by the 'ambar-src' malicious npm package, indicating potential command and control activity.
+query: |
+    // Name: Yandex Cloud Function C2 Activity
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-26
+    // Description: Detects outbound network traffic or DNS queries to the Yandex Cloud Functions domain (functions.yandexcloud.net). This domain was used as a C2 relay by the 'ambar-src' malicious npm package.
+    // MITRE TTPs: T1102
+    // References: https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src
+    let timeframe = 1d;
+    let c2Domain = "functions.yandexcloud.net";
+    union isfuzzy=true
+    (
+        // Look for direct network connections to the C2 domain
+        DeviceNetworkEvents
+        | where TimeGenerated > ago(timeframe)
+        | where RemoteUrl has c2Domain
+        | extend EventType = "Network Connection", Destination = RemoteUrl
+        | project
+            TimeGenerated,
+            DeviceName,
+            EventType,
+            Destination,
+            InitiatingProcessFileName,
+            InitiatingProcessCommandLine,
+            InitiatingProcessAccountName
+    ),
+    (
+        // Look for DNS queries for the C2 domain
+        DeviceDnsEvents
+        | where TimeGenerated > ago(timeframe)
+        | where Name has c2Domain
+        | extend EventType = "DNS Query", Destination = Name
+        | project
+            TimeGenerated,
+            DeviceName,
+            EventType,
+            Destination,
+            InitiatingProcessFileName,
+            InitiatingProcessCommandLine,
+            InitiatingProcessAccountName
+    )
+    // Potential for False Positives: Legitimate use of Yandex Cloud Functions could trigger this alert, although it is less common in most corporate environments.
+    // Consider tuning by filtering for processes common in developer environments (node, powershell, sh, bash) or excluding known-good applications that use Yandex services.
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        EventType,
+        Destination
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102
+    - T1071.001
+    - T1071.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src

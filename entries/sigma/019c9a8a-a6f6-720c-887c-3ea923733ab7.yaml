@@ -1,0 +1,57 @@
+id: 019c9a8a-a6f6-720c-887c-3ea923733ab7
+name: Dohdoor Campaign PowerShell Uses Curl
+description: Detects PowerShell executing curl.exe to download a batch script (.bat or .cmd), consistent with the Dohdoor multi stage chain described by Cisco Talos.
+query: |
+    title: "Dohdoor Campaign PowerShell Uses Curl"
+    id: 0d6bb8a3-9db0-4b71-9c0e-1d3f2bafc3a9
+    status: experimental
+    description: >-
+      Detects PowerShell executing curl.exe to download a batch script (.bat or
+      .cmd), consistent with the Dohdoor multi stage chain described by Cisco Talos.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_curl:
+        Image|endswith: \curl.exe
+      selection_parent_powershell:
+        ParentImage|endswith:
+          - \powershell.exe
+          - \pwsh.exe
+      selection_batch_ext:
+        CommandLine|contains:
+          - .bat
+          - .cmd
+      condition: selection_curl and selection_parent_powershell and selection_batch_ext
+    level: medium
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.command_and_control
+      - attack.t1105
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.command_and_control
+    - attack.t1105
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

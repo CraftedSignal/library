@@ -1,0 +1,18 @@
+id: 019c9aba-0cdd-75e4-814a-80b9515c9e90
+name: 'Dohdoor Anti-Forensic Activity: RunMRU Deletion and Clipboard Clearing'
+description: Detects the deletion of the RunMRU registry key and the clearing of the clipboard within a short time window on the same host. This sequence of anti-forensic actions is used by the batch script component of the Dohdoor malware campaign to hide its tracks.
+query: "// Name: Dohdoor Anti-Forensic Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-26\r\n// Description: Detects the deletion of the RunMRU registry key and the clearing of the clipboard within a short time window on the same host. This sequence of anti-forensic actions is used by the batch script component of the Dohdoor malware campaign to hide its tracks.\r\n// False Positives: Medium. An administrator or power user might perform these actions sequentially for legitimate reasons, but it is uncommon. The short time window helps reduce false positives. Correlate with other Dohdoor activity.\r\n// References: https://blog.talosintelligence.com/new-dohdoor-malware-campaign/\r\n// Tags: T1070.004, T1115\r\n// Define the time window for correlation\r\nlet timeframe = 5m;\r\n// Collect relevant events into a single stream\r\nunion\r\n(\r\n    // Find instances of the RunMRU registry key being deleted, as seen in the actor's batch script\r\n    DeviceRegistryEvents\r\n    | where ActionType == \"RegistryKeyDeleted\" and RegistryKey has @\"\\Software\\Microsoft\\Windows\\CurrentVersion\\Explorer\\RunMRU\"\r\n    | extend Activity = \"RunMRU Deletion\", EventTime = Timestamp, Details = strcat(\"Deleted Key: \", RegistryKey), InitiatingProcess = InitiatingProcessFileName\r\n    | project EventTime, DeviceId, DeviceName, Activity, Details, InitiatingProcess, InitiatingProcessAccountName\r\n),\r\n(\r\n    // Find instances of the clipboard being cleared via cmd.exe, as seen in the actor's batch script\r\n    DeviceProcessEvents\r\n    | where FileName =~ \"cmd.exe\" and ProcessCommandLine has \"| clip\"\r\n    | extend Activity = \"Clipboard Clearing\", EventTime = Timestamp, Details = ProcessCommandLine, InitiatingProcess = InitiatingProcessFileName\r\n    | project EventTime, DeviceId, DeviceName, Activity, Details, InitiatingProcess, InitiatingProcessAccountName\r\n)\r\n// Correlate events by device within the specified timeframe\r\n| summarize\r\n    StartTime = min(EventTime),\r\n    EndTime = max(EventTime),\r\n    Activities = make_set(Activity),\r\n    AllDetails = make_set(Details),\r\n    InitiatingProcesses = make_set(InitiatingProcess),\r\n    AccountName = make_set(InitiatingProcessAccountName),\r\n    Device = make_set(DeviceName)\r\n  by DeviceId, bin(EventTime, timeframe)\r\n// Ensure both distinct activities were observed\r\n| where array_length(Activities) == 2\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    DeviceId,\r\n    Activities,\r\n    InitiatingProcesses,\r\n    AccountName,\r\n    Device,\r\n    AllDetails\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0009
+techniques:
+    - T1070.004
+    - T1115
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/

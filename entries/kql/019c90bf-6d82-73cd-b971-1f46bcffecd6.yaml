@@ -1,0 +1,40 @@
+id: 019c90bf-6d82-73cd-b971-1f46bcffecd6
+name: DKnife Gateway AitM Hunt
+description: This rule detects activity related to the DKnife gateway AitM (Adversary-in-the-Middle) threat, as detailed in Talos Intelligence reporting. It identifies specific binary names (dknife.bin, sslmm.bin, postapi.bin, rules.bin, sshapi.bin, inotify.bin, curlapi.bin) associated with the threat, either as process names or file names. Additionally, it looks for configuration artifacts (rules.conf, sslmm.cfg, url.cfg) used by the proxy/redirect logic, either as file names or within process command lines. Finally, the rule identifies exfiltration or tagging markers (dkimsi=, 460110672021628, PASSWORD) observed in logs or artifacts, which are indicative of DKnife's reporting mechanisms.
+query: |+
+    ## DKnife gateway AitM hunts (Elastic KQL)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-24
+    ## Ref: https://blog.talosintelligence.com/knife-cutting-the-edge/
+
+    ### 1) Component/binary names referenced in Talos reporting (Linux gateways/edge)
+    (
+      process.name : ("dknife.bin","sslmm.bin","postapi.bin","rules.bin","sshapi.bin","inotify.bin","curlapi.bin")
+      or file.name : ("dknife.bin","sslmm.bin","postapi.bin","rules.bin","sshapi.bin","inotify.bin","curlapi.bin")
+    )
+
+    ### 2) Config artifacts used by the proxy/redirect logic
+    (
+      file.name : ("rules.conf","sslmm.cfg","url.cfg")
+      or process.command_line : ("*sslmm.cfg*","*url.cfg*","*rules.conf*")
+    )
+
+    ### 3) Exfil/tag markers observed in report (when captured in logs/artifacts)
+    message : ("*dkimsi=*","*460110672021628*","*PASSWORD*")
+
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0006
+    - TA0009
+    - TA0011
+techniques:
+    - T1557
+    - T1071.001
+tags:
+    - kql
+author: Daniel Jeremaih
+version: "3"
+references:
+    - https://blog.talosintelligence.com/knife-cutting-the-edge/

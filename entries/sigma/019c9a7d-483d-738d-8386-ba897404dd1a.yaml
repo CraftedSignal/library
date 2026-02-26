@@ -1,0 +1,57 @@
+id: 019c9a7d-483d-738d-8386-ba897404dd1a
+name: Dohdoor Sideloading via LOLBin in Staging Directory
+description: Detects the execution of legitimate Windows binaries from non-standard public or program data directories. This technique is used by the Dohdoor malware to sideload a malicious DLL.
+query: |
+    title: Dohdoor Sideloading via LOLBin in Staging Directory
+    id: c8537855-9f51-4d75-9add-76ebd3f9d797
+    status: experimental
+    description: Detects the execution of legitimate Windows binaries from
+      non-standard public or program data directories. This technique is used by the
+      Dohdoor malware to sideload a malicious DLL.
+    author: tim@detections.ai
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    date: 2026-02-26
+    tags:
+      - attack.t1574.002
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      # legitimate binaries used in the Dohdoor campaign
+      selection_binaries:
+        Image|endswith:
+          - '\Fondue.exe'
+          - '\mblctr.exe'
+          - '\ScreenClippingHost.exe'
+      selection_paths:
+        Image|startswith:
+          - 'C:\ProgramData'
+          - 'C:\Users\Public'
+          - 'C:\Windows\Temp'
+          - 'C:\Windows\Fonts'
+      condition: selection_binaries and selection_paths
+    falsepositives:
+      - Legitimate software installers or updaters may copy and execute these
+        binaries from temporary locations within these directories. However, this is
+        expected to be rare.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1574.002
+tags:
+    - attack.t1574.002
+    - attack.defense_evasion
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon
