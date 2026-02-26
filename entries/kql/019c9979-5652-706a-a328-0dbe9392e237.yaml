@@ -1,0 +1,16 @@
+id: 019c9979-5652-706a-a328-0dbe9392e237
+name: Azure DevOps Critical Search Queries
+description: This rule detects suspicious code search queries within Azure DevOps audit logs that may indicate an adversary is attempting to find sensitive information such as passwords, API keys, tokens, or private keys. It specifically looks for keywords like 'password', 'secret', 'token', 'apikey', 'api_key', 'connectionstring', 'connstring', 'credential', 'private key', and 'BEGIN RSA PRIVATE KEY' in code search queries.
+query: "// Detect suspicious code search queries (possible secret hunting)\r\nADOAuditLogs_CL\r\n| where TimeGenerated > ago(7d)\r\n| where ActionId == \"Search.Code\"\r\n| extend d=parse_json(Data)\r\n| extend SearchQuery=tostring(d.SearchQuery)\r\n| where SearchQuery matches regex @\"(?i)(password|passwd|secret|token|apikey|api_key|connectionstring|connstring|credential|private key|BEGIN RSA PRIVATE KEY)\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1552
+    - T1552.001
+    - T1552.004
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

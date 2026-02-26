@@ -1,0 +1,18 @@
+id: 019c998a-6c38-71be-ab26-524a58b08759
+name: Azure DevOps Activity from New/Rare IP Outside Business Hours
+description: This rule detects Azure DevOps activities originating from new or rarely seen IP addresses outside of defined business hours. It establishes a baseline of historical IP addresses and flags activities from IPs that have been seen for fewer than a specified number of days, indicating potentially suspicious access.
+query: "// List non-internal Azure DevOps activities excluding business hours\r\n// Exclude business hours: Mon-Fri 06:30-18:30 and Monday 20:30-23:00\r\n// Configuration\r\n// Define your IP Range\r\nlet internalIpRange = \"1.2.3.4/16\";\r\n// Define your default Business hours \r\nlet businessHoursStart = 6 * 60 + 30;  // 06:30 in minutes\r\nlet businessHoursEnd = 18 * 60 + 30;   // 18:30 in minutes\r\nlet mondayExtraStart = 20 * 60 + 30;   // 20:30 in minutes\r\nlet mondayExtraEnd = 23 * 60;          // 23:00 in minutes\r\nlet businessDaysStart = 1;             // Monday\r\nlet businessDaysEnd = 5;               // Friday\r\nlet monday = 1;\r\nlet lookbackPeriod = 1d;\r\nlet historicalLookback = 29d;\r\nlet minHistoricalDays = 3;             // Minimum number of days for known IPs\r\n// Build historical IP list with day count\r\nlet HistoricalIPDays = ADOAuditLogs_CL\r\n| where TimeGenerated >= ago(historicalLookback)\r\n| extend isInternalIp = ipv4_is_in_range(IpAddress, internalIpRange)\r\n| where isInternalIp == false and isnotnull(IpAddress)\r\n| summarize UniqueDays = dcount(format_datetime(TimeGenerated, 'yyyy-MM-dd')) by ActorUPN, IpAddress;\r\n// Current activities outside of business hours\r\nlet CurrentActivities = ADOAuditLogs_CL\r\n| where TimeGenerated > ago(lookbackPeriod)\r\n| extend Dow = toint(dayofweek(TimeGenerated) / 1d)\r\n| extend MinutesSinceMidnight = 60 * datetime_part(\"Hour\", TimeGenerated) + datetime_part(\"Minute\", TimeGenerated)\r\n| where not(\r\n    // Mon-Fri 06:30-18:30\r\n    (Dow >= businessDaysStart and Dow <= businessDaysEnd and MinutesSinceMidnight >= businessHoursStart and MinutesSinceMidnight <= businessHoursEnd)\r\n    or\r\n    // Monday 20:30-23:00\r\n    (Dow == monday and MinutesSinceMidnight >= mondayExtraStart and MinutesSinceMidnight <= mondayExtraEnd)\r\n)\r\n| extend isInternalIp = ipv4_is_in_range(IpAddress, internalIpRange)\r\n| where isInternalIp == false and isnotnull(IpAddress)\r\n| summarize CountEvents=count(), FirstSeen=min(TimeGenerated), LastSeen=max(TimeGenerated), Actions=make_set(ActionId, 20) by ActorUPN, ActorDisplayName, IpAddress, UserAgent;\r\n// Join with historical data and filter for new/rare IPs\r\nCurrentActivities\r\n| join kind=leftouter HistoricalIPDays on ActorUPN, IpAddress\r\n| extend \r\n    IPSeenDays = coalesce(UniqueDays, 0),\r\n    IPRiskLevel = case(\r\n        isempty(UniqueDays) or UniqueDays == 0, \"High Risk - New IP\",\r\n        UniqueDays < minHistoricalDays, \"Medium Risk - Rare IP\",\r\n        UniqueDays >= minHistoricalDays, \"Lower Risk - Known IP\",\r\n        \"Unknown\"\r\n    )\r\n// Only alert for new or rare IPs (less than 3 days)\r\n| where IPRiskLevel in (\"High Risk - New IP\", \"Medium Risk - Rare IP\")\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1133
+tags:
+    - kql
+author: Benjamin Zulliger
+version: "1"

@@ -32110,6 +32110,26 @@ entries:
       references:
         - https://attack.mitre.org/techniques/T1110/003/
       file: entries/kql/019c9664-cfd6-723e-b961-59e62dd33d51.yaml
+    - id: 019c966e-c0a1-749a-97e2-a68f185d2aed
+      name: Suspected Trojanised NSIS Installer
+      description: Detects execution of installers from common user download locations with NSIS style command line indicators, consistent with trojanised installer delivery chains.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+      techniques:
+        - T1204
+      tags:
+        - attack.execution
+        - attack.t1204
+      author: Daniel Jeremiah
+      version: "3"
+      references:
+        - https://www.malwarebytes.com/blog/scams/2026/02/huorong
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019c966e-c0a1-749a-97e2-a68f185d2aed.yaml
     - id: 019c9699-5756-77cf-8e6e-0deaa2c8c7f0
       name: Detect when AD Users get the Status of 'AtRisk'
       description: This query detect when a AD user end up becoming Risky for some reason.
@@ -32236,10 +32256,181 @@ entries:
       tags:
         - spl
       author: CardinalOps
-      version: "1"
+      version: "2"
       references:
         - https://ipurple.team/2026/02/02/applocker-rules-abuse/
       file: entries/spl/019c98ad-8856-7468-8a9c-e766ebb2a094.yaml
+    - id: 019c98c2-e51a-74c4-9df3-8015f134a00d
+      name: Detection of Gorelo RMM
+      description: The rule detects the installation of the Gorelo RMM service by monitoring Windows System events (Event ID 7045) or Security events (Event ID 4697), which record the creation of new services. It specifically looks for service names or binary paths containing the string "gorelo", flagging the moment the agent is first established on the system.
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1219.002
+      tags:
+        - spl
+      author: CardinalOps
+      version: "2"
+      references:
+        - https://lolrmm.io/tools/gorelo_rmm
+      file: entries/spl/019c98c2-e51a-74c4-9df3-8015f134a00d.yaml
+    - id: 019c98c5-1f34-72c8-bcd8-4c7e64702fd6
+      name: Delayed Execution via W32tm
+      description: The rule detects the execution of w32tm.exe with the stripchart command-line argument.
+      query_type: spl
+      severity: medium
+      tags:
+        - spl
+      author: CardinalOps
+      version: "1"
+      references:
+        - https://www.splunk.com/en_us/blog/security/common-ttps-rats-malware-analysis.html
+      file: entries/spl/019c98c5-1f34-72c8-bcd8-4c7e64702fd6.yaml
+    - id: 019c98c7-8563-75c5-9e97-c101190848c1
+      name: Potential UAC Bypass via ICMLuaUtil
+      description: The rule detects the execution of dllhost.exe where the command line includes the Class ID (CLSID) for the CMSTPLUA or ICMLuaUtil interfaces.
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1559.001
+        - T1548.002
+      tags:
+        - spl
+      author: CardinalOps
+      version: "1"
+      references:
+        - https://www.varonis.com/blog/blackcat-ransomware
+      file: entries/spl/019c98c7-8563-75c5-9e97-c101190848c1.yaml
+    - id: 019c98c8-cef7-77dc-9a1b-33249baac21a
+      name: Unusual CIM Method Invocation
+      description: The rule detects the execution of PowerShell where the command line includes invoke-CimMethod. This specifically highlights the programmatic invocation of CIM methods, alerting analysts to potential WMI-based attacks or unauthorized administrative actions being performed via script.
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1059.001
+        - T1047
+      tags:
+        - spl
+      author: CardinalOps
+      version: "1"
+      references:
+        - https://www.malwarebytes.com/blog/news/2026/01/can-you-use-too-many-lolbins-to-drop-some-rats
+      file: entries/spl/019c98c8-cef7-77dc-9a1b-33249baac21a.yaml
+    - id: 019c98ca-a72c-7667-a14a-b5d0852b2fa6
+      name: Defender Creating Unusual File
+      description: The rule detects an object access event (Event ID 4663) initiated by Windows Defender, where the target file is located outside the legitimate Microsoft Defender directories (C:\Windows\System32\ or C:\ProgramData\Microsoft\), indicating potential usage of a tool like "EDRStartupHinder".
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1574.001
+        - T1562.001
+      tags:
+        - spl
+      author: CardinalOps
+      version: "1"
+      references:
+        - https://www.zerosalarium.com/2026/01/edrstartuphinder-edr-startup-process-blocker.html
+      file: entries/spl/019c98ca-a72c-7667-a14a-b5d0852b2fa6.yaml
+    - id: 019c98cc-48f2-770d-a386-2d85ec8fd2d5
+      name: VMCI Device Disabled via Devcon
+      description: The rule detects the execution of the devcon.exe process with a command-line argument containing the word "disable". This is a strong indicator that an attempt is being made to disable one or more hardware devices on the system, which is highly suspicious outside of legitimate administrative or deployment activities.
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1562.001
+        - T1489
+      tags:
+        - spl
+      author: CardinalOps
+      version: "1"
+      references:
+        - https://www.huntress.com/blog/esxi-vm-escape-exploit
+      file: entries/spl/019c98cc-48f2-770d-a386-2d85ec8fd2d5.yaml
+    - id: 019c991e-b796-7792-aba0-37f3e3196300
+      name: Malicious JScript Spawning Hidden PowerShell Remcos
+      description: |
+        Detects a phishing delivered JScript stage that spawns a hidden PowerShell instance (often via WMI Win32_Process.Create)
+        which decodes Base64 and fetches the next stage from URLs observed in the SANS ISC diary 32738. The chain is associated
+        with a malicious image download and a subsequent Remcos RAT payload.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0011
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1047
+        - T1105
+        - T1027
+      tags:
+        - attack.execution
+        - attack.t1059.001
+        - attack.t1059.005
+        - attack.t1105
+        - attack.t1047
+        - attack.defense_evasion
+        - attack.t1027
+      author: Daniel Jeremiah
+      version: "3"
+      references:
+        - https://isc.sans.edu/diary/Another%2Bday%2Banother%2Bmalicious%2BJPEG/32738
+      data_sources:
+        - process_creation
+        - windows
+        - security
+      file: entries/sigma/019c991e-b796-7792-aba0-37f3e3196300.yaml
+    - id: 019c996f-40e1-765a-a73a-75c689c181bf
+      name: Azure DevOps Critical Permission Modification
+      description: Detects critical permission changes in Azure DevOps, specifically focusing on 'allow' changes to sensitive permissions like 'Edit build pipeline', 'Manage permissions', 'Queue builds', 'Administer build', and 'Bypass policies when completing' within key namespaces such as 'Git Repositories', 'ReleaseManagement', 'PipelinesPrivileges', and 'Project-level Permissions'. This rule aims to identify potential privilege escalation or unauthorized access attempts within Azure DevOps environments.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+        - TA0001
+      techniques:
+        - T1098.003
+        - T1078.004
+      tags:
+        - kql
+      version: "1"
+      file: entries/kql/019c996f-40e1-765a-a73a-75c689c181bf.yaml
+    - id: 019c9979-5652-706a-a328-0dbe9392e237
+      name: Azure DevOps Critical Search Queries
+      description: This rule detects suspicious code search queries within Azure DevOps audit logs that may indicate an adversary is attempting to find sensitive information such as passwords, API keys, tokens, or private keys. It specifically looks for keywords like 'password', 'secret', 'token', 'apikey', 'api_key', 'connectionstring', 'connstring', 'credential', 'private key', and 'BEGIN RSA PRIVATE KEY' in code search queries.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0006
+      techniques:
+        - T1552
+        - T1552.001
+        - T1552.004
+      tags:
+        - kql
+      author: Benjamin Zulliger
+      version: "1"
+      file: entries/kql/019c9979-5652-706a-a328-0dbe9392e237.yaml
+    - id: 019c998a-6c38-71be-ab26-524a58b08759
+      name: Azure DevOps Activity from New/Rare IP Outside Business Hours
+      description: This rule detects Azure DevOps activities originating from new or rarely seen IP addresses outside of defined business hours. It establishes a baseline of historical IP addresses and flags activities from IPs that have been seen for fewer than a specified number of days, indicating potentially suspicious access.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0005
+        - TA0003
+        - TA0004
+        - TA0001
+      techniques:
+        - T1078.004
+        - T1133
+      tags:
+        - kql
+      author: Benjamin Zulliger
+      version: "1"
+      file: entries/kql/019c998a-6c38-71be-ab26-524a58b08759.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'

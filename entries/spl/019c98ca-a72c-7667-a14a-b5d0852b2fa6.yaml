@@ -1,0 +1,15 @@
+id: 019c98ca-a72c-7667-a14a-b5d0852b2fa6
+name: Defender Creating Unusual File
+description: The rule detects an object access event (Event ID 4663) initiated by Windows Defender, where the target file is located outside the legitimate Microsoft Defender directories (C:\Windows\System32\ or C:\ProgramData\Microsoft\), indicating potential usage of a tool like "EDRStartupHinder".
+query: index=Windows sourcetype=WinEventLog EventCode=4663 ObjectType="File" Accesses="*write*" ProcessName="msmpeng.exe" NOT ObjectName IN ("C:\\windows\\System32\\*", "C:\\ProgramData\\Microsoft\\*") "4663" "msmpeng.exe" | stats values(ObjectName) as ObjectName, values(SubjectUserName) as SubjectUserName, values(Accesses) as Accesses, values(ProcessName) as ProcessName, count by Computer
+query_type: spl
+severity: medium
+techniques:
+    - T1574.001
+    - T1562.001
+tags:
+    - spl
+author: CardinalOps
+version: "1"
+references:
+    - https://www.zerosalarium.com/2026/01/edrstartuphinder-edr-startup-process-blocker.html

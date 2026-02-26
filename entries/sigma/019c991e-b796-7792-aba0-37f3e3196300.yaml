@@ -1,0 +1,99 @@
+id: 019c991e-b796-7792-aba0-37f3e3196300
+name: Malicious JScript Spawning Hidden PowerShell Remcos
+description: |
+    Detects a phishing delivered JScript stage that spawns a hidden PowerShell instance (often via WMI Win32_Process.Create)
+    which decodes Base64 and fetches the next stage from URLs observed in the SANS ISC diary 32738. The chain is associated
+    with a malicious image download and a subsequent Remcos RAT payload.
+query: |
+    title: >-
+      Malicious JScript Spawning Hidden PowerShell Remcos
+    id: 8cfc1f8a-2b5b-4f8b-bd1c-2b2f9f7f0f2b
+    status: experimental
+    description: >
+      Detects a phishing delivered JScript stage that spawns a hidden PowerShell
+      instance (often via WMI Win32_Process.Create)
+
+      which decodes Base64 and fetches the next stage from URLs observed in the SANS
+      ISC diary 32738. The chain is associated
+
+      with a malicious image download and a subsequent Remcos RAT payload.
+    references:
+      - https://isc.sans.edu/diary/Another%2Bday%2Banother%2Bmalicious%2BJPEG/32738
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_powershell:
+        Image|endswith:
+          - \powershell.exe
+          - \pwsh.exe
+      selection_obfuscation:
+        CommandLine|contains:
+          - FromBase64String
+          - Invoke-Expression
+      selection_hidden:
+        CommandLine|contains:
+          - '-WindowStyle Hidden'
+          - ' -w hidden'
+      selection_urls:
+        CommandLine|contains:
+          - >-
+            ia600603.us.archive.org/13/items/msi-pro-with-b-64_202602/MSI_PRO_with_b64.png
+          - hotelseneca.ro/ConvertedFileNew.txt
+          - optimized_msi.png
+      selection_parent_js:
+        ParentImage|endswith:
+          - \wscript.exe
+          - \cscript.exe
+      selection_parent_wmi:
+        ParentImage|endswith:
+          - \WmiPrvSE.exe
+      condition: >
+        selection_powershell and selection_obfuscation and selection_urls and
+        (selection_parent_js or selection_parent_wmi) or selection_powershell and
+        selection_obfuscation and selection_hidden and (selection_parent_js or
+        selection_parent_wmi)
+    falsepositives:
+      - Administrative scripts that legitimately use Base64 and Invoke-Expression,
+        rare in most environments
+      - Software deployment tooling that spawns PowerShell via WMI, validate parent
+        process lineage and command line
+    level: high
+    tags:
+      - attack.execution
+      - attack.t1059.001
+      - attack.t1059.005
+      - attack.t1105
+      - attack.t1047
+      - attack.defense_evasion
+      - attack.t1027
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0005
+techniques:
+    - T1059.001
+    - T1047
+    - T1105
+    - T1027
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - attack.t1059.005
+    - attack.t1105
+    - attack.t1047
+    - attack.defense_evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://isc.sans.edu/diary/Another%2Bday%2Banother%2Bmalicious%2BJPEG/32738
+data_sources:
+    - process_creation
+    - windows
+    - security

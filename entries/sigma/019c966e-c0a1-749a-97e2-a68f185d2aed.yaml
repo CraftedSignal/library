@@ -1,0 +1,57 @@
+id: 019c966e-c0a1-749a-97e2-a68f185d2aed
+name: Suspected Trojanised NSIS Installer
+description: Detects execution of installers from common user download locations with NSIS style command line indicators, consistent with trojanised installer delivery chains.
+query: |
+    title: Suspected Trojanised NSIS Installer
+    id: 9e1d1c2a-8b3f-4c1f-9b26-1f6c1d6b9a22
+    status: experimental
+    description: >-
+      Detects execution of installers from common user download locations with NSIS
+      style command line indicators, consistent with trojanised installer delivery
+      chains.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://www.malwarebytes.com/blog/scams/2026/02/huorong
+    tags:
+      - attack.execution
+      - attack.t1204
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_path:
+        Image|contains:
+          - \Users\
+        Image|contains|all:
+          - \Downloads\
+      selection_path_alt:
+        Image|contains:
+          - \AppData\Local\Temp\
+          - \Windows\Temp\
+      selection_nsis_hints:
+        CommandLine|contains:
+          - /S
+          - $PLUGINSDIR
+          - NSIS
+      condition: (selection_path or selection_path_alt) and selection_nsis_hints
+    falsepositives:
+      - Legitimate installers using similar switches from Downloads
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204
+tags:
+    - attack.execution
+    - attack.t1204
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.malwarebytes.com/blog/scams/2026/02/huorong
+data_sources:
+    - process_creation
+    - windows
