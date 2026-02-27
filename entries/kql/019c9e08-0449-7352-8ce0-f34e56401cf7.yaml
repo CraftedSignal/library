@@ -1,0 +1,13 @@
+id: 019c9e08-0449-7352-8ce0-f34e56401cf7
+name: Trend Micro Apex One Process Activity on Host
+description: This rule detects hosts with running Trend Micro Apex One or IIS worker processes, correlating with software inventory. This may indicate successful remote code execution (RCE) following exploitation of vulnerabilities like CVE-2025-71210 and CVE-2025-71211.
+query: "// Name: Trend Micro Apex One Installed on the Host with Versions\r\n// Author: Adarsh Pandey\r\n// Date: 2026-02-27\r\n// Description: This rule detects the hosts with running Trend Micro Apex One or IIS worker processes. This may indicate successful remote code execution (RCE) following exploitation of vulnerabilities like CVE-2025-71210 and CVE-2025-71211.\r\n// References: https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/\r\nlet ApexInventory =\r\n    DeviceTvmSoftwareInventory\r\n    | where tolower(SoftwareName) contains \"apex_one\" and tolower(SoftwareVendor) == \"trend_micro\";\r\nlet LatestIdentity =\r\n    IdentityInfo\r\n    | summarize arg_max(Timestamp, *) by AccountUpn;  \r\nApexInventory\r\n| join kind=inner (\r\n    DeviceProcessEvents\r\n    | where Timestamp > ago(30d)\r\n    // Optional: reduce noise by focusing on Apex-related process names/paths/commandlines\r\n    | where tolower(FileName) has \"apex\" \r\n        or tolower(ProcessCommandLine) has \"apex\"\r\n        or tolower(FolderPath) has \"trend\"\r\n    | project DeviceId, Timestamp, FileName, InitiatingProcessFileName, AccountName, AccountUpn\r\n) on DeviceId\r\n| join kind=leftouter (LatestIdentity) on AccountUpn\r\n| summarize\r\n    Count = count(),\r\n    FirstSeen = min(Timestamp),\r\n    LastSeen  = max(Timestamp)\r\n  by\r\n    DeviceName,\r\n    DeviceId,\r\n    SoftwareName,\r\n    SoftwareVersion,\r\n    SoftwareVendor,\r\n   // ProcessName = tostring(FileName),\r\n   // ParentProcess = tostring(InitiatingProcessFileName),\r\n    UserName = tostring(AccountUpn)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/

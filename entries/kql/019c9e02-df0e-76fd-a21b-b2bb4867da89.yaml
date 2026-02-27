@@ -1,0 +1,62 @@
+id: 019c9e02-df0e-76fd-a21b-b2bb4867da89
+name: Trend Micro Apex One Path Traversal Attempt
+description: This rule monitors for path traversal patterns in web server logs targeting directories associated with the Trend Micro Apex One Management Console. This may indicate an attempt to exploit vulnerabilities like CVE-2025-71210 and CVE-2025-71211 to achieve remote code execution.
+query: |
+    // Name: Trend Micro Apex One Path Traversal Attempt (CVE-2025-71210, CVE-2025-71211)
+    // Author: Adarsh Pandey
+    // Date: 2026-02-27
+    // Description: This rule monitors for path traversal patterns in web server logs targeting directories associated with the Trend Micro Apex One Management Console.
+    // This may indicate an attempt to exploit vulnerabilities like CVE-2025-71210 and CVE-2025-71211 to achieve remote code execution.
+    // False Positive Sensitivity: Medium. Legitimate applications should not be making these requests, but misconfigurations or other tools could trigger this.
+    // Consider adding exclusions for known benign sources if necessary.
+    // References: https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/
+    // Tactic: Initial Access
+    // Technique: T1190 - Exploit Public-Facing Application
+    let timeframe = 1h;
+    let apex_one_paths = dynamic([
+        "/officescan/console/",
+        "/PCCSRV/Web/"
+    ]);
+    // Define common path traversal patterns, including URL-encoded variations.
+    let traversal_patterns = dynamic([
+        "../",
+        "..\\",
+        "..%2f",
+        "..%5c",
+        "%2e%2e/",
+        "%2e%2e\\"
+    ]);
+    // Note: This query targets CommonSecurityLog and W3CIISLog. You may need to adapt this to your specific web log data source.
+    union CommonSecurityLog, W3CIISLog
+    | where TimeGenerated > ago(timeframe)
+    // Filter for requests targeting known Trend Micro Apex One paths.
+    | where RequestURL has_any (apex_one_paths) or csUriStem has_any (apex_one_paths)
+    // Search for path traversal indicators in the request URL/URI.
+    | where RequestURL has_any (traversal_patterns) or csUriStem has_any (traversal_patterns) or csUriQuery has_any (traversal_patterns)
+    // The 'has ".."' check provides broader coverage for non-standard or double-encoded attempts.
+    or RequestURL has ".." or csUriStem has ".." or csUriQuery has ".."
+    // FP Tuning: If false positives occur from vulnerability scanners or other benign tools, consider filtering by source IP or User Agent.
+    // For example: | where SourceIP !in ("<scanner_ip_1>", "<scanner_ip_2>")
+    | project-reorder
+        TimeGenerated,
+        SourceIP,
+        DestinationIP,
+        RequestURL,
+        csUriStem,
+        csUriQuery,
+        RequestMethod,
+        RequestClientApplication,
+        csUserAgent,
+        DeviceVendor,
+        DeviceProduct
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/

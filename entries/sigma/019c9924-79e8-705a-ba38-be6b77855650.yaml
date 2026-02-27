@@ -1,0 +1,58 @@
+id: 019c9924-79e8-705a-ba38-be6b77855650
+name: Suspicious CSharp Compilation via CSC from Temp
+description: Detects csc.exe compiling code from Temp or AppData locations, a common pattern for dropper and loader build steps on compromised hosts.
+query: |
+    title: "Suspicious CSharp Compilation via CSC from Temp"
+    id: 9dbe3c7a-0e5b-4e6c-bf60-3b7c0b2a7a0a
+    status: experimental
+    description: >-
+      Detects csc.exe compiling code from Temp or AppData locations, a common
+      pattern for dropper and loader build steps on compromised hosts.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/distillation-experimentation-integration-ai-adversarial-use
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_csc:
+        Image|endswith:
+          - \csc.exe
+      selection_paths:
+        CommandLine|contains:
+          - \AppData\Local\Temp\
+          - \Windows\Temp\
+          - \AppData\Roaming\
+      condition: selection_csc and selection_paths
+    falsepositives:
+      - Legitimate developer activity compiling from user profile paths
+      - Build agents or software packaging tools that use CSC in temporary
+        directories
+    level: medium
+    tags:
+      - attack.execution
+      - attack.t1059.003
+      - attack.defense_evasion
+      - attack.t1027
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.003
+    - T1027
+tags:
+    - attack.execution
+    - attack.t1059.003
+    - attack.defense_evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/distillation-experimentation-integration-ai-adversarial-use
+data_sources:
+    - process_creation
+    - windows

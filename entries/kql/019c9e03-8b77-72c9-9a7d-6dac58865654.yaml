@@ -1,0 +1,64 @@
+id: 019c9e03-8b77-72c9-9a7d-6dac58865654
+name: Trend Micro Apex One RCE Post-Exploitation Activity
+description: This rule detects suspicious child processes spawned by Trend Micro Apex One or IIS worker processes. This may indicate successful remote code execution (RCE) following exploitation of vulnerabilities like CVE-2025-71210 and CVE-2025-71211. The rule specifically looks for the execution of common command-line interpreters (cmd.exe, powershell.exe, pwsh.exe) and system utilities (schtasks.exe, certutil.exe), as well as the execution of reconnaissance commands (whoami, net user, hostname, ipconfig, systeminfo) originating from these parent processes.
+query: |
+    // Name: Trend Micro Apex One RCE Post-Exploitation Activity
+    // Author: Adarsh Pandey
+    // Date: 2026-02-27
+    // Description: This rule detects suspicious child processes spawned by Trend Micro Apex One or IIS worker processes. This may indicate successful remote code execution (RCE) following exploitation of vulnerabilities like CVE-2025-71210 and CVE-2025-71211.
+    // False Positive Sensitivity: Medium. While these process patterns are highly suspicious, legitimate administrative scripts or other web applications hosted on the same IIS server could potentially trigger this alert.
+    // References: https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/
+    // Tactic: Execution
+    // Technique: T1059.001, T1059.003, T1106
+    let timeframe = 1h;
+    // Parent processes associated with the Trend Micro Apex One management console.
+    let parent_processes = dynamic([
+        "PccSrv.exe", // Trend Micro Apex One main service process
+        "w3wp.exe"    // IIS Worker Process which hosts the management console
+    ]);
+    // Suspicious child processes often used for command and control or reconnaissance.
+    let suspicious_children = dynamic([
+        "cmd.exe",
+        "powershell.exe",
+        "pwsh.exe",
+        "schtasks.exe",
+        "certutil.exe"
+    ]);
+    // Common reconnaissance commands executed after initial compromise.
+    let recon_commands = dynamic([
+        "whoami",
+        "net user",
+        "net localgroup",
+        "hostname",
+        "ipconfig",
+        "systeminfo"
+    ]);
+    DeviceProcessEvents
+    | where TimeGenerated > ago(timeframe)
+    // Filter for events where the initiating process is a known Apex One or IIS process.
+    | where InitiatingProcessFileName in~ (parent_processes)
+    // Filter for the launch of suspicious child processes or the execution of reconnaissance commands.
+    | where FileName in~ (suspicious_children) or ProcessCommandLine has_any (recon_commands)
+    // FP Tuning: If w3wp.exe is too noisy, consider filtering on its command line to ensure it's the Apex One application pool.
+    // For example: | where InitiatingProcessCommandLine has "ApexOne"
+    | project-reorder
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        FileName,
+        ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1106
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.bleepingcomputer.com/news/security/trend-micro-warns-of-critical-apex-one-rce-vulnerabilities/

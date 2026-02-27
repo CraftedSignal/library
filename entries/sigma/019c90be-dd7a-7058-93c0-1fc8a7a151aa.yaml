@@ -1,0 +1,41 @@
+id: 019c90be-dd7a-7058-93c0-1fc8a7a151aa
+name: Grandstream GXP1600 CVE-2026-2329
+description: Detects likely exploitation attempts for CVE-2026-2329 by matching requests to /cgi-bin/api.values.get where the first identifier in the request= parameter exceeds the 64-byte stack buffer described by Rapid7.
+query: |
+    title: Grandstream GXP1600 CVE-2026-2329
+    id: 7d5aabbb-fb0f-4ed0-89fe-6c5fd60f8a63
+    status: experimental
+    description: >-
+      Detects likely exploitation attempts for CVE-2026-2329 by matching requests to
+      /cgi-bin/api.values.get where the first identifier in the request= parameter
+      exceeds the 64-byte stack buffer described by Rapid7.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/
+    logsource:
+      category: webserver
+    detection:
+      selection_path:
+        cs-uri-stem|endswith: /cgi-bin/api.values.get
+      selection_query:
+        cs-uri-query|re: (?i)(^|&)request=[^:&]{65,}
+      condition: selection_path and selection_query
+    falsepositives:
+      - Unlikely; validate source IPs and whether the device is exposed.
+    level: high
+    associated_cves:
+      - CVE-2026-2329
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1203
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.rapid7.com/blog/post/ve-cve-2026-2329-critical-unauthenticated-stack-buffer-overflow-in-grandstream-gxp1600-voip-phones-fixed/
+data_sources:
+    - webserver

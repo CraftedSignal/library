@@ -1,0 +1,48 @@
+id: 019c9e3d-6a21-76a6-ad4c-84d52cf9f325
+name: Credential Guard Disabled via Registry Modification
+description: Detects attempts to disable Windows Credential Guard by modifying the 'LsaCfgFlags' registry value. Credential Guard uses virtualization-based security to isolate secrets, and disabling it is a common defense evasion technique used by adversaries to access credentials for lateral movement.
+query: |
+    // Name: Credential Guard Disabled via Registry
+    // Author: detections.ai
+    // Date: 2026-02-27
+    // Description: Detects attempts to disable Windows Credential Guard by modifying the 'LsaCfgFlags' registry value. Credential Guard uses virtualization-based security to isolate secrets, and disabling it is a common defense evasion technique used by adversaries to access credentials for lateral movement.
+    // MITRE ATT&CK: T1562.001 - Impair Defenses: Disable or Modify Tools
+    // References:
+    // - https://github.com/DambergC/SaveFolder/blob/90e945eba80fae85f2d54b4616e05a44ec90c500/Cygate%20Installation%20tool%206.22/Script/OSD/OSDeployment-CredentialGuardDisable.ps1#L50
+    // - https://learn.microsoft.com/en-us/windows/security/identity-protection/credential-guard/configure
+    // False Positive Sensitivity: Medium
+    DeviceRegistryEvents
+    // Look for registry value modifications.
+    | where ActionType == "RegistryValueSet"
+    // Filter for the specific registry keys used to configure Credential Guard.
+    | where RegistryKey has @"\Lsa\LsaCfgFlags" or RegistryKey has @"\DeviceGuard\LsaCfgFlags"
+    // A value of '0' indicates that Credential Guard is being disabled.
+    // We also check that the previous value was not '0' to only alert on the change to a disabled state.
+    | where RegistryValueData == "0" and isnotempty(PreviousRegistryValueData) and PreviousRegistryValueData != "0"
+    // Potential for False Positives: Legitimate administrative actions or configuration management tools (e.g., Intune, SCCM) may disable Credential Guard for compatibility or troubleshooting.
+    // Consider excluding known administrative processes or scripts if this generates noise in your environment.
+    // Example exclusion: | where InitiatingProcessFileName !in ("KnownAdminTool.exe", "ConfigManager.exe")
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        RegistryKey,
+        RegistryValueName,
+        RegistryValueData,
+        PreviousRegistryValueData,
+        InitiatingProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessParentFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Credits to Swachchhanda Shrawan Poudel
+version: "3"
+references:
+    - https://github.com/DambergC/SaveFolder/blob/90e945eba80fae85f2d54b4616e05a44ec90c500/Cygate%20Installation%20tool%206.22/Script/OSD/OSDeployment-CredentialGuardDisable.ps1#L50
+    - https://learn.microsoft.com/en-us/windows/security/identity-protection/credential-guard/configure

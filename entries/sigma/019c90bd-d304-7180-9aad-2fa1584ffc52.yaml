@@ -1,0 +1,60 @@
+id: 019c90bd-d304-7180-9aad-2fa1584ffc52
+name: Phishing - op_token Complaint Lure via Punycode
+description: Detects Booking.com partner phishing lures described by Bridewell by identifying complaint/reserv URLs with op_token hosted on punycode or lookalike domains, plus the booklng sign-in tpo_token pattern.
+query: |
+    title: Phishing - op_token Complaint Lure via Punycode
+    id: 5dc5192b-3c7e-4f5f-9c0f-2b9d3d7eae5d
+    status: experimental
+    description: >-
+      Detects Booking.com partner phishing lures described by Bridewell by
+      identifying complaint/reserv URLs with op_token hosted on punycode or
+      lookalike domains, plus the booklng sign-in tpo_token pattern.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers
+    logsource:
+      category: proxy
+    detection:
+      selection_op_token:
+        url|contains: op_token=
+      selection_paths:
+        url|contains:
+          - /complaint
+          - /complint
+          - /reserv
+      selection_bad_domain:
+        destination.domain|startswith:
+          - xn--
+      selection_booklng:
+        url|contains|all:
+          - sign-in/?tpo_token=
+          - booklng
+      filter_legit:
+        destination.domain:
+          - booking.com
+          - admin.booking.com
+      condition: >-
+        ((selection_op_token and selection_paths and selection_bad_domain) or
+        selection_booklng) and not filter_legit
+    falsepositives:
+      - Rare; validate domain age/registrar and whether traffic followed email
+        receipt.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566
+    - T1566.002
+    - T1583.001
+    - T1608.005
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://www.bridewell.com/insights/blogs/detail/the-booking.com-phishing-campaign-targeting-hotels-and-customers
+data_sources:
+    - proxy

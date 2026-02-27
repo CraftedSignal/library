@@ -1,0 +1,66 @@
+id: 019c9671-29fc-718a-8058-d65108a01496
+name: Malicious NuGet Typosquat StripeApi Net Installed
+description: Detects installation of the typosquatted NuGet package StripeApi.Net reported as malicious and targeting Stripe integrations.
+query: |
+    title: Malicious NuGet Typosquat StripeApi Net Installed
+    id: 9b3e2e2b-1d2d-4c4b-9f6d-5b1c2c3d4e33
+    status: experimental
+    description: >-
+      Detects installation of the typosquatted NuGet package StripeApi.Net reported
+      as malicious and targeting Stripe integrations.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - https://www.reversinglabs.com/blog/malicious-nuget-package-targets-stripe
+    tags:
+      - attack.supply_chain
+      - attack.t1195
+      - attack.execution
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_nuget:
+        Image|endswith:
+          - \nuget.exe
+          - \dotnet.exe
+      selection_install:
+        CommandLine|contains:
+          - install
+          - add package
+          - restore
+      selection_pkg:
+        CommandLine|contains:
+          - StripeApi.Net
+          - StripeApi.net
+      selection_version:
+        CommandLine|contains:
+          - 50.4.1
+      condition: >-
+        selection_nuget and selection_pkg and (selection_install or
+        selection_version)
+    falsepositives:
+      - Legitimate internal packages with similar naming conventions are possible
+        but unlikely
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1195
+    - T1195.002
+tags:
+    - attack.supply_chain
+    - attack.t1195
+    - attack.execution
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.reversinglabs.com/blog/malicious-nuget-package-targets-stripe
+data_sources:
+    - process_creation
+    - windows
+    - security

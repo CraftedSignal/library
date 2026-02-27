@@ -1,0 +1,65 @@
+id: 019c90be-b17a-703a-929c-496b3fcf0633
+name: OpenClaw Skill Fetches Remote Script And Runs It With Bash
+description: Detects a command that downloads remote content and immediately runs it with bash. This is a common way to run attacker controlled code on a Linux host.
+query: |-
+    title: OpenClaw Skill Fetches Remote Script And Runs It With Bash
+    id: 7e7c7c20-8e4b-4b7b-a74b-8d5e8c5c90e1
+    status: experimental
+    description: Detects a command that downloads remote content and immediately runs it with bash. This is a common way to run attacker controlled code on a Linux host.
+    author: Daniel Jeremiah
+    date: 2026-02-27
+    references:
+      - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_fetch_pipe:
+        CommandLine|contains:
+          - "curl "
+          - "wget "
+        CommandLine|contains|any:
+          - "| bash"
+          - "|bash"
+          - "| sh"
+          - "|sh"
+
+      selection_reverse_shell_markers:
+        CommandLine|contains|any:
+          - "/dev/tcp/"
+          - "bash -i"
+          - "nohup"
+          - "0>&1"
+          - ">& /dev/tcp/"
+          - ">/dev/tcp/"
+
+      selection_curl_wget_silent:
+        CommandLine|contains|any:
+          - "curl -s"
+          - "curl -fsSL"
+          - "wget -q"
+          - "wget -O-"
+          - "curl -sS"
+          - "curl -k"
+
+      condition: (selection_fetch_pipe and (selection_curl_wget_silent or selection_reverse_shell_markers))
+                 or
+                 (selection_fetch_pipe and selection_reverse_shell_markers)
+    falsepositives:
+      - Admin automation that intentionally installs software using curl or wget piped to shell, review the URL and the parent process
+    level: high
+    tags:
+      - attack.execution
+      - attack.t1059.004
+      - attack.command_and_control
+      - attack.t1105
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.004
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://blog.virustotal.com/2026/02/from-automation-to-infection-part-ii.html

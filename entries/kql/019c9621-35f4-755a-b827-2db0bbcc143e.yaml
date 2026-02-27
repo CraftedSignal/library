@@ -1,0 +1,148 @@
+id: 019c9621-35f4-755a-b827-2db0bbcc143e
+name: Hunt and Detect GRIDTIDE
+description: This hunting query searches Defender XDR telemetry for activity consistent with the GRIDTIDE campaign by combining network, process, and file-based indicators. It identifies endpoint connections to published campaign infrastructure, including known IP addresses and dynamic DNS-style domains. It also looks for direct access to Google Sheets API endpoints and parameters described as part of the actor’s command-and-control workflow, particularly when the initiating process is not a normal web browser. In addition, it checks for file and process indicators associated with reported GRIDTIDE artefacts by matching published SHA-256 hashes and common artefact filenames. Results are returned as a unified view with a match type label to help triage whether the alert is driven by network IOC matches, Google Sheets API usage, or host artefact indicators.
+query: |-
+    // This hunting query searches Defender XDR telemetry for activity consistent with the GRIDTIDE campaign by combining network, process, and file based indicators. It identifies endpoint connections to published campaign infrastructure, including known IP addresses and dynamic DNS style domains. It also looks for direct access to Google Sheets API endpoints and parameters that were described as part of the actor’s command and control workflow, particularly where the initiating process is not a normal web browser. In addition, it checks for file and process indicators linked to reported GRIDTIDE artefacts by matching published SHA256 hashes and common artefact filenames. Results are returned as a unified view with a match type label to help triage whether the alert is driven by network IOC matches, Google Sheets API usage, or host artefact indicators.
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-25
+    // Reference: https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/
+
+    let Lookback = 30d;
+
+    // Host artefact hashes from the blog (SHA256)
+    let GridtideSha256 = dynamic([
+      "ce36a5fc44cbd7de947130b67be9e732a7b4086fb1df98a5afd724087c973b47", // xapt
+      "01fc3bd5a78cd59255a867ffb3dfdd6e0b7713ee90098ea96cc01c640c6495eb", // xapt.cfg
+      "eb08c840f4c95e2fa5eff05e5f922f86c766f5368a63476f046b2b9dbffc2033", // xapt.service
+      "4eb994b816a1a24cf97bfd7551d00fe14b810859170dbf15180d39e05cd7c0f9", // hamcore.se2 or fire
+      "669917bad46a57e5f2de037f8ec200a44fb579d723af3e2f1be1e8479a267966"  // vpn_bridge.config
+    ]);
+
+    let GridtideNames = dynamic([
+      "xapt","xapt.cfg","xapt.service","hamcore.se2","vpn_bridge.config","fire",
+      "apt.tar.gz","update.tar.gz","amp.tar.gz","pmp","pmp.cfg"
+    ]);
+
+    // Network artefacts from the blog (IPs and some C2 domains shown in the IOC section)
+    let GridtideIPs = dynamic([
+      "130.94.6.228",
+      "38.180.205.14",
+      "38.60.194.21",
+      "38.54.112.184",
+      "38.60.171.242",
+      "195.123.211.70",
+      "202.59.10.122",
+      "38.60.252.66",
+      "45.76.184.214",
+      "45.90.59.129",
+      "195.123.226.235",
+      "65.20.104.91",
+      "5.34.176.6",
+      "139.84.236.237",
+      "149.28.128.128",
+      "38.54.31.146",
+      "178.79.188.181",
+      "38.54.37.196",
+      "207.148.73.18",
+      "38.60.224.25",
+      "149.28.139.125",
+      "38.54.32.244",
+      "38.54.82.69",
+      "45.76.157.113",
+      "45.77.254.168",
+      "139.180.219.115"
+    ]);
+
+    let GridtideDomains = dynamic([
+      "1cv2f3d5s6a9w.ddnsfree.com",
+      "admina.freeddns.org",
+      "afsaces.accesscam.org",
+      "ancisesic.accesscam.org",
+      "applebox.camdvr.org",
+      "appler.kozow.com",
+      "asdad21ww.freeddns.org",
+      "aw2o25forsbc.camdvr.org",
+      "awcc001jdaigfwdagdcew.giize.com",
+      "bab2o25com.accesscam.org",
+      "babaji.accesscam.org",
+      "babi5599ss.ddnsgeek.com",
+      "balabalabo.mywire.org",
+      "bggs.giize.com"
+    ]);
+
+    // Google Sheets API paths called out in the blog hunting section
+    let SheetsUriHints = dynamic(["sheets.googleapis.com/batchClear", "sheets.googleapis.com/batchUpdate", "valueRenderOption=FORMULA"]);
+    let BrowserParents = dynamic(["chrome.exe","msedge.exe","firefox.exe","safari.exe"]);
+
+    union isfuzzy=true
+    (
+      // Network: non browser processes calling Sheets API endpoints used by the malware
+      DeviceNetworkEvents
+      | where TimeGenerated >= ago(Lookback)
+      | extend Url = tostring(RemoteUrl)
+      | extend Host = tolower(tostring(parse_url(Url).Host))
+      | where isnotempty(Url)
+      | where Url has "sheets.googleapis.com"
+      | where Url has_any (SheetsUriHints)
+      | where InitiatingProcessFileName !in~ (BrowserParents)
+      | extend MatchType = "google_sheets_api_non_browser_process"
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteUrl, Host, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // Network: pivots to published IPs or listed C2 domains
+      DeviceNetworkEvents
+      | where TimeGenerated >= ago(Lookback)
+      | extend Url = tostring(RemoteUrl)
+      | extend Host = tolower(tostring(parse_url(Url).Host))
+      | where RemoteIP in (GridtideIPs) or Host in~ (GridtideDomains)
+      | extend MatchType = case(
+          RemoteIP in (GridtideIPs), "network_ip_ioc",
+          Host in~ (GridtideDomains), "network_domain_ioc",
+          "network_other"
+        )
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteUrl, Host, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // File: SHA256 matches and known artefact names
+      DeviceFileEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where SHA256 in (GridtideSha256) or FileName in~ (GridtideNames)
+      | extend MatchType = case(
+          SHA256 in (GridtideSha256), "file_sha256_ioc",
+          FileName in~ (GridtideNames), "file_name_ioc",
+          "file_other"
+        )
+      | project TimeGenerated, DeviceName, MatchType,
+                ActionType, FileName, FolderPath, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // Process: suspicious binary name plus hash match
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where SHA256 in (GridtideSha256) or FileName in~ (GridtideNames) or ProcessCommandLine has_any (dynamic(["nohup ./xapt","/var/tmp/xapt","/usr/sbin/xapt"]))
+      | extend MatchType = case(
+          SHA256 in (GridtideSha256), "process_sha256_ioc",
+          FileName in~ (GridtideNames), "process_name_ioc",
+          ProcessCommandLine has_any (dynamic(["nohup ./xapt","/var/tmp/xapt","/usr/sbin/xapt"])), "process_cmdline_hint",
+          "process_other"
+        )
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName, FileName, FolderPath, ProcessCommandLine, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessParentFileName, InitiatingProcessFileName,
+                InitiatingProcessCommandLine, InitiatingProcessSHA256, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"

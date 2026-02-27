@@ -1,0 +1,53 @@
+id: 019c90be-8af6-712d-9873-0debfeb0f5dc
+name: Suspicious C# Compilation GTIG HONESTCUE
+description: Flags csc.exe invocations compiling from Temp/AppData paths, a practical pivot for GTIG-described malware that compiles C# code obtained at runtime (e.g., via LLM API responses).
+query: |
+    title: Suspicious C# Compilation GTIG HONESTCUE
+    id: 9f89c2a7-5f4b-4f1b-9f17-79c0f10c5d82
+    status: experimental
+    description: >-
+      Flags csc.exe invocations compiling from Temp/AppData paths, a practical pivot
+      for GTIG-described malware that compiles C# code obtained at runtime (e.g.,
+      via LLM API responses).
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/distillation-experimentation-integration-ai-adversarial-use
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection:
+        Image|endswith: \csc.exe
+        CommandLine|contains:
+          - \AppData\Local\Temp\
+          - \Windows\Temp\
+          - \AppData\Roaming\
+      filter_devtools:
+        ParentImage|endswith:
+          - \devenv.exe
+          - \MSBuild.exe
+          - \dotnet.exe
+          - \VBCSCompiler.exe
+      condition: selection and not filter_devtools
+    falsepositives:
+      - Some enterprise software compiles code at runtime; validate parent process
+        and resulting binary location/execution.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027.004
+    - T1059.003
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/distillation-experimentation-integration-ai-adversarial-use
+data_sources:
+    - process_creation
+    - windows

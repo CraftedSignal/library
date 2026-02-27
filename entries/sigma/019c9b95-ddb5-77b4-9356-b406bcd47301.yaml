@@ -1,0 +1,54 @@
+id: 019c9b95-ddb5-77b4-9356-b406bcd47301
+name: ActiveMQ Java Process Starts Command Shell Or PowerShell
+description: Detects a Java process starting cmd or PowerShell. On an ActiveMQ server this can indicate that someone is running commands after exploiting the service.
+query: |
+    title: ActiveMQ Java Process Starts Command Shell Or PowerShell
+    id: 7c9b96e2-0f43-44c0-9b1d-2a4f7a2f9f70
+    status: experimental
+    description: >-
+      Detects a Java process starting cmd or PowerShell. On an ActiveMQ server this
+      can indicate that someone is running commands after exploiting the service.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - >-
+        https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent_java:
+        ParentImage|endswith:
+          - \java.exe
+          - \javaw.exe
+      selection_child_shell:
+        Image|endswith:
+          - \cmd.exe
+          - \powershell.exe
+          - \pwsh.exe
+      condition: selection_parent_java and selection_child_shell
+    falsepositives:
+      - Java based management tools that intentionally call cmd or PowerShell for
+        maintenance tasks
+    level: medium
+    tags:
+      - attack.execution
+      - attack.t1059
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+    - T1059.003
+tags:
+    - attack.execution
+    - attack.t1059
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows
