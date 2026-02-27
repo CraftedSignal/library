@@ -1,0 +1,16 @@
+id: 019c9ffa-2ed6-74bb-8e47-f86fa7e0f93e
+name: RESURGE Integrity Check Bypass
+description: Detects the modification of the 'check_integrity.sh' script to replace 'exit 1' with 'exit 0'. This is a specific defense evasion technique used by the RESURGE malware on Ivanti Connect Secure devices to ensure the compromised system always appears healthy during integrity scans.
+query: "// Name: RESURGE Integrity Check Bypass\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the modification of the 'check_integrity.sh' script to replace 'exit 1' with 'exit 0'. This is a specific defense evasion technique used by the RESURGE malware on Ivanti Connect Secure devices to ensure the compromised system always appears healthy during integrity scans.\r\n// Severity: High\r\n// Tags: attack.defense_evasion, attack.t1562.001, attack.t1542.003, malware.resurge\r\n// References: https://www.cisa.gov/news-events/analysis-reports/ar25-087a\r\n// False Positives: Low. This command is highly specific and indicative of malicious tampering. Legitimate administrative activity is highly unlikely to match this pattern.\r\nDeviceProcessEvents\r\n// Look for process creation events, which include command line arguments.\r\n| where ProcessCommandLine has \"sed\" and ProcessCommandLine has \"check_integrity.sh\" and ProcessCommandLine has \"s/exit 1/exit 0/g\"\r\n// This combination of 'sed', the target script, and the specific replacement command is a strong indicator of the RESURGE malware's defense evasion tactic.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    CommandLines = makeset(ProcessCommandLine),\r\n    ParentProcesses = makeset(InitiatingProcessParentFileName),\r\n    Actor = makeset(InitiatingProcessAccountName)\r\n    by DeviceName, DeviceId, FileName, FolderPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cisa.gov/news-events/analysis-reports/ar25-087a

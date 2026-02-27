@@ -1,0 +1,18 @@
+id: 019c9ffa-a38e-722a-b90a-0901a6c74f2f
+name: RESURGE dsmain Utility Activity on Ivanti Connect Secure
+description: Detects attempts to execute the 'dsmain' utility with specific flags (-e, -d, -g) used by RESURGE for AES encryption/decryption of the coreboot RAM disk or to extract the vmlinux kernel image on Ivanti Connect Secure devices.
+query: "// Name: RESURGE dsmain Utility Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects attempts to execute the 'dsmain' utility with specific flags (-e, -d, -g) used by RESURGE for AES encryption/decryption of the coreboot RAM disk or to extract the vmlinux kernel image on Ivanti Connect Secure devices.\r\n// Severity: High\r\n// Tags: attack.persistence, attack.t1542.003, attack.defense_evasion, attack.t1027.001, malware.resurge\r\n// References: https://www.cisa.gov/news-events/analysis-reports/ar25-087a\r\n// False Positives: Medium. The filename 'dsmain' could potentially be used by a legitimate, unrelated tool. If false positives occur, filtering could be added to focus on specific parent processes or user accounts associated with Ivanti services.\r\nDeviceProcessEvents\r\n// Look for process creation events where the 'dsmain' utility is executed.\r\n| where FileName =~ \"dsmain\" or ProcessCommandLine contains \"dsmain\"\r\n// Filter for the specific flags used by RESURGE for malicious activity.\r\n| where ProcessCommandLine has_any (\"-e\", \"-d\", \"-g\")\r\n// Summarize activity to reduce alert volume.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    CommandLines = makeset(ProcessCommandLine),\r\n    ParentProcesses = makeset(InitiatingProcessParentFileName),\r\n    Actor = makeset(InitiatingProcessAccountName)\r\n    by DeviceName, DeviceId, FileName, FolderPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+techniques:
+    - T1542.003
+    - T1027.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cisa.gov/news-events/analysis-reports/ar25-087a

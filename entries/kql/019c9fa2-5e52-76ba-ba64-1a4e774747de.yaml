@@ -1,0 +1,39 @@
+id: 019c9fa2-5e52-76ba-ba64-1a4e774747de
+name: Malicious SSH Key Persistence via authorized_keys
+description: Detects the addition of a specific threat actor SSH key to an authorized_keys file for persistence. This key was used in a campaign involving a malicious Go crypto module that delivered the Rekoobe backdoor. The rule specifically looks for command-line activity that modifies the authorized_keys file and contains the hardcoded malicious SSH key, often initiated by shell processes.
+query: |
+    // Name: Malicious SSH Key Persistence
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the addition of a specific threat actor SSH key to an authorized_keys file for persistence. This key was used in a campaign involving a malicious Go crypto module that delivered the Rekoobe backdoor.
+    // Tactic: Persistence
+    // Technique: T1098.004 - Account Manipulation: SSH Authorized Keys
+    // References:- https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
+    DeviceProcessEvents
+    // Look for command lines that modify an authorized_keys file.
+    | where ProcessCommandLine has "/.ssh/authorized_keys"
+    // Search for the specific, hardcoded SSH key used by the threat actor. This is a high-fidelity indicator.
+    | where ProcessCommandLine has "AAAAB3NzaC1yc2EAAAADAQABAAABAQDVffcldZxW9RTsAi7Msq/l2erZiT9wnxR0doQed1GOVNO/ZpkqxHNbnbNRW8SrCzvYqEChJSI7PpoC6nKw5X4xLy8cJXUNUm6BOfIBz16OAP966VrFzuQiUgX9JzupI6FcKRdryW6DBIZ24z7y6dKtPo+lLxPYU2etFHasv2zQ0l2G6N3b7TovZ8k2in71+GQwVCLODa2MIiqoJrkRGqOQHTJ02nlRfjtZDlzDizZVJgTyT5mdZFo+UpQEAU53OMpvLH6AWzbd7r0l0qZ5bFSlmscsqfCbQfPUG1VTxuX5PEOg/sYtYTK79XeGrNx6h6iRIDDwlR13Ofv2XLd5AyMj"
+    // FP Tuning: The intel shows the actor using 'echo' via a shell script. Focusing on shell processes can increase confidence.
+    | where InitiatingProcessFileName in~ ("sh", "bash", "zsh", "csh", "ksh", "curl") or FileName in~ ("sh", "bash", "zsh", "csh", "ksh")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessCommandLine,
+        ProcessCommandLine,
+        FileName,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor

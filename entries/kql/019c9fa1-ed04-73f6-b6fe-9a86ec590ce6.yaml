@@ -1,0 +1,45 @@
+id: 019c9fa1-ed04-73f6-b6fe-9a86ec590ce6
+name: ELF Binary Masquerading as MP5 via chmod
+description: Detects a file with a .mp5 extension in the /tmp directory being made executable via chmod. This technique was used by a stager to deliver the Rekoobe backdoor by masquerading ELF binaries as media files to evade detection.
+query: |
+    // Name: ELF Binary Masquerading as MP5
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects a file with a .mp5 extension in the /tmp directory being made executable via chmod. This technique was used by a stager to deliver the Rekoobe backdoor by masquerading ELF binaries as media files to evade detection.
+    // Tactic: Defense Evasion
+    // Technique: T1036.008 - Masquerading: Masquerade File Type
+    // References: https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
+    DeviceProcessEvents
+    // Find execution of the chmod utility to change file permissions.
+    | where ProcessVersionInfoOriginalFileName =~ "chmod"
+    // The stager script makes the file executable. We look for the 'execute' permission bit being set.
+    // This checks for '+x' or octal modes where an execute bit (1, 3, 5, 7) is set.
+    | where ProcessCommandLine has "+x" or ProcessCommandLine matches regex @"\s[1357]?[1357]?[1357]\s"
+    // Extract the file path from the command line. This is more reliable than joining tables.
+    | parse kind=relaxed ProcessCommandLine with * " " TargetFilePath
+    // Focus on .mp5 files within the /tmp directory, as seen in the attack chain.
+    | where isnotempty(TargetFilePath) and TargetFilePath startswith "/tmp/" and TargetFilePath endswith ".mp5"
+    // FP Tuning: The stager script uses 'sudo'. Uncomment the following line to increase fidelity by requiring root privileges,
+    // which may be appropriate for many environments.
+    //| where InitiatingProcessCommandLine has "sudo" or AccountName == "root"
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessCommandLine,
+        ProcessCommandLine,
+        TargetFilePath,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.008
+    - T1222.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor

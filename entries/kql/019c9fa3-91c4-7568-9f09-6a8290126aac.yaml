@@ -1,0 +1,40 @@
+id: 019c9fa3-91c4-7568-9f09-6a8290126aac
+name: Suspicious Password Exfiltration Lockfile Creation
+description: Detects the creation of an unusual lock file at `/usr/share/nano/.lock`. This specific path is used by a backdoored Go module (impersonating golang.org/x/crypto) to temporarily store harvested plaintext passwords before exfiltration. The rule specifically looks for file creation events at this highly specific path.
+query: |
+    // Name: Suspicious Password Exfiltration Lockfile
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the creation of an unusual lock file at /usr/share/nano/.lock. This specific path is used by a backdoored Go module (impersonating golang.org/x/crypto) to temporarily store harvested plaintext passwords before exfiltration.
+    // Tactic: Credential Access
+    // Technique: T1056.001 - Input Capture: Keylogging, T1552.001 - Unsecured Credentials: Credentials in Files
+    // References: https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
+    DeviceFileEvents
+    // Look for file creation events specifically targeting the malicious lockfile path.
+    | where ActionType == "FileCreated"
+    | where FolderPath == "/usr/share/nano/" and FileName == ".lock"
+    // FP Tuning: This path is highly specific to the malware. Legitimate nano lock files are typically not created in /usr/share.
+    // Any process creating this file should be investigated. The malware is a compiled Go binary.
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessAccountName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessSHA256,
+        FolderPath,
+        FileName,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1552.001
+    - T1056.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor

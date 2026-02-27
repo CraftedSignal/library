@@ -1,0 +1,43 @@
+id: 019c9fa2-ad0f-70bd-a1f4-2d79a7661236
+name: Firewall Policy Weakening via Iptables
+description: Detects the execution of iptables to set the default policy for a chain (INPUT, OUTPUT, or FORWARD) to ACCEPT. This technique was used by a stager in a campaign delivering the Rekoobe backdoor to weaken the host's firewall posture and ensure C2 communication.
+query: |
+    // Name: Firewall Policy Weakening via Iptables
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the execution of iptables to set the default policy for a chain (INPUT, OUTPUT, or FORWARD) to ACCEPT. This technique was used by a stager in a campaign delivering the Rekoobe backdoor to weaken the host's firewall posture and ensure C2 communication.
+    // Tactic: Defense Evasion
+    // Technique: T1562.004 - Impair Defenses: Disable or Modify System Firewall
+    // References: https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
+    DeviceProcessEvents
+    // Look for the execution of the iptables command.
+    | where ProcessFileName =~ "iptables"
+    // Detect setting the default policy (-P) to ACCEPT for any chain.
+    | where ProcessCommandLine has_all ("-P", "ACCEPT") and ProcessCommandLine has_any ("INPUT", "OUTPUT", "FORWARD")
+    // FP Tuning: The stager script used 'sudo'. Requiring root privileges can reduce noise from unprivileged users attempting this command.
+    // Uncomment the line below to filter for privileged execution.
+    // | where AccountName == "root" or ProcessCommandLine has "sudo"
+    // FP Tuning: The stager was executed by a shell. Filtering for shell parent processes can increase confidence.
+    | where InitiatingProcessFileName in~ ("sh", "bash", "zsh", "csh", "ksh", "curl")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        InitiatingProcessCommandLine,
+        ProcessCommandLine,
+        FileName,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.004
+    - T1059
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor

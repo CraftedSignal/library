@@ -1,0 +1,18 @@
+id: 019c9ffa-f801-732f-9c99-1b8bc2981627
+name: RESURGE Webshell Parameter Detected
+description: Detects HTTP requests to the 'compcheckresult.cgi' script containing the unique parameter 'vXm8DtMJG'. This pattern is a strong indicator of the RESURGE webshell, which is injected into the CGI script on compromised Ivanti Connect Secure devices to allow for remote command execution.
+query: "// Name: RESURGE Webshell Parameter Detected\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects HTTP requests to the 'compcheckresult.cgi' script containing the unique parameter 'vXm8DtMJG'. This pattern is a strong indicator of the RESURGE webshell, which is injected into the CGI script on compromised Ivanti Connect Secure devices to allow for remote command execution.\r\n// Severity: High\r\n// Tags: attack.persistence, attack.t1505.003, attack.initial_access, attack.t1190, malware.resurge\r\n// References: https://www.cisa.gov/news-events/analysis-reports/ar25-087a\r\n// False Positives: Low. The combination of the specific CGI script and the unique parameter 'vXm8DtMJG' is highly unlikely to occur in legitimate traffic.\r\n// This query targets IIS logs. If you use a different web proxy or firewall, you may need to adapt it for tables like CommonSecurityLog or a custom log table.\r\nW3CIISLog\r\n// Filter for requests to the specific CGI script targeted by RESURGE.\r\n| where csUriStem has \"compcheckresult.cgi\"\r\n// Look for the unique, hardcoded parameter in the URL query string (GET).\r\n| where csUriQuery has \"vXm8DtMJG\"\r\n// Summarize alerts to reduce noise, grouping by the source IP and the targeted server.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    RequestMethods = makeset(csMethod),\r\n    UserAgents = makeset(csUserAgent),\r\n    RequestCount = count()\r\n    by AttackerIP = cIP, TargetDevice = csHost, TargetUri = csUriStem\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0001
+techniques:
+    - T1505.003
+    - T1190
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cisa.gov/news-events/analysis-reports/ar25-087a

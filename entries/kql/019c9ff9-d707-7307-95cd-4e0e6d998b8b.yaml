@@ -1,0 +1,18 @@
+id: 019c9ff9-d707-7307-95cd-4e0e6d998b8b
+name: RESURGE Covert Socket File Creation
+description: Detects the creation of the covert socket file '/home/runtime/tmp/.logsrv', which is used by the RESURGE malware as a communication bridge between its hooked 'web' process and its 'dsmdm' SSH component on Ivanti Connect Secure devices.
+query: "// Name: RESURGE Covert Socket File Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the creation of the covert socket file '/home/runtime/tmp/.logsrv', which is used by the RESURGE malware as a communication bridge between its hooked 'web' process and its 'dsmdm' SSH component on Ivanti Connect Secure devices.\r\n// Severity: High\r\n// Tags: attack.command_and_control, attack.t1571, attack.t1021.004, malware.resurge\r\n// References: https://www.cisa.gov/news-events/analysis-reports/ar25-087a\r\n// False Positives: Medium. While highly specific to RESURGE, another application could theoretically create a file with the same name in this location. Tuning by InitiatingProcessFileName (e.g., 'web' or 'dsmdm') may be necessary if false positives occur.\r\nDeviceFileEvents\r\n// Search for file events, which include creation, modification, and access.\r\n| where FolderPath == \"/home/runtime/tmp\" and FileName == \".logsrv\"\r\n// This specific hidden file and path are used by RESURGE as a covert communication channel.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    InitiatingProcessCommandLine = makeset(InitiatingProcessCommandLine),\r\n    Actor = makeset(InitiatingProcessAccountName)\r\n    by DeviceName, DeviceId, FileName, FolderPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0008
+techniques:
+    - T1571
+    - T1021.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cisa.gov/news-events/analysis-reports/ar25-087a

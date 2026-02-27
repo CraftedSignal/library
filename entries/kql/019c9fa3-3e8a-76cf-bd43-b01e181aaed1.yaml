@@ -1,0 +1,37 @@
+id: 019c9fa3-3e8a-76cf-bd43-b01e181aaed1
+name: Rekoobe C2 Infrastructure Communication
+description: Detects outbound network connections to known command-and-control (C2) and payload delivery infrastructure associated with the Rekoobe campaign. The rule specifically looks for connections to the IP address 154.84.63.184 or domains img.spoolsv.cc, img.spoolsv.net, spoolsv.cc, and spoolsv.net.
+query: |
+    // Name: Rekoobe C2 Infrastructure Communication
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects outbound network connections to the known command-and-control (C2) and payload delivery infrastructure used in the Rekoobe campaign.
+    // Tactic: Command and Control
+    // Technique: T1071.001 - Application Layer Protocol: Web Protocols
+    // References: https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
+    DeviceNetworkEvents
+    // Look for outbound connections to the specific IP and domains identified in the campaign.
+    | where RemoteIP == "154.84.63.184" or RemoteUrl has_any ("img.spoolsv.cc", "img.spoolsv.net", "spoolsv.cc", "spoolsv.net")
+    // FP Tuning: These indicators are highly specific to this threat. However, infrastructure can be sinkholed or change ownership over time.
+    // Review the initiating process for additional context. Legitimate processes should not be communicating with these destinations.
+    | project
+        Timestamp,
+        InitiatingProcessAccountName,
+        DeviceName,
+        InitiatingProcessCommandLine,
+        RemoteIP,
+        RemoteUrl,
+        RemotePort,
+        LocalPort
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/malicious-go-crypto-module-steals-passwords-and-deploys-rekoobe-backdoor
