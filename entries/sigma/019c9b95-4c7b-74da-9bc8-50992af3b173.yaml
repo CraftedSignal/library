@@ -1,0 +1,60 @@
+id: 019c9b95-4c7b-74da-9bc8-50992af3b173
+name: ActiveMQ Java Process Starts Certutil To Download A File
+description: Detects a Java process starting certutil to download a file from the internet. This is unusual for a message broker and can indicate a server has been taken over and is pulling down a payload.
+query: |
+    title: ActiveMQ Java Process Starts Certutil To Download A File
+    id: 6f3c0c6d-6a2a-4b2b-9d71-2cc7e6a8f1c6
+    status: experimental
+    description: >-
+      Detects a Java process starting certutil to download a file from the internet.
+      This is unusual for a message broker and can indicate a server has been taken
+      over and is pulling down a payload.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - >-
+        https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent_java:
+        ParentImage|endswith:
+          - \java.exe
+          - \javaw.exe
+      selection_certutil:
+        Image|endswith: \certutil.exe
+      selection_args:
+        CommandLine|contains:
+          - '-urlcache'
+          - http
+      condition: selection_parent_java and selection_certutil and selection_args
+    falsepositives:
+      - Rare admin automation where a Java app legitimately uses certutil to
+        download files
+    level: high
+    tags:
+      - attack.command_and_control
+      - attack.t1105
+      - attack.execution
+      - attack.t1059
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059
+tags:
+    - attack.command_and_control
+    - attack.t1105
+    - attack.execution
+    - attack.t1059
+author: Daniel Jeremiah
+version: "1"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows
