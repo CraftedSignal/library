@@ -1,0 +1,18 @@
+id: 019ca4f0-8eb0-77b6-a0ab-a9ebd9495dc1
+name: Suspicious npm Post-Install Download from Vercel
+description: Detects an npm installation process (node.exe) spawning a shell or network utility to download a secondary payload from a Vercel-hosted domain. This TTP was observed in the StegaBin campaign where malicious packages used install scripts to fetch next-stage malware.
+query: "// Name: Suspicious npm Post-Install Download\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects an npm installation process (node.exe) spawning a shell or network utility to download a secondary payload from a Vercel-hosted domain. This TTP was observed in the StegaBin campaign where malicious packages used install scripts to fetch next-stage malware.\r\n// MITRE TTPs: T1195.002, T1105\r\n// References: https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for shells or network utilities being executed.a\r\n| where FileName in~ (\"curl.exe\", \"curl\", \"wget.exe\", \"wget\", \"powershell.exe\", \"cmd.exe\", \"sh\", \"bash\")\r\n// The parent process should be node.exe, which executes npm install scripts.\r\n| where InitiatingProcessFileName in~ (\"node.exe\", \"node\")\r\n// The command line must contain patterns associated with the StegaBin Vercel C2 infrastructure.\r\n| where ProcessCommandLine has \".vercel.app/api/\" or ProcessCommandLine has \".vercel.app?\"\r\n// Tuning: Legitimate development scripts might use Vercel for benign purposes.\r\n// If false positives occur, consider adding more specific path/query logic or allowlisting known-good script paths.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentId,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1195.002
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography

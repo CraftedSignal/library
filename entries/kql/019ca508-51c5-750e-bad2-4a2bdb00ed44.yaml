@@ -1,0 +1,19 @@
+id: 019ca508-51c5-750e-bad2-4a2bdb00ed44
+name: Anomalous Svchost Process Proxying to Shell
+description: Detects svchost.exe spawning a shell process (cmd.exe or powershell.exe) where its parent is not the legitimate services.exe. This behavior is a known technique used by Moonrise RAT to proxy commands and evade detection. The rule further scopes to commands targeting temp or public directories, which are common malware staging areas.
+query: "// Name: Anomalous Svchost Process Proxying\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects svchost.exe spawning a shell process (cmd.exe or powershell.exe) where its parent is not the legitimate services.exe. This behavior is a known technique used by Moonrise RAT to proxy commands and evade detection.\r\n// Tactic: Execution, Defense Evasion\r\n// Technique: T1059.001, T1059.003\r\n// False Positive Sensitivity: Medium\r\n// References: https://any.run/cybersecurity-blog/moonrise-rat-detected/#indicatorsofcompromiseiocs-18719\r\nlet timeframe = 1h;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n// Detects the creation of a command shell or PowerShell process.\r\n| where FileName in~ (\"cmd.exe\", \"powershell.exe\")\r\n// The parent process must be svchost.exe.\r\n| where InitiatingProcessFileName =~ \"svchost.exe\"\r\n// The key anomaly is that the parent of svchost.exe is not the legitimate services.exe.\r\n| where InitiatingProcessParentFileName !~ \"services.exe\"\r\n// Further scope to commands targeting temp or public directories, a common malware staging area.\r\n| where ProcessCommandLine has_any (\"AppData\\\\Local\\\\Temp\", \"Users\\\\Public\")\r\n// FP Tuning: Legitimate administrative scripts or third-party software management tools might exhibit this behavior.\r\n// If false positives occur, consider excluding known legitimate grandparent processes or specific command lines.\r\n// For example: | where InitiatingProcessParentFileName !in~ (\"legit_tool.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1036.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/moonrise-rat-detected/#indicatorsofcompromiseiocs-18719

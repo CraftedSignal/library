@@ -1,0 +1,65 @@
+id: 019ca526-fbf7-7619-8354-63954fa918e1
+name: Suspicious OAuth App Consent by Impersonation
+description: This detection identifies the consent or addition of an OAuth application that may be impersonating a legitimate, well-known brand. The logic flags applications whose names mimic major brands (e.g., Adobe, Microsoft, DocuSign) and use a reply URL hosted on a shared or free platform, a common tactic in consent phishing campaigns.
+query: |
+    // Name: Suspicious OAuth App Consent by Impersonation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-28
+    // Description: This detection identifies the consent or addition of an OAuth application that may be impersonating a legitimate, well-known brand.
+    // The logic flags applications whose names mimic major brands (e.g., Adobe, Microsoft, DocuSign) and use a reply URL hosted on a shared or free platform,
+    // a common tactic in consent phishing campaigns.
+    // False Positive Sensitivity: Medium. Legitimate applications, especially internal development apps, might use services like azurewebsites.net for their reply URLs.
+    // Consider adding exclusions for known-good AppIds or specific reply URLs if false positives occur.
+    // MITRE TTPs: T1566.002, T1136.003, T1528
+    // References: https://www.wiz.io/blog/detecting-malicious-oauth-applications
+    let impersonatedBrands = pack_array("Adobe", "DocuSign", "OneDrive", "Office", "Microsoft", "PDF", "SharePoint");
+    let suspiciousDomains = pack_array("myclickfunnels.com", "github.io", "vercel.app", "pages.dev", "azurewebsites.net");
+    AuditLogs
+    // Look for events where a service principal is created or consent is granted to an application.
+    | where OperationName in ("Add service principal", "Consent to application")
+    // Extract key properties from the TargetResources field.
+    | extend TargetResource = TargetResources[0]
+    | extend AppName = tostring(TargetResource.displayName)
+    | extend AppId = tostring(TargetResource.id)
+    | extend modifiedProperties = TargetResource.modifiedProperties
+    // The reply URLs are stored in a JSON array within modifiedProperties.
+    | extend ReplyUrlsProperty = todynamic(tostring(modifiedProperties))
+    | mv-expand ReplyUrlsProperty
+    // Filter to the specific property that contains Reply URLs.
+    | where ReplyUrlsProperty.displayName == "ReplyUrls"
+    // The actual URL is in the 'newValue' field. It may be a single string or a JSON array of strings.
+    | extend UrlValue = tostring(ReplyUrlsProperty.newValue)
+    // Condition 1: The app name mimics a known brand or uses a common typo pattern.
+    | where (AppName has_any (impersonatedBrands) or AppName matches regex @'\b[0-9]365\b')
+    // Condition 2: The reply URL is hosted on a domain commonly used for phishing or by non-enterprise services.
+    | where UrlValue has_any (suspiciousDomains)
+    // Extract user details before summarizing to avoid grouping on a dynamic type.
+    | extend InitiatingUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName), InitiatingIpAddress = tostring(InitiatedBy.user.ipAddress)
+    // Summarize to show one alert per application and user.
+    | summarize make_set(UrlValue) by TimeGenerated, OperationName, AppName, AppId, InitiatingUserPrincipalName, InitiatingIpAddress, CorrelationId
+    | project
+        TimeGenerated,
+        OperationName,
+        AppName,
+        AppId,
+        InitiatingUserPrincipalName,
+        InitiatingIpAddress,
+        SuspiciousReplyUrls = set_UrlValue,
+        CorrelationId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0003
+techniques:
+    - T1566.002
+    - T1528
+    - T1136.003
+    - T1671
+tags:
+    - kql
+author: Ethan Andrew
+version: "2"
+references:
+    - https://www.wiz.io/blog/detecting-malicious-oauth-applications

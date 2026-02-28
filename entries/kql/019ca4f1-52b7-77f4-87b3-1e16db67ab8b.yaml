@@ -1,0 +1,18 @@
+id: 019ca4f1-52b7-77f4-87b3-1e16db67ab8b
+name: StegaBin C2 Infrastructure Communication
+description: Detects network traffic to a known StegaBin C2 IP address or specific URI paths used for data exfiltration. This activity is associated with multiple modules of the StegaBin infostealer toolkit.
+query: "// Name: StegaBin C2 Infrastructure Communication\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects network traffic to the known StegaBin C2 IP address or URI paths used for exfiltration. This activity is associated with multiple modules of the StegaBin infostealer toolkit.\r\n// MITRE TTPs: T1041, T1071.001\r\n// References: https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography\r\n// False Positive Sensitivity: Medium\r\nDeviceNetworkEvents\r\n// Focus on successful outbound connections.\r\n| where ActionType in (\"NetworkConnectionSuccess\", \"ConnectionSuccess\")\r\n// Detect connections to the hardcoded C2 IP or to the specific exfiltration URI paths.\r\n| where RemoteIP == \"103.106.67.63\" or RemoteUrl has_any (\"/clipup\", \"/uploads\")\r\n// Tuning: The URI paths '/clipup' and '/uploads' can be generic and may exist on benign websites.\r\n// If this logic is too noisy, consider increasing fidelity by requiring the specific IP and ports from the report:\r\n// | where RemoteIP == \"103.106.67.63\" and (RemotePort in (1244, 1247) or RemoteUrl has_any (\"/clipup\", \"/uploads\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    RemoteIP,\r\n    RemotePort,\r\n    RemoteUrl,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1041
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography

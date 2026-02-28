@@ -1,0 +1,21 @@
+id: 019ca523-c4bd-711f-9844-6ce60d019ef9
+name: Low Prevalence High-Risk OAuth Grant
+description: This detection identifies instances where a user grants consent to an OAuth application that has very low prevalence within the tenant and requests high-risk permissions. This pattern is a strong indicator of a targeted consent phishing attack, as malicious apps often target a small number of users to gain initial access.
+query: "// Name: Low Prevalence High-Risk OAuth Grant\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: This detection identifies instances where a user grants consent to an OAuth application that has very low prevalence within the tenant and requests high-risk permissions. This pattern is a strong indicator of a targeted consent phishing attack, as malicious apps often target a small number of users to gain initial access.\r\n// False Positive Sensitivity: Medium. Legitimate, niche applications used by a small team or for a specific purpose might trigger this alert. Consider tuning the 'prevalenceThreshold' or adding known-good AppIds to an exclusion list.\r\n// MITRE TTPs: T1566.002, T1098.003\r\n// References: https://www.wiz.io/blog/detecting-malicious-oauth-applications\r\nlet lookback = 30d;\r\nlet prevalenceThreshold = 3;\r\nlet highRiskPermissions = pack_array(\"Mail.Read\", \"Files.ReadWrite\", \"Directory.AccessAsUser.All\", \"Notes.Read.All\");\r\n// Create a baseline of application prevalence by counting how many distinct users have consented to each app over the lookback period.\r\nlet AppPrevalence = AuditLogs\r\n| where TimeGenerated > ago(lookback)\r\n| where OperationName == \"Consent to application\"\r\n| extend AppId = tostring(TargetResources[0].id)\r\n| summarize UserCount = dcount(tostring(InitiatedBy.user.userPrincipalName)) by AppId;\r\n// Identify recent consent events for high-risk, low-prevalence applications.\r\nAuditLogs\r\n| where TimeGenerated > ago(1d)\r\n| where OperationName == \"Consent to application\"\r\n// Extract core application and event details.\r\n| extend TargetResource = TargetResources[0]\r\n| extend AppId = tostring(TargetResource.id)\r\n| extend AppName = tostring(TargetResource.displayName)\r\n| extend modifiedProperties = TargetResource.modifiedProperties\r\n// The permissions granted are in the 'Scope' property.\r\n| mv-expand modifiedProperties\r\n| where tostring(modifiedProperties.displayName) == \"Scope\"\r\n| extend Permissions = tostring(modifiedProperties.newValue)\r\n// Condition 1: The application is requesting one or more high-risk permissions.\r\n| where Permissions has_any (highRiskPermissions)\r\n// Join with the prevalence baseline to get the user count for each app.\r\n| join kind=inner (AppPrevalence) on AppId\r\n// Condition 2: The application has been consented to by fewer users than the defined threshold.\r\n| where UserCount < prevalenceThreshold\r\n// Summarize results to provide one clear alert per user and application.\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    make_set(Permissions) by\r\n    AppName,\r\n    AppId,\r\n    UserCount,\r\n    InitiatingUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName),\r\n    CorrelationId\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    AppName,\r\n    AppId,\r\n    InitiatingUserPrincipalName,\r\n    HighRiskPermissions = set_Permissions,\r\n    ConsentingUserCount = UserCount,\r\n    CorrelationId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+    - TA0005
+    - TA0008
+techniques:
+    - T1566.002
+    - T1528
+    - T1550.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.wiz.io/blog/detecting-malicious-oauth-applications

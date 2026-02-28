@@ -1,0 +1,42 @@
+id: 019ca516-add0-73bb-a60e-964a28401d86
+name: Local File Execution via Startup URL
+description: Detects persistence via an Internet Shortcut (.url) file in a startup folder that points to a local executable (file://). This is a known TTP of the PHALT#BLYX campaign.
+query: |
+    // Name: Local File Execution via Startup URL
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-28
+    // Description: Detects persistence via an Internet Shortcut (.url) file in a startup folder that points to a local executable (file://). This is a known TTP of the PHALT#BLYX campaign.
+    // Tactic: Persistence
+    // Technique: T1547.001
+    // False Positive Sensitivity: Medium
+    // References: https://www.securonix.com/blog/securonix-threat-labs-monthly-intelligence-insights-january-2026/
+    DeviceFileEvents
+    // Look for .url files created in any user's startup folder.
+    | where FolderPath has @"\Microsoft\Windows\Start Menu\Programs\Startup"
+    | where FileName endswith ".url"
+    // Check if the URL points to a local file path. This relies on the EDR populating the FileOriginUrl field from the shortcut file.
+    | where FileOriginUrl has "file://"
+    // FP Tuning: While uncommon, some legitimate installers might place .url files pointing to local help files or executables.
+    // Review the initiating process and target file path for legitimacy.
+    | project
+        TimeGenerated,
+        DeviceName,
+        FileName,
+        FolderPath,
+        FileOriginUrl,
+        InitiatingProcessCommandLine,
+        InitiatingProcessAccountName,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/securonix-threat-labs-monthly-intelligence-insights-january-2026/

@@ -1,0 +1,18 @@
+id: 019ca524-2c96-7030-ac90-071553a39680
+name: Known Malicious OAuth App ID Consent
+description: Identifies consent grants to OAuth applications with Application IDs matching known malicious campaigns. The IOCs are sourced from Wiz Research on campaigns from 2019-2025 involving brand impersonation and consent phishing.
+query: "// Name: Known Malicious OAuth App ID Consent\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Identifies consent grants to OAuth applications with Application IDs matching known malicious campaigns. The IOCs are sourced from Wiz Research on campaigns from 2019-2025 involving brand impersonation and consent phishing.\r\n// False Positive Sensitivity: Low. This detection is based on a static list of known-bad Application IDs. False positives are highly unlikely unless an ID is recycled, which is rare.\r\n// MITRE TTPs: T1566.002, T1528\r\n// References: https://www.wiz.io/blog/detecting-malicious-oauth-applications\r\nlet maliciousAppIds = pack_array(\r\n    // 2025 Campaign IOCs\r\n    \"c4d0b015-689a-4bcf-b69b-3ed5005fddb6\",\r\n    \"a69a0f78-a77c-451c-b090-b766425caee2\",\r\n    \"58427324-4e5d-4441-b029-cd2d532b47d7\",\r\n    \"706e0542-2dfb-4e7f-98f0-1e17eab6d5b8\",\r\n    \"fdcf7337-92bf-4c70-9888-ea234b6ffb0d\",\r\n    \"a8ca8dad-f6e6-4b01-9d6b-02e1da6c9d7f\",\r\n    \"6a77659d-dd6f-4c73-a555-aed25926a05f\",\r\n    \"f99a0806-7650-4d78-acef-71e445dfc844\",\r\n    \"6628b5b8-55af-42b4-9797-5cd5c148313c\",\r\n    \"a3903ccd-ec81-4264-8f6a-a7d4cd395fd5\",\r\n    \"c52517b0-46eb-4d61-975a-771d9978dac0\",\r\n    \"b0d8ea55-bc29-436c-9f8b-f8829030261d\",\r\n    \"21f81c9e-475d-4c26-9308-1de74a286f73\",\r\n    \"48cb1fac-7195-47b3-98b2-fe3562bee75c\",\r\n    \"85da47ec-2977-40ab-af03-f3d45aaab169\",\r\n    \"5037c1a6-7cfc-48b5-b887-f2a045937081\",\r\n    \"14b2864e-3cff-4d33-b5cd-7f14ca272ea4\",\r\n    // 2019 Campaign IOCs\r\n    \"b7cb9a9b-ddc9-4444-935b-1122733c97c4\",\r\n    \"fc5d3843-d0e8-4c3f-b0ee-6d407f667751\",\r\n    \"3280b1dc-4b64-4f90-a16a-b0804e6ec4ca\",\r\n    \"482fb03a-5218-43c2-8ce6-61956c7ca99b\",\r\n    \"c7121e86-fe4d-4dbd-b5f3-e61a62ee533a\",\r\n    \"626b6813-13dc-45d7-abfe-a7fe09fd5276\",\r\n    \"443efa1c-8a0a-47a0-bd31-7c30fe32dee4\",\r\n    \"a43a3d51-c821-4b86-9a63-fbc775120fc2\",\r\n    \"0bd8e698-4298-405a-bc6b-da5647a4616b\",\r\n    \"768a57a0-1c5e-477a-939a-63aebf2e5ecf\",\r\n    \"4e4d64ac-4a2a-432c-b79e-65ca8213ede5\"\r\n);\r\nAuditLogs\r\n// Filter for application consent events, which is the key user action in a consent phishing attack.\r\n| where OperationName == \"Consent to application\"\r\n// Extract application details from the log. The AppId is the unique identifier for the application object.\r\n| extend TargetResource = TargetResources[0]\r\n| extend AppId = tostring(TargetResource.id)\r\n| extend AppName = tostring(TargetResource.displayName)\r\n// Match the AppId against the list of known malicious application IDs.\r\n| where AppId in (maliciousAppIds)\r\n// Project the relevant fields for investigation.\r\n| project\r\n    TimeGenerated,\r\n    OperationName,\r\n    AppName,\r\n    AppId,\r\n    InitiatingUserPrincipalName = tostring(InitiatedBy.user.userPrincipalName),\r\n    InitiatingIpAddress = tostring(InitiatedBy.user.ipAddress),\r\n    CorrelationId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566.002
+    - T1528
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.wiz.io/blog/detecting-malicious-oauth-applications

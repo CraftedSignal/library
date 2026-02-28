@@ -1,0 +1,16 @@
+id: 019ca538-91c7-734e-810a-b91168db0ee0
+name: Prometei Microsoft Defender Exclusion Activity
+description: Detects PowerShell commands used by Prometei to add Microsoft Defender exclusions for its staging and configuration directories ('C:\Windows\Dell' or 'Intel\Support'). This is a common defense evasion tactic.
+query: "// Name: Prometei Defender Exclusion Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects PowerShell commands used by Prometei to add Microsoft Defender exclusions for its staging and configuration directories ('C:\\Windows\\Dell' or 'Intel\\Support'). This is a common defense evasion tactic.\r\n// MITRE TTPs: T1562.001 - Impair Defenses: Disable or Modify Tools\r\n// References: https://www.esentire.com/blog/tenant-from-hell-prometeis-unauthorized-stay-in-your-windows-server\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for PowerShell processes, which are used to modify Defender settings\r\n| where FileName =~ \"powershell.exe\"\r\n// Filter for commands that add Defender preferences, specifically exclusion paths\r\n| where ProcessCommandLine has \"Add-MpPreference\" and ProcessCommandLine has \"-ExclusionPath\"\r\n// Check for the specific paths used by Prometei for its modules and configuration\r\n| where ProcessCommandLine has_any (\"C:\\\\Windows\\\\Dell\", \"\\\\Intel\\\\Support\")\r\n// FP Tuning: While specific, a legitimate admin script could potentially add exclusions for these paths.\r\n// Review the parent process and command line context for legitimacy if false positives occur.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    FileName,\r\n    CommandLine = ProcessCommandLine,\r\n    ParentProcess = InitiatingProcessFileName,\r\n    ParentCommandLine = InitiatingProcessCommandLine,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.esentire.com/blog/tenant-from-hell-prometeis-unauthorized-stay-in-your-windows-server

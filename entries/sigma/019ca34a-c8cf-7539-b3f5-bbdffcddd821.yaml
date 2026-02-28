@@ -1,0 +1,71 @@
+id: 019ca34a-c8cf-7539-b3f5-bbdffcddd821
+name: COLDRIVER new ROBOT malware chain
+description: |
+    This detection is designed to help you find activity related to COLDRIVER new ROBOT malware chain (NOROBOT/YESROBOT/MAYBEROBOT). It is based on the specific threat intelligence in the reference, so it focuses on concrete, easy-to-verify signals rather than vague patterns. It uses exact indicators and tightly scoped behaviors described in the referenced threat intelligence. A match does not automatically prove a compromise, and it does not prove the activity was successful, but it is a strong reason to investigate because the signal lines up with published reporting. When this fires, start by confirming which host, account, or server produced the event and whether the behavior is expected for that system. If it is not expected, preserve the relevant logs and files, check for repeated attempts over time, and look for nearby signs such as new admin accounts, unusual remote access, or suspicious downloads. Treat a match as a scoping signal and pivot to other telemetry around the same host, account, and time window. Use the reference link to document why you treated the alert as significant and to support incident notes.
+query: |
+    title: "COLDRIVER new ROBOT malware chain"
+    id: 93d11610-0700-43b2-8bd5-550ecf73bc2c
+    status: experimental
+    description: >
+      This detection is designed to help you find activity related to COLDRIVER new
+      ROBOT malware chain (NOROBOT/YESROBOT/MAYBEROBOT). It is based on the specific
+      threat intelligence in the reference, so it focuses on concrete,
+      easy-to-verify signals rather than vague patterns. It uses exact indicators
+      and tightly scoped behaviors described in the referenced threat intelligence.
+      A match does not automatically prove a compromise, and it does not prove the
+      activity was successful, but it is a strong reason to investigate because the
+      signal lines up with published reporting. When this fires, start by confirming
+      which host, account, or server produced the event and whether the behavior is
+      expected for that system. If it is not expected, preserve the relevant logs
+      and files, check for repeated attempts over time, and look for nearby signs
+      such as new admin accounts, unusual remote access, or suspicious downloads.
+      Treat a match as a scoping signal and pivot to other telemetry around the same
+      host, account, and time window. Use the reference link to document why you
+      treated the alert as significant and to support incident notes.
+    author: Daniel Jeremiah
+    date: 2026-02-25
+    references:
+      - https://cloud.google.com/blog/topics/threat-intelligence/new-malware-russia-coldriver
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_reg:
+        Image|endswith:
+          - '\reg.exe'
+        CommandLine|re: '(?i)HKEY_CURRENT_USER\\SOFTWARE\\Classes\\\.pietas.*\s/v\s+ratio\b'
+      selection_schtasks:
+        Image|endswith:
+          - '\schtasks.exe'
+        CommandLine|re: '(?i)/Create\b.*\bSystem health check\b.*Python38-64\\pythonw\.exe'
+      condition: selection_reg or selection_schtasks
+    level: high
+    tags:
+      - attack.t1112
+      - attack.t1053.005
+      - attack.t1105
+    falsepositives:
+      - "Rare: legitimate admin testing that exactly matches published indicators"
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0002
+    - TA0004
+    - TA0011
+techniques:
+    - T1112
+    - T1053.005
+    - T1105
+tags:
+    - attack.t1112
+    - attack.t1053.005
+    - attack.t1105
+author: Daniel Jeremiah
+version: "5"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/new-malware-russia-coldriver
+data_sources:
+    - process_creation
+    - windows

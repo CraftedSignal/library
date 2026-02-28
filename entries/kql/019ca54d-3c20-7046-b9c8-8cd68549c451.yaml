@@ -1,0 +1,35 @@
+id: 019ca54d-3c20-7046-b9c8-8cd68549c451
+name: Ransomware Defense Evasion via VSSAdmin or Wevtutil
+description: Detects common late-stage ransomware indicators including the deletion of Volume Shadow Copies or the clearing of Windows Event Logs using vssadmin.exe or wevtutil.exe. These are reliable signals of imminent impact.
+query: |
+    // Name: Ransomware Defense Evasion via VSSAdmin or Wevtutil
+    // Author: detections.ai
+    // Date: 2026-02-28
+    // Description: Detects common late-stage ransomware indicators including the deletion of Volume Shadow Copies or the clearing of Windows Event Logs using vssadmin.exe or wevtutil.exe. These are reliable signals of imminent impact.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.securonix.com/blog/securonix-threat-labs-2025-annual-autonomous-threat-sweeper-intelligence-insights/
+    // MITRE TTPs: T1490, T1070.001
+    DeviceProcessEvents
+    // Filter for process creation events
+    | where ActionType == "ProcessCreated"
+    // Look for either vssadmin deleting shadows or wevtutil clearing logs
+    | where (FileName =~ "vssadmin.exe" and ProcessCommandLine has "delete" and ProcessCommandLine has "shadows")
+        or (FileName =~ "wevtutil.exe" and (ProcessCommandLine has "cl" or ProcessCommandLine has "clear-log"))
+    // FP Tuning: Legitimate administrative scripts may perform these actions.
+    // Consider excluding known administrative accounts or specific command lines associated with backup or maintenance software.
+    // Example: | where InitiatingProcessAccountName !in ("Admin1", "BackupService")
+    | project AccountName, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1490
+    - T1070.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/securonix-threat-labs-2025-annual-autonomous-threat-sweeper-intelligence-insights/

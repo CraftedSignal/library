@@ -1,0 +1,19 @@
+id: 019ca4f0-f07f-771c-b69b-8239c98bb63e
+name: StegaBin - Developer Secret Harvesting Sweep
+description: Detects broad filesystem searches using native OS commands ('dir' on Windows, 'find' on Linux/macOS) for files containing sensitive developer information like private keys, mnemonic phrases, and configuration files. This TTP is used by modules 5 and 6 of the StegaBin toolkit.
+query: "// Name: StegaBin - Developer Secret Harvesting Sweep\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects broad filesystem searches using native OS commands ('dir' on Windows, 'find' on Linux/macOS) for files containing sensitive developer information like private keys, mnemonic phrases, and configuration files. This TTP is used by modules 5 and 6 of the StegaBin toolkit.\r\n// MITRE TTPs: T1083, T1552.001, T1552.004\r\n// References: https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography\r\n// False Positive Sensitivity: Medium\r\nlet sensitive_patterns = dynamic([\r\n    \"*wal*\", \"*key*\", \"*mne*\", \"*sec*\", \"*pri*\", \"*pas*\", \"*acc*\", \"*1pa*\", \"*.env\", \"*config*\", \"*.kdb*\", \"*sol*\"\r\n]);\r\nDeviceProcessEvents\r\n// Focus on process creation events.\r\n| where ActionType == \"ProcessCreated\"\r\n// Combine logic for Windows 'dir' and Linux/macOS 'find' commands.\r\n| where \r\n    // Windows: 'dir' command with /s (recursive) switch searching for sensitive patterns.\r\n    (ProcessCommandLine has \"dir\" and ProcessCommandLine has \"/s\" and ProcessCommandLine has_any (sensitive_patterns)) or\r\n    // Linux/macOS: 'find' command searching for sensitive patterns.\r\n    (FileName =~ \"find\" and ProcessCommandLine has_any (sensitive_patterns))\r\n// Tuning: Legitimate developer activity or security scanning tools might perform these searches.\r\n// Consider filtering out processes initiated by known good applications or scripts.\r\n// For example: | where not(InitiatingProcessFileName in~ (\"trufflehog.exe\", \"security_scanner.sh\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessParentId,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0006
+techniques:
+    - T1083
+    - T1552.001
+    - T1552.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography

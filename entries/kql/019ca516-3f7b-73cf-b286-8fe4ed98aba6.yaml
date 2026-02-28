@@ -1,0 +1,49 @@
+id: 019ca516-3f7b-73cf-b286-8fe4ed98aba6
+name: Suspicious BYOVD Driver Load for Defense Evasion
+description: Detects the loading of specific vulnerable drivers ('zam64.sys', 'UpdateCheckerX64.sys') used by ransomware groups like CrazyHunter and Interlock to terminate security products. The query combines multiple data sources to detect different stages of BYOVD activity, including driver file creation, registry entries for service creation, and command-line activity related to driver loading.
+query: |
+    // Name: Suspicious BYOVD Driver Load for Defense Evasion
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-28
+    // Description: Detects the loading of specific vulnerable drivers ('zam64.sys', 'UpdateCheckerX64.sys') used by ransomware groups like CrazyHunter and Interlock to terminate security products.
+    // Tactic: Defense Evasion, Privilege Escalation
+    // Technique: T1562.001, T1068
+    // False Positive Sensitivity: Medium
+    // References: https://www.securonix.com/blog/securonix-threat-labs-monthly-intelligence-insights-january-2026/
+    let suspiciousDrivers = dynamic(["zam64.sys", "UpdateCheckerX64.sys"]);
+    // The query combines multiple data sources to detect different stages of BYOVD activity.
+    (union isfuzzy=true
+        // Look for driver files being created on disk.
+        (DeviceFileEvents
+        | where FileName has_any (suspiciousDrivers)
+        ),
+        // Look for registry entries creating a service to load the driver.
+        (DeviceRegistryEvents
+        | where RegistryKey has @"SYSTEM\CurrentControlSet\Services\"
+        | where RegistryValueName =~ "ImagePath"
+        | where RegistryValueData has_any (suspiciousDrivers) or RegistryValueData matches regex @"UpdateCheckerX64_\d+"
+        ),
+        // Look for command-line activity related to the driver, such as loading it via rundll32.
+        (DeviceProcessEvents
+        | where ProcessCommandLine has_any (suspiciousDrivers) or ProcessCommandLine matches regex @"UpdateCheckerX64_\d+"
+        )
+    )
+    // FP Tuning: Legitimate software may use drivers with similar names.
+    // Consider adding process name or path exclusions if legitimate software is found to use these driver names.
+    | project TimeGenerated, DeviceName, ActionType, FileName, InitiatingProcessCommandLine, RegistryKey, RegistryValueData, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0003
+techniques:
+    - T1562.001
+    - T1068
+    - T1543.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/securonix-threat-labs-monthly-intelligence-insights-january-2026/

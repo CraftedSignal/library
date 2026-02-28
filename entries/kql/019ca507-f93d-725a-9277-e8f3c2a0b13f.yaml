@@ -1,0 +1,17 @@
+id: 019ca507-f93d-725a-9277-e8f3c2a0b13f
+name: Moonrise RAT - Unauthorized Peripheral Hardware Enumeration
+description: Detects the enumeration of camera or microphone hardware using the 'Get-PnpDevice' PowerShell cmdlet. This behavior is a precursor to surveillance activities such as webcam capture or audio recording and has been associated with the Moonrise RAT.
+query: "// Name: Moonrise RAT - Unauthorized Peripheral Hardware Enumeration\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-28\r\n// Description: Detects the enumeration of camera or microphone hardware using the 'Get-PnpDevice' PowerShell cmdlet. This behavior is a precursor to surveillance activities such as webcam capture or audio recording and has been associated with the Moonrise RAT.\r\n// Tactic: Collection\r\n// Technique: T1125, T1123\r\n// False Positive Sensitivity: Medium\r\n// References: https://any.run/cybersecurity-blog/moonrise-rat-detected/#indicatorsofcompromiseiocs-18719\r\nlet timeframe = 1h;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n// Focus on PowerShell processes which are used to execute the enumeration command.\r\n| where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\r\n// Detects the specific PowerShell command used to query for camera or microphone devices.\r\n| where ProcessCommandLine has \"Get-PnpDevice\" and ProcessCommandLine has_any (\"-Class Camera\", \"-Class Microphone\", \"PNPClass = 'Camera'\", \"PNPClass = 'Microphone'\")\r\n// Exclude executions by high-privilege system accounts which are less likely to be interactive sessions.\r\n| where AccountName !in~ (\"system\", \"local service\", \"network service\")\r\n// FP Tuning: Legitimate software (e.g., conferencing apps, hardware diagnostics, inventory scripts) may perform this check.\r\n// If false positives occur, consider excluding known legitimate parent processes or scripts.\r\n// For example: | where InitiatingProcessFileName !in~ (\"ZoomInstaller.exe\", \"Teams.exe\", \"LenovoVantage.exe\", \"DellSupportAssist.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1125
+    - T1123
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/moonrise-rat-detected/#indicatorsofcompromiseiocs-18719

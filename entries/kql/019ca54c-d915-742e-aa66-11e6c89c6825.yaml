@@ -1,0 +1,39 @@
+id: 019ca54c-d915-742e-aa66-11e6c89c6825
+name: SharePoint Worker Process Spawning Suspicious Child Process
+description: Detects the Microsoft SharePoint worker process (w3wp.exe) spawning suspicious child processes often used for post-exploitation activity, such as command shells or scripting engines. This behavior is a strong indicator of a webshell execution, as seen in the ToolShell exploitation campaigns.
+query: |-
+    // Name: SharePoint Worker Process Spawning Suspicious Child Process
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-28
+    // Description: Detects the Microsoft SharePoint worker process (w3wp.exe) spawning suspicious child processes often used for post-exploitation activity, such as command shells or scripting engines. This behavior is a strong indicator of a webshell execution, as seen in the ToolShell exploitation campaigns.
+    // False Positive Sensitivity: Medium
+    // Reference: https://www.securonix.com/blog/securonix-threat-labs-2025-annual-autonomous-threat-sweeper-intelligence-insights/
+    // MITRE TTPs: T1190, T1059.003, T1059.001, T1127.001
+    DeviceProcessEvents
+    // Look for process creation events
+    | where ActionType == "ProcessCreated"
+    // Filter for the SharePoint worker process (w3wp.exe) as the parent process
+    | where InitiatingProcessFileName =~ "w3wp.exe"
+    // Define a list of suspicious child processes commonly used for post-exploitation
+    | where FileName in~ ("cmd.exe", "powershell.exe", "pwsh.exe", "wscript.exe", "cscript.exe", "msbuild.exe", "whoami.exe", "net.exe", "net1.exe")
+    // FP Tuning: Legitimate administrative or application maintenance scripts might spawn these processes.
+    // Consider filtering for specific SharePoint server hostnames or roles if this activity is expected in some contexts.
+    // Example: | where DeviceName has "sharepoint"
+    | project AccountName, DeviceName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1190
+    - T1059.003
+    - T1059.001
+    - T1127.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/securonix-threat-labs-2025-annual-autonomous-threat-sweeper-intelligence-insights/
