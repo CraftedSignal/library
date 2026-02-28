@@ -1,0 +1,61 @@
+id: 019c9676-da98-71bb-bd3e-1d00b951287a
+name: OpenClaw Workspace Secret File Access From Shell Tools
+description: Detects common shell tools accessing OpenClaw plaintext workspace secrets such as the .env file under ~/.openclaw/workspace/.
+query: |
+    title: OpenClaw Workspace Secret File Access From Shell Tools
+    id: 1f2a3b4c-5d6e-4a7b-8c9d-0e1f2a3b4c44
+    status: experimental
+    description: >-
+      Detects common shell tools accessing OpenClaw plaintext workspace secrets such
+      as the .env file under ~/.openclaw/workspace/.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - >-
+        https://www.catonetworks.com/blog/cato-ctrl-when-openclaw-ai-personal-assistant-becomes-backdoor/
+    tags:
+      - attack.credential_access
+      - attack.t1552.001
+      - attack.collection
+    logsource:
+      product: linux
+      category: process_creation
+      service: audit
+    detection:
+      selection_tools:
+        Image|endswith:
+          - /cat
+          - /grep
+          - /sed
+          - /awk
+          - /python
+          - /python3
+          - /tar
+          - /zip
+      selection_path:
+        CommandLine|contains:
+          - /.openclaw/workspace/.env
+          - /.openclaw/workspace/
+      condition: selection_tools and selection_path
+    falsepositives:
+      - Administrator or developer troubleshooting on hosts running OpenClaw
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1552.001
+tags:
+    - attack.credential_access
+    - attack.t1552.001
+    - attack.collection
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.catonetworks.com/blog/cato-ctrl-when-openclaw-ai-personal-assistant-becomes-backdoor/
+data_sources:
+    - process_creation
+    - linux
+    - audit

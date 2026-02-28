@@ -1,0 +1,36 @@
+id: 019ca344-c111-71db-9206-21321f3c4876
+name: Suspicious PowerPoint Macro Execution
+description: Detects Microsoft PowerPoint spawning a command-line interpreter (cmd.exe or powershell.exe) to perform suspicious file operations. This behavior was observed in an APT36 campaign where a malicious PowerPoint Add-in (.ppam) was used to create staging directories and extract embedded payloads.
+query: |-
+    // Name: Suspicious PowerPoint Macro Execution
+    // Author: Nomit Vyas
+    // Date: 2026-02-27
+    // Description: Detects Microsoft PowerPoint spawning a command-line interpreter (cmd.exe or powershell.exe) to perform suspicious file operations. This behavior was observed in an APT36 campaign where a malicious PowerPoint Add-in (.ppam) was used to create staging directories and extract embedded payloads.
+    // Tactics: Defense Evasion, Execution
+    // Techniques: T1059.005, T1027
+    // References: https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for PowerPoint as the initiating process
+    | where InitiatingProcessFileName =~ "powerpnt.exe"
+    // The child process is a command-line interpreter
+    | where FileName in~ ("cmd.exe", "powershell.exe")
+    // The command line indicates suspicious file/directory operations seen in the APT36 campaign
+    | where (ProcessCommandLine has "mkdir" and ProcessCommandLine contains "PPMX") or (ProcessCommandLine has "copy" and ProcessCommandLine has ".ppam" and ProcessCommandLine has ".zip")
+    // Potential for False Positives: While unlikely, custom or poorly written legitimate PowerPoint add-ins could perform similar file operations.
+    // If false positives occur, consider excluding known legitimate add-in developers or specific command lines.
+    // | where not (InitiatingProcessFolderPath has "LegitAddIn" and ProcessCommandLine contains "known_good_command")
+    | project AccountName, DeviceName, FileName, FolderPath, InitiatingProcessCommandLine, InitiatingProcessFileName, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1059.005
+    - T1027
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/

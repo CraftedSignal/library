@@ -1,0 +1,26 @@
+id: 019ca2ef-550b-710c-82f0-5074c1b03c65
+name: Keystone After-Hours Logon Activity
+description: |
+    Detects logons to Keystone core banking system outside of business hours.
+    Excludes specific departments and job titles that have extended access.
+    Note: Timezone conversion (UTC to PST), WeekDay function, summarize, and
+    project-reorder are handled natively in KQL post-conversion.
+query: "---\r\ntitle: Keystone After-Hours Logon Activity\r\nauthor: Igor Oliveira (Pr0fiLeRR)\r\nid: 3cecb41c-c11f-4461-af91-e74b14ce0b6e\r\ndescription: |\r\n  Detects logons to Keystone core banking system outside of business hours.\r\n  Excludes specific departments and job titles that have extended access.\r\n  Note: Timezone conversion (UTC to PST), WeekDay function, summarize, and\r\n  project-reorder are handled natively in KQL post-conversion.\r\nreferences:\r\n  - https://learn.microsoft.com/en-us/kusto/query/kql-quick-reference?view=microsoft-fabric\r\n  - https://sigmahq.io/sigma-specification/specification/sigma-rules-specification.html\r\n  - https://attack.mitre.org/techniques/T1078/004/\r\nstatus: stable\r\ntags:\r\n  - attack.t1078.001\r\n  - attack.t1078.004\r\ndate: 2026-02-04\r\nlogsource:\r\n  product: microsoft365defender\r\n  category: authentication\r\n  service: identitylogonevents\r\ndetection:\r\n  selection:\r\n    AdditionalFields.Spns|contains: 'keystone'\r\n  filter_jobtitles:\r\n    JobTitle|contains:\r\n      - 'VP '\r\n      - 'Senior VP'\r\n    JobTitle:\r\n      - 'Director of Asset Recovery'\r\n  filter_departments:\r\n    Department:\r\n      - 'Information Systems'\r\n      - 'Consumer Lending'\r\n      - 'Project Delivery'\r\n    Department|contains: 'Executive'\r\n  condition: selection and not filter_jobtitles and not filter_departments\r\nfields:\r\n  - TimeGenerated\r\n  - AccountDisplayName\r\n  - JobTitle\r\n  - Department\r\n  - DeviceName\r\n  - AccountObjectId\r\n  - AccountUPN\r\nfalsepositives:\r\n  - When we can confirm users legitimately access Keystone afterhours\r\n  - Authorized after-hours access by exempted departments or job titles\r\nlevel: medium\r\n..."
+query_type: sigma
+severity: medium
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - attack.t1078.001
+    - attack.t1078.004
+author: Igor Oliveira (Pr0fiLeRR)
+version: "1"
+references:
+    - https://learn.microsoft.com/en-us/kusto/query/kql-quick-reference?view=microsoft-fabric
+    - https://sigmahq.io/sigma-specification/specification/sigma-rules-specification.html
+    - https://attack.mitre.org/techniques/T1078/004/
+data_sources:
+    - authentication
+    - microsoft365defender
+    - identitylogonevents

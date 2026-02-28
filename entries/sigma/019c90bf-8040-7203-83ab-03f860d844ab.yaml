@@ -1,0 +1,53 @@
+id: 019c90bf-8040-7203-83ab-03f860d844ab
+name: DKnife Linux Gateway Components and Config Artifacts
+description: Detects suspected DKnife gateway AitM activity by matching Linux process/file artifacts (component names and config files) described in the Talos DKnife disclosure.
+query: |
+    title: DKnife Linux Gateway Components and Config Artifacts
+    id: 2a5c87cf-29a9-4a2c-8e7c-fce4eb2cce2f
+    status: experimental
+    description: >-
+      Detects suspected DKnife gateway AitM activity by matching Linux process/file
+      artifacts (component names and config files) described in the Talos DKnife
+      disclosure.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://blog.talosintelligence.com/knife-cutting-the-edge/
+    logsource:
+      product: linux
+      category: process_creation
+      service: audit
+    detection:
+      selection_components:
+        Image|endswith:
+          - /dknife.bin
+          - /sslmm.bin
+          - /postapi.bin
+          - /rules.bin
+          - /sshapi.bin
+          - /inotify.bin
+          - /curlapi.bin
+      selection_configs:
+        CommandLine|contains:
+          - sslmm.cfg
+          - url.cfg
+          - rules.conf
+      condition: selection_components or selection_configs
+    falsepositives:
+      - Custom tools coincidentally using the same filenames; validate by location,
+        signer, and surrounding network behavior.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1557
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://blog.talosintelligence.com/knife-cutting-the-edge/
+data_sources:
+    - process_creation
+    - linux

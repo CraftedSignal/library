@@ -1,0 +1,54 @@
+id: 019c9633-ccc9-740d-8257-04540ba373fe
+name: Claude Code Project Settings Indicate Hooks Or MCP Auto Approval
+description: Detects suspicious Claude Code configuration keys linked to automatic hook execution or automatic MCP server enabling, which were used to bypass consent and execute commands.
+query: |
+    title: Claude Code Project Settings Indicate Hooks Or MCP Auto Approval
+    id: 0d0b8d4f-8ad2-4bb4-9f7b-8b2d3c1e6f1a
+    status: experimental
+    description: >-
+      Detects suspicious Claude Code configuration keys linked to automatic hook
+      execution or automatic MCP server enabling, which were used to bypass consent
+      and execute commands.
+    author: Daniel Jeremiah
+    date: 2026-02-24
+    references:
+      - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/
+    tags:
+      - attack.execution
+      - attack.t1059
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_claude:
+        Image|endswith:
+          - \claude.exe
+          - \claude
+      selection_keywords:
+        CommandLine|contains:
+          - .claude
+          - .mcp.json
+          - enableAllProjectMcpServers
+          - enabledMcpjsonServers
+          - hooks
+          - SessionStart
+      condition: selection_claude and selection_keywords
+    level: high
+    associated_cves:
+      - CVE-2025-59536
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/
+data_sources:
+    - process_creation
+    - windows

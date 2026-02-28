@@ -1,0 +1,72 @@
+id: 019c9b96-920d-75cc-bc91-310ed4626668
+name: AnyDesk Remote Access Execution
+description: Detects execution of AnyDesk on Windows endpoints. Adversaries may use legitimate remote access tools to obtain interactive access and to maintain persistence after initial compromise.
+query: |-
+    title: AnyDesk Remote Access Execution
+    id: 9b0f4d7a-7d9f-4e56-8a4e-7a0c2a1b3c4d
+    status: experimental
+    description: >-
+      Detects execution of AnyDesk on Windows endpoints. Adversaries may use
+      legitimate remote access tools to obtain interactive access and to maintain
+      persistence after initial compromise.
+    author: Daniel Jeremiah
+    date: 2026-02-26T00:00:00.000Z
+    references:
+      - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    tags:
+      - attack.remote_services
+      - attack.t1219
+      - attack.persistence
+    level: medium
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_image:
+        Image|endswith:
+          - '\AnyDesk.exe'
+          - '\anydesk.exe'
+      selection_originalname:
+        OriginalFileName:
+          - 'AnyDesk.exe'
+          - 'anydesk.exe'
+      selection_cmd_service:
+        CommandLine|contains:
+          - ' --service'
+          - ' -service'
+          - ' --install'
+          - ' -install'
+          - ' --start-service'
+          - ' --remove'
+          - ' -remove'
+      filter_known_paths:
+        Image|contains:
+          - '\Program Files\AnyDesk\'
+          - '\Program Files (x86)\AnyDesk\'
+      condition: (selection_image or selection_originalname) and (not filter_known_paths or selection_cmd_service)
+    falsepositives:
+      - Legitimate AnyDesk use by IT support teams and managed service providers
+      - Approved remote support tooling installed in standard programme directories
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+    - TA0004
+techniques:
+    - T1219
+    - T1219.002
+    - T1543.003
+tags:
+    - attack.persistence
+    - attack.t1543.003
+    - attack.remote_services
+    - attack.t1219
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows
+    - system

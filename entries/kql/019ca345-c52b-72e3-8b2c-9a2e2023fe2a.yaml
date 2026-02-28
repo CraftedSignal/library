@@ -1,0 +1,35 @@
+id: 019ca345-c52b-72e3-8b2c-9a2e2023fe2a
+name: PowerShell Unblock-File in ProgramData for MotW Bypass
+description: Detects PowerShell using the Unblock-File cmdlet to remove the Mark-of-the-Web (MotW) from a file located in the C:\ProgramData directory. This technique was observed in an APT36 campaign to allow a staged payload to execute without triggering Windows security warnings.
+query: |-
+    // Name: PowerShell Mark-of-the-Web Bypass
+    // Author: Nomit Vyas
+    // Date: 2026-02-27
+    // Description: Detects PowerShell using the Unblock-File cmdlet to remove the Mark-of-the-Web (MotW) from a file located in the C:\ProgramData directory. This technique was observed in an APT36 campaign to allow a staged payload to execute without triggering Windows security warnings.
+    // Tactics: Defense Evasion
+    // Techniques: T1553.005
+    // References: https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for PowerShell execution events
+    | where FileName =~ "powershell.exe"
+    // The command line must contain the 'Unblock-File' cmdlet
+    | where ProcessCommandLine has "Unblock-File"
+    // The target file path is in C:\ProgramData, a common staging directory for this APT36 campaign
+    | where ProcessCommandLine has "C:\\ProgramData\\"
+    // Potential for False Positives: Legitimate administrative scripts might use this functionality.
+    // Consider filtering by parent process or known script names if false positives occur.
+    // | where InitiatingProcessFileName !in~ ("legit_admin_tool.exe")
+    | project AccountName, DeviceName, FileName, FolderPath, InitiatingProcessCommandLine, InitiatingProcessFileName, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1553.005
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/

@@ -1,0 +1,46 @@
+id: 019ca11f-3825-7564-8d76-58a2bc545026
+name: Cisco SD-WAN vmanage-admin SSH Accepted
+description: This rule detects successful SSH logins for the 'vmanage-admin' user, specifically when publickey authentication is used. This pattern is highlighted as a potential indicator of compromise, especially in the context of Cisco Catalyst SD-WAN systems and related vulnerabilities like CVE-2026-20127. The rule aims to flag highly privileged administrative access for review, prompting verification of the source IP address against authorized locations and expected maintenance windows. Unexplained access should be treated as suspicious.
+query: |+
+    title: Cisco SD-WAN vmanage-admin SSH Accepted (Potential CVE-2026-20127 Post-Access)
+    id: 3fd0c2ea-20c4-4ee4-bf7a-944a8d1d0e95
+    status: experimental
+    description: >
+      This rule is designed to highlight a login pattern that Cisco recommends reviewing when
+      assessing possible compromise of Catalyst SD WAN systems. In simple terms, it looks for a
+      successful sign in for a highly privileged administrator style account. On its own, a
+      successful login can be legitimate, so the goal is to make it easy to spot and confirm
+      whether it came from an expected location and at an expected time. If this triggers, check
+      the source address and confirm it belongs to your organization or an approved partner, and
+      verify it lines up with a real change ticket or maintenance window. If you cannot explain
+      the access, treat it as suspicious: restrict remote access, collect logs, and review nearby
+      events for configuration changes or other signs of tampering. This rule helps reduce missed
+      compromises by turning an important review step into a clear, repeatable alert for
+      defenders.
+    author: Daniel Jeremiah
+    date: 2026-02-27
+    references:
+      - https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sdwan-rpa-EHchtZk
+      - https://www.rapid7.com/blog/post/etr-critical-cisco-catalyst-vulnerability-exploited-in-the-wild-cve-2026-20127
+    logsource:
+      product: linux
+      category: authentication
+    detection:
+      selection:
+        Message|contains:
+          - "Accepted publickey for vmanage-admin from"
+      condition: selection
+    falsepositives:
+      - Legitimate administrative access to SD-WAN components (confirm source IPs are authorized).
+    level: high
+
+query_type: sigma
+severity: high
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://sec.cloudapps.cisco.com/security/center/content/CiscoSecurityAdvisory/cisco-sa-sdwan-rpa-EHchtZk
+    - https://www.rapid7.com/blog/post/etr-critical-cisco-catalyst-vulnerability-exploited-in-the-wild-cve-2026-20127
+data_sources:
+    - authentication
+    - linux

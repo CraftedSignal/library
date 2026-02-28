@@ -1,0 +1,53 @@
+id: 019c90bc-ed1b-77f9-bda4-a99f89f555bb
+name: Java (Apache ActiveMQ) Spawning CertUtil Download (CVE-2023-46604 Exploitation)
+description: The rule detects instances where a Java process (java.exe or javaw.exe) spawns certutil.exe with command-line arguments indicating a URL download. This specific pattern is associated with the exploitation of CVE-2023-46604 in Apache ActiveMQ, where certutil.exe is used to download a payload. The detection logic looks for the parent process being 'java.exe' or 'javaw.exe', the child process being 'certutil.exe', and the command line of 'certutil.exe' containing both '-urlcache' and 'http', which are indicative of a file download from a URL.
+query: |+
+    title: Java (Apache ActiveMQ) Spawning CertUtil Download (CVE-2023-46604 Exploitation)
+    id: 5a913b8f-3b4e-4a0c-8f73-7b5d2a0fb0a4
+    status: experimental
+    description: Detects `java.exe` spawning `certutil.exe` to download a payload, matching the DFIR Report CVE-2023-46604 ActiveMQ exploitation chain.
+    author: Daniel Jeremiah
+    date: 2026-02-24
+    references:
+      - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - '\java.exe'
+          - '\javaw.exe'
+      selection_child:
+        Image|endswith: '\certutil.exe'
+      selection_cli:
+        CommandLine|contains|all:
+          - '-urlcache'
+          - 'http'
+      condition: selection_parent and selection_child and selection_cli
+    falsepositives:
+      - Rare: Java applications using certutil to fetch certificates or files (validate parent process/service name and destination)
+    level: high
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1105
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1105
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+data_sources:
+    - process_creation
+    - windows

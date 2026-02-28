@@ -1,0 +1,72 @@
+id: 019c90bf-5a2e-743b-8c5b-444e6f19109b
+name: Linux Cron Persistence or IRC C2
+description: Detects Linux cron persistence, log tampering, outbound IRC ports, or compiler use from temp paths, matching SSHStalker botnet tradecraft.
+query: |
+    title: >-
+      Linux Cron Persistence or IRC C2
+    id: 3a0f5b53-6de6-4b4c-b5cc-2b6bd05a7ce0
+    status: experimental
+    description: >-
+      Detects Linux cron persistence, log tampering, outbound IRC ports, or compiler
+      use from temp paths, matching SSHStalker botnet tradecraft.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en
+    logsource:
+      product: linux
+      category: file_change
+      service: audit
+    detection:
+      cron_file_write:
+        TargetFilename|startswith:
+          - /etc/cron.d/
+          - /etc/cron.hourly/
+          - /etc/cron.daily/
+          - /var/spool/cron/
+        TargetFilename|endswith:
+          - crontab
+      utmp_wtmp_lastlog:
+        TargetFilename:
+          - /var/run/utmp
+          - /var/log/wtmp
+          - /var/log/lastlog
+      compiler_from_tmp:
+        Image|endswith:
+          - /gcc
+          - /cc
+          - /clang
+          - /make
+        CommandLine|contains:
+          - /tmp/
+          - /var/tmp/
+          - /dev/shm/
+      irc_ports:
+        DestinationPort:
+          - 6667
+          - 6697
+          - 7000
+      condition: cron_file_write or utmp_wtmp_lastlog or compiler_from_tmp or irc_ports
+    falsepositives:
+      - Legitimate cron administration and package builds (tune by host role and
+        expected toolchain usage)
+    level: medium
+    tags:
+      - attack.persistence
+      - attack.command_and_control
+      - attack.defense_evasion
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+tags:
+    - attack.persistence
+    - attack.command_and_control
+    - attack.defense_evasion
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.uvcyber.com/resources/reports/threat-advisory-sshstalker-botnet?hsLang=en
+data_sources:
+    - linux

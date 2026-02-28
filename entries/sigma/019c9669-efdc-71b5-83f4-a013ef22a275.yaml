@@ -1,0 +1,83 @@
+id: 019c9669-efdc-71b5-83f4-a013ef22a275
+name: Muddled Libra Rogue VM Tooling Execution And Staging
+description: Detects execution of tools and artefacts reported in Unit 42 Muddled Libra operational playbook, including Chisel tunnelling, PsExec, ADExplorer, S3 Browser, and goon.zip staging.
+query: |
+    title: Muddled Libra Rogue VM Tooling Execution And Staging
+    id: 6bdb7a5c-1e9b-4a7a-9b2b-6f3d2a8c1b10
+    status: experimental
+    description: >-
+      Detects execution of tools and artefacts reported in Unit 42 Muddled Libra
+      operational playbook, including Chisel tunnelling, PsExec, ADExplorer, S3
+      Browser, and goon.zip staging.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    tags:
+      - attack.command_and_control
+      - attack.t1572
+      - attack.lateral_movement
+      - attack.t1569.002
+      - attack.discovery
+      - attack.t1018
+      - attack.exfiltration
+      - attack.t1567
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_names:
+        Image|endswith:
+          - \chisel.exe
+          - \psexec.exe
+          - \ADExplorer64.exe
+          - \s3browser-12-6-1.exe
+          - \OfficeSetup.exe
+      selection_hashes:
+        Hashes|contains:
+          - SHA256=996e68f2fe1c8bb091f34e9bf39fd34d95c3e21508def1f54098a1874bfb825e
+          - SHA256=078163d5c16f64caa5a14784323fd51451b8c831c73396b967b4e35e6879937b
+          - SHA256=e451287843b3927c6046eaabd3e22b929bc1f445eec23a73b1398b115d02e4fb
+          - SHA256=6784e652f304bf8e43b42c29ad8dd146dd384fa9536b9c6640dfbc370c3e78de
+          - SHA256=6e2c39d0c00a6a8eef33f9670f941a88c957d3c1e9496392beedc98af14269a2
+      selection_cmd_chisel:
+        CommandLine|contains:
+          - client
+          - ':443'
+      condition: >-
+        selection_names or selection_hashes or (selection_names and
+        selection_cmd_chisel)
+    falsepositives:
+      - Legitimate administrative use of Sysinternals tools
+      - Legitimate use of Chisel for authorised tunnelling in lab environments
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+    - TA0007
+    - TA0010
+techniques:
+    - T1572
+    - T1569.002
+    - T1018
+    - T1567
+tags:
+    - attack.command_and_control
+    - attack.t1572
+    - attack.lateral_movement
+    - attack.t1569.002
+    - attack.discovery
+    - attack.t1018
+    - attack.exfiltration
+    - attack.t1567
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+data_sources:
+    - process_creation
+    - windows
+    - security

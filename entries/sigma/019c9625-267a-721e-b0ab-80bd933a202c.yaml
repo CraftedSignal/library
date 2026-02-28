@@ -1,0 +1,64 @@
+id: 019c9625-267a-721e-b0ab-80bd933a202c
+name: GRIDTIDE Google Sheets API C2 Style Calls From Non Browser Process
+description: |
+    Detects processes that access Google Sheets API endpoints and parameters described in GRIDTIDE reporting,
+    where the initiating process is not a common web browser. This may indicate abuse of Sheets as a C2 channel.
+query: |
+    title: GRIDTIDE Google Sheets API C2 Style Calls From Non Browser Process
+    id: 7f8b3c8b-5c4f-4d4c-8f5e-6c2f2e3b1b10
+    status: experimental
+    description: >
+      Detects processes that access Google Sheets API endpoints and parameters
+      described in GRIDTIDE reporting,
+
+      where the initiating process is not a common web browser. This may indicate
+      abuse of Sheets as a C2 channel.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/
+    tags:
+      - attack.command_and_control
+      - attack.t1071
+    logsource:
+      category: proxy
+      product: any
+    detection:
+      selection_sheets_host:
+        c-uri|contains: sheets.googleapis.com
+      selection_sheets_paths:
+        c-uri|contains:
+          - /batchClear
+          - /batchUpdate
+      selection_sheets_params:
+        c-uri|contains:
+          - valueRenderOption=FORMULA
+      filter_common_browsers:
+        cs-user-agent|contains:
+          - Mozilla
+      condition: >-
+        selection_sheets_host and (selection_sheets_paths or
+        selection_sheets_params) and not filter_common_browsers
+    falsepositives:
+      - Legitimate automation and admin scripts using Google Sheets API
+      - Developer tooling and integrations using Google APIs
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071
+    - T1071.001
+    - T1102
+tags:
+    - attack.command_and_control
+    - attack.t1071
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/disrupting-gridtide-global-espionage-campaign/
+data_sources:
+    - proxy
+    - any

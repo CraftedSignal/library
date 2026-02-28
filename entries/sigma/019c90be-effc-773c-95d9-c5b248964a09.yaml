@@ -1,0 +1,41 @@
+id: 019c90be-effc-773c-95d9-c5b248964a09
+name: npm Preinstall Adds Bun Loader Files (setup_bun.js / bun_environment.js)
+description: Detects process creation events where the command line contains references to 'setup_bun.js' or 'bun_environment.js' along with 'preinstall'. This combination is indicative of the SANDWORM_MODE Shai-Hulud-style worm, which leverages npm preinstall scripts to execute malicious JavaScript files.
+query: |+
+    title: npm Preinstall Adds Bun Loader Files (setup_bun.js / bun_environment.js)
+    id: 3c0b3f36-1b0f-4b6f-8e0b-5f4b0f5a3d2a
+    status: experimental
+    description: Detects execution referencing `setup_bun.js` or `bun_environment.js` during npm preinstall, matching the SANDWORM_MODE Shai-Hulud-style worm.
+    author: Daniel Jeremiah
+    date: 2026-02-24
+    references:
+      - https://socket.dev/blog/shai-hulud-strikes-again-v2
+    logsource:
+      category: process_creation
+    detection:
+      selection:
+        CommandLine|contains|any:
+          - 'setup_bun.js'
+          - 'bun_environment.js'
+          - 'preinstall'
+      condition: selection
+    falsepositives:
+      - Rare: legitimate projects using identically named files (validate repo context)
+    level: high
+    tags:
+      - attack.persistence
+      - attack.supply_chain
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+tags:
+    - attack.persistence
+    - attack.supply_chain
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://socket.dev/blog/shai-hulud-strikes-again-v2
+data_sources:
+    - process_creation

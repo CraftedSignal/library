@@ -1,0 +1,59 @@
+id: 019ca11f-911a-75ce-b1b7-c17b54d2d690
+name: Node Executing VS Code Repo Env Script (.vscode/env-setup.js)
+description: This rule detects when Node.js executes a script named 'env-setup.js' located within a '.vscode' directory. This pattern is often associated with malicious code execution within development projects, particularly when a developer opens and trusts a repository. The rule specifically looks for 'node.exe' as the image and the script path containing either '\.vscode\env-setup.js' or '/.vscode/env-setup.js' in the command line.
+query: |+
+    title: Node Executing VS Code Repo Env Script (.vscode/env-setup.js)
+    id: 8f4b34fa-4eea-4b04-9bbb-6b507e52e5d2
+    status: experimental
+    description: >
+      This rule is intended to protect developers by detecting a risky pattern where a coding
+      project triggers hidden code execution. In plain language, it looks for Node starting a
+      script that lives inside the project’s editor settings folder, which can run automatically
+      when a developer opens and trusts the folder. Most legitimate projects do not need to run a
+      hidden setup script from that location, so this is a useful signal to review. If this alert
+      triggers, do not assume the developer did anything wrong. Instead, treat it like a supply
+      chain risk: pause work on the repository, identify where it was obtained, and check whether
+      it matches an approved internal or public source. Then review outbound connections made at
+      the same time and look for signs of data access, such as reading environment variables or
+      project secrets. If the repository is untrusted, rotate any potentially exposed tokens and
+      notify your security team. The goal is early warning before source code or credentials are
+      stolen.
+    author: Daniel Jeremiah
+    date: 2026-02-27
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/
+    tags:
+      - attack.execution
+      - attack.t1059.007
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_img:
+        Image|endswith:
+          - '\node.exe'
+      selection_cmd:
+        CommandLine|contains:
+          - '\.vscode\env-setup.js'
+          - '/.vscode/env-setup.js'
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Legitimate developer tooling that uses similarly named scripts; validate repo provenance and network destinations.
+    level: high
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.007
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/02/24/c2-developer-targeting-campaign/
+data_sources:
+    - process_creation
+    - windows

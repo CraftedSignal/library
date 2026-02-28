@@ -1,0 +1,61 @@
+id: 019ca11f-7f52-7249-a33c-781a30c4e2ee
+name: PowerShell IWR to EmEditor Lookalike Domains
+description: This rule detects PowerShell or pwsh.exe processes executing commands that contain specific lookalike domains and paths associated with a watering-hole attack targeting EmEditor users. The rule looks for command lines containing 'emeditorjp.com', 'emeditorgb.com/run/mg8heP0r', 'emeditorde.com/gate/start/2daef8cd', or 'cachingdrive.com/gate/init/2daef8cd'. This activity indicates a potential compromise where a modified installer or malicious script is attempting to fetch additional hidden code from these domains.
+query: |+
+    title: EmEditor Watering-Hole PowerShell IWR to Lookalike Domains
+    id: 8cc5f653-5fa5-4f4b-9c99-4bc4c76acb47
+    status: experimental
+    description: >
+      This rule is meant to help spot a harmful download chain that abused the trust people place
+      in a well known editor installer. It focuses on a simple idea that is easy to understand: a
+      PowerShell command reached out to lookalike websites using specific paths that were
+      described in a public investigation. This is unusual for normal software installation and
+      can be a sign that an installer was modified to fetch additional hidden code. If this alert
+      triggers, start by identifying the user, the machine, and what program launched PowerShell.
+      Then check whether the machine recently installed or updated EmEditor and whether the
+      download source was legitimate. If you cannot confirm it was safe, isolate the host,
+      preserve the command line and related files, and review browser download history and network
+      logs for the same domains. This alert is designed to be specific so that you can act quickly
+      when a match appears in a real environment.
+    author: Daniel Jeremiah
+    date: 2026-02-27
+    references:
+      - https://www.trendmicro.com/en_us/research/26/a/watering-hole-attack-targets-emeditor-users.html
+    tags:
+      - attack.execution
+      - attack.t1059.001
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_img:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+      selection_ioc:
+        CommandLine|contains:
+          - 'emeditorjp.com'
+          - 'emeditorgb.com/run/mg8heP0r'
+          - 'emeditorde.com/gate/start/2daef8cd'
+          - 'cachingdrive.com/gate/init/2daef8cd'
+      condition: selection_img and selection_ioc
+    falsepositives:
+      - Rare; investigate any use of these specific domains/paths.
+    level: high
+
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/watering-hole-attack-targets-emeditor-users.html
+data_sources:
+    - process_creation
+    - windows

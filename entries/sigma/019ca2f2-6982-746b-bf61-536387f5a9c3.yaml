@@ -1,0 +1,71 @@
+id: 019ca2f2-6982-746b-bf61-536387f5a9c3
+name: Keystone After Hours Logon - Correlated with Identity Info
+description: |
+    Correlates IdentityLogonEvents and IdentityInfo on AccountObjectId to detect
+    after-hours access to Keystone core banking system enriched with user identity.
+    Note: The following logic is NOT expressible in Sigma and must be applied
+    post-conversion in native KQL, SPL or whatever query language you use and want
+    to convert to:
+      - Timezone conversion (UTC to PST)
+      - WeekDay function and day-of-week filtering
+      - Hour-based filtering per department
+      - summarize arg_max with bin(TimeGenerated, 5m)
+      - ManagerEmail construction via mgrSplit
+      - project-reorder
+query: |
+    title: Keystone After Hours Logon - Correlated with Identity Info
+    author: Igor Oliveira (Pr0fiLeRR)
+    id: 818663fa-dc15-4f1e-9335-faba6aef4e13
+    description: >
+      Correlates IdentityLogonEvents and IdentityInfo on AccountObjectId to detect
+
+      after-hours access to Keystone core banking system enriched with user
+      identity.
+
+      Note: The following logic is NOT expressible in Sigma and must be applied
+
+      post-conversion in native KQL, SPL or whatever query language you use and want
+
+      to convert to:
+        - Timezone conversion (UTC to PST)
+        - WeekDay function and day-of-week filtering
+        - Hour-based filtering per department
+        - summarize arg_max with bin(TimeGenerated, 5m)
+        - ManagerEmail construction via mgrSplit
+        - project-reorder
+    status: stable
+    tags:
+      - attack.t1078
+      - attack.1078.004
+    date: 2026-02-04T00:00:00.000Z
+    type: temporal
+    rules:
+      - 3cecb41c-c11f-4461-af91-e74b14ce0b6e
+      - 2b2fb88a-2c30-4036-b694-88f197b35481
+    group-by:
+      - AccountObjectId
+    timespan: 24h
+    condition:
+      gte: 1
+    fields:
+      - TimeGenerated
+      - AccountDisplayName
+      - JobTitle
+      - Department
+      - MailAddress
+      - DeviceName
+      - Manager
+      - GroupMembership
+      - AccountObjectId
+      - AccountSID
+      - AccountUPN
+    falsepositives:
+      - Authorized after-hours access by exempted departments or job titles.
+    level: high
+query_type: sigma
+severity: medium
+techniques:
+    - T1078
+    - T1078.004
+author: Igor Oliveira (Pr0fiLeRR)
+version: "1"

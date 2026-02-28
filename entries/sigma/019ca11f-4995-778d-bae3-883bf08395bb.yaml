@@ -1,0 +1,62 @@
+id: 019ca11f-4995-778d-bae3-883bf08395bb
+name: Dohdoor Malware Activity Detection
+description: This rule detects behavior associated with the Dohdoor campaign. It looks for either `curl.exe` executing with command-line arguments containing `.bat` or `.cmd`, or specific LOLBINs (`Fondue.exe`, `mblctr.exe`, `ScreenClippingHost.exe`) running from `ProgramData` or `Users\Public` directories with command-line arguments indicative of C2 communication (e.g., `/111111?sub=s`, `/111111?sub=d`, `/X111111`). This combination of activities suggests potential DLL sideloading and subsequent C2 communication, which is unusual in normal business operations.
+query: |+
+    title: Dohdoor (UAT-10027) - Cloudflare DoH + DLL Sideload Workspace
+    id: 7b5f6d3e-3b7c-4a8b-b1b9-efaa6b7c8cf6
+    status: experimental
+    description: >
+      This rule helps detect behavior linked to the Dohdoor campaign by looking for a combination
+      of clues that are unusual in normal business activity. In plain terms, the threat tries to
+      communicate out to the internet in a way that blends into everyday web traffic, and it may
+      use strange looking hostnames that imitate software or security terms. If this alert
+      triggers, it does not automatically mean a system is infected, but it does mean you should
+      review the related process and network details because these patterns are uncommon. Start by
+      identifying which computer generated the activity and what program was responsible. Then
+      check whether the destination was expected for that user or server. If you cannot justify
+      it, isolate the host, collect relevant logs, and look for other warning signs such as new
+      files, persistence changes, or repeated outbound connections at regular intervals. The goal
+      is to surface suspicious communication early so you can respond before data is accessed or
+      moved.
+    author: Daniel Jeremiah
+    date: 2026-02-27
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+      - https://raw.githubusercontent.com/Cisco-Talos/IOCs/main/2026/02/new-dohdoor-malware-campaign.txt
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_curl_bat:
+        Image|endswith: "\\curl.exe"
+        CommandLine|contains:
+          - ".bat"
+          - ".cmd"
+      selection_lolbin_from_workspace:
+        Image|endswith:
+          - "\\Fondue.exe"
+          - "\\mblctr.exe"
+          - "\\ScreenClippingHost.exe"
+        Image|contains:
+          - "\\ProgramData\\"
+          - "\\Users\\Public\\"
+      selection_c2_args:
+        CommandLine|contains:
+          - "/111111?sub=s"
+          - "/111111?sub=d"
+          - "/X111111"
+      condition: selection_curl_bat or (selection_lolbin_from_workspace and selection_c2_args)
+    falsepositives:
+      - Rare; confirm the DLL sideload companion files (propsys.dll/batmeter.dll) and follow-on DoH traffic.
+    level: high
+
+query_type: sigma
+severity: high
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    - https://raw.githubusercontent.com/Cisco-Talos/IOCs/main/2026/02/new-dohdoor-malware-campaign.txt
+data_sources:
+    - process_creation
+    - windows
