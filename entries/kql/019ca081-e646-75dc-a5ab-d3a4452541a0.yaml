@@ -1,0 +1,20 @@
+id: 019ca081-e646-75dc-a5ab-d3a4452541a0
+name: EncystPHP Privilege Escalation and SSH Persistence
+description: 'Detects two persistence techniques used by EncystPHP: the creation of backdoored root-level accounts and the injection of SSH keys into user accounts. Specifically, it looks for ''useradd'' commands creating accounts with UID 0 and specific generic usernames, and modifications to ''.ssh/authorized_keys'' files by non-root/non-sshd processes.'
+query: "// Name: EncystPHP Privilege Escalation and SSH Persistence\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects two persistence techniques used by EncystPHP: the creation of backdoored root-level accounts and the injection of SSH keys into user accounts.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp\r\n// Tactic: Persistence, Privilege Escalation\r\n// Technique: T1136.001, T1021.004\r\nlet timeframe = 1d;\r\n// Part 1: Detects creation of suspicious local accounts with root privileges (UID 0).\r\nlet suspicious_account_creation =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n// The 'useradd' command is used to create new user accounts on Linux.\r\n| where FileName =~ \"useradd\"\r\n// The malware creates accounts with UID 0 to gain root privileges.\r\n| where ProcessCommandLine has_all (\"-u\", \"0\")\r\n// EncystPHP uses a specific set of generic usernames for its backdoored accounts.\r\n| where ProcessCommandLine has_any (\"newfpbx\", \"centos\", \"admin\", \"support\", \"issabel\", \"sangoma\", \"emo\")\r\n// Potential for False Positives: An administrator might legitimately create a user named 'admin' or 'support', though assigning UID 0 is highly irregular.\r\n// Tuning: Exclude known administrative scripts or hosts if this is part of a documented, legitimate process.\r\n| project\r\n    Timestamp,\r\n    DetectionMethod = \"Suspicious Root Account Creation\",\r\n    DeviceName,\r\n    AccountName,\r\n    ActorProcess = FileName,\r\n    CommandLine = ProcessCommandLine,\r\n    ParentProcess = InitiatingProcessCommandLine;\r\n// Part 2: Detects modification of SSH authorized_keys files, a common persistence method.\r\nlet ssh_key_injection =\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n// The authorized_keys file contains public keys for SSH authentication.\r\n| where FolderPath endswith \"/.ssh\" and FileName == \"authorized_keys\"\r\n// Look for files being created or overwritten.\r\n| where ActionType in (\"FileCreated\", \"FileModified\")\r\n// The malware injects keys from a shell script, often initiated by a web process.\r\n// Filtering for non-root initiators can help focus on malicious activity.\r\n| where InitiatingProcessAccountName !in (\"root\", \"sshd\")\r\n// Potential for False Positives: Legitimate user or configuration management scripts may modify this file.\r\n// Tuning: Exclude known configuration management tools (e.g., Ansible, Puppet) or administrator accounts if they generate noise.\r\n// | where InitiatingProcessFileName !in (\"ansible\", \"puppet\")\r\n| project\r\n    Timestamp,\r\n    DetectionMethod = \"SSH Key Injection\",\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    ActorProcess = InitiatingProcessFileName,\r\n    CommandLine = InitiatingProcessCommandLine,\r\n    ParentProcess = \"\"; // Field not available, clearing for union compatibility\r\n// Combine results from both detection methods.\r\nunion suspicious_account_creation, ssh_key_injection\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0008
+techniques:
+    - T1136.001
+    - T1098.004
+    - T1021.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp

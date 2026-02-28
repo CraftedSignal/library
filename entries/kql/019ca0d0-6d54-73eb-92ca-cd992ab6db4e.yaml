@@ -1,0 +1,63 @@
+id: 019ca0d0-6d54-73eb-92ca-cd992ab6db4e
+name: JWT 'kid' Parameter Injection Attempt
+description: Detects attempts to inject path traversal or SQL-like syntax into the 'kid' (Key ID) parameter of a JSON Web Token (JWT) header. This may indicate an attempt to manipulate the server's key retrieval process to force signature validation with an improper key, potentially leading to an authentication bypass.
+query: |
+    // Name: JWT 'kid' Parameter Injection Attempt
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects attempts to inject path traversal or SQL-like syntax into the 'kid' (Key ID) parameter of a JSON Web Token (JWT) header. This may indicate an attempt to manipulate the server's key retrieval process to force signature validation with an improper key, potentially leading to an authentication bypass.
+    // MITRE TTPs: T1190 - Exploit Public-Facing Application
+    // References: https://asec.ahnlab.com/en/91676/
+    // Define the lookback period for the search.
+    let lookback = 1h;
+    // Define the web log tables to search. Adjust these to your environment.
+    let WebLogTables = union isfuzzy=true AppServiceHTTPLogs, W3CIISLog, CommonSecurityLog, AzureDiagnostics;
+    // Define suspicious patterns to look for in the 'kid' parameter.
+    let SuspiciousPatterns = dynamic(["../", "/dev/null", "SELECT ", "UNION ", "INSERT ", "UPDATE ", "DELETE ", "DROP ", "EXEC "]);
+    WebLogTables
+    | where TimeGenerated > ago(lookback)
+    // Coalesce common field names for the Authorization header.
+    | extend AuthHeader = coalesce(column_ifexists("Authorization", ""), column_ifexists("cs_Authorization", ""), column_ifexists("HttpAuthHeader", ""))
+    // Filter for requests containing a JWT Bearer token.
+    | where isnotempty(AuthHeader) and AuthHeader startswith_cs "Bearer "
+    // Extract the JWT from the header.
+    | extend JwtToken = substring(AuthHeader, 7)
+    // A JWT has three parts (header.payload.signature). Extract the encoded header.
+    | extend JwtHeaderEncoded = tostring(split(JwtToken, ".")[0])
+    // Base64Url decode the header.
+    | extend JwtHeaderDecoded = base64_decode_tostring(JwtHeaderEncoded)
+    | where isnotempty(JwtHeaderDecoded)
+    // Parse the decoded header into a JSON object.
+    | extend JwtHeaderJson = todynamic(JwtHeaderDecoded)
+    // Core Detection: Check if the 'kid' parameter exists and contains suspicious patterns.
+    | where isnotempty(JwtHeaderJson.kid)
+    | extend KidValue = tostring(JwtHeaderJson.kid)
+    | where KidValue has_any (SuspiciousPatterns)
+    // False Positive Tuning: Some applications might use 'kid' values that coincidentally contain substrings like "select".
+    // If you encounter false positives, you can add exceptions for specific hosts or known legitimate 'kid' formats.
+    // Example: | where Host !in ("app.example.com")
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        SrcIp = coalesce(SourceIP, CIp),
+        Url = coalesce(RequestURL, csUriStem),
+        UserAgent = coalesce(UserAgent, csUserAgent),
+        AuthHeader,
+        JwtHeaderDecoded,
+        InjectedKidValue = KidValue,
+        Account = coalesce(CsUsername, csUserName),
+        Result = coalesce(ResultType, scStatus, status_s, Result)
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0011
+techniques:
+    - T1190
+    - T1659
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://asec.ahnlab.com/en/91676/

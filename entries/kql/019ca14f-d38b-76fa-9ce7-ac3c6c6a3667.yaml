@@ -1,0 +1,19 @@
+id: 019ca14f-d38b-76fa-9ce7-ac3c6c6a3667
+name: IClickFix PowerShell Download and Execute Pattern
+description: Detects a PowerShell command pattern commonly used by the IClickFix framework. This involves using a hidden window to download a script (often .ps1 or .json) and execute it, bypassing the execution policy. This is a common technique following a "ClickFix" social engineering lure.
+query: "// Name: IClickFix PowerShell Download and Execute Pattern\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects a PowerShell command pattern commonly used by the IClickFix framework. This involves using a hidden window to download a script (often .ps1 or .json) and execute it, bypassing the execution policy. This is a common technique following a \"ClickFix\" social engineering lure.\r\n// MITRE TTPs: T1059.001, T1204.001, T1105\r\n// References: https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/\r\n// False Positive Sensitivity: Medium. Legitimate automation or administrative scripts may use similar patterns to download and execute code. Review the downloaded file/URL and the parent process context. Consider excluding known safe script sources or administrative tools if false positives occur.\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n// Look for PowerShell execution events.\r\n| where FileName =~ \"powershell.exe\"\r\n// The command line must contain indicators of a hidden window, a download command, and execution policy bypass.\r\n| where ProcessCommandLine has_any (\"-w hidden\", \"-windowstyle hidden\")\r\n    and ProcessCommandLine has_any (\"iwr\", \"Invoke-WebRequest\")\r\n    and ProcessCommandLine has \"Bypass\"\r\n// The command often involves downloading a .ps1 or .json file, as seen in the IClickFix campaign.\r\n| where ProcessCommandLine has \".ps1\" or ProcessCommandLine has \".json\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1204.001
+    - T1105
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/

@@ -1,0 +1,37 @@
+id: 019ca111-80d4-72bb-987f-0fe1688470c5
+name: Removable Media Air-Gap Bridge Folders
+description: Detects the creation of files within hidden folders on removable media that are designed to mimic the Windows Recycle Bin ($RECYCLE.BIN or $RECYCLE.BIN.USER). This technique is used by APT37's THUMBSBD and VIRUSTASK malware to stage malicious files (.rb, .dat) for bridging air-gapped networks.
+query: |
+    // Name: Removable Media Air-Gap Bridge Folders
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the creation of files within hidden folders on removable media that are designed to mimic the Windows Recycle Bin ($RECYCLE.BIN or $RECYCLE.BIN.USER). This technique is used by APT37's THUMBSBD and VIRUSTASK malware to stage malicious files (.rb, .dat) for bridging air-gapped networks.
+    // Tactic: Defense Evasion, Command and Control, Exfiltration
+    // Technique: T1564.001, T1092, T1052.001
+    // False Positive Sensitivity: Medium
+    // References: https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks (dc523311465115e45fd810dae43cb12a19f7a3fe5a3ed100d926eb1d8c3e4376)
+    DeviceFileEvents
+    // Look for files created in hidden folders at the root of a drive, mimicking the Recycle Bin.
+    | where FolderPath matches regex @"^[a-zA-Z]:\\\$RECYCLE\.BIN(\.USER)?\\"
+    // The malware stages Ruby scripts or other data files in these directories.
+    | where FileName endswith ".rb" or FileName endswith ".dat"
+    // The file creation is initiated by the masqueraded Ruby interpreter or PowerShell.
+    | where InitiatingProcessFileName in~ ("usbspeed.exe", "powershell.exe")
+    // FP Tuning: Legitimate backup or utility tools might use similar folder structures. If false positives occur, investigate the InitiatingProcessCommandLine to identify legitimate software that could be excluded.
+    | summarize by DeviceId, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, FolderPath, FileName, SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0011
+    - TA0010
+techniques:
+    - T1564.001
+    - T1092
+    - T1052.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks

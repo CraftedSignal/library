@@ -1,0 +1,31 @@
+id: 019ca111-d514-7461-b8d8-e83a3569c111
+name: APT37 Ruby Jumper C2 Infrastructure Detection
+description: Detects network connections to known Command and Control (C2) infrastructure associated with the APT37 Ruby Jumper campaign. This includes the C2 IP address for the FOOTWINE backdoor and the Zoho WorkDrive Client ID used by the RESTLEAF implant for exfiltration.
+query: |
+    // Name: APT37 Ruby Jumper C2 Infrastructure
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects network connections to known C2 infrastructure associated with the APT37 Ruby Jumper campaign. This includes the C2 IP for the FOOTWINE backdoor and the Zoho WorkDrive Client ID used by the RESTLEAF implant.
+    // Tactic: Command and Control, Exfiltration
+    // Technique: T1105, T1567.002
+    // False Positive Sensitivity: Medium
+    // References: https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks (dc523311465115e45fd810dae43cb12a19f7a3fe5a3ed100d926eb1d8c3e4376)
+    DeviceNetworkEvents
+    // Look for connections to the hardcoded FOOTWINE C2 IP address or URLs containing the specific Zoho WorkDrive Client ID used by the RESTLEAF implant.
+    | where RemoteIP == "144.172.106.66" or RemoteUrl has "1000.3GYW7TSOWPQUNLVY1SK3Y6TWIUNAFH"
+    // FP Tuning: These are specific indicators from the campaign. While the IP is a strong indicator, the Client ID could theoretically be reused. Investigate the initiating process if false positives occur.
+    | summarize make_set(RemoteUrl), make_set(RemoteIP) by DeviceId, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, bin(Timestamp, 1h)
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1105
+    - T1567.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks

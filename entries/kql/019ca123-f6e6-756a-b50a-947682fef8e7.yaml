@@ -1,0 +1,16 @@
+id: 019ca123-f6e6-756a-b50a-947682fef8e7
+name: Gunra Ransomware - SHA256 Keystore Creation
+description: Detects the creation of files with a 64-character hexadecimal filename followed by a '.keystore' extension. This is a unique artifact of the Gunra ransomware's 'separate keystore' mode used for storing encryption keys.
+query: "// Name: Gunra Ransomware - SHA256 Keystore Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Tactic: Impact\r\n// Technique: T1486\r\n// References: https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker\r\n// Description: Detects the creation of files with a 64-character hexadecimal filename followed by a '.keystore' extension. This is a unique artifact of the Gunra ransomware's 'separate keystore' mode used for storing encryption keys.\r\nlet timeframe = 1d;\r\n// This regex matches a filename that consists of exactly 64 hexadecimal characters followed by the .keystore extension.\r\nlet keystore_pattern = @\"^[0-9a-fA-F]{64}\\.keystore$\";\r\n// FP Tuning: Add legitimate processes that may create files with this pattern to this list.\r\nlet process_allowlist = dynamic([]);\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n// Filter for file creation events.\r\n| where ActionType == \"FileCreated\"\r\n// Filter for processes not in the allowlist.\r\n| where not(InitiatingProcessFileName in~ (process_allowlist))\r\n// Match the specific filename pattern associated with Gunra's keystore files.\r\n| where FileName matches regex keystore_pattern\r\n| project\r\n    Timestamp,\r\n    DeviceId,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA1,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker

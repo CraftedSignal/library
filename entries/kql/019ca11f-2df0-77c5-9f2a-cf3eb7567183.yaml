@@ -1,0 +1,43 @@
+id: 019ca11f-2df0-77c5-9f2a-cf3eb7567183
+name: External Plug and Play Device Connection
+description: This rule detects the connection of external Plug and Play (PnP) devices, including USB storage, to a system. It identifies events where a USB drive is mounted or a generic PnP device is connected, extracting details such as vendor, product ID, and serial number for investigation.
+query: |
+    // This query detects the connection of external Plug and Play (PnP) devices, including USB storage.
+    DeviceEvents
+    // Filter for events indicating a USB drive was mounted or a PnP device was connected.
+    | where ActionType in ("UsbDriveMounted", "PnpDeviceConnected")
+    // Parse the JSON data in AdditionalFields to access detailed device properties.
+    | extend ParsedFields = todynamic(AdditionalFields)
+    | extend
+        ClassName = tostring(ParsedFields.ClassName),
+        Vendor = tostring(ParsedFields.Vendor),
+        DeviceDescription = tostring(ParsedFields.DeviceDescription),
+        ProductId = tostring(ParsedFields.ProductId),
+        SerialNumber = tostring(ParsedFields.SerialNumber)
+    // FP Tuning: To reduce noise from common devices (monitors, printers, etc.), uncomment and customize the line below.
+    // | where ClassName !in~ ("Monitor", "PrintQueue", "Image", "Camera", "System", "HDC") and Vendor !in~ ("Microsoft")
+    // Select and rename the most relevant fields for investigation.
+    | project
+        Timestamp,
+        DeviceName,
+        ActionType,
+        AccountName = InitiatingProcessAccountName,
+        ClassName,
+        Vendor,
+        DeviceDescription,
+        ProductId,
+        SerialNumber,
+        ReportId,
+        InitiatingProcessAccountDomain,
+        InitiatingProcessAccountUpn
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0001
+techniques:
+    - T1091
+tags:
+    - kql
+version: "2"

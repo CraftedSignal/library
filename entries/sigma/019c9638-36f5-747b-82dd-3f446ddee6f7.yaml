@@ -1,0 +1,66 @@
+id: 019c9638-36f5-747b-82dd-3f446ddee6f7
+name: Agent Tesla Multi Stage - Office Spawns Script Engine Or LOLBIN
+description: Detects Office applications spawning scripting engines or LOLBINs often used in multi stage delivery chains associated with Agent Tesla style campaigns.
+query: |
+    title: Agent Tesla Multi Stage - Office Spawns Script Engine Or LOLBIN
+    id: 6f1d6f3c-3f67-4a65-9a5b-8e7d6d3b2b10
+    status: experimental
+    description: >-
+      Detects Office applications spawning scripting engines or LOLBINs often used
+      in multi stage delivery chains associated with Agent Tesla style campaigns.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    tags:
+      - attack.initial_access
+      - attack.t1566
+      - attack.execution
+      - attack.t1059
+    logsource:
+      product: windows
+      category: process_creation
+      service: sysmon
+    detection:
+      selection_parent_office:
+        ParentImage|endswith:
+          - \WINWORD.EXE
+          - \EXCEL.EXE
+          - \POWERPNT.EXE
+          - \OUTLOOK.EXE
+      selection_child_scripts:
+        Image|endswith:
+          - \wscript.exe
+          - \cscript.exe
+          - \mshta.exe
+          - \powershell.exe
+          - \pwsh.exe
+          - \cmd.exe
+          - \rundll32.exe
+          - \regsvr32.exe
+      condition: selection_parent_office and selection_child_scripts
+    falsepositives:
+      - Legitimate macros or add-ins spawning automation tools
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1059
+tags:
+    - attack.initial_access
+    - attack.t1566
+    - attack.execution
+    - attack.t1059
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

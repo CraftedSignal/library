@@ -1,0 +1,56 @@
+id: 019ca09d-b2c2-757e-9031-cf54b554f137
+name: PowerShell Download from LNK File Execution
+description: Detects instances where a LNK file execution is followed by the launch of a PowerShell process that contains command-line arguments for downloading and/or executing content from the internet. This behavior is the initial execution step in the attack chain detailed in the referenced Fortinet report.
+query: |
+    // Name: PowerShell Download from LNK File
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects instances where a LNK file execution is followed by the launch of a PowerShell process that contains command-line arguments for downloading and/or executing content from the internet. This behavior is the initial execution step in the attack chain detailed in the referenced Fortinet report.
+    // Mitre ATT&CK: T1566.001 - Phishing: Spearphishing Attachment, T1059.001 - Command and Scripting Interpreter: PowerShell
+    // References: https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    // False Positive Sensitivity: Medium
+    // Comment Level: Medium
+    // Define keywords associated with downloading or executing remote content via PowerShell.
+    let downloadKeywords = dynamic(["irm", "iex", "Invoke-WebRequest", "DownloadFile", "System.Net.WebClient"]);
+    DeviceProcessEvents
+    // Filter for PowerShell process creation events.
+    | where FileName =~ "powershell.exe"
+    // Check if the PowerShell command line contains any of the download-related keywords.
+    | where ProcessCommandLine has_any (downloadKeywords)
+    // Check if the parent process's command line indicates it was launched from a .lnk file.
+    // When a user clicks a LNK file, explorer.exe's command line often contains the path to the .lnk file.
+    | where InitiatingProcessCommandLine has ".lnk"
+    // FP Tuning: Legitimate administrative scripts or software installers might be launched via LNK files and download components.
+    // If false positives occur, consider excluding specific parent processes (InitiatingProcessFileName) or known safe download URLs from the PowerShell command line.
+    | extend
+        timestamp = TimeGenerated,
+        hostName = DeviceName,
+        accountName = AccountName,
+        parentProcessName = InitiatingProcessFileName,
+        parentCommandLine = InitiatingProcessCommandLine,
+        processName = FileName,
+        commandLine = ProcessCommandLine
+    | project-reorder
+        timestamp,
+        hostName,
+        accountName,
+        parentProcessName,
+        parentCommandLine,
+        processName,
+        commandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0005
+techniques:
+    - T1566.001
+    - T1059.001
+    - T1027.012
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign

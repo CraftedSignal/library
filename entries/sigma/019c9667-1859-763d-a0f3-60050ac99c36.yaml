@@ -1,0 +1,66 @@
+id: 019c9667-1859-763d-a0f3-60050ac99c36
+name: 'OpenClaw macOS Remote Download '
+description: Detects curl or wget download followed by chmod and execution, consistent with staged malware delivery used by malicious OpenClaw skills distributing AMOS.
+query: |
+    title: "OpenClaw macOS Remote Download "
+    id: 4c2a7f19-2c0c-4d4e-9c2b-7a8c2e6a1d55
+    status: experimental
+    description: >-
+      Detects curl or wget download followed by chmod and execution, consistent with
+      staged malware delivery used by malicious OpenClaw skills distributing AMOS.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+      - https://socprime.com/active-threats/openclaw-malicious-skill-trap/
+      - >-
+        https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+    tags:
+      - attack.command_and_control
+      - attack.t1105
+      - attack.execution
+      - attack.t1059.004
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_download:
+        CommandLine|contains:
+          - 'curl '
+          - 'wget '
+      selection_exec_chain:
+        CommandLine|contains:
+          - chmod +x
+          - ./
+      selection_susp_hosts:
+        CommandLine|contains:
+          - glot.io
+          - gist.githubusercontent.com
+          - paste
+      condition: selection_download and selection_exec_chain and selection_susp_hosts
+    falsepositives:
+      - Legitimate installers that use curl or wget in scripts
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059.004
+tags:
+    - attack.command_and_control
+    - attack.t1105
+    - attack.execution
+    - attack.t1059.004
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+    - https://socprime.com/active-threats/openclaw-malicious-skill-trap/
+    - https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+data_sources:
+    - process_creation
+    - macos

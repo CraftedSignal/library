@@ -1,0 +1,64 @@
+id: 019ca0d0-d636-718f-9eb8-d1f736f7b32e
+name: Anomalous JWT Expiration Time
+description: This detection identifies JSON Web Tokens (JWTs) with an expiration time ("exp" claim) that is set unusually far in the future. Attackers may forge tokens with long lifespans to maintain persistent access after an initial compromise.
+query: |
+    // Name: Anomalous JWT Expiration Time
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: This detection identifies JSON Web Tokens (JWTs) with an expiration time ("exp" claim) that is set unusually far in the future. Attackers may forge tokens with long lifespans to maintain persistent access after an initial compromise.
+    // MITRE TTPs: T1134 - Access Token Manipulation
+    // References: https://asec.ahnlab.com/en/91676/
+    // Define the lookback period for the search.
+    let lookback = 1h;
+    // Define the threshold for what is considered an anomalous future expiration date. Adjust as needed.
+    let expiration_threshold = 30d;
+    // Define the web log tables to search. Adjust these to your environment.
+    let WebLogTables = union isfuzzy=true AppServiceHTTPLogs, W3CIISLog, CommonSecurityLog, AzureDiagnostics;
+    WebLogTables
+    | where TimeGenerated > ago(lookback)
+    // Coalesce common field names for the Authorization header.
+    | extend AuthHeader = coalesce(column_ifexists("Authorization", ""), column_ifexists("cs_Authorization", ""), column_ifexists("HttpAuthHeader", ""))
+    // Filter for requests containing a JWT Bearer token.
+    | where isnotempty(AuthHeader) and AuthHeader startswith_cs "Bearer "
+    // Extract the JWT from the header.
+    | extend JwtToken = substring(AuthHeader, 7)
+    // A JWT has three parts (header.payload.signature). Extract the encoded payload.
+    | extend JwtPayloadEncoded = tostring(split(JwtToken, ".")[1])
+    // Base64Url decode the payload.
+    | extend JwtPayloadDecoded = base64_decode_tostring(JwtPayloadEncoded)
+    | where isnotempty(JwtPayloadDecoded)
+    // Parse the decoded payload into a JSON object.
+    | extend JwtPayloadJson = todynamic(JwtPayloadDecoded)
+    // Core Detection: Check if the 'exp' (expiration time) claim exists and is set further in the future than the defined threshold.
+    | where isnotempty(JwtPayloadJson.exp)
+    | extend ExpirationTime = unixtime_seconds_todatetime(tolong(JwtPayloadJson.exp))
+    | where ExpirationTime > now() + expiration_threshold
+    // False Positive Tuning: Some applications or services (e.g., for machine-to-machine communication or refresh tokens) might legitimately issue long-lived tokens.
+    // If you encounter false positives, add exceptions for specific hosts, user agents, or known accounts.
+    // Example: | where Host !in ("long-lived-token-app.example.com")
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        SrcIp = coalesce(SourceIP, CIp),
+        Url = coalesce(RequestURL, csUriStem),
+        UserAgent = coalesce(UserAgent, csUserAgent),
+        AuthHeader,
+        JwtPayloadDecoded,
+        ExpirationTime,
+        Account = coalesce(CsUsername, csUserName, tostring(JwtPayloadJson.sub), tostring(JwtPayloadJson.name)),
+        Result = coalesce(ResultType, scStatus, status_s, Result)
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0006
+techniques:
+    - T1134
+    - T1606
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://asec.ahnlab.com/en/91676/

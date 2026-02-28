@@ -1,0 +1,57 @@
+id: 019c966b-54bf-73b7-b40f-30c9bcad1822
+name: Muddled Libra Suspected AD Database
+description: Detects creation or presence of NTDS.dit and SYSTEM hive files in a user desktop context, consistent with reported domain controller disk mount and offline credential dumping activity.
+query: |
+    title: "Muddled Libra Suspected AD Database"
+    id: 3f2f1a6b-4e51-4e2f-9a1c-8b6a2d7c1e11
+    status: experimental
+    description: >-
+      Detects creation or presence of NTDS.dit and SYSTEM hive files in a user
+      desktop context, consistent with reported domain controller disk mount and
+      offline credential dumping activity.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+    tags:
+      - attack.credential_access
+      - attack.t1003.003
+    logsource:
+      product: windows
+      category: file_event
+      service: sysmon
+    detection:
+      selection_paths:
+        TargetFilename|contains: \Users\
+      selection_desktop:
+        TargetFilename|contains: \Desktop\
+      selection_files:
+        TargetFilename|endswith:
+          - \ntds.dit
+          - \SYSTEM
+          - \result
+          - \result.kerb
+      condition: selection_paths and selection_desktop and selection_files
+    falsepositives:
+      - Domain controller backup operations that export NTDS and registry hives to
+        non standard locations
+      - Forensic acquisition by authorised incident response teams
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003.003
+    - T1003
+tags:
+    - attack.credential_access
+    - attack.t1003.003
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/muddled-libra-ops-playbook/
+data_sources:
+    - file_event
+    - windows
+    - sysmon

@@ -1,0 +1,18 @@
+id: 019ca132-ca77-7528-a8ae-41e0ccd1af86
+name: Suspicious Extrac32 Archive Extraction from User-Writable Locations
+description: Detects the use of the living-off-the-land binary (LOLBIN) extrac32.exe to decompress cabinet (.cab) or .vstm files from user-writable locations. This technique is used by loaders like CastleLoader to unpack malicious stages.
+query: "// Name: Suspicious Extrac32 Archive Extraction\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the use of the living-off-the-land binary (LOLBIN) extrac32.exe to decompress cabinet (.cab) or .vstm files from user-writable locations. This technique is used by loaders like CastleLoader to unpack malicious stages.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.bitdefender.com/en-us/blog/labs/lummastealer-second-life-castleloader\r\n// Tactics: Defense Evasion, Execution\r\n// Techniques: T1202, T1140\r\nDeviceProcessEvents\r\n// Look for the execution of the cabinet file extractor utility.\r\n| where FileName =~ \"extrac32.exe\"\r\n// The /Y switch suppresses prompts when overwriting files, and /E extracts all files. Both are common in malicious scripts.\r\n| where ProcessCommandLine has_any (\"/Y\", \"/E\")\r\n// CastleLoader was observed using .vstm and .cab extensions for its packed components.\r\n| where ProcessCommandLine matches regex @\"(?i)\\.(vstm|cab)\\b\"\r\n// Filter for execution from common temporary or user-writable directories where malware often drops its components.\r\n| where FolderPath has_any (@\"\\AppData\\Local\\Temp\\\", @\"\\AppData\\Roaming\\\", @\"\\Users\\\")\r\n// Potential for false positives: Legitimate software installers may use extrac32.exe.\r\n// Tuning may be required to exclude known good parent processes or installer paths.\r\n// For example: `| where not(ParentProcessFileName in~ (\"setup.exe\", \"installer.exe\") and InitiatingProcessFolderPath contains \"known_good_path\")`\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    ProcessVersionInfoOriginalFileName,\r\n    FolderPath,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1202
+    - T1140
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.bitdefender.com/en-us/blog/labs/lummastealer-second-life-castleloader

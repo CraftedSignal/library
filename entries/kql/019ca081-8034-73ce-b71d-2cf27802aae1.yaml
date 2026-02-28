@@ -1,0 +1,17 @@
+id: 019ca081-8034-73ce-b71d-2cf27802aae1
+name: EncystPHP Aggressive File Permission Lockout
+description: Detects the execution of 'chmod 000' against PHP files in common FreePBX/Elastix web server directories. This is a high-fidelity indicator of the EncystPHP web shell attempting to lock out administrators and prevent inspection of its malicious files.
+query: "// Name: EncystPHP Aggressive File Permission Lockout\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the execution of 'chmod 000' against PHP files in common FreePBX/Elastix web server directories. This is a high-fidelity indicator of the EncystPHP web shell attempting to lock out administrators and prevent inspection of its malicious files.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp\r\n// Tactic: Defense Evasion\r\n// Technique: T1222.002, T1562.001\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n// Look for the execution of the 'chmod' utility.\r\n| where FileName =~ \"chmod\"\r\n// The malware uses 'chmod 000' to render PHP files unreadable, unwritable, and non-executable.\r\n| where ProcessCommandLine has \"000\" and ProcessCommandLine contains \".php\"\r\n// The attack specifically targets common FreePBX/Elastix web directories.\r\n// Focusing on these paths helps reduce false positives from legitimate, albeit unusual, admin activity.\r\n| where FolderPath has_any (\"/var/www/html/admin/modules\", \"/var/www/html/admin/views\")\r\n    or ProcessCommandLine has_any (\"/var/www/html/admin/modules\", \"/var/www/html/admin/views\")\r\n// Potential for False Positives: While 'chmod 000' on a web file is highly irregular, a system administrator could perform this action for a specific reason.\r\n// Tuning: If false positives occur, consider excluding known administrator accounts or specific scripts if this is part of a legitimate, documented workflow.\r\n// | where InitiatingProcessAccountName !in (\"admin_account1\", \"admin_account2\")\r\n| project-reorder Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, FolderPath, InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1222.002
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp

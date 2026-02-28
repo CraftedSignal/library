@@ -1,0 +1,58 @@
+id: 019ca0cf-b17c-709f-9afd-8b527d9b4097
+name: JWT Signature Bypass Attempt with alg:none
+description: Detects potential JSON Web Token (JWT) authentication bypass attempts where the algorithm in the token header is explicitly set to "none". A vulnerable server might skip signature validation for such tokens, allowing an attacker to forge arbitrary claims and potentially gain unauthorized access or escalate privileges.
+query: |
+    // Name: JWT Signature Bypass Attempt with alg:none
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects potential JSON Web Token (JWT) authentication bypass attempts where the algorithm in the token header is set to "none". A vulnerable server might skip signature validation for such tokens, allowing an attacker to forge arbitrary claims.
+    // MITRE TTPs: T1134.002 - Create Account: Create Web Account
+    // References: https://asec.ahnlab.com/en/91676/
+    // Define the table(s) containing web server or application logs.
+    // You may need to adjust this to match your environment (e.g., AppServiceHTTPLogs, W3CIISLog, CommonSecurityLog, or custom tables).
+    let lookback = 1h;
+    let WebLogTables = union isfuzzy=true AppServiceHTTPLogs, W3CIISLog, CommonSecurityLog, AzureDiagnostics;
+    WebLogTables
+    | where TimeGenerated > ago(lookback)
+    // Filter for requests likely containing a JWT Bearer token in the Authorization header.
+    // The 'AuthHeader' field is created by coalescing common field names for authorization headers.
+    | extend AuthHeader = coalesce(column_ifexists("Authorization", ""), column_ifexists("cs_Authorization", ""), column_ifexists("HttpAuthHeader", ""))
+    | where isnotempty(AuthHeader) and AuthHeader startswith_cs "Bearer "
+    // Extract the token string from the header.
+    | extend JwtToken = substring(AuthHeader, 7)
+    // A JWT has 3 parts separated by a dot: header.payload.signature. We need the header.
+    | extend JwtHeaderEncoded = tostring(split(JwtToken, ".")[0])
+    // Decode the Base64Url encoded header to a string.
+    | extend JwtHeaderDecoded = base64_decode_tostring(JwtHeaderEncoded)
+    | where isnotempty(JwtHeaderDecoded)
+    // Parse the decoded JSON header into a dynamic object.
+    | extend JwtHeaderJson = todynamic(JwtHeaderDecoded)
+    // Core detection: Check if the algorithm ('alg') claim is explicitly set to 'none'.
+    | where isnotempty(JwtHeaderJson.alg) and tostring(JwtHeaderJson.alg) =~ "none"
+    // False Positive Tuning: This detection identifies the attempt. A vulnerable server is required for it to be successful.
+    // If your applications legitimately (but insecurely) use 'alg:none', you may need to filter them out by hostname or source IP.
+    // Example: | where Host !in ("known-insecure-app.example.com")
+    // Project relevant fields for investigation. Adjust field names as needed for your schema.
+    | project
+        TimeGenerated,
+        SrcIp = coalesce(SourceIP, CIp),
+        Url = coalesce(RequestURL, csUriStem),
+        UserAgent = coalesce(UserAgent, csUserAgent),
+        AuthHeader,
+        JwtHeaderDecoded,
+        Account = coalesce(CsUsername, csUserName),
+        Result = coalesce(ResultType, scStatus, status_s, Result)
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1190
+    - T1212
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://asec.ahnlab.com/en/91676/

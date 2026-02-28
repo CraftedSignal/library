@@ -1,0 +1,58 @@
+id: 019ca09d-5358-73ba-b1ca-424eefff9323
+name: Multiple System Recovery Inhibition Commands
+description: This rule detects the execution of multiple distinct commands used to inhibit system recovery on a single host within a short time window. This behavior is a strong indicator of ransomware or other destructive malware attempting to prevent system restoration.
+query: |
+    // Name: Inhibition of System Recovery via Command-Line Tools
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: This rule detects the execution of multiple distinct commands used to inhibit system recovery on a single host within a short time window. This behavior is a strong indicator of ransomware or other destructive malware attempting to prevent system restoration.
+    // Mitre ATT&CK: T1490 - Inhibit System Recovery
+    // References: https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    // False Positive Sensitivity: Medium
+    // Comment Level: Medium
+    // Define the time window and the threshold for the number of distinct commands.
+    let timeWindow = 10m;
+    let threshold = 2;
+    DeviceProcessEvents
+    // Pre-filter for the specific utilities to improve performance.
+    | where FileName in ("reagentc.exe", "wbadmin.exe", "vssadmin.exe")
+    // Filter for the specific command-line arguments associated with inhibiting recovery.
+    | where
+        (FileName =~ "reagentc.exe" and ProcessCommandLine has "/disable")
+        or (FileName =~ "wbadmin.exe" and ProcessCommandLine has "delete" and ProcessCommandLine has "catalog")
+        or (FileName =~ "vssadmin.exe" and ProcessCommandLine has "delete" and ProcessCommandLine has "shadows")
+    // Aggregate events by host over the defined time window.
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        CommandsExecuted = make_set(ProcessCommandLine, 10),
+        DistinctCommandCount = dcount(ProcessCommandLine),
+        ParentProcess = tostring(any(InitiatingProcessFileName))
+        by bin(TimeGenerated, timeWindow), DeviceName, AccountName
+    // Trigger an alert if the number of distinct recovery-inhibition commands meets or exceeds the threshold.
+    | where DistinctCommandCount >= threshold
+    // FP Tuning: While the combination of these commands is highly suspicious, legitimate system administration or decommissioning scripts might trigger this rule.
+    // If false positives occur, consider excluding known administrative accounts or specific parent processes associated with approved automation tools.
+    | extend
+        timestamp = StartTime,
+        hostName = DeviceName,
+        accountName = AccountName
+    | project-reorder
+        timestamp,
+        hostName,
+        accountName,
+        ParentProcess,
+        DistinctCommandCount,
+        CommandsExecuted
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1490
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign

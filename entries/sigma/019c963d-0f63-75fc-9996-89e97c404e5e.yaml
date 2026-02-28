@@ -1,0 +1,66 @@
+id: 019c963d-0f63-75fc-9996-89e97c404e5e
+name: Agent Tesla Multi Stage - Payload Executed
+description: Detects execution of a suspicious payload from common staging locations used in multi stage campaigns.
+query: |
+    title: "Agent Tesla Multi Stage - Payload Executed"
+    id: 3d2a8b21-0f2b-4d6a-9c3a-6a2d1f9a4c32
+    status: experimental
+    description: >-
+      Detects execution of a suspicious payload from common staging locations used
+      in multi stage campaigns.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+    tags:
+      - attack.execution
+      - attack.t1204
+    logsource:
+      product: windows
+      category: process_creation
+      service: sysmon
+    detection:
+      selection_path:
+        Image|contains:
+          - \AppData\Local\Temp\
+          - \Windows\Temp\
+          - \Users\Public\
+          - \ProgramData\
+      selection_ext:
+        Image|endswith:
+          - .exe
+          - .dll
+          - .scr
+      selection_parent:
+        ParentImage|endswith:
+          - \powershell.exe
+          - \pwsh.exe
+          - \wscript.exe
+          - \cscript.exe
+          - \mshta.exe
+          - \cmd.exe
+          - \WINWORD.EXE
+          - \EXCEL.EXE
+          - \POWERPNT.EXE
+      condition: selection_path and selection_ext and selection_parent
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204
+    - T1059.001
+    - T1218.005
+tags:
+    - attack.execution
+    - attack.t1204
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

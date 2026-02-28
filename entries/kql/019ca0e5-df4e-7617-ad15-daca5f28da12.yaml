@@ -1,0 +1,16 @@
+id: 019ca0e5-df4e-7617-ad15-daca5f28da12
+name: Linux - Covert Rsync Exfiltration via GSocket
+description: Detects the execution of rsync using GSocket-based user-space tunnels (gs-dbus, gs-netcat) as the transport shell. This is a core, stealthy exfiltration technique used by the ShadowHS framework to bypass traditional network inspection and firewall rules.
+query: "// Name: Linux - Covert Rsync Exfiltration via GSocket\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the execution of rsync using GSocket-based user-space tunnels (gs-dbus, gs-netcat) as the transport shell. This is a core, stealthy exfiltration technique used by the ShadowHS framework to bypass traditional network inspection and firewall rules.\r\n// Tactics: Exfiltration\r\n// Techniques: T1048.003\r\n// References: https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/\r\n// False Positive Sensitivity: Medium. This is a highly specific and suspicious command combination. However, legitimate custom synchronization scripts could potentially use this transport mechanism, although it is rare.\r\nDeviceProcessEvents\r\n// Detects rsync being used with a custom transport shell.\r\n| where FileName =~ \"rsync\"\r\n    and ProcessCommandLine has \"-e\"\r\n// Specifically looks for GSocket user-space tunnels used by ShadowHS for covert exfiltration.\r\n    and (ProcessCommandLine contains \"gs-dbus\" or ProcessCommandLine contains \"gs-netcat\")\r\n// Potential for False Positives: While unlikely, custom-developed tools might use this for legitimate purposes.\r\n// Investigate the user, parent process, and destination to determine legitimacy.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1048.003
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/

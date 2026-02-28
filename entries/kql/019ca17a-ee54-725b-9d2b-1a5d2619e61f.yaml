@@ -1,0 +1,16 @@
+id: 019ca17a-ee54-725b-9d2b-1a5d2619e61f
+name: PowerShell Mark-of-the-Web Bypass in ProgramData
+description: Detects PowerShell using the Unblock-File cmdlet to remove the Mark-of-the-Web (MotW) from a file located in the C:\ProgramData directory. This technique was observed in an APT36 campaign to allow a staged payload to execute without triggering Windows security warnings.
+query: "// Name: PowerShell Mark-of-the-Web Bypass\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects PowerShell using the Unblock-File cmdlet to remove the Mark-of-the-Web (MotW) from a file located in the C:\\ProgramData directory. This technique was observed in an APT36 campaign to allow a staged payload to execute without triggering Windows security warnings.\r\n// Tactics: Defense Evasion\r\n// Techniques: T1553.005\r\n// References: https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for PowerShell execution events\r\n| where FileName =~ \"powershell.exe\"\r\n// The command line must contain the 'Unblock-File' cmdlet\r\n| where ProcessCommandLine has \"Unblock-File\"\r\n// The target file path is in C:\\ProgramData, a common staging directory for this APT36 campaign\r\n| where ProcessCommandLine has \"C:\\\\ProgramData\\\\\"\r\n// Potential for False Positives: Legitimate administrative scripts might use this functionality.\r\n// Consider filtering by parent process or known script names if false positives occur.\r\n// | where InitiatingProcessFileName !in~ (\"legit_admin_tool.exe\")\r\n| project AccountName, DeviceName, FileName, FolderPath, InitiatingProcessCommandLine, InitiatingProcessFileName, ProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1553.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cyfirma.com/research/apt36-multi-vector-execution-malware-campaign-targeting-indian-government-entities/

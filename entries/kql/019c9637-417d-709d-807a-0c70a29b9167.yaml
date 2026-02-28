@@ -1,0 +1,96 @@
+id: 019c9637-417d-709d-807a-0c70a29b9167
+name: Agent Tesla multi stage campaign hunt
+description: Agent Tesla multi stage campaign hunt KQL Query
+query: |-
+    // Agent Tesla multi stage campaign hunt (Microsoft KQL, Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://www.fortinet.com/blog/threat-research/unmasking-agent-tesla-deep-dive-into-multi-stage-campaign
+
+    let Lookback = 14d;
+
+    // Common staging locations and script engines often used in multi stage chains
+    let SuspPaths = dynamic(["\\AppData\\Local\\Temp\\","\\Temp\\","\\Users\\Public\\","\\ProgramData\\"]);
+    let ScriptEngines = dynamic(["wscript.exe","cscript.exe","mshta.exe","powershell.exe","pwsh.exe","cmd.exe","rundll32.exe","regsvr32.exe"]);
+    let OfficeParents = dynamic(["winword.exe","excel.exe","powerpnt.exe","outlook.exe"]);
+    let DownloadKeywords = dynamic([
+      "invoke-webrequest","iwr","wget","curl","Start-BitsTransfer","bitsadmin",
+      "System.Net.WebClient","DownloadString","DownloadFile","FromBase64String"
+    ]);
+
+    // Agent Tesla frequently uses SMTP or FTP for exfil, so alert on unusual processes reaching those ports
+    let ExfilPorts = dynamic([21, 25, 465, 587, 990]);
+
+    union isfuzzy=true
+    (
+      // 1) Office spawning script engines or LOLBINs
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where InitiatingProcessFileName in~ (OfficeParents)
+      | where FileName in~ (ScriptEngines)
+      | extend MatchType = "office_spawns_script_or_lolbin"
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName,
+                InitiatingProcessFileName, InitiatingProcessCommandLine,
+                FileName, FolderPath, ProcessCommandLine, SHA256, ReportId
+    ),
+    (
+      // 2) Script engine execution from suspicious folders with download or decode primitives
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FileName in~ (ScriptEngines)
+      | where FolderPath has_any (SuspPaths) or ProcessCommandLine has_any (SuspPaths)
+      | where ProcessCommandLine has_any (DownloadKeywords)
+      | extend MatchType = "script_engine_download_or_decode_from_susp_path"
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName,
+                FileName, FolderPath, ProcessCommandLine, SHA256,
+                InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                ReportId
+    ),
+    (
+      // 3) Suspicious process execution from Temp or Public that looks like a dropped payload
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FolderPath has_any (SuspPaths)
+      | where FileName endswith ".exe" or FileName endswith ".dll"
+      | where InitiatingProcessFileName in~ (ScriptEngines) or InitiatingProcessFileName in~ (OfficeParents)
+      | extend MatchType = "dropped_payload_execution_from_susp_path"
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName,
+                FileName, FolderPath, ProcessCommandLine, SHA256,
+                InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                ReportId
+    ),
+    (
+      // 4) Creation of executables or scripts in Temp or Public by script engines
+      DeviceFileEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FolderPath has_any (SuspPaths)
+      | where FileName endswith ".exe" or FileName endswith ".dll" or FileName endswith ".ps1" or FileName endswith ".vbs" or FileName endswith ".js" or FileName endswith ".jse"
+      | where InitiatingProcessFileName in~ (ScriptEngines)
+      | extend MatchType = "script_engine_drops_payload_or_script"
+      | project TimeGenerated, DeviceName, MatchType,
+                ActionType, FileName, FolderPath, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                ReportId
+    ),
+    (
+      // 5) Network connections to SMTP or FTP ports from unusual initiating processes
+      DeviceNetworkEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where RemotePort in (ExfilPorts)
+      | where InitiatingProcessFileName !in~ (dynamic(["outlook.exe","thunderbird.exe","msedge.exe","chrome.exe","firefox.exe"]))
+      | extend MatchType = "possible_exfil_smtp_or_ftp_from_unusual_process"
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteIP, RemotePort, RemoteUrl,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessSHA256,
+                ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"

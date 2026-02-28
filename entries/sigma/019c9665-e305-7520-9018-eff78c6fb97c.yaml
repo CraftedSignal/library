@@ -1,0 +1,62 @@
+id: 019c9665-e305-7520-9018-eff78c6fb97c
+name: macOS Quarantine Writable Path
+description: Detects xattr quarantine removal on a file in a writable location, often used before executing downloaded malware such as AMOS delivered via malicious skills.
+query: |
+    title: macOS Quarantine Writable Path
+    id: 9b0f2d8c-6b2d-4c1a-8d3a-1f6a2b7c4e33
+    status: experimental
+    description: >-
+      Detects xattr quarantine removal on a file in a writable location, often used
+      before executing downloaded malware such as AMOS delivered via malicious
+      skills.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+      - https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+    tags:
+      - attack.defense_evasion
+      - attack.t1222.002
+      - attack.execution
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_xattr:
+        Image|endswith:
+          - /xattr
+        CommandLine|contains:
+          - com.apple.quarantine
+      selection_remove:
+        CommandLine|contains:
+          - '-d'
+          - '-dr'
+          - '-r'
+      selection_writable_paths:
+        CommandLine|contains:
+          - /tmp/
+          - /var/tmp/
+          - /Users/
+          - /Downloads/
+          - /Library/Application Support/
+      condition: selection_xattr and selection_remove and selection_writable_paths
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1222.002
+tags:
+    - attack.defense_evasion
+    - attack.t1222.002
+    - attack.execution
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+    - https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+data_sources:
+    - process_creation
+    - macos

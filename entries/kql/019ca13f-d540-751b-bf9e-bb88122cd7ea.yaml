@@ -1,0 +1,19 @@
+id: 019ca13f-d540-751b-bf9e-bb88122cd7ea
+name: Suspicious Process Spawned by services.exe
+description: Detects when the Windows Service Control Manager (services.exe) spawns a suspicious child process. This can indicate an attacker has configured a service's recovery options to execute a malicious command or script upon service failure.
+query: "// Name: Suspicious Process Spawned by services.exe\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Tactic: Persistence, Privilege Escalation\r\n// Technique: T1543.003 - Create or Modify System Process: Windows Service\r\n// References: https://www.zerosalarium.com/2026/02/Defense-Evasion-The-service-run-failed-successfully.html\r\n// Description: Detects when the Windows Service Control Manager (services.exe) spawns a suspicious child process. This can indicate an attacker has configured a service's recovery options to execute a malicious command or script upon service failure.\r\n// Define a list of suspicious child processes often used for command execution\r\nlet suspicious_children = dynamic([\r\n    \"cmd.exe\",\r\n    \"powershell.exe\",\r\n    \"pwsh.exe\",\r\n    \"wscript.exe\",\r\n    \"cscript.exe\",\r\n    \"mshta.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events\r\n| where ActionType == \"ProcessCreated\"\r\n// Filter for services.exe as the parent process. Using 'endswith' to be resilient against path variations.\r\n| where InitiatingProcessFolderPath endswith \"\\\\services.exe\"\r\n// Filter for suspicious child processes\r\n| where FileName in~ (suspicious_children)\r\n// The parent process (services.exe) should be running with SYSTEM integrity\r\n| where InitiatingProcessIntegrityLevel == \"System\"\r\n// False Positive Tuning: Some legitimate software (e.g., backup agents, specific management tools) might use service recovery actions.\r\n// You may need to exclude specific command lines or child processes known to be benign in your environment.\r\n// For example: | where CommandLine !contains \"my_legit_script.bat\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    AccountDomain,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    ProcessId,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1543.003
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.zerosalarium.com/2026/02/Defense-Evasion-The-service-run-failed-successfully.html

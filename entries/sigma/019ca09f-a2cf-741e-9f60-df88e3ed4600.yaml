@@ -1,0 +1,56 @@
+id: 019ca09f-a2cf-741e-9f60-df88e3ed4600
+name: REMCOS RAT Mutex Detection
+description: This rule detects the creation of specific mutexes known to be associated with the REMCOS Remote Access Trojan (RAT). The rule looks for several distinct mutex names, including 'MARE_IS_BEAUTIFUL_EX', 'Rmc-<uniqueid>', 'Remcos_Mutex_Inj', 'remcos_<uniqueid>', 'Remcos-<uniqueid>', and 'Mutex_RemWatchdog'. The presence of any of these mutexes indicates potential REMCOS RAT activity on a Windows system.
+query: |-
+    title: REMCOS RAT Mutex Detection
+    status: experimental
+    description: Detects known mutexes associated with REMCOS rat activity.
+    author: '@adhikara13'
+    date: 2024/08/01
+    references:
+      - 'https://www.elastic.co/security-labs/dissecting-remcos-rat-part-two'
+      - 'https://www.mcafee.com/blogs/other-blogs/mcafee-labs/the-stealthy-stalker-remcos-rat/'
+      - 'https://www.splunk.com/en_us/blog/security/splunk-fin7-tool-detections-remcos.html'
+      - 'https://www.trendmicro.com/en_us/research/19/h/analysis-new-remcos-rat-arrives-via-phishing-email.html'
+      - 'https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Backdoor:Win32/Remcos'
+      - 'https://www.trendmicro.com/vinfo/de/threat-encyclopedia/malware/backdoor.msil.remcos.jcasnr'
+    tags:
+      - 'attack.command_and_control.t1219'
+      - 'malware.rat.remcos'
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        MutexName:
+          - 'MARE_IS_BEAUTIFUL_EX'
+          - 'Rmc-<uniqueid>'
+          - 'Remcos_Mutex_Inj'
+          - 'remcos_<uniqueid>'
+          - 'Remcos-<uniqueid>'
+          - 'Mutex_RemWatchdog'
+      condition: selection
+    falsepositives:
+      - 'Legitimate applications using similar mutex names (unlikely for these specific strings)'
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - attack.command_and_control.t1219
+    - malware.rat.remcos
+author: '@adhikara13'
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/dissecting-remcos-rat-part-two
+    - https://www.mcafee.com/blogs/other-blogs/mcafee-labs/the-stealthy-stalker-remcos-rat/
+    - https://www.splunk.com/en_us/blog/security/splunk-fin7-tool-detections-remcos.html
+    - https://www.trendmicro.com/en_us/research/19/h/analysis-new-remcos-rat-arrives-via-phishing-email.html
+    - https://www.microsoft.com/en-us/wdsi/threats/malware-encyclopedia-description?Name=Backdoor:Win32/Remcos
+    - https://www.trendmicro.com/vinfo/de/threat-encyclopedia/malware/backdoor.msil.remcos.jcasnr
+data_sources:
+    - process_creation
+    - windows

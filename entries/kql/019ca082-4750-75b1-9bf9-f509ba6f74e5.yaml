@@ -1,0 +1,18 @@
+id: 019ca082-4750-75b1-9bf9-f509ba6f74e5
+name: EncystPHP Telephony Resource Hijacking via Asterisk CLI
+description: Detects the execution of specific Asterisk CLI commands, often associated with reconnaissance or resource hijacking, by non-interactive or web server accounts. This behavior is a key indicator of the EncystPHP web shell abusing PBX functionality for activities like toll fraud.
+query: "// Name: EncystPHP Telephony Resource Hijacking\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the execution of specific Asterisk CLI commands, often associated with reconnaissance or resource hijacking, by non-interactive or web server accounts. This behavior is a key indicator of the EncystPHP web shell abusing PBX functionality for activities like toll fraud.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp\r\n// Tactic: Resource Hijacking\r\n// Technique: T1496, T1059.004\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1d)\r\n// The 'asterisk' binary is used to interact with the PBX system.\r\n| where FileName =~ \"asterisk\"\r\n// The '-rx' flag executes a command as if on the CLI. The commands 'core show channels' and 'sip show peers' are used for reconnaissance.\r\n| where ProcessCommandLine has \"-rx\" and ProcessCommandLine has_any (\"core show channels\", \"sip show peers\")\r\n// The web shell executes commands under the context of the web server user (e.g., www-data) or the asterisk user itself.\r\n| where AccountName in (\"www-data\", \"asterisk\")\r\n// Potential for False Positives: Legitimate monitoring or diagnostic scripts may execute these commands, though typically by a privileged user in an interactive session.\r\n// Tuning: Exclude known administrative scripts or hosts if this is part of a documented, legitimate process.\r\n// | where InitiatingProcessFileName !in (\"monitoring_script.sh\")\r\n| project-reorder Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0002
+techniques:
+    - T1496
+    - T1059.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp

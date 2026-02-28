@@ -1,0 +1,61 @@
+id: 019ca12c-6c37-709f-9700-d1b30136d9d3
+name: EmEditor Watering Hole Stealer Chain Hunt
+description: This rule detects activity related to the EmEditor watering hole attack, specifically looking for PowerShell execution making requests to known malicious lookalike domains and network connections to the associated infrastructure. A match suggests a potential download of malicious code during what appeared to be a legitimate install or update. Investigation should focus on identifying the host, user, source of activity, and legitimacy of the install source, followed by evidence preservation, credential reset, and a search for follow-up malicious activity.
+query: |+
+    ## EmEditor watering-hole stealer chain hunts (Splunk SPL)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-27
+    ## Ref: https://www.trendmicro.com/en_us/research/26/a/watering-hole-attack-targets-emeditor-users.html
+
+    ## Description:
+    ## These hunts are built to help you quickly spot the EmEditor watering hole activity in logs using
+    ## simple, specific checks. They look for PowerShell and network activity that points to lookalike
+    ## download sites and paths described in public reporting, plus a repeated campaign marker that can
+    ## connect related events. A match suggests a machine may have downloaded additional hidden code
+    ## during what looked like a normal install or update. If you see results, identify the host and
+    ## user, confirm what started the activity, and check whether the install source was legitimate. If
+    ## it is not clearly legitimate, preserve evidence, reset potentially affected credentials, and
+    ## look for follow up activity such as repeated outbound connections or unknown programs. This
+    ## approach keeps the detection easy to understand while staying focused on the published
+    ## indicators.
+
+    ### 1) Endpoint: PowerShell fetching stages from lookalike domains
+    (index=edr OR index=os OR index=wineventlog OR index=sysmon)
+    (process_name="powershell.exe" OR process_name="pwsh.exe" OR Image="*\\powershell.exe" OR Image="*\\pwsh.exe")
+    (
+      CommandLine="*emeditorjp.com*"
+      OR CommandLine="*emeditorgb.com/run/mg8heP0r*"
+      OR CommandLine="*emeditorde.com/gate/start/2daef8cd*"
+      OR CommandLine="*cachingdrive.com/gate/init/2daef8cd*"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines by host user process_name parent_process_name
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Network: HTTP/DNS to EmEditor lookalike infra + campaign marker
+    (index=proxy OR index=dns OR index=netflow OR index=firewall)
+    (
+      query IN ("emeditorjp.com","emeditorgb.com","emeditorde.com","cachingdrive.com")
+      OR url="*emeditorgb.com/run/mg8heP0r*"
+      OR url="*emeditorde.com/gate/start/2daef8cd*"
+      OR url="*cachingdrive.com/gate/init/2daef8cd*"
+      OR url="*2daef8cd*"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(query) as queries by src_ip dest_ip dest_port
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+    - TA0001
+techniques:
+    - T1059.001
+    - T1071.001
+    - T1059
+    - T1566.002
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/a/watering-hole-attack-targets-emeditor-users.html

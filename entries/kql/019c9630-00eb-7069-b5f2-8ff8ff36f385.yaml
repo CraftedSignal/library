@@ -1,0 +1,125 @@
+id: 019c9630-00eb-7069-b5f2-8ff8ff36f385
+name: Claude Code project file abuse (CVE-2025-59536)
+description: Claude Code project file abuse (CVE-2025-59536)
+query: |-
+    // Claude Code project file abuse (CVE-2025-59536) and related issues (Microsoft KQL, Defender XDR Advanced Hunting)
+    // Author: Daniel Jeremiah
+    // Date: 2026-02-24
+    // Reference: https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/
+
+    let Lookback = 30d;
+
+    // High value file paths and names mentioned in the write up
+    let ClaudeProjectFiles = dynamic([
+      @".claude\settings.json",
+      @".claude/settings.json",
+      @".mcp.json"
+    ]);
+
+    // Strings that indicate risky repository controlled behaviour
+    let SuspiciousConfigHints = dynamic([
+      "\"hooks\"",
+      "SessionStart",
+      "enableAllProjectMcpServers",
+      "enabledMcpjsonServers",
+      "ANTHROPIC_BASE_URL"
+    ]);
+
+    // Processes likely to appear when hooks or MCP commands are abused
+    let SuspiciousChild = dynamic([
+      "cmd.exe","powershell.exe","pwsh.exe","bash","sh","zsh",
+      "curl","wget","python","python3","node","mshta.exe","rundll32.exe","regsvr32.exe",
+      "certutil.exe","bitsadmin.exe"
+    ]);
+
+    // Expected domains can vary by environment.
+    // Keep this as an allow list you tune for normal Claude Code connectivity.
+    let ExpectedClaudeDomains = dynamic([
+      "anthropic.com",
+      "claude.ai",
+      "api.anthropic.com"
+    ]);
+
+    union isfuzzy=true
+    (
+      // A) File creation or modification of repository controlled Claude Code config files
+      DeviceFileEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FolderPath has_any (dynamic(["\\.claude\\","/.claude/"])) or FileName =~ ".mcp.json"
+      | where strcat(tolower(FolderPath), "\\", tolower(FileName)) has_any (ClaudeProjectFiles)
+            or tolower(FolderPath) has "/.claude/"
+            or tolower(FolderPath) has "\\.claude\\"
+      | extend MatchType = "project_config_file_event"
+      | project TimeGenerated, DeviceName, MatchType,
+                ActionType, FileName, FolderPath, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessParentFileName, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // B) Process execution referencing those files or suspicious config keys
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where ProcessCommandLine has_any (SuspiciousConfigHints)
+            or ProcessCommandLine has_any (ClaudeProjectFiles)
+            or ProcessCommandLine has_any (dynamic([".claude", ".mcp.json"]))
+      | extend MatchType = "process_cmdline_references_claude_project_config"
+      | project TimeGenerated, DeviceName, MatchType,
+                AccountName, FileName, FolderPath, ProcessCommandLine, SHA256,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessParentFileName, InitiatingProcessSHA256, ReportId
+    ),
+    (
+      // C) Claude CLI start followed by suspicious child process on the same device within 10 minutes
+      DeviceProcessEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where FileName in~ ("claude","claude.exe")
+      | project ClaudeStartTime = TimeGenerated,
+                DeviceId, DeviceName,
+                ClaudeAccount = AccountName,
+                ClaudeFileName = FileName,
+                ClaudeCmd = ProcessCommandLine,
+                ClaudeProcSha256 = SHA256,
+                ClaudeReportId = ReportId
+      | join kind=inner (
+          DeviceProcessEvents
+          | where TimeGenerated >= ago(Lookback)
+          | where FileName in~ (SuspiciousChild)
+          | project ChildTime = TimeGenerated,
+                    DeviceId,
+                    ChildName = FileName,
+                    ChildCmd = ProcessCommandLine,
+                    ChildSha256 = SHA256,
+                    ChildParent = InitiatingProcessFileName,
+                    ChildReportId = ReportId
+        ) on DeviceId
+      | where ChildTime between (ClaudeStartTime .. ClaudeStartTime + 10m)
+      | extend MatchType = "claude_start_followed_by_suspicious_child_within_10m"
+      | project TimeGenerated = ChildTime, DeviceName, MatchType,
+                ClaudeAccount, ClaudeCmd,
+                ChildName, ChildCmd, ChildSha256, ChildParent,
+                ClaudeProcSha256, ClaudeReportId, ChildReportId
+    ),
+    (
+      // D) Network activity from claude process to non expected domains (heuristic)
+      DeviceNetworkEvents
+      | where TimeGenerated >= ago(Lookback)
+      | where InitiatingProcessFileName in~ ("claude","claude.exe")
+      | extend Url = tostring(RemoteUrl)
+      | extend Host = tolower(tostring(parse_url(Url).Host))
+      | where isnotempty(Host)
+      | where Host !has_any (ExpectedClaudeDomains)
+      | extend MatchType = "claude_network_to_non_expected_domain"
+      | project TimeGenerated, DeviceName, MatchType,
+                RemoteUrl, Host, RemoteIP, RemotePort,
+                InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine,
+                InitiatingProcessSHA256, ReportId
+    )
+    | sort by TimeGenerated desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://research.checkpoint.com/2026/rce-and-api-token-exfiltration-through-claude-code-project-files-cve-2025-59536/

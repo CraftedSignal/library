@@ -1,0 +1,46 @@
+id: 019ca098-62fa-70fb-90c2-bfa96a6e5b8e
+name: Dark Crystal RAT Mutex Detection
+description: 'This rule detects the creation of specific mutexes known to be associated with Dark Crystal RAT (Remote Access Trojan) activity. The rule looks for two distinct mutex names: ''DCR_MUTEX-<20_random_alphanumeric_characters>'' and ''DcRatMutex_qwqdanchun''. The presence of these mutexes indicates a high likelihood of Dark Crystal RAT infection or execution on a Windows system.'
+query: |-
+    title: Dark Crystal RAT Mutex Detection
+    status: experimental
+    description: Detects known mutexes associated with Dark Crystal RAT activity.
+    author: '@adhikara13'
+    date: 2024/07/19
+    references:
+      - 'https://www.splunk.com/en_us/blog/security/dark-crystal-rat-agent-deep-dive.html'
+      - 'https://blogs.blackberry.com/en/2022/05/dirty-deeds-done-dirt-cheap-russian-rat-offers-backdoor-bargains'
+      - 'https://www.fortinet.com/blog/threat-research/dcrat-impersonating-the-columbian-government'
+    tags:
+      - 'attack.command_and_control.t1219'
+      - 'malware.rat.dark_crystal_rat'
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        MutexName:
+          - 'DCR_MUTEX-<20_random_alphanumeric_characters>'
+          - 'DcRatMutex_qwqdanchun'
+      condition: selection
+    falsepositives:
+      - 'Legitimate applications using similar mutex names (unlikely for these specific strings)'
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0011
+techniques:
+    - T1219
+tags:
+    - attack.command_and_control.t1219
+    - malware.rat.dark_crystal_rat
+author: '@adhikara13'
+version: "1"
+references:
+    - https://www.splunk.com/en_us/blog/security/dark-crystal-rat-agent-deep-dive.html
+    - https://blogs.blackberry.com/en/2022/05/dirty-deeds-done-dirt-cheap-russian-rat-offers-backdoor-bargains
+    - https://www.fortinet.com/blog/threat-research/dcrat-impersonating-the-columbian-government
+data_sources:
+    - process_creation
+    - windows

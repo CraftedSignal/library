@@ -1,0 +1,17 @@
+id: 019ca0e5-44c1-727e-b729-0532f9b58f08
+name: Linux - ShadowHS Fileless Process Masquerading
+description: Detects processes on Linux systems that exhibit fileless execution characteristics while masquerading as common shells or interpreters. This behavior is a key TTP of the ShadowHS post-exploitation framework, which uses argv spoofing and in-memory execution to evade detection.
+query: "// Name: Linux - ShadowHS Fileless Process Masquerading\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects processes on Linux systems that exhibit fileless execution characteristics while masquerading as common shells or interpreters. This behavior is a key TTP of the ShadowHS post-exploitation framework, which uses argv spoofing and in-memory execution to evade detection.\r\n// Tactics: Defense Evasion, Execution\r\n// Techniques: T1036.005, T1620\r\n// References: https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/\r\n// False Positive Sensitivity: Medium. Legitimate applications, particularly in containerized environments or those that unpack in memory, may trigger this alert. Review the parent process and command line for context and consider adding exclusions for known benign behavior.\r\nDeviceProcessEvents\r\n// Identifies processes executed from an anonymous file descriptor or a deleted binary, a hallmark of fileless malware.\r\n| where FolderPath endswith \"(deleted)\"\r\n    or (FolderPath contains \"/proc/\" and FolderPath contains \"/fd/\")\r\n    or FolderPath startswith \"memfd:\"\r\n// Looks for processes masquerading as common shells or interpreters, as seen with ShadowHS spoofing argv[0].\r\n| where FileName in~ (\"bash\", \"sh\", \"zsh\", \"python\", \"python3\", \"perl\")\r\n// Potential for False Positives: Some legitimate software may use in-memory execution.\r\n// Consider filtering for specific parent processes or command lines if known benign patterns are identified.\r\n// For example: | where not (InitiatingProcessFileName == \"known_good_parent\" and ProcessCommandLine has \"--known-good-flag\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+    - T1620
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/

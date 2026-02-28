@@ -1,0 +1,63 @@
+id: 019c9665-362d-761e-8ece-4305b9d3f009
+name: OpenClaw Skill Style Base64 Decode Piped To Shell On macOS
+description: Detects Base64 decoded content being executed via a shell on macOS, consistent with malicious OpenClaw skill style obfuscated command execution.
+query: |
+    title: OpenClaw Skill Style Base64 Decode Piped To Shell On macOS
+    id: 3f7f1c2a-8d2e-4c3b-9c55-2c6b3e0f1a21
+    status: experimental
+    description: >-
+      Detects Base64 decoded content being executed via a shell on macOS, consistent
+      with malicious OpenClaw skill style obfuscated command execution.
+    author: Daniel Jeremiah
+    date: 2026-02-24T00:00:00.000Z
+    references:
+      - >-
+        https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+      - https://socprime.com/active-threats/openclaw-malicious-skill-trap/
+      - >-
+        https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+    tags:
+      - attack.execution
+      - attack.t1059.004
+      - attack.defense_evasion
+      - attack.t1027
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_decode:
+        CommandLine|contains:
+          - base64 -d
+          - base64 --decode
+          - openssl base64 -d
+      selection_pipe_shell:
+        CommandLine|contains:
+          - '| sh'
+          - '| bash'
+          - '| zsh'
+      condition: selection_decode and selection_pipe_shell
+    falsepositives:
+      - Legitimate developer workflows that decode Base64 and pipe to a shell
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.004
+    - T1027
+tags:
+    - attack.execution
+    - attack.t1059.004
+    - attack.defense_evasion
+    - attack.t1027
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/b/openclaw-skills-used-to-distribute-atomic-macos-stealer.html
+    - https://socprime.com/active-threats/openclaw-malicious-skill-trap/
+    - https://1password.com/blog/from-magic-to-malware-how-openclaws-agent-skills-become-an-attack-surface
+data_sources:
+    - process_creation
+    - macos

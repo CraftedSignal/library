@@ -1,0 +1,16 @@
+id: 019ca123-ac00-74c7-b293-8a8a2a8034d5
+name: Gunra Ransomware Encryption Activity Detection
+description: Detects a high volume of file renaming operations to the '.ENCRT' extension, combined with the creation of the 'R3ADM3.txt' ransom note by the same process. This behavior is characteristic of the Gunra ransomware encryption routine.
+query: "// Name: Gunra Ransomware Encryption Activity\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Tactic: Impact\r\n// Technique: T1486, T1036.003, T1491\r\n// References: https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker\r\n// Description: Detects a high volume of file renaming operations to the '.ENCRT' extension, combined with the creation of the 'R3ADM3.txt' ransom note by the same process. This behavior is characteristic of the Gunra ransomware encryption routine.\r\nlet timeframe = 1h;\r\n// FP Tuning: Adjust this threshold based on the normal file activity in your environment.\r\n// A higher value reduces FPs but may miss slower encryption activity.\r\nlet encryption_threshold = 10;\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n// Filter for the two key artifacts: files renamed to .ENCRT and the ransom note being created.\r\n| where (ActionType == \"FileRenamed\" and FileName endswith \".ENCRT\") or (ActionType == \"FileCreated\" and FileName =~ \"R3ADM3.txt\")\r\n// Correlate activity by the same process on a host within a 5-minute window.\r\n| summarize\r\n    StartTime = min(Timestamp),\r\n    EndTime = max(Timestamp),\r\n    EncryptedFileCount = countif(FileName endswith \".ENCRT\"),\r\n    RansomNoteCreated = tobool(countif(FileName =~ \"R3ADM3.txt\")),\r\n    OriginalFileNames = make_set_if(PreviousFileName, ActionType == \"FileRenamed\", 100)\r\n    by DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessParentFileName, bin(Timestamp, 5m)\r\n// Trigger an alert if the number of encrypted files exceeds the threshold and a ransom note is also found.\r\n| where EncryptedFileCount >= encryption_threshold and RansomNoteCreated\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    DeviceId,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    EncryptedFileCount,\r\n    OriginalFileNames\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker

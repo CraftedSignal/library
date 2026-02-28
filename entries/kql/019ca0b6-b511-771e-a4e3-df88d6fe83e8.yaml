@@ -1,0 +1,46 @@
+id: 019ca0b6-b511-771e-a4e3-df88d6fe83e8
+name: PowerShell Native API Injection via C# Compilation
+description: Detects PowerShell scripts that dynamically define and compile C# code to access Win32 APIs associated with process injection. This fileless technique is used by malware like Dead#Vax to inject shellcode (e.g., AsyncRAT) into the memory of legitimate processes, evading disk-based detection. The rule specifically looks for the use of `Add-Type` to compile C# code that imports functions from `kernel32.dll` and utilizes `VirtualAllocEx`, `WriteProcessMemory`, and `CreateRemoteThread`.
+query: |-
+    // Name: PowerShell Native API Injection Class
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects PowerShell scripts that dynamically define and compile C# code to access Win32 APIs associated with process injection. This fileless technique is used by malware like Dead#Vax to inject shellcode (e.g., AsyncRAT) into the memory of legitimate processes, evading disk-based detection.
+    // False Positives: Medium. Some legitimate administrative scripts, security testing tools, or complex software may use this technique. Triage is necessary to determine the script's intent.
+    // Triage: Requires PowerShell Script Block Logging (Event ID 4104). Examine the full script block text to understand its purpose. Identify the parent process and any preceding commands. Determine what payload is being injected and which process is being targeted.
+    // MITRE ATT&CK: T1059.001 (Command and Scripting Interpreter: PowerShell), T1055.002 (Process Injection: Portable Executable Injection), T1140 (Deobfuscate/Decode Files or Information)
+    // References: https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    DeviceEvents
+    // This detection requires PowerShell Script Block Logging to be enabled (e.g., Event ID 4104).
+    | where ActionType == "PowerShellCommand"
+    // Extract the script block text from the AdditionalFields JSON blob. The field name may vary by logging source.
+    | extend ScriptBlockText = tostring(parse_json(AdditionalFields).ScriptBlockText)
+    // Look for the dynamic compilation of an in-line C# class.
+    | where ScriptBlockText has "Add-Type"
+      // The C# code must be importing functions from a native DLL.
+      and ScriptBlockText has "DllImport"
+      // The APIs for process injection are typically in kernel32.dll.
+      and ScriptBlockText has "kernel32.dll"
+      // Detect the classic combination of APIs for allocating, writing, and executing code in a remote process.
+      // Having all three is a strong indicator of malicious process injection.
+      and ScriptBlockText has "VirtualAllocEx"
+      and ScriptBlockText has "WriteProcessMemory"
+      and ScriptBlockText has "CreateRemoteThread"
+    | project-reorder DeviceName, AccountName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1059.001
+    - T1055.002
+    - T1140
+    - T1055
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/

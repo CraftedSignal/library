@@ -1,0 +1,19 @@
+id: 019ca140-7a5a-752a-a23d-bd90b9b4a2fb
+name: Service Crash Followed by SCM Execution
+description: Detects a sequence where a service terminates unexpectedly, followed immediately by a process creation from the Service Control Manager (services.exe). This pattern can indicate that a service's recovery options have been configured to run a malicious program upon failure.
+query: "// Name: Service Crash Followed by SCM Execution\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Tactic: Persistence, Privilege Escalation\r\n// Technique: T1543.003\r\n// References: https://www.zerosalarium.com/2026/02/Defense-Evasion-The-service-run-failed-successfully.html\r\n// Description: Detects a sequence where a service terminates unexpectedly, followed immediately by a process creation from the Service Control Manager (services.exe). This pattern can indicate that a service's recovery options have been configured to run a malicious program upon failure.\r\n// Set the time window for correlation (e.g., 2 seconds)\r\nlet timeWindow = 2s;\r\n// Find service crash events (corresponds to Event ID 7031, 7034, etc.)\r\nlet ServiceCrashes =\r\n    DeviceEvents\r\n    | where ActionType == \"ServiceAbnormalTermination\"\r\n    | project CrashTime = Timestamp, DeviceName, CrashedService = FileName, ReportId;\r\n// Find processes created by the Service Control Manager (services.exe)\r\nlet SCMSpawns =\r\n    DeviceProcessEvents\r\n    | where ActionType == \"ProcessCreated\" and InitiatingProcessFileName endswith \"\\\\services.exe\"\r\n    | project SpawnTime = Timestamp, DeviceName, SpawnedProcess = FileName, CommandLine, ReportId, InitiatingProcessId;\r\n// Join the two event types on the same device and within the specified time window\r\nServiceCrashes\r\n| join kind=inner SCMSpawns on DeviceName\r\n| where SpawnTime between (CrashTime .. (CrashTime + timeWindow))\r\n// False Positive Tuning: Some legitimate services might be configured to run a recovery program.\r\n// If you observe noise from a specific service or recovery program, you can add exclusions.\r\n// For example: | where not (CrashedService =~ \"MyNoisySvc.exe\" and SpawnedProcess =~ \"recovery_tool.exe\")\r\n| project\r\n    Timestamp = SpawnTime,\r\n    DeviceName,\r\n    CrashedService,\r\n    CrashTime,\r\n    SpawnedProcess,\r\n    ProcessCommandLine,\r\n    InitiatingProcessId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1543.003
+    - T1569.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.zerosalarium.com/2026/02/Defense-Evasion-The-service-run-failed-successfully.html

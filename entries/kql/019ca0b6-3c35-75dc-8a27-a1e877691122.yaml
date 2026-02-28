@@ -1,0 +1,33 @@
+id: 019ca0b6-3c35-75dc-8a27-a1e877691122
+name: Suspicious VBS Persistence Task Creation
+description: Detects the creation of a scheduled task configured to execute a VBScript from a user's AppData folder. This technique is used by adversaries, including the Dead#Vax campaign, to establish persistence via an indirect execution flow, often to evade detections focused on direct PowerShell or cmd.exe task actions.
+query: |-
+    // Name: Suspicious VBS Persistence Task Creation
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the creation of a scheduled task configured to execute a VBScript from a user's AppData folder. This technique is used by adversaries, including the Dead#Vax campaign, to establish persistence via an indirect execution flow, often to evade detections focused on direct PowerShell or cmd.exe task actions.
+    // False Positives: Medium. Some legitimate applications may use this method for updates or background tasks. Triage should focus on the nature of the VBS file and the reputation of the parent process creating the task.
+    // Triage: Examine the command line to identify the VBS file path. Retrieve and analyze the VBScript for obfuscation or suspicious commands (e.g., launching PowerShell, downloading files). Investigate the parent process that created the task.
+    // MITRE ATT&CK: T1053.005 (Scheduled Task/Job: Scheduled Task), T1059.005 (Command and Scripting Interpreter: Visual Basic)
+    // References: https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    DeviceProcessEvents
+    // Detects task creation via the command-line utility (schtasks.exe) or the PowerShell cmdlet (Register-ScheduledTask).
+    | where FileName =~ "schtasks.exe" or ProcessCommandLine has "Register-ScheduledTask"
+    // The scheduled command runs a VBScript using wscript.exe from a user's AppData folder, a common staging area.
+    | where ProcessCommandLine has_all ("wscript.exe", "AppData", ".vbs")
+    | project-reorder DeviceName, AccountName, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/

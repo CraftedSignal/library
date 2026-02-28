@@ -1,0 +1,69 @@
+id: 019ca0aa-4210-77fd-be01-8cd7d497cfe4
+name: PowerShell Disabling of Windows Defender
+description: Detects the use of PowerShell to disable or weaken Microsoft Defender security features. This technique is commonly used by malware to evade detection before executing malicious payloads, as seen in the referenced Fortinet report.
+query: |
+    // Name: PowerShell Disabling of Windows Defender
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the use of PowerShell to disable or weaken Microsoft Defender security features. This technique is commonly used by malware to evade detection before executing malicious payloads, as seen in the referenced Fortinet report.
+    // Mitre ATT&CK: T1562.001 - Impair Defenses: Disable or Modify Tools, T1059.001 - Command and Scripting Interpreter: PowerShell
+    // References: https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign
+    // False Positive Sensitivity: Medium
+    // Comment Level: Medium
+    // Define keywords for Defender features that are commonly disabled by malware.
+    let disableKeywords = dynamic([
+        "-DisableRealtimeMonitoring",
+        "-DisableBehaviorMonitoring",
+        "-DisableBlockAtFirstSeen",
+        "-DisableIOAVProtection",
+        "-DisableArchiveScanning",
+        "-DisableIntrusionPreventionSystem",
+        "-DisableScriptScanning",
+        "-DisableRemovableDriveScanning",
+        "-DisableEmailScanning"
+    ]);
+    // Define keywords for broad path exclusions.
+    let exclusionKeywords = dynamic([
+        "-ExclusionPath"
+    ]);
+    DeviceProcessEvents
+    // Filter for PowerShell process creation events.
+    | where FileName =~ "powershell.exe"
+    // Look for the Set-MpPreference cmdlet, which is used to configure Defender settings.
+    | where ProcessCommandLine has "Set-MpPreference"
+    // Check for either a direct disable command (ensuring it's set to 'true') or the addition of an exclusion path.
+    | where
+        (ProcessCommandLine has_any (disableKeywords) and ProcessCommandLine contains "$true")
+        or (ProcessCommandLine has_any (exclusionKeywords))
+    // FP Tuning: Legitimate system administration scripts (e.g., from SCCM, Intune) or software installers may modify Defender preferences.
+    // If false positives occur, consider excluding known parent processes (e.g., ccmexec.exe, IntuneManagementExtension.exe) or specific command lines associated with approved software.
+    | extend
+        timestamp = TimeGenerated,
+        hostName = DeviceName,
+        accountName = AccountName,
+        parentProcessName = InitiatingProcessFileName,
+        parentCommandLine = InitiatingProcessCommandLine,
+        processName = FileName,
+        commandLine = ProcessCommandLine
+    | project-reorder
+        timestamp,
+        hostName,
+        accountName,
+        parentProcessName,
+        parentCommandLine,
+        processName,
+        commandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1562.001
+    - T1059.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/inside-a-multi-stage-windows-malware-campaign

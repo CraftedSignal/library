@@ -1,0 +1,59 @@
+id: 019ca126-f399-76e9-b1eb-9de82f62e79c
+name: Gunra Ransomware - Recursive Drive Enumeration
+description: Detects a process performing rapid, high-volume file system enumeration across multiple drives while deliberately avoiding critical system directories, a behavior consistent with the reconnaissance phase of Gunra ransomware.
+query: |
+    // Name: Gunra Ransomware - Recursive Drive Enumeration
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Tactic: Discovery, Defense Evasion
+    // Technique: T1083, T1564
+    // References: https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker
+    // Description: Detects a process performing rapid, high-volume file system enumeration across multiple drives while deliberately avoiding critical system directories, a behavior consistent with the reconnaissance phase of Gunra ransomware.
+    let timeframe = 10m; // Time window for aggregation.
+    let event_threshold = 1000; // Minimum number of file events to trigger. This may need tuning for your environment to balance sensitivity and noise.
+    DeviceFileEvents
+    | where Timestamp > ago(timeframe)
+    // Extract drive letter and normalize path for case-insensitive matching.
+    | extend Drive = tostring(extract('^([a-zA-Z]):', 1, FolderPath))
+    | extend NormalizedFolderPath = tolower(FolderPath)
+    | where isnotempty(Drive)
+    // Flag events that fall within paths Gunra is known to exclude.
+    | extend IsExcludedPath = case(
+        NormalizedFolderPath startswith 'c:\\windows\\', true,
+        NormalizedFolderPath startswith 'c:\\program files\\', true,
+        NormalizedFolderPath startswith 'c:\\program files (x86)\\', true,
+        false
+    )
+    // Summarize file activity by the initiating process.
+    | summarize
+        StartTime = min(Timestamp),
+        EndTime = max(Timestamp),
+        TotalFileEvents = count(),
+        DistinctDrives = dcount(Drive),
+        DrivesAccessed = make_set(Drive),
+        ExcludedPathAccessCount = countif(IsExcludedPath)
+        by DeviceId, DeviceName, InitiatingProcessId, InitiatingProcessCommandLine, InitiatingProcessParentFileName
+    // Apply detection logic based on Gunra's behavior.
+    | where
+        // 1. High volume of file events indicates rapid enumeration.
+        TotalFileEvents > event_threshold and
+        // 2. Activity spans more than one drive (e.g., C: and a network share or removable drive).
+        DistinctDrives > 1 and
+        // 3. Key behavior: The process largely avoids critical system directories.
+        // We calculate the percentage of accesses to excluded paths and trigger if it's very low (e.g., < 5%).
+        // This helps filter out legitimate system processes that might have high file activity but operate within system folders.
+        (todouble(ExcludedPathAccessCount) / TotalFileEvents * 100) < 5
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0005
+techniques:
+    - T1083
+    - T1564
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.cloudsek.com/blog/inside-gunra-raas-from-affiliate-recruitment-on-the-dark-web-to-full-technical-dissection-of-their-locker

@@ -1,0 +1,44 @@
+id: 019ca09e-dced-736b-a172-1f65359a2f67
+name: Proto8 Backdoor Mutex Detection
+description: This rule detects the creation of specific mutexes known to be associated with the Proto8 backdoor. The mutex names include patterns like 'Global\sysmon-windows-<CRC32 of an MD5 hash of the victim's username>', 'Global\IntelGameSpeed-<CRC32 of an MD5 hash of the victim's username>', and 'Global\TencentSecuriryAgent-P01-<victim's username>'. The detection logic specifically looks for these exact mutex name strings, indicating a high confidence in identifying Proto8 backdoor activity.
+query: |-
+    title: Proto8 Backdoor Mutex Detection
+    status: experimental
+    description: Detects known mutexes associated with Proto8 backdoor activity.
+    author: '@adhikara13'
+    date: 2024/07/16
+    references:
+      - 'https://decoded.avast.io/luigicamastra/operation-dragon-castling-apt-group-targeting-betting-companies/'
+    tags:
+      - 'attack.persistence.t1547'
+      - 'malware.backdoor.proto8'
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        MutexName:
+          - 'Global\sysmon-windows-<CRC32 of an MD5 hash of the victim''s username>'
+          - 'Global\IntelGameSpeed-<CRC32 of an MD5 hash of the victim''s username>'
+          - 'Global\TencentSecuriryAgent-P01-<victim''s username>'
+      condition: selection
+    falsepositives:
+      - 'Legitimate applications using similar mutex names (unlikely for these specific strings)'
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547
+tags:
+    - attack.persistence.t1547
+    - malware.backdoor.proto8
+author: '@adhikara13'
+version: "1"
+references:
+    - https://decoded.avast.io/luigicamastra/operation-dragon-castling-apt-group-targeting-betting-companies/
+data_sources:
+    - process_creation
+    - windows

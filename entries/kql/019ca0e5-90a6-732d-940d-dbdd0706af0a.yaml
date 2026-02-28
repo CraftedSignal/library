@@ -1,0 +1,21 @@
+id: 019ca0e5-90a6-732d-940d-dbdd0706af0a
+name: Linux - GDB In-Memory Secret Dumping
+description: Detects the use of the GNU Debugger (GDB) to dump memory from a live process. This technique is used by frameworks like ShadowHS to extract credentials and other secrets directly from memory, bypassing file-based security controls.
+query: "// Name: Linux - GDB In-Memory Secret Dumping\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the use of the GNU Debugger (GDB) to dump memory from a live process. This technique is used by frameworks like ShadowHS to extract credentials and other secrets directly from memory, bypassing file-based security controls.\r\n// Tactics: Credential Access, Collection\r\n// Techniques: T1555, T1005\r\n// References: https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/\r\n// False Positive Sensitivity: Medium. While this is a specific technique used by malware, legitimate debugging or troubleshooting by developers or system administrators may also trigger this alert. Investigate the context, such as the user, host, and parent process.\r\nDeviceProcessEvents\r\n// Detects the use of GDB in batch mode to dump memory from a running process.\r\n| where FileName =~ \"gdb\"\r\n    and ProcessCommandLine has \"--batch\"\r\n    and ProcessCommandLine has \"dump memory\"\r\n// Potential for False Positives: Legitimate debugging by developers or administrators.\r\n// Consider adding exclusions for known administrative accounts or specific development environments if this is common practice.\r\n// For example: | where not (AccountName in (\"admin_user1\", \"dev_team_group\"))\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+    - TA0005
+    - TA0004
+techniques:
+    - T1555
+    - T1005
+    - T1055.009
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://cyble.com/blog/shadowhs-fileless-linux-post-exploitation-framework/

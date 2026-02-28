@@ -1,0 +1,62 @@
+id: 019ca0d0-0675-72ce-b722-dde561a7ad74
+name: JWT Algorithm Confusion Attack Detection
+description: Detects potential JSON Web Token (JWT) algorithm confusion attacks. This occurs when an attacker sends a token signed with a symmetric algorithm (e.g., HS256) to a server expecting an asymmetric one (e.g., RS256). If the server is misconfigured, it may use its public key as the HMAC secret, allowing the attacker to forge valid tokens. The rule specifically looks for JWTs with symmetric HMAC-based algorithms (HS256, HS384, HS512) being sent to applications configured to exclusively use asymmetric key algorithms.
+query: |
+    // Name: JWT Algorithm Confusion Attack
+    // Author: detections.ai// Author: Ethan Andrews + detections.ai// Date: 2026-02-27
+    // Description: Detects potential JSON Web Token (JWT) algorithm confusion attacks. This occurs when an attacker sends a token signed with a symmetric algorithm (e.g., HS256) to a server expecting an asymmetric one (e.g., RS256). If the server is misconfigured, it may use its public key as the HMAC secret, allowing the attacker to forge valid tokens.
+    // MITRE TTPs: T1134.002 - Create Account: Create Web Account
+    // References: https://asec.ahnlab.com/en/91676/
+    // Define the lookback period for the search.
+    let lookback = 1h;
+    // Define the web log tables to search. Adjust these to your environment.
+    let WebLogTables = union isfuzzy=true AppServiceHTTPLogs, W3CIISLog, CommonSecurityLog, AzureDiagnostics;
+    // False Positive Tuning: Populate this list with applications, hosts, or specific API endpoints that are known to exclusively use asymmetric key algorithms (e.g., RS256, ES256).
+    // This is crucial for reducing false positives from applications that legitimately use symmetric algorithms.
+    let AsymmetricOnlyApps = dynamic([]); // Example: dynamic(["secure-app.example.com", "api.example.com/v2/auth"]);
+    WebLogTables
+    | where TimeGenerated > ago(lookback)
+    // Coalesce common field names for the Authorization header.
+    | extend AuthHeader = coalesce(column_ifexists("Authorization", ""), column_ifexists("cs_Authorization", ""), column_ifexists("HttpAuthHeader", ""))
+    // Filter for requests containing a JWT Bearer token.
+    | where isnotempty(AuthHeader) and AuthHeader startswith_cs "Bearer "
+    // Extract the JWT from the header.
+    | extend JwtToken = substring(AuthHeader, 7)
+    // A JWT has three parts (header.payload.signature). Extract the encoded header.
+    | extend JwtHeaderEncoded = tostring(split(JwtToken, ".")[0])
+    // Base64Url decode the header.
+    | extend JwtHeaderDecoded = base64_decode_tostring(JwtHeaderEncoded)
+    | where isnotempty(JwtHeaderDecoded)
+    // Parse the decoded header into a JSON object.
+    | extend JwtHeaderJson = todynamic(JwtHeaderDecoded)
+    // Core Detection: Identify tokens where the algorithm is a symmetric HMAC-based algorithm (HS256, HS384, HS512).
+    | where isnotempty(JwtHeaderJson.alg) and tostring(JwtHeaderJson.alg) startswith_cs "HS"
+    // Coalesce common field names for the URL/Host to apply the watchlist filter.
+    | extend TargetResource = tostring(coalesce(RequestURL, csUriStem, RequestClientApplication))
+    // Apply the filter to only look for these tokens against applications expected to use asymmetric keys.
+    // The rule will not produce results if the 'AsymmetricOnlyApps' list is empty.
+    | where TargetResource has_any (AsymmetricOnlyApps)
+    // Project relevant fields for investigation.
+    | project
+        TimeGenerated,
+        SrcIp = coalesce( SourceIP, CIp, cIP),
+        Url = TargetResource,
+        UserAgent = coalesce(UserAgent, csUserAgent),
+        AuthHeader,
+        JwtHeaderDecoded,
+        Algorithm = tostring(JwtHeaderJson.alg),
+        Account = coalesce(CsUsername, csUserName),
+        Result = coalesce(ResultType, scStatus, status_s, Result)
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1606
+    - T1606.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://asec.ahnlab.com/en/91676/

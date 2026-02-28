@@ -1,0 +1,31 @@
+id: 019ca110-8a5f-728f-b3c2-af50c1e5d106
+name: APT37 Ruby Runtime Masquerading (SNAKEDROPPER)
+description: Detects the creation of a Ruby runtime environment in unusual ProgramData subdirectories and the renaming of the Ruby interpreter to masquerade as a USB utility, a technique used by APT37's SNAKEDROPPER malware. Specifically looks for file events in 'C:\ProgramData\usbspeed' or 'C:\ProgramData\ruby3' where the filename is 'usbspeed.exe' or the previous filename was 'rubyw.exe'.
+query: |
+    // Name: APT37 Ruby Runtime Masquerading
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-02-27
+    // Description: Detects the creation of a Ruby runtime environment in an unusual ProgramData subdirectory and the renaming of the Ruby interpreter to masquerade as a USB utility, a technique used by APT37's SNAKEDROPPER malware.
+    // Tactic: Defense Evasion
+    // Technique: T1036.005 - Masquerading: Match Legitimate Name or Location
+    // False Positive Sensitivity: Medium
+    // References: https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks (dc523311465115e45fd810dae43cb12a19f7a3fe5a3ed100d926eb1d8c3e4376)
+    DeviceFileEvents
+    // Look for file events in the specific directories used by the SNAKEDROPPER malware.
+    | where FolderPath has_any (@"C:\ProgramData\usbspeed", @"C:\ProgramData\ruby3")
+    // Detect either the creation of the masqueraded file 'usbspeed.exe' or the renaming of the legitimate 'rubyw.exe'.
+    | where FileName =~ "usbspeed.exe" or PreviousFileName =~ "rubyw.exe"
+    // FP Tuning: Legitimate software may use embedded Ruby environments. If legitimate applications are found to use these paths or filenames, consider adding their process names or signing information to an exclusion list.
+    | summarize by DeviceId, DeviceName, InitiatingProcessAccountName, InitiatingProcessCommandLine, FileName, PreviousFileName, FolderPath, SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/apt37-adds-new-capabilities-air-gapped-networks

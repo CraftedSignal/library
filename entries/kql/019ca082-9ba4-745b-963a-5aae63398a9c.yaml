@@ -1,0 +1,17 @@
+id: 019ca082-9ba4-745b-963a-5aae63398a9c
+name: EncystPHP Malicious Infrastructure Connection
+description: Identifies network connections to known command and control (C2) and dropper distribution infrastructure associated with the EncystPHP web shell campaign.
+query: "// Name: EncystPHP Malicious Infrastructure Connection\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Identifies network connections to known command and control (C2) and dropper distribution infrastructure associated with the EncystPHP web shell campaign.\r\n// False Positive Sensitivity: Medium\r\n// Reference: https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp\r\n// Tactic: Command and Control, Ingress Tool Transfer\r\n// Technique: T1105, T1071.001\r\nlet timeframe = 1d;\r\n// IOCs associated with the EncystPHP campaign infrastructure.\r\nlet malicious_ips = dynamic([\"45.234.176.202\", \"187.108.1.130\"]);\r\nlet malicious_urls = dynamic([\"http://45.234.176.202/new/c\", \"http://45.234.176.202/new/k.php\"]);\r\nunion isfuzzy=true\r\n    (\r\n        DeviceNetworkEvents\r\n        | where Timestamp > ago(timeframe)\r\n        // Check for connections to malicious IPs or URLs from endpoint network events.\r\n        | where RemoteIP in (malicious_ips) or RemoteUrl in (malicious_urls)\r\n        | project\r\n            Timestamp,\r\n            DeviceName,\r\n            ActionType,\r\n            RemoteIP,\r\n            RemoteUrl,\r\n            InitiatingProcessFileName,\r\n            InitiatingProcessCommandLine\r\n    ),\r\n    (\r\n        CommonSecurityLog\r\n        | where TimeGenerated > ago(timeframe)\r\n        // Check for connections to malicious IPs or URLs in proxy/firewall logs.\r\n        | where DestinationIP in (malicious_ips) or RequestURL in (malicious_urls)\r\n        | project\r\n            Timestamp = TimeGenerated,\r\n            DeviceName,\r\n            ActionType = Activity,\r\n            RemoteIP = DestinationIP,\r\n            RemoteUrl = RequestURL,\r\n            InitiatingProcessFileName = coalesce(ProcessName, \"\"),\r\n            InitiatingProcessCommandLine = \"\"\r\n    )\r\n// Potential for False Positives: IP addresses can be reassigned over time. If an IP is no longer malicious, it should be removed from the list.\r\n// Tuning: Add known good processes or source IPs to an exclusion list if legitimate traffic is being flagged.\r\n// | where InitiatingProcessFileName !in (\"legit_updater.exe\")\r\n| project-reorder Timestamp, DeviceName, ActionType, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+    - T1071.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.fortinet.com/blog/threat-research/unveiling-the-weaponized-web-shell-encystphp

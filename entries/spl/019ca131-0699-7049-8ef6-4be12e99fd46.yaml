@@ -1,0 +1,62 @@
+id: 019ca131-0699-7049-8ef6-4be12e99fd46
+name: Ivanti Connect Secure RESURGE Activity Detection
+description: This rule set detects indicators of compromise associated with the RESURGE activity targeting Ivanti Connect Secure devices, as described by CISA. It looks for specific file hashes, the presence of a covert socket path (.logsrv), and modifications to key Ivanti filesystem artifacts such as LD_PRELOAD, DSUpgrade.pm, coreboot.img, and scanner.py. A match indicates potential compromise and requires further investigation to confirm the asset role, timing of file appearance, and comparison with approved maintenance windows. If hits are found, collect logs and file copies, reduce external exposure, and look for unusual activity like unexpected administrator actions or unfamiliar outbound connections.
+query: |+
+    ## RESURGE hunts (Ivanti Connect Secure) — hashes + key artifacts
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-27
+    ## Ref: https://www.cisa.gov/news-events/analysis-reports/ar25-087a
+
+    ## Description:
+    ## This query set helps you look for signs that an Ivanti Connect Secure device may have been
+    ## affected by the RESURGE activity described by CISA. The first check looks for exact file
+    ## fingerprints that CISA published, which is a very strong indicator when it appears on a real
+    ## appliance. Additional checks look for a specific file location and other related items mentioned
+    ## in public guidance so you can confirm whether the device was changed. A match does not
+    ## automatically mean an attacker is still present, but it does mean you should treat the device as
+    ## potentially unsafe until you can explain the finding. If you see hits, confirm the asset role,
+    ## identify when the file appeared, and compare with approved maintenance windows. Then collect
+    ## logs and file copies, reduce external exposure, and look for nearby unusual activity such as
+    ## unexpected administrator actions or unfamiliar outbound connections.
+
+    ### 1) Endpoint: published SHA256 matches
+    (index=os OR index=edr OR index=auditd) (
+      sha256="52bbc44eb451cb5e16bf98bc5b1823d2f47a18d71f14543b460395a1c1b1aeda" OR
+      sha256="3526af9189533470bc0e90d54bafb0db7bda784be82a372ce112e361f7c7b104" OR
+      sha256="b1221000f43734436ec8022caaa34b133f4581ca3ae8eccd8d57ea62573f301d"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(file_path) as paths values(process_name) as processes values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) File events: .logsrv covert socket path
+    (index=os OR index=edr OR index=auditd) (
+      file_path="/home/runtime/tmp/.logsrv" OR TargetFilename="/home/runtime/tmp/.logsrv" OR file_name=".logsrv"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(action) as actions values(process_name) as processes values(_raw) as examples by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Ivanti filesystem tamper pivots (LD_PRELOAD, DSUpgrade.pm, coreboot.img, scanner.py)
+    (index=os OR index=edr OR index=auditd) (
+      file_path="/tmp/data/root/etc/ld.so.preload" OR
+      file_path="/tmp/data/root/home/perl/DSUpgrade.pm" OR
+      file_path="*/coreboot.img" OR
+      file_path="*/scripts/scanner.py" OR
+      file_path="*/scripts/scanner_legacy.py"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(action) as actions values(process_name) as processes values(_raw) as examples by host
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.006
+    - T1562.001
+tags:
+    - spl
+version: "1"
+references:
+    - https://www.cisa.gov/news-events/analysis-reports/ar25-087a

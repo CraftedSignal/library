@@ -1,0 +1,81 @@
+id: 019ca12b-15b4-7299-9898-1ad21ecbc1e1
+name: Dohdoor Malware Campaign Activity Detection
+description: This rule set detects various activities associated with the Dohdoor malware campaign (UAT-10027). It includes detection for known malware hashes, suspicious network communication patterns such as DNS over HTTPS (DoH) to Cloudflare with specific user agents, staging URL patterns, and odd-cased infrastructure domains. Additionally, it identifies endpoint activities like curl downloading batch/command files and DLL sideloading attempts using specific DLL names and LOLBins executed from common public writeable directories. The intent is to provide strong leads for investigation into potential Dohdoor infections.
+query: |+
+    ## Dohdoor (UAT-10027) hunts (hashes + DoH-to-Cloudflare + sideload chain)
+    ## Author: Daniel Jeremiah
+    ## Date: 2026-02-27
+    ## Ref: https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+
+    ## Description:
+    ## These queries help you search for warning signs linked to the Dohdoor campaign using a mix of
+    ## exact fingerprints and distinct communication clues described in public reporting. The intent is
+    ## to make hunting straightforward: a fingerprint match is a strong lead that the same file from
+    ## incident reporting may be present, while the other checks help you spot unusual outbound
+    ## activity that deserves review. If you see results, identify the host and the process involved,
+    ## then check whether the destination and timing make sense for that system. If the activity is not
+    ## expected, preserve evidence and expand the search to similar hosts. Also look for other signs on
+    ## the same machine, such as new files, repeated outbound connections, or changes that suggest
+    ## remote control. Use the results as investigation starting points so you can respond early and
+    ## reduce the chance of data being accessed or moved.
+
+    ### 1) Endpoint: published SHA256 matches (Talos IOC list)
+    (index=edr OR index=sysmon OR index=os) (
+      sha256="54e18978c6405f56cd59ba55a62291436639f21cf325ae509f0599b15e8f7f53" OR
+      sha256="0bb130b1fafb17705d31fe5dd25e7b2d62176578609d75cc57911ef5582ef17a" OR
+      sha256="54545fa3a2d8da6746021812ebaa9d26f33bba4f63c6f7f35caa6fa4ee8c0e6a" OR
+      sha256="8e97c677aec905152f8a92fed50bb84ef2e8985d5c29330c5a05a4a2afcbd4a5" OR
+      sha256="800faaf15d5f42f2ab2c1d2b6b65c8a9e4def6dc10f6ce4e269dcf23f4e8dae2" OR
+      sha256="b1bd8f7d4488977cca03954a57f5c8ad7bfd4609bcc3bae92326830fcbd3232c" OR
+      sha256="2ce3e75997f89b98dd280d164a5f21f7565f4de26eed61243badde04b480700e"
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(process_name) as process values(Image) as images values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 2) Proxy/web: staging URL patterns and odd-cased infra domains from Talos IOC list
+    (index=proxy OR index=web OR index=waf) (
+      url="*/111111?sub=d*" OR url="*/111111?sub=s*" OR url="*/X111111*" OR
+      dest_domain="*.design" OR dest_domain="*.online" OR dest_domain="*.software"
+    )
+    | search (url="*MswInSofTUpDloAd*" OR url="*DEEPinSPeCTioNsyStEM*" OR url="*PNUIsckmHwAgzVdYJRlbeFT*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as uas by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 3) Proxy/web: DoH to Cloudflare with “application/dns-json” and insomnia UA (if headers logged)
+    (index=proxy OR index=web) (
+      (url="*dns-query*" OR url="*dns-json*" OR url="*application/dns-json*")
+      AND (user_agent="*insomnia/11.3.0*" OR request_headers="*application/dns-json*")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(url) as urls values(user_agent) as uas by src_ip, dest_domain
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 4) Endpoint: curl downloading BAT/CMD
+    (index=edr OR index=sysmon OR index=os) (process_name="curl.exe" OR Image="*\\curl.exe") (CommandLine="*.bat*" OR CommandLine="*.cmd*")
+    | stats count min(_time) as first_seen max(_time) as last_seen values(CommandLine) as cmdlines values(ParentImage) as parents by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+    ### 5) Endpoint: workspace DLL disguise + LOLBin execution from ProgramData/Public
+    (index=edr OR index=sysmon OR index=os) (
+      (TargetFilename="*\\ProgramData\\*\\propsys.dll" OR TargetFilename="*\\Users\\Public\\*\\propsys.dll" OR TargetFilename="*\\ProgramData\\*\\batmeter.dll" OR TargetFilename="*\\Users\\Public\\*\\batmeter.dll")
+      OR (Image="*\\ProgramData\\*\\Fondue.exe" OR Image="*\\Users\\Public\\*\\Fondue.exe" OR Image="*\\ProgramData\\*\\mblctr.exe" OR Image="*\\Users\\Public\\*\\mblctr.exe" OR Image="*\\ProgramData\\*\\ScreenClippingHost.exe" OR Image="*\\Users\\Public\\*\\ScreenClippingHost.exe")
+    )
+    | stats count min(_time) as first_seen max(_time) as last_seen values(Image) as images values(CommandLine) as cmdlines by host, user
+    | convert ctime(first_seen) ctime(last_seen)
+
+query_type: spl
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0011
+techniques:
+    - T1574.001
+    - T1218
+    - T1071.001
+    - T1572
+tags:
+    - spl
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/

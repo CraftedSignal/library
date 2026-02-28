@@ -1,0 +1,18 @@
+id: 019ca14f-8358-7379-a949-15cbc0cee690
+name: IClickFix WordPress Injection Fingerprint
+description: Detects the presence of the unique 'ic-tracker-js' ID within script tags on web server files (.php, .html, .js), which is a high-fidelity indicator of a compromised WordPress site by the IClickFix framework. This rule looks for file creation or modification events where the initiating process command line contains the malicious string.
+query: "// Name: IClickFix WordPress Injection Fingerprint\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-02-27\r\n// Description: Detects the presence of the unique 'ic-tracker-js' ID within script tags on web server files (.php, .html), which is a high-fidelity indicator of a compromised WordPress site by the IClickFix framework.\r\n// MITRE TTPs: T1505.003\r\n// References: https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/\r\n// False Positive Sensitivity: Medium. This detection is highly specific to the IClickFix framework. The primary challenge is ensuring a log source that provides file content or detailed file modification data is available. False positives are unlikely but could occur if 'ic-tracker-js' is used legitimately.\r\n// Data Source Note: This query is a template. It requires a data source that logs file creations or modifications, such as File Integrity Monitoring (FIM) events. You may need to adapt the table and field names (e.g., 'DeviceFileEvents', 'FileContentChanges') to your specific environment.\r\nlet timeframe = 1d;\r\nlet malicious_string = \"id=\\\"ic-tracker-js\\\"\"; // Unique script ID used by IClickFix.\r\nlet target_extensions = dynamic([\".php\", \".html\", \".js\"]);\r\n// Search for file creation or modification events.\r\nDeviceFileEvents\r\n| where Timestamp > ago(timeframe)\r\n// Filter for target file types commonly found on web servers.\r\n| where FileName has_any (target_extensions)\r\n// The following line is a placeholder for searching within file content, which is not a standard field.\r\n// This logic is most effective when run against a log source that explicitly captures file content changes.\r\n// As an alternative, this rule can be combined with process events that show this string being written to a file.\r\n| where InitiatingProcessCommandLine has malicious_string or InitiatingProcessCommandLine has malicious_string\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    InitiatingProcessCommandLine,\r\n    Rule = \"IClickFix WordPress Injection Fingerprint\"\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+techniques:
+    - T1505.003
+    - T1204.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/
