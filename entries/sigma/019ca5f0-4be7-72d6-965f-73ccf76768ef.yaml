@@ -1,0 +1,27 @@
+id: 019ca5f0-4be7-72d6-965f-73ccf76768ef
+name: Unauthorized Member Action on RiskyUsers - Correlated
+description: |
+    Correlates AuditLogs and IdentityInfo on AccountUPN to detect
+    unauthorized CA or GA members performing IdentityProtection actions
+    on RiskyUsers in Azure Entra ID outside of the Information Security
+    department.
+    Note: The following logic is NOT expressible in Sigma and must be
+    applied post-conversion in native KQL:
+      - Multiple join fallback matching (by UPN, last name, full name)
+      - StrippedAdminName prefix removal (CA - / GA - )
+      - summarize arg_max(TimeGenerated, *) by AccountUPN
+      - iff() fallback logic for department and job title
+      - sort by TimeGenerated desc
+      - project-reorder
+query: "---\r\ntitle: Unauthorized Member Action on RiskyUsers - Correlated\r\nauthor: Igor Oliveira (Pr0fiLeRR)\r\nid: 5841b08f-f363-4139-a70a-5cc91e13efc3\r\ndescription: |\r\n  Correlates AuditLogs and IdentityInfo on AccountUPN to detect\r\n  unauthorized CA or GA members performing IdentityProtection actions\r\n  on RiskyUsers in Azure Entra ID outside of the Information Security\r\n  department.\r\n  Note: The following logic is NOT expressible in Sigma and must be\r\n  applied post-conversion in native KQL:\r\n    - Multiple join fallback matching (by UPN, last name, full name)\r\n    - StrippedAdminName prefix removal (CA - / GA - )\r\n    - summarize arg_max(TimeGenerated, *) by AccountUPN\r\n    - iff() fallback logic for department and job title\r\n    - sort by TimeGenerated desc\r\n    - project-reorder\r\nstatus: experimental\r\ndate: 2026-02-28\r\nmodified: 2026-02-28\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1098/\r\n  - https://attack.mitre.org/techniques/T1078/004/\r\n  - https://detections.ai/rules/019c912d-3871-71da-a0a7-5794f03b9943\r\ntags:\r\n  - attack.t1098\r\n  - attack.t1078.004\r\n  - attack.persistence\r\n  - attack.privilege_escalation\r\ntype: temporal_ordered\r\nrules:\r\n  - 09198296-c7e9-43a7-b85f-6aaa70d281c5  # Rule 1 → AuditLogs (Unauthorized Member Action on RiskyUsers in Azure Entra ID - action occurs first)\r\n  - bcfe183a-d422-4d3c-ab81-2013e7b54756  # Rule 2 → IdentityInfo (Identity Enrichment for RiskyUsers Action Detection)\r\ngroup-by:\r\n  - AccountUPN                             # links AuditLogs admin to IdentityInfo\r\ntimespan: 30m                              # mirrors LookbackPeriod of 30min\r\ncondition:\r\n  gte: 1\r\nfields:\r\n  - TimeGenerated\r\n  - OperationName\r\n  - InitiatedBy.user.userPrincipalName\r\n  - InitiatedBy.user.ipAddress\r\n  - AccountDisplayName\r\n  - Department\r\n  - JobTitle\r\n  - TargetResources\r\n  - Result\r\n  - ResultDescription\r\n  - Category\r\n  - AdditionalDetails\r\nfalsepositives:\r\n  - Authorized CA or GA members from Information Security performing legitimate actions\r\n  - Temporary access granted to non-InfoSec members for specific projects\r\nlevel: high\r\n..."
+query_type: sigma
+severity: medium
+techniques:
+    - T1078
+    - T1078.004
+author: Igor Oliveira (Pr0fiLeRR)
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1098/
+    - https://attack.mitre.org/techniques/T1078/004/
+    - https://detections.ai/rules/019c912d-3871-71da-a0a7-5794f03b9943

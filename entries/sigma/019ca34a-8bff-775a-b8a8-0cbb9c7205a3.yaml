@@ -1,0 +1,61 @@
+id: 019ca34a-8bff-775a-b8a8-0cbb9c7205a3
+name: AWS CLI S3 Bulk Transfer Command
+description: |
+    This rule is meant to help analysts quickly spot a high-confidence indicator related to Google ShinyHunters SaaS Defense Guidance. It is written to be easy to understand and to keep false alarms low by focusing on a very specific match: AWS CLI performing S3 sync or copy commands that can be used for bulk export. A match does not automatically prove an attacker is currently active, and it does not prove a file was executed, but it does mean the event is important because it lines up with a public threat intelligence source. When this triggers, start by identifying the host, user, and timeframe involved, then decide whether the activity is expected for that system. If it is unexpected, preserve the related logs and any files, and look for nearby events that could explain how the indicator appeared, such as a download, a new process, or a new connection. If the same indicator appears on multiple systems, treat it as a scoping signal and expand the investigation window. Use the reference link (https://cloud.google.com/blog/topics/threat- intelligence/defense-against-shinyhunters-cybercrime-saas) to document where the indicator came from and to support incident notes and reporting.
+query: |
+    title: "AWS CLI S3 Bulk Transfer Command"
+    id: 78f023af-8b3e-40c8-bc67-8416647e8730
+    status: experimental
+    description: >
+      This rule is meant to help analysts quickly spot a high-confidence indicator
+      related to Google ShinyHunters SaaS Defense Guidance. It is written to be easy
+      to understand and to keep false alarms low by focusing on a very specific
+      match: AWS CLI performing S3 sync or copy commands that can be used for bulk
+      export. A match does not automatically prove an attacker is currently active,
+      and it does not prove a file was executed, but it does mean the event is
+      important because it lines up with a public threat intelligence source. When
+      this triggers, start by identifying the host, user, and timeframe involved,
+      then decide whether the activity is expected for that system. If it is
+      unexpected, preserve the related logs and any files, and look for nearby
+      events that could explain how the indicator appeared, such as a download, a
+      new process, or a new connection. If the same indicator appears on multiple
+      systems, treat it as a scoping signal and expand the investigation window. Use
+      the reference link (https://cloud.google.com/blog/topics/threat-
+      intelligence/defense-against-shinyhunters-cybercrime-saas) to document where
+      the indicator came from and to support incident notes and reporting.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_img:
+        Image|endswith: \\aws.exe
+      selection_cmd:
+        CommandLine|contains:
+          - ' s3 '
+          - ' sync '
+          - ' cp '
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Legitimate administration and automation; validate role, bucket scope, and
+        time window.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1537
+    - T1020
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,29 @@
+id: 019ca5e9-b5f5-7486-a0b3-6c9002d89fe2
+name: Unauthorized Member Action on RiskyUsers in Azure Entra ID
+description: |
+    Detects actions performed on RiskyUsers in Azure Entra ID by unauthorized
+    members. Specifically looks for CA or GA accounts performing IdentityProtection
+    actions where the admin is not from the Information Security department.
+    Note: String parsing (AdminLocalPart, AdminLastName, StrippedAdminName),
+    fallback identity matching, summarize arg_max, and project are handled
+    natively in KQL post-conversion.
+query: "---\r\ntitle: Unauthorized Member Action on RiskyUsers in Azure Entra ID\r\nauthor: Igor Oliveira (Pr0fiLeRR)\r\nid: 09198296-c7e9-43a7-b85f-6aaa70d281c5\r\ndescription: |\r\n  Detects actions performed on RiskyUsers in Azure Entra ID by unauthorized\r\n  members. Specifically looks for CA or GA accounts performing IdentityProtection\r\n  actions where the admin is not from the Information Security department.\r\n  Note: String parsing (AdminLocalPart, AdminLastName, StrippedAdminName),\r\n  fallback identity matching, summarize arg_max, and project are handled\r\n  natively in KQL post-conversion.\r\nstatus: experimental\r\ndate: 2026-02-28\r\nmodified: 2026-02-28\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1098/\r\n  - https://attack.mitre.org/techniques/T1078/004/\r\n  - https://detections.ai/rules/019c912d-3871-71da-a0a7-5794f03b9943\r\ntags:\r\n  - attack.t1098\r\n  - attack.t1078.004\r\n  - attack.persistence\r\n  - attack.privilege_escalation\r\nlogsource:\r\n  product: azure\r\n  service: auditlogs\r\ndetection:\r\n  selection:\r\n    Category: 'IdentityProtection'\r\n    InitiatedBy.user.userPrincipalName|contains:\r\n      - '.ca@'\r\n      - '.ga@'\r\n  filter_empty_admin:\r\n    InitiatedBy.user.userPrincipalName|exists: true\r\n  filter_empty_target:\r\n    TargetResources[0].userPrincipalName|exists: true\r\n  filter_infosec:\r\n    Department: 'Information Security'\r\n  condition: selection and filter_empty_admin and filter_empty_target and not filter_infosec\r\nfields:\r\n  - TimeGenerated\r\n  - OperationName\r\n  - InitiatedBy.user.userPrincipalName\r\n  - InitiatedBy.user.ipAddress\r\n  - TargetResources\r\n  - Result\r\n  - ResultDescription\r\n  - ResultReason\r\n  - AdditionalDetails\r\n  - Category\r\n  - LoggedByService\r\nfalsepositives:\r\n  - Authorized CA or GA members from Information Security performing legitimate actions\r\n  - Temporary access granted to non-InfoSec members for specific projects\r\nlevel: high\r\n..."
+query_type: sigma
+severity: medium
+techniques:
+    - T1078
+    - T1078.004
+tags:
+    - attack.t1098
+    - attack.t1078.004
+    - attack.persistence
+    - attack.privilege_escalation
+author: Igor Oliveira (Pr0fiLeRR)
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1098/
+    - https://attack.mitre.org/techniques/T1078/004/
+    - https://detections.ai/rules/019c912d-3871-71da-a0a7-5794f03b9943
+data_sources:
+    - azure
+    - auditlogs

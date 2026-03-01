@@ -1,0 +1,45 @@
+id: 019ca68b-f7c9-72fc-b0c5-656527123489
+name: QEMU Loading a DLL as a Disk Image
+description: Detects the execution of QEMU where a .dll file is specified as a hard disk image. This is a known TTP associated with the "Bring Your Own Hypervisor" (BYOH) technique, where attackers hide malicious activity within a virtualized environment using non-standard disk image formats.
+query: |
+    // Name: QEMU Loading a DLL as a Disk Image
+    // Author: detections.ai
+    // Date: 2026-02-28
+    // Description: Detects the execution of QEMU where a .dll file is specified as a hard disk image. This is a known TTP associated with the "Bring Your Own Hypervisor" (BYOH) technique, where attackers hide malicious activity within a virtualized environment using non-standard disk image formats.
+    // Tactic: Defense Evasion
+    // Technique: T1564.006 - Virtualization/Sandbox Evasion
+    // False Positive Sensitivity: Medium
+    // References:
+    // - (User-provided context)
+
+    DeviceProcessEvents
+    // Look for process creation events
+    | where ActionType == "ProcessCreated"
+    // Filter for QEMU process execution. Using ProcessVersionInfoOriginalFileName is more robust against simple binary renaming.
+    | where ProcessVersionInfoOriginalFileName has_any ("qemu.exe", "qemu-system-x86_64.exe", "qemu-system-i386.exe") or ProcessCommandLine has "qemu"
+    // Detects the use of disk image parameters (-hda, -drive)
+    | where ProcessCommandLine has_any ("-hda", "-drive")
+    // Detects if a .dll file is specified in the command line, which is highly suspicious for a disk image.
+    | where ProcessCommandLine has ".dll"
+    // Potential for False Positives: Legitimate, albeit rare, development or testing scenarios might use a .dll in this manner.
+    // To reduce noise, consider filtering by specific parent processes, users, or hosts that are not expected to perform such actions.
+    // Example tuning: | where InitiatingProcessFileName !in ("devenv.exe", "explorer.exe")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        ProcessVersionInfoOriginalFileName,
+        SHA1,
+        MD5
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.006
+tags:
+    - kql
+author: KnightArtorias42 (AI, it was AI)
+version: "2"
