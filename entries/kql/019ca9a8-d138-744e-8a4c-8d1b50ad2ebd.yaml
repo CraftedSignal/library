@@ -1,0 +1,9 @@
+id: 019ca9a8-d138-744e-8a4c-8d1b50ad2ebd
+name: Application Permission Grant or Role Assignment
+description: High-privilege permission grants (Mail, Files, Directory, Role Management) and sensitive role assignments. The full_access_as_app and Exchange.ManageAsApp permissions are especially critical — these grant tenant-wide mailbox access without user delegation, exactly the capability Midnight Blizzard exploited.
+query: "let high_risk_permissions = dynamic([\r\n    \"Mail.ReadWrite\", \"Mail.Read\", \"Files.ReadWrite.All\",\r\n    \"Directory.ReadWrite.All\", \"RoleManagement.ReadWrite.Directory\",\r\n    \"AppRoleAssignment.ReadWrite.All\", \"Application.ReadWrite.All\",\r\n    \"full_access_as_app\", \"Exchange.ManageAsApp\"\r\n]);\r\nlet high_risk_roles = dynamic([\r\n    \"Global Administrator\", \"Privileged Role Administrator\",\r\n    \"Application Administrator\", \"Cloud Application Administrator\",\r\n    \"Exchange Administrator\"\r\n]);\r\nAuditLogs\r\n| where TimeGenerated > ago(24h)\r\n| where OperationName has_any (\r\n    \"Add app role assignment to service principal\",\r\n    \"Add member to role\"\r\n)\r\n| extend TargetName = tostring(TargetResources[0].displayName)\r\n| extend TargetId = tostring(TargetResources[0].id)\r\n| extend InitiatedBy = coalesce(\r\n    tostring(InitiatedBy.user.userPrincipalName),\r\n    tostring(InitiatedBy.app.displayName)\r\n)\r\n| extend GrantedPermission = tostring(\r\n    parse_json(tostring(TargetResources[0].modifiedProperties))[1].newValue\r\n)\r\n| where GrantedPermission has_any (high_risk_permissions)\r\n    or TargetName has_any (high_risk_roles)\r\n| project TimeGenerated, OperationName, TargetName,\r\n    GrantedPermission, InitiatedBy"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

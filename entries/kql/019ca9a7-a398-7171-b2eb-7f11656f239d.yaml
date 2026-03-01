@@ -1,0 +1,9 @@
+id: 019ca9a7-a398-7171-b2eb-7f11656f239d
+name: Anomalous Data Access Volume by Service Principa
+description: Service principal data access volume exceeding 3 standard deviations from its 14-day baseline. A service principal that normally accesses 50 mailbox items per hour suddenly accessing 5,000 is a strong exfiltration signal — even though the access itself is “authorized” by its permissions.
+query: "let lookback = 14d;\r\nlet detection_window = 1h;\r\nlet baseline = CloudAppEvents\r\n    | where TimeGenerated between (ago(lookback) .. ago(detection_window))\r\n    | where isnotempty(Application)\r\n    | where ActionType has_any (\"MailItemsAccessed\", \"FileAccessed\",\r\n        \"FileDownloaded\", \"SearchQueryPerformed\")\r\n    | summarize\r\n        AvgDailyOps = count() / 14.0,\r\n        StdDevDailyOps = stdev(count())\r\n        by Application, ActionType;\r\nCloudAppEvents\r\n| where TimeGenerated > ago(detection_window)\r\n| where ActionType has_any (\"MailItemsAccessed\", \"FileAccessed\",\r\n    \"FileDownloaded\", \"SearchQueryPerformed\")\r\n| summarize CurrentOps = count()\r\n    by Application, ActionType\r\n| join kind=inner baseline\r\n    on Application, ActionType\r\n| extend ZScore = iff(\r\n    StdDevDailyOps > 0,\r\n    (CurrentOps - AvgDailyOps) / StdDevDailyOps,\r\n    iff(CurrentOps > AvgDailyOps * 2, 99.0, 0.0)\r\n)\r\n| where ZScore > 3\r\n| project Application, ActionType, CurrentOps, BaselineAvg = round(AvgDailyOps, 1), ZScore = round(ZScore, 1)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

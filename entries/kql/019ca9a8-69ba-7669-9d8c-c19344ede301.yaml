@@ -1,0 +1,9 @@
+id: 019ca9a8-69ba-7669-9d8c-c19344ede301
+name: Service Principal Acting on Other Applications
+description: One service principal modifying another service principal’s configuration - credential additions, owner changes, permission grants. This is the cross-application pivot pattern. In a healthy environment, this should be extremely rare.
+query: "AuditLogs\r\n| where TimeGenerated > ago(24h)\r\n| where OperationName has_any (\r\n    \"Add service principal credentials\",\r\n    \"Add owner to application\",\r\n    \"Update application - Certificates and secrets management\",\r\n    \"Add app role assignment to service principal\"\r\n)\r\n| extend ActorApp = tostring(InitiatedBy.app.displayName)\r\n| extend ActorAppId = tostring(InitiatedBy.app.appId)\r\n| where isnotempty(ActorApp)\r\n| extend TargetApp = tostring(TargetResources[0].displayName)\r\n| extend TargetAppId = tostring(TargetResources[0].id)\r\n| where ActorAppId != TargetAppId\r\n| project TimeGenerated, OperationName, ActorApp, ActorAppId, TargetApp, TargetAppId"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

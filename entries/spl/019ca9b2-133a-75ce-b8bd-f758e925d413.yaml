@@ -1,0 +1,11 @@
+id: 019ca9b2-133a-75ce-b8bd-f758e925d413
+name: BloodHound Usage via CommandLine
+description: The rule detects execution of BloodHound or its ingestors by matching on process creation events where the new process name is bloodhound.exe or the command line contains characteristic BloodHound arguments.
+query: index=Windows sourcetype=WinEventLog EventCode=4688 ((NewProcessName IN ("bloodhound.exe", "sharphound.exe")) OR (CommandLine IN ("* -collectionmethod all *", "* --collectionmethods session *", "* --loop --loopduration *", "* --portscantimeout *", "*.exe -c all -d *", "*invoke-bloodhound*", "*get-bloodhounddata*")) OR (CommandLine="* -jsonfolder *" CommandLine="* -zipfilename *") OR (CommandLine="* dconly *" CommandLine="* --nosavecache *")) "4688" (("bloodhound" OR "sharphound") OR ("-CollectionMethod All" OR "--collectionmethods session" OR "--loop --loopduration" OR "--portscantimeout" OR ".exe -c all -d " OR "invoke-bloodhound" OR "get-bloodhounddata") OR ("-jsonfolder" "-zipfilename") OR (" dconly " "--nosavecache")) | stats values(CommandLine) as CommandLine, values(ParentProcessName) as ParentProcessName, values(NewProcessName) as NewProcessName, values(SubjectUserName) as SubjectUserName, count by Computer
+query_type: spl
+severity: medium
+tags:
+    - spl
+version: "1"
+references:
+    - https://web-assets.esetstatic.com/wls/2022/02/eset_threat_report_t32021.pdf

@@ -1,0 +1,9 @@
+id: 019ca9a9-43a4-748d-bc7d-1ec9f00d5483
+name: Credential Addition to Application or Service Principal
+description: Any credential addition to an application registration or service principal, distinguishing whether the actor was a human user or another service principal. When InitiatedByType == "ServicePrincipal", the alert severity should be critical - service principals adding credentials to other service principals is the hallmark of automated persistence.
+query: "AuditLogs\r\n| where TimeGenerated > ago(24h)\r\n| where OperationName has_any (\r\n    \"Add service principal credentials\",\r\n    \"Update application - Certificates and secrets management\"\r\n)\r\n| where TargetResources[0].type == \"Application\"\r\n| extend AppName = tostring(TargetResources[0].displayName)\r\n| extend AppId = tostring(TargetResources[0].id)\r\n| extend InitiatedBy = coalesce(\r\n    tostring(InitiatedBy.user.userPrincipalName),\r\n    tostring(InitiatedBy.app.displayName)\r\n)\r\n| extend InitiatedByType = iff(\r\n    isnotempty(tostring(InitiatedBy.user.userPrincipalName)),\r\n    \"User\", \"ServicePrincipal\"\r\n)\r\n| project TimeGenerated, OperationName, AppName, AppId,\r\n    InitiatedBy, InitiatedByType"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

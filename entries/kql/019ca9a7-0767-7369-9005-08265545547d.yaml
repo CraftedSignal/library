@@ -1,0 +1,9 @@
+id: 019ca9a7-0767-7369-9005-08265545547d
+name: ASIM Normalized Cross-Source Detection
+description: Credential spraying against multiple service principals across identity platforms simultaneously. The ASIM imAuthentication parser normalizes Entra, Okta, AWS, and on-prem AD into a single schema — the detection fires regardless of which platform the attacker targets.
+query: "imAuthentication\r\n| where TimeGenerated > ago(1h)\r\n| where TargetAppName != \"\"\r\n| where EventResult == \"Failure\"\r\n| summarize\r\n    FailureCount = count(),\r\n    DistinctApps = dcount(TargetAppName),\r\n    Sources = make_set(EventProduct, 5),\r\n    Apps = make_set(TargetAppName, 10)\r\n    by SrcIpAddr, bin(TimeGenerated, 5m)\r\n| where FailureCount > 10 and DistinctApps > 3\r\n| project TimeGenerated, SrcIpAddr, FailureCount,\r\n    DistinctApps, Sources, Apps"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
