@@ -1,0 +1,23 @@
+id: 019ca80d-979a-766a-bf6a-cec935f216eb
+name: Firewall Configuration Change Detection
+description: "Detects configuration changes on firewall devices via CommonSecurityLog.\nSpecifically looks for CONFIG activity that is not an audit-commit,\nindicating an actual configuration change was made rather than a\nread-only audit operation.\nNote: Field aliasing (Client, Administrator, Host_IP, Command, Result,\nConfiguration_Path, Before_Change, After_Change) via extend,\nfixed date window via datetime_local_to_utc, and project-reorder\nare handled natively in KQL post-conversion. See third item of the\nreference. Original query was scoped to a fixed date window, which is \n(2026-02-09 to 2026-02-10 PST) suggesting threat hunting intent.\nHowever, it's worthnoting that Sigma version uses a rolling 24h window \nfor continuous detection. This is the detection version of my KQL script.\n"
+query: "---\r\ntitle: Firewall Configuration Change Detection\r\nauthor: Igor Oliveira (Pr0fiLeRR)\r\nid: 3fbf08e9-b6c7-4c8c-a66a-c0ae6bde2fc1\r\ndescription: |\r\n  Detects configuration changes on firewall devices via CommonSecurityLog.\r\n  Specifically looks for CONFIG activity that is not an audit-commit,\r\n  indicating an actual configuration change was made rather than a\r\n  read-only audit operation.\r\n  Note: Field aliasing (Client, Administrator, Host_IP, Command, Result,\r\n  Configuration_Path, Before_Change, After_Change) via extend,\r\n  fixed date window via datetime_local_to_utc, and project-reorder\r\n  are handled natively in KQL post-conversion. See third item of the\r\n  reference. Original query was scoped to a fixed date window, which is \r\n  (2026-02-09 to 2026-02-10 PST) suggesting threat hunting intent.\r\n  However, it's worthnoting that Sigma version uses a rolling 24h window \r\n  for continuous detection. This is the detection version of my KQL script.\r\nstatus: stable\r\ndate: 2026-02-28\r\nmodified: 2026-02-28\r\nreferences:\r\n  - https://attack.mitre.org/techniques/T1562/004/\r\n  - https://attack.mitre.org/techniques/T1098/\r\n  - https://detections.ai/rules/019c4bab-1844-750a-a8f2-3758f7995648\r\ntags:\r\n  - attack.t1562.004\r\n  - attack.t1098\r\n  - attack.defense_evasion\r\n  - attack.persistence\r\nassociated_cves:\r\n  - CVE-2024-3400\r\nlogsource:\r\n  product: azure\r\n  category: firewall\r\n  service: commonsecuritylog\r\ndetection:\r\n  selection:\r\n    Activity: 'config'\r\n  filter_audit_commit:\r\n    DeviceAction: 'audit-commit'\r\n  condition: selection and not filter_audit_commit\r\nfields:\r\n  - TimeGenerated\r\n  - DestinationUserName\r\n  - SourceHostName\r\n  - DestinationServiceName\r\n  - DeviceAction\r\n  - DeviceEventClassID\r\n  - Message\r\n  - DeviceCustomString1\r\n  - DeviceCustomString2\r\nfalsepositives:\r\n  - Authorized firewall configuration changes by network administrators\r\n  - Automated configuration management tools (e.g., Ansible, Terraform)\r\n  - Scheduled configuration updates during maintenance windows\r\nlevel: high\r\n...\r\n"
+query_type: sigma
+severity: medium
+techniques:
+    - T1562.004
+tags:
+    - attack.t1562.004
+    - attack.t1098
+    - attack.defense_evasion
+    - attack.persistence
+author: Igor Oliveira (Pr0fiLeRR)
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1562/004/
+    - https://attack.mitre.org/techniques/T1098/
+    - https://detections.ai/rules/019c4bab-1844-750a-a8f2-3758f7995648
+data_sources:
+    - firewall
+    - azure
+    - commonsecuritylog

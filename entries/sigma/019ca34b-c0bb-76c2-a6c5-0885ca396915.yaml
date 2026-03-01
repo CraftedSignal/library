@@ -1,0 +1,66 @@
+id: 019ca34b-c0bb-76c2-a6c5-0885ca396915
+name: Salesforce Aura Endpoint POST With Aura
+description: |
+    This rule is meant to help analysts quickly spot a high-confidence indicator related to Google AuraInspector Salesforce Aura Audit. It is written to be easy to understand and to keep false alarms low by focusing on a very specific match: an HTTP POST to a Salesforce /aura endpoint that includes specific Aura method strings. A match does not automatically prove an attacker is currently active, and it does not prove a file was executed, but it does mean the event is important because it lines up with a public threat intelligence source. When this triggers, start by identifying the host, user, and timeframe involved, then decide whether the activity is expected for that system. If it is unexpected, preserve the related logs and any files, and look for nearby events that could explain how the indicator appeared, such as a download, a new process, or a new connection. If the same indicator appears on multiple systems, treat it as a scoping signal and expand the investigation window. Use the reference link (https://cloud.google.com/blog/topics/threat- intelligence/auditing-salesforce-aura-data-exposure) to document where the indicator came from and to support incident notes and reporting.
+query: |
+    title: >-
+      Salesforce Aura Endpoint POST With Aura
+    id: e925e928-f0cb-4ffd-8fbe-32aa6a7e87a8
+    status: experimental
+    description: >
+      This rule is meant to help analysts quickly spot a high-confidence indicator
+      related to Google AuraInspector Salesforce Aura Audit. It is written to be
+      easy to understand and to keep false alarms low by focusing on a very specific
+      match: an HTTP POST to a Salesforce /aura endpoint that includes specific Aura
+      method strings. A match does not automatically prove an attacker is currently
+      active, and it does not prove a file was executed, but it does mean the event
+      is important because it lines up with a public threat intelligence source.
+      When this triggers, start by identifying the host, user, and timeframe
+      involved, then decide whether the activity is expected for that system. If it
+      is unexpected, preserve the related logs and any files, and look for nearby
+      events that could explain how the indicator appeared, such as a download, a
+      new process, or a new connection. If the same indicator appears on multiple
+      systems, treat it as a scoping signal and expand the investigation window. Use
+      the reference link (https://cloud.google.com/blog/topics/threat-
+      intelligence/auditing-salesforce-aura-data-exposure) to document where the
+      indicator came from and to support incident notes and reporting.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/auditing-salesforce-aura-data-exposure
+      - https://github.com/google/aura-inspector
+    logsource:
+      category: webserver
+    detection:
+      selection_method:
+        cs-method:
+          - POST
+      selection_path:
+        cs-uri-stem|endswith: /aura
+      selection_body:
+        request|contains:
+          - ACTION$getConfigData
+          - ACTION$executeGraphQL
+          - ACTION$getInitialListViews
+          - ACTION$getAppBootstrapData
+      condition: selection_method and selection_path and selection_body
+    falsepositives:
+      - Legitimate Salesforce usage if request bodies are logged; validate source
+        and volume.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1213.004
+    - T1528
+author: Daniel Jeremiah
+version: "4"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/auditing-salesforce-aura-data-exposure
+    - https://github.com/google/aura-inspector
+data_sources:
+    - webserver
