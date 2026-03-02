@@ -1,0 +1,16 @@
+id: 019cab60-caff-7324-b325-b8badef38a17
+name: '[IA] - Monitoring Explorer-Initiated External Traffic'
+description: " was reading this article today on cybersecuritynews (\U0001F517 ⬇️ ) about attackers abusing Windows File Explorer + WebDAV to deliver malware, and it made me think about how to monitor this threat.\nThe attack makes File Explorer connect to an external location that looks like a normal folder. From the user side nothing feels strange… but in reality explorer.exe is establishing an internet connection to attacker infrastructure.\nAs I usually say, it’s often better to focus on IOAs (how the activity happens) rather than only URLs or domains, because those are trivial for attackers to change. The behaviour is what tends to stay consistent.\nThe following KQL Query filter identify external connections initiated by Explorer + option to exclude False Positives based on URLs + option to specify connections to specific countries"
+query: "//Sergio Albea\nDeviceNetworkEvents\n| where Timestamp >= ago(1d)\n| where InitiatingProcessFileName =~ \"explorer.exe\"\n| where RemoteIPType == \"Public\"\n| where not(RemoteUrl has_any (dynamic(['bing.com','assets.msn.com']))) \n| extend geo_ip = tostring(geo_info_from_ip_address(RemoteIP).country)\n//| where geo_ip !in ('','')\n| summarize Connections=count(),make_set(RemoteUrl),make_set(RemoteIP) by DeviceName,DeviceId,InitiatingProcessFileName, geo_ip, Timestamp, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1187
+tags:
+    - kql
+author: Sergio Albea
+version: "2"
+references:
+    - https://cybersecuritynews.com/hackers-abuse-windows-file-explorer-and-webdav/
