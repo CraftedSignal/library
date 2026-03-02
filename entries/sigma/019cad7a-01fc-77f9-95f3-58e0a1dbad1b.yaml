@@ -1,0 +1,87 @@
+id: 019cad7a-01fc-77f9-95f3-58e0a1dbad1b
+name: Malicious NPM Lifecycle Hook Execution
+description: |
+    Detects Node.js package managers (npm, yarn, pnpm) spawning suspicious child processes like network utilities or shells during the installation of a package. This TTP is abused by malicious packages like 'ambar-src' which use 'preinstall' lifecycle scripts to download and execute secondary payloads.
+query: |
+    title: Malicious NPM Lifecycle Hook Execution
+    description: >
+      Detects Node.js package managers (npm, yarn, pnpm) spawning suspicious child
+      processes like network utilities or shells during the installation of a
+      package. This TTP is abused by malicious packages like 'ambar-src' which use
+      'preinstall' lifecycle scripts to download and execute secondary payloads.
+    author: Akshay Gaikwad
+    references:
+      - >-
+        https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src
+    date: 2026-03-02T00:00:00.000Z
+    tags:
+      - attack.t1195.002
+      - attack.t1059.007
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - \npm.cmd
+          - \npm
+          - \node.exe
+          - \node
+          - \yarn.cmd
+          - \yarn
+          - \pnpm.cmd
+          - \pnpm
+        ParentCommandLine|contains:
+          - ' install '
+          - ' i '
+          - ' add '
+      selection_package:
+        ParentCommandLine|contains:
+          - ambar-src
+          - ember-source
+      selection_child_procs:
+        Image|endswith:
+          - \curl.exe
+          - \wget.exe
+          - \powershell.exe
+          - \pwsh.exe
+          - \curl
+          - \wget
+          - \sh
+          - \bash
+          - \nohup
+      selection_child_obfuscation:
+        CommandLine|contains:
+          - String.fromCharCode
+          - hex
+          - 0x
+      condition: >-
+        selection_parent and selection_package and (selection_child_procs or
+        selection_child_obfuscation)
+    falsepositives:
+      - Legitimate packages might use lifecycle scripts to download necessary
+        binaries or run setup scripts. However, the inclusion of the specific
+        package names 'ambar-src' or 'ember-source' makes false positives highly
+        unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1195.002
+    - T1059.007
+    - T1059.001
+tags:
+    - attack.t1195.002
+    - attack.t1059.007
+    - attack.t1059.001
+author: Akshay Gaikwad
+version: "4"
+references:
+    - https://www.tenable.com/blog/cybersecurity-research-faq-new-malicious-npm-package-ambar-src
+data_sources:
+    - process_creation
+    - windows

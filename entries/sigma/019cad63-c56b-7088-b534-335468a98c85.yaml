@@ -1,0 +1,82 @@
+id: 019cad63-c56b-7088-b534-335468a98c85
+name: Dohdoor Sideloading via Legitimate Windows Binaries
+description: |
+    Detects the loading of malicious DLLs (e.g., "propsys.dll", "batmeter.dll") by legitimate Windows binaries ("Fondue.exe", "mblctr.exe", etc.) from non-standard, user-writable locations.
+    This behavior is a key tactic of the Dohdoor malware campaign, where threat actors copy trusted executables and a malicious payload to a staging directory like "C:\ProgramData\" to perform DLL sideloading.
+query: |
+    title: Dohdoor Sideloading via Legitimate Windows Binaries
+    description: >
+      Detects the loading of malicious DLLs (e.g., "propsys.dll", "batmeter.dll") by
+      legitimate Windows binaries ("Fondue.exe", "mblctr.exe", etc.) from
+      non-standard, user-writable locations.
+
+      This behavior is a key tactic of the Dohdoor malware campaign, where threat
+      actors copy trusted executables and a malicious payload to a staging directory
+      like "C:\ProgramData\" to perform DLL sideloading.
+    author: Akshay Gaikwad
+    references:
+      - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+    date: 2026-03-02T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1574.002
+      - attack.t1574.001
+      - attack.t1036.005
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_process:
+        Image|endswith:
+          - \Fondue.exe
+          - \mblctr.exe
+          - \ScreenClippingHost.exe
+      selection_dll:
+        ImageLoaded|endswith:
+          - \propsys.dll
+          - \batmeter.dll
+      selection_path:
+        Image|startswith:
+          - C:\ProgramData\
+          - C:\Users\Public\
+          - C:\Users\
+      filter_legit_process:
+        Image|startswith:
+          - C:\Windows\System32\
+          - C:\Windows\SysWOW64\
+          - C:\Windows\WinSxS\
+      filter_legit_dll:
+        ImageLoaded|startswith:
+          - C:\Windows\System32\
+          - C:\Windows\SysWOW64\
+          - C:\Windows\WinSxS\
+      condition: all of selection_* and not (filter_legit_process or filter_legit_dll)
+    falsepositives:
+      - Legitimate software installers or updaters might occasionally execute these
+        binaries from temporary directories and load DLLs. However, loading a system
+        DLL like 'propsys.dll' from a non-system path is highly anomalous.
+      - If legitimate applications are found to trigger this rule, consider adding
+        more specific path exclusions to the filters.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+    - T1036.005
+tags:
+    - attack.defense_evasion
+    - attack.t1574.002
+    - attack.t1574.001
+    - attack.t1036.005
+author: Akshay Gaikwad
+version: "2"
+references:
+    - https://blog.talosintelligence.com/new-dohdoor-malware-campaign/
+data_sources:
+    - image_load
+    - windows

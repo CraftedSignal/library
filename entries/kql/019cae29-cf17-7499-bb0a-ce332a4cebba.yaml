@@ -1,0 +1,18 @@
+id: 019cae29-cf17-7499-bb0a-ce332a4cebba
+name: Windows - PowerShell - Possible ClickFix
+description: 'This rule detects suspicious PowerShell activity that involves hidden windows, execution policy bypass, and attempts to download or execute files. It specifically looks for PowerShell processes launched by common parent processes like explorer.exe, cmd.exe, mshta.exe, wscript.exe, cscript.exe, or rundll32.exe, combined with command-line arguments indicative of stealthy execution and payload delivery. The rule identifies two main scenarios: ''Hidden Downloader and Execution'' where PowerShell is used with hidden window styles and download commands, and ''Inline Launcher and Payload Delivery'' where PowerShell is used with no profile and download/execution commands.'
+query: "SecurityEvent\r\n| where Process matches regex @\"(?i)(powershell\\.exe|pwsh\\.exe)$\"\r\n| extend RO = case(\r\n        (ParentProcessName matches regex @\"(?i)(explorer\\.exe|cmd\\.exe|mshta\\.exe|wscript\\.exe|cscript\\.exe|rundll32\\.exe)$\"\r\n        and CommandLine has_any (\"-w hidden\", \"-windowstyle hidden\", \"-ep bypass\", \"-executionpolicy bypass\")\r\n        and ( CommandLine has_any (\"invoke-webrequest\",\"invoke-restmethod\",\"downloadstring\",\"downloadfile\") or CommandLine matches regex @\"(?i)\\b(iwr|irm)\\b\")\r\n        and CommandLine has_any (\".ps1\",\".json\",\".msi\",\"start-process\")),\r\n        \"Windows - Powershell - Possible ClickFix - Hidden Downloader and Execution\",\r\n        (ParentProcessName matches regex @\"(?i)(cmd\\.exe|mshta\\.exe|wscript\\.exe|cscript\\.exe|rundll32\\.exe)$\"\r\n        and CommandLine has_any (\"-noprofile\", \"-command\")\r\n        and ( CommandLine has_any (\"invoke-restmethod\", \"invoke-webrequest\") or CommandLine matches regex @\"(?i)\\b(iwr|irm)\\b\")\r\n        and CommandLine has_any (\".msi\", \".ps1\", \".json\", \"start-process\")),\r\n        \"Windows - Powershell - Possible ClickFix - Inline Launcher and Payload Delivery\",\r\n    \"None\"\r\n)\r\n| where RO != \"None\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1059
+tags:
+    - kql
+author: Sotiris Mavrakis
+version: "1"
+references:
+    - https://blog.sekoia.io/meet-iclickfix-a-widespread-wordpress-targeting-framework-using-the-clickfix-tactic/
