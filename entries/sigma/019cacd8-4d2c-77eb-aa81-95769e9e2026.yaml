@@ -1,0 +1,72 @@
+id: 019cacd8-4d2c-77eb-aa81-95769e9e2026
+name: High Volume of Browser Connections to Localhost High Ports
+description: Detects a high volume of network connections from a browser process to a high port on the local host (127.0.0.1 or ::1). This pattern can indicate a malicious website attempting to brute-force credentials for a local service, such as the OpenClaw AI agent, by abusing the browser's permission to establish WebSocket connections to localhost. The vulnerable service may not rate-limit these local connections, allowing for rapid password guessing.
+query: |
+    title: High Volume of Browser Connections to Localhost High Ports
+    id: 877b14e4-aa85-48c0-a156-26504de0f18a
+    status: experimental
+    description: >-
+      Detects a high volume of network connections from a browser process to a high
+      port on the local host (127.0.0.1 or ::1). This pattern can indicate a
+      malicious website attempting to brute-force credentials for a local service,
+      such as the OpenClaw AI agent, by abusing the browser's permission to
+      establish WebSocket connections to localhost. The vulnerable service may not
+      rate-limit these local connections, allowing for rapid password guessing.
+    author: Shikha Sangwan
+    references:
+      - https://www.oasis.security/blog/openclaw-vulnerability
+    date: 2026-03-02
+    tags:
+      - attack.credential_access
+      - attack.t1110.001
+      - attack.t1539
+      - attack.t1592.004
+    logsource:
+      category: network_connection
+      product: windows # This detection is also applicable to macOS and Linux with appropriate process names.
+    detection:
+      selection:
+        # Detects connections from common web browser processes
+        InitiatingProcessName|endswith:
+          - 'chrome.exe'
+          - 'firefox.exe'
+          - 'msedge.exe'
+          - 'brave.exe'
+          - 'Safari' # macOS process name might not have an extension
+        # To the local loopback address
+        DestinationIp:
+          - '127.0.0.1'
+          - '::1'
+        # On high ports often used by developer tools and local servers
+        DestinationPort|gte: 8000
+        DestinationPort|lte: 9999
+      # This detection requires a SIEM or backend that can aggregate events.
+      # The condition should be to alert when the count of matching events from a single source host exceeds a threshold in a short time frame.
+      # For example: count > 100 in 1 minute.
+      condition: selection
+    falsepositives:
+      - Legitimate web applications or browser extensions that communicate with
+        local developer tools.
+      - Web developers actively debugging local services.
+      - The aggregation threshold (e.g., >100 events in 1 minute) may need to be
+        tuned based on the environment to avoid noise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - attack.credential_access
+    - attack.t1110.001
+    - attack.t1539
+    - attack.t1592.004
+author: Shikha Sangwan
+version: "3"
+references:
+    - https://www.oasis.security/blog/openclaw-vulnerability
+data_sources:
+    - network_connection
+    - windows

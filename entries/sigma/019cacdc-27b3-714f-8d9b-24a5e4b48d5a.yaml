@@ -1,0 +1,76 @@
+id: 019cacdc-27b3-714f-8d9b-24a5e4b48d5a
+name: Suspicious AI Agent Child Process Execution
+description: Detects the execution of shell or system utilities (e.g., powershell, cmd, curl) where the parent process is a known AI agent binary like OpenClaw. This activity can indicate that an attacker has compromised the AI agent (e.g., via the ClawJacked vulnerability) and is using its capabilities to execute arbitrary commands, collect data, or exfiltrate information from the host system.
+query: |
+    title: Suspicious AI Agent Child Process Execution
+    id: 30f6d15d-a847-444f-a0a4-1f675612ec94
+    status: experimental
+    description: >-
+      Detects the execution of shell or system utilities (e.g., powershell, cmd,
+      curl) where the parent process is a known AI agent binary like OpenClaw. This
+      activity can indicate that an attacker has compromised the AI agent (e.g., via
+      the ClawJacked vulnerability) and is using its capabilities to execute
+      arbitrary commands, collect data, or exfiltrate information from the host
+      system.
+    author: Shikha Sangwan
+    references:
+      - https://www.oasis.security/blog/openclaw-vulnerability
+    date: 2026-03-02
+    tags:
+      - attack.execution
+      - attack.collection
+      - attack.t1059.001
+      - attack.t1059.004
+      - attack.t1005
+    logsource:
+      category: process_creation
+      product: windows # This detection is also applicable to macOS and Linux.
+    detection:
+      selection_parent:
+        # Parent process is a known AI agent binary (OpenClaw and its previous names)
+        ParentImage|endswith:
+          - 'openclaw.exe'
+          - 'clawdbot.exe'
+          - 'moltbot.exe'
+          - '\openclaw'
+          - '\clawdbot'
+          - '\moltbot'
+      selection_child:
+        # Child process is a shell or common system utility used for command execution or data transfer
+        Image|endswith:
+          - 'powershell.exe'
+          - 'cmd.exe'
+          - '\sh'
+          - '\bash'
+          - 'curl.exe'
+          - '\curl'
+          - 'wget.exe'
+          - '\wget'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate AI agent skills or plugins that are designed to execute shell
+        commands or system utilities.
+      - Developers using the agent for legitimate automation or development tasks.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0009
+techniques:
+    - T1059.001
+    - T1059.004
+    - T1005
+tags:
+    - attack.execution
+    - attack.collection
+    - attack.t1059.001
+    - attack.t1059.004
+    - attack.t1005
+author: Shikha Sangwan
+version: "2"
+references:
+    - https://www.oasis.security/blog/openclaw-vulnerability
+data_sources:
+    - process_creation
+    - windows
