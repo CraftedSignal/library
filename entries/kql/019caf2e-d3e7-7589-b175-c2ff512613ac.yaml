@@ -1,0 +1,18 @@
+id: 019caf2e-d3e7-7589-b175-c2ff512613ac
+name: Havoc C2 Registry Fallback Persistence
+description: Detects the creation or modification of specific registry values (UXMP, UFID, UCID) in known Havoc C2 fallback registry paths (e.g., \SOFTWARE\Classes\Local Settings\Software\Microsoft\ and \SOFTWARE\Microsoft\SQMClient\) used by a modified Havoc Demon agent for C2 fallback and configuration.
+query: "// Name: Havoc C2 Registry Fallback Persistence\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the creation or modification of specific registry values used by a modified Havoc Demon agent for C2 fallback and configuration.\r\n// Tags: T1112, T1027.013\r\n// Tactics: Persistence, Defense Evasion\r\n// Techniques: Modify Registry, Encrypted Payloads\r\n// References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control\r\n// False Positive Sensitivity: Medium\r\nDeviceRegistryEvents\r\n// Look for registry events, focusing on value creation or modification.\r\n| where ActionType in (\"RegistryValueSet\", \"RegistryValueCreated\")\r\n// Define the specific registry value names used by the malware.\r\n| where RegistryValueName in (\"UXMP\", \"UFID\", \"UCID\")\r\n// Define the registry key paths where the C2 information is stored.\r\n| where RegistryKey has_any (\r\n    @\"\\SOFTWARE\\Classes\\Local Settings\\Software\\Microsoft\\\",\r\n    @\"\\SOFTWARE\\Microsoft\\SQMClient\\\"\r\n    )\r\n// FP Tuning: The SQMClient key is used by legitimate Microsoft software for telemetry.\r\n// While the specific value names are unusual, if false positives occur from legitimate processes,\r\n// consider adding process-based exclusions here. e.g., | where not(InitiatingProcessFileName in~ ('legit_process1.exe', 'legit_process2.exe'))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+techniques:
+    - T1112
+    - T1027.013
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control

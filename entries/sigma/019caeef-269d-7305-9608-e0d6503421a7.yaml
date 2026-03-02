@@ -1,0 +1,57 @@
+id: 019caeef-269d-7305-9608-e0d6503421a7
+name: SolarWinds Web Help Desk Obfuscated JSON Bypass
+description: |
+    Detects HTTP POST requests to the SolarWinds Web Help Desk (WHD) AjaxProxy endpoint that contain hex-encoded JSON keys or values (e.g., `\xNN`).
+    Attackers use this technique to bypass security filters and achieve remote code execution, as detailed in the exploit chain for CVE-2025-40552 and CVE-2025-40553.
+query: |
+    title: SolarWinds Web Help Desk Obfuscated JSON Bypass
+    id: 842ed3e7-98ba-49a0-8959-0964d0b2592f
+    status: experimental
+    description: |
+      Detects HTTP POST requests to the SolarWinds Web Help Desk (WHD) AjaxProxy endpoint that contain hex-encoded JSON keys or values (e.g., `\xNN`).
+      Attackers use this technique to bypass security filters and achieve remote code execution, as detailed in the exploit chain for CVE-2025-40552 and CVE-2025-40553.
+    author: tim@detections.ai
+    references:
+      - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+    date: 2026-03-02
+    tags:
+      - attack.t1190
+      - attack.t1059.003
+      - cve.2025.40553
+    logsource:
+      category: webserver
+      product: solarwinds
+    detection:
+      uri:
+        # requests to the vulnerable AjaxProxy endpoint
+        uri_path|contains: '/helpdesk/WebObjects/Helpdesk.woa/ajax/'
+      obfuscation:
+        http.request.body|contains:
+          # hex-escape sequences used to bypass security filters in the request body
+          - 'p\x61rams' # Obfuscated "params"
+          - 'java\x43lass' # Obfuscated "javaClass"
+          - 'java\x63lass' # Obfuscated "javaClass"
+          - '\x' # Generic hex-escape sequence (tune out if needed)
+      condition: uri and obfuscation
+    falsepositives:
+      - The generic `\x` pattern may cause false positives if legitimate traffic to
+        this endpoint uses hex-encoded characters. Consider removing it or using
+        only the more specific strings for higher fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.t1190
+    - attack.t1059.003
+    - cve.2025.40553
+author: tim@detections.ai
+version: "5"
+references:
+    - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+data_sources:
+    - webserver
+    - solarwinds

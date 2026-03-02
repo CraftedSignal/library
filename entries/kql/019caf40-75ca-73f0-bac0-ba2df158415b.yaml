@@ -1,0 +1,18 @@
+id: 019caf40-75ca-73f0-bac0-ba2df158415b
+name: Suspicious FileZilla Child Process (csc.exe)
+description: Detects the FileZilla executable (filezilla.exe) spawning the C# compiler (csc.exe). This behavior is highly anomalous for a standard FTP client and is a technique used by a trojanized FileZilla variant to perform runtime .NET compilation for its payload.
+query: "// Name: Suspicious FileZilla Child Process (csc.exe)\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the FileZilla executable (filezilla.exe) spawning the C# compiler (csc.exe). This behavior is highly anomalous for a standard FTP client and is a technique used by a trojanized FileZilla variant to perform runtime .NET compilation for its payload.\r\n// MITRE ATT&CK: T1059.005, T1027.004\r\n// References: https://www.malwarebytes.com/blog/threat-intel/2026/03/a-fake-filezilla-site-hosts-a-malicious-download\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for process creation events where the parent is filezilla.exe.\r\n| where InitiatingProcessFileName =~ \"filezilla.exe\"\r\n// The child process is the C# compiler, csc.exe.\r\n| where FileName =~ \"csc.exe\"\r\n// This behavior is highly anomalous for an FTP client. False positives are unlikely.\r\n// No tuning is recommended unless a legitimate, but highly unusual, use case is identified in your environment.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    AccountName,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    InitiatingProcessParentId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.005
+    - T1027.004
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/threat-intel/2026/03/a-fake-filezilla-site-hosts-a-malicious-download

@@ -1,0 +1,58 @@
+id: 019caee9-ff55-77a3-a8b1-e76a58c1ce9d
+name: Suspicious Driver Service Registration Path
+description: Detects the creation of a new Windows service where the binary path points to suspicious, world-writable, or temporary directories. This is a common technique used in Bring Your Own Vulnerable Driver (BYOVD) attacks to load a malicious or vulnerable driver.
+query: |
+    title: Suspicious Driver Service Registration Path
+    id: f2aaf5c6-142d-406f-af0e-3c817e985d46
+    status: experimental
+    description: Detects the creation of a new Windows service where the binary path
+      points to suspicious, world-writable, or temporary directories. This is a
+      common technique used in Bring Your Own Vulnerable Driver (BYOVD) attacks to
+      load a malicious or vulnerable driver.
+    author: tim@detections.ai
+    references:
+      - https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks
+    date: 2026-03-02
+    tags:
+      - attack.t1543.003
+      - attack.t1068
+    logsource:
+      product: windows
+      service: sysmon
+      category:
+        - process_creation
+        - service_creation
+    detection:
+      selection_process:
+        Image|endswith: '\sc.exe'
+        CommandLine|contains:
+          - 'create'
+          - 'config'
+      selection_paths:
+        CommandLine|contains:
+          - '\Windows\Temp'
+          - '\Users\Public'
+          - '\ProgramData'
+          - '\AppData\Local\Temp'
+      selection_service:
+        ImagePath|contains:
+          - '\Windows\Temp'
+          - '\Users\Public'
+          - '\ProgramData'
+          - '\AppData\Local\Temp'
+      condition: (selection_process and selection_paths) or selection_service
+    falsepositives:
+      - Legitimate software installers.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.003
+    - T1068
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks

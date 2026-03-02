@@ -1,0 +1,18 @@
+id: 019caf54-4a49-73d4-b583-e3d730f3840d
+name: Suspicious Lua Script Execution via Alien FFI
+description: Detects the execution of the Lua interpreter with a script that has a .ini extension or the known malicious name 'alien.ini' from the Notepad++ supply chain attack. This TTP was used to load and execute shellcode via the Lua Alien FFI library.
+query: "// Name: Suspicious Lua Script Execution via Alien FFI\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the execution of the Lua interpreter with a script that has a .ini extension or the known malicious name 'alien.ini' from the Notepad++ supply chain attack. This TTP was used to load and execute shellcode via the Lua Alien FFI library.\r\n// References: https://securelist.com/notepad-supply-chain-attack/118708/\r\n// False Positive Sensitivity: Medium\r\n// MITRE TTPs: T1059.006, T1055\r\nDeviceProcessEvents\r\n// Look for the Lua interpreter process. Using OriginalFileName is more robust against simple renaming.\r\n| where ProcessVersionInfoOriginalFileName has \"lua.exe\"\r\n// The attack specifically used an .ini file for the compiled Lua script. Legitimate Lua scripts typically have a .lua extension.\r\n// Also check for the specific file name observed in the campaign.\r\n| where ProcessCommandLine has \"alien.ini\" or ProcessCommandLine matches regex @\".+\\.ini[\"\"']?$\"\r\n// Focus on execution from user-writable AppData directories, which is where the malware was dropped.\r\n| where FolderPath has @\"\\Users\\\" and FolderPath has @\"\\AppData\\\"\r\n// FP Tuning: Legitimate software might use Lua with .ini files in rare cases.\r\n// If false positives occur, you can make the path more specific (e.g., `FolderPath endswith \"\\\\Adobe\\\\Scripts\\\\\"`)\r\n// or exclude known legitimate parent processes or command lines.\r\n| project\r\n    Timestamp = TimeGenerated,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059.011
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://securelist.com/notepad-supply-chain-attack/118708/

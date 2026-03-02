@@ -1,0 +1,18 @@
+id: 019caef8-f6dd-738f-b7d4-d905a6570cfd
+name: Known Vulnerable Driver Load (BYOVD)
+description: Detects the loading of specific drivers known to be vulnerable and abused in Bring Your Own Vulnerable Driver (BYOVD) attacks to gain kernel-level privileges and disable security tools.
+query: "// Name: Known Vulnerable Driver Load (BYOVD)\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the loading of specific drivers known to be vulnerable and abused in Bring Your Own Vulnerable Driver (BYOVD) attacks to gain kernel-level privileges and disable security tools.\r\n// Tactic: Privilege Escalation, Defense Evasion\r\n// Technique: T1068, T1562.001\r\n// References: https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks\r\n// False Positive Sensitivity: Medium\r\n// Define a list of known vulnerable drivers commonly abused in BYOVD attacks.\r\nlet vulnerableDrivers = dynamic([\r\n    \"mhyprot2.sys\", // Genshin Impact anti-cheat driver\r\n    \"zam64.sys\",    // Zemana Antimalware driver\r\n    \"RTCore64.sys\", // Micro-Star MSI Afterburner driver\r\n    \"procexp.sys\"   // Process Explorer driver (legitimate tool, but often abused)\r\n]);\r\nDeviceImageLoadEvents\r\n// Filter for image load events matching the vulnerable driver list.\r\n| where FileName in~ (vulnerableDrivers)\r\n// FP Tuning: The presence of these drivers is not always malicious.\r\n// 'procexp.sys' is part of a legitimate Sysinternals tool.\r\n// Consider adding context-based filters, such as the initiating process or file path,\r\n// to reduce noise from legitimate software usage.\r\n// For example:\r\n// | where not (InitiatingProcessFileName =~ \"procexp64.exe\" and FolderPath has_any (\"Program Files\", \"Sysinternals\"))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    FileName,\r\n    FolderPath,\r\n    MD5,\r\n    SHA1,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1068
+    - T1562.001
+tags:
+    - kql
+author: Ethan Andrew
+version: "2"
+references:
+    - https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks

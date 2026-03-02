@@ -1,0 +1,21 @@
+id: 019caf54-9ef5-7235-be87-4f962e065d86
+name: Legitimate Binaries Executed from AppData (Notepad++ Supply Chain Attack)
+description: Detects legitimate executables, known to be abused in the Notepad++ supply chain attack, running from user AppData directories. This behavior is highly indicative of DLL side-loading.
+query: "// Name: Legitimate Binaries Executed from AppData\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects legitimate executables, known to be abused in the Notepad++ supply chain attack, running from user AppData directories. This behavior is highly indicative of DLL side-loading (T1574.002).\r\n// References: https://www.picussecurity.com/resource/blog/notepad-supply-chain-attack-chrysalis-backdoor, https://securelist.com/notepad-supply-chain-attack/118708/\r\n// False Positive Sensitivity: Medium\r\n// MITRE TTPs: T1574.002, T1055\r\nDeviceProcessEvents\r\n// Look for specific legitimate executables that were abused in this campaign.\r\n| where FileName in~ (\"ProShow.exe\", \"BluetoothService.exe\", \"Bitdefender Submission Wizard.exe\")\r\n// Focus on execution from user-writable AppData directories, where the malware dropped these files.\r\n| where FolderPath has @\"\\Users\\\" and FolderPath has @\"\\AppData\\\"\r\n// FP Tuning: While rare, some legitimate portable applications or installers might run from AppData.\r\n// If false positives occur, consider excluding known good parent processes (InitiatingProcessFileName)\r\n// or adding more specific path requirements (e.g., `FolderPath endswith @\"\\ProShow\\\"`).\r\n| project\r\n    Timestamp = TimeGenerated,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0001
+techniques:
+    - T1574.001
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.picussecurity.com/resource/blog/notepad-supply-chain-attack-chrysalis-backdoor
+    - https://securelist.com/notepad-supply-chain-attack/118708/

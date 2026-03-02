@@ -1,0 +1,18 @@
+id: 019caef8-94c3-77b5-8344-739eba0c2598
+name: Suspicious Kernel Driver Service Creation from User-Writable Paths
+description: Detects the creation of a Windows kernel service using sc.exe where the binary path points to common user-writable or temporary directories. This is a common TTP for Bring Your Own Vulnerable Driver (BYOVD) attacks, often used for privilege escalation and persistence.
+query: "// Name: Suspicious Kernel Driver Service Creation\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the creation of a Windows kernel service using sc.exe where the binary path points to common user-writable or temporary directories. This is a common TTP for Bring Your Own Vulnerable Driver (BYOVD) attacks.\r\n// Tactic: Privilege Escalation, Persistence\r\n// Technique: T1068, T1543.003\r\n// References: https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks\r\n// False Positive Sensitivity: Medium\r\n// Define suspicious paths where drivers should not typically be installed from.\r\nlet suspiciousPaths = dynamic([\r\n    \"\\\\Temp\\\\\",\r\n    \"\\\\Users\\\\Public\\\\\",\r\n    \"\\\\Desktop\\\\\",\r\n    \"\\\\Downloads\\\\\",\r\n    \"\\\\PerfLogs\\\\\"\r\n]);\r\nDeviceProcessEvents\r\n// Filter for sc.exe process creation events.\r\n| where FileName =~ \"sc.exe\"\r\n// Look for command line arguments indicating kernel service creation.\r\n| where ProcessCommandLine has_all (\"create\", \"type=\", \"kernel\", \"binPath=\")\r\n// Check if the binary path points to a suspicious, user-writable location.\r\n| where ProcessCommandLine has_any (suspiciousPaths)\r\n// FP Tuning: Legitimate installers might occasionally use temp paths.\r\n// To reduce noise, consider filtering by the parent process (InitiatingProcessFileName).\r\n// You can create an allowlist of known good installers or driver files if needed.\r\n// For example:\r\n// | where InitiatingProcessFileName !in~ (\"msiexec.exe\", \"trusted_installer.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1068
+    - T1543.003
+tags:
+    - kql
+author: Ethan Andrew
+version: "2"
+references:
+    - https://www.picussecurity.com/resource/blog/what-are-bring-your-own-vulnerable-driver-byovd-attacks

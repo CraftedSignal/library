@@ -1,0 +1,18 @@
+id: 019caf40-25f7-722c-9ee2-8d2ca50adafb
+name: Trojanized FileZilla DLL Sideloading
+description: Detects the loading of 'version.dll' by 'filezilla.exe' from a non-system directory. This behavior is a strong indicator of a DLL Sideloading attack used by a trojanized FileZilla variant. Legitimate FileZilla distributions do not ship with this DLL.
+query: "// Name: Trojanized FileZilla DLL Sideloading\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the loading of 'version.dll' by 'filezilla.exe' from a non-system directory. This behavior is a strong indicator of a DLL Sideloading attack used by a trojanized FileZilla variant. Legitimate FileZilla distributions do not ship with this DLL.\r\n// MITRE ATT&CK: T1574.001, T1574.002\r\n// References: https://www.malwarebytes.com/blog/threat-intel/2026/03/a-fake-filezilla-site-hosts-a-malicious-download\r\n// False Positive Sensitivity: Medium\r\nDeviceImageLoadEvents\r\n// Look for the loading of version.dll, a common target for DLL sideloading.\r\n| where FileName =~ \"version.dll\"\r\n// The parent process is filezilla.exe, the target of this specific campaign.\r\n| where InitiatingProcessFileName =~ \"filezilla.exe\"\r\n// Exclude legitimate loads from the Windows system directories.\r\n// The malicious DLL is typically placed in the same directory as the executable to be loaded.\r\n| where not(FolderPath matches regex @\"(?i)^C:\\\\Windows\\\\(System32|SysWOW64)\\\\\")\r\n// Potential for false positives if other software bundles FileZilla and also includes a legitimate, non-system 'version.dll'.\r\n// Tuning suggestion: Add specific folder paths of legitimate software to an exclusion list if benign cases are found.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    FileName,\r\n    FolderPath,\r\n    SHA1,\r\n    InitiatingProcessId,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.malwarebytes.com/blog/threat-intel/2026/03/a-fake-filezilla-site-hosts-a-malicious-download

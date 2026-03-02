@@ -1,0 +1,21 @@
+id: 019caf54-f031-756b-b243-983f8bf3ea4b
+name: Curl Exfiltration via User-Agent to temp.sh
+description: Detects the use of curl.exe where the User-Agent string contains a URL pointing to temp.sh. This specific TTP was observed in the Notepad++ supply chain attack (Chrysalis infection chain) to exfiltrate system information and signal the uploaded file's location to the C2 server.
+query: "// Name: Curl Exfiltration via User-Agent\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the use of curl.exe where the User-Agent string contains a URL pointing to temp.sh. This specific TTP was observed in the Notepad++ supply chain attack (Chrysalis infection chain) to exfiltrate system information and signal the uploaded file's location to the C2 server.\r\n// References: https://www.picussecurity.com/resource/blog/notepad-supply-chain-attack-chrysalis-backdoor, https://securelist.com/notepad-supply-chain-attack/118708/\r\n// False Positive Sensitivity: Medium\r\n// MITRE TTPs: T1041, T1071.001\r\nDeviceProcessEvents\r\n// Look for the execution of curl.exe.\r\n| where FileName =~ \"curl.exe\"\r\n// Detect the use of the --user-agent or -A flags combined with the specific exfiltration service URL.\r\n| where ProcessCommandLine has_any (\"--user-agent\", \" -A \") and ProcessCommandLine has \"temp.sh\"\r\n// FP Tuning: This behavior is highly specific and suspicious. False positives are unlikely but could occur in developer\r\n// environments. If needed, exclude known developer machines or specific parent processes (InitiatingProcessFileName).\r\n| project\r\n    Timestamp = TimeGenerated,\r\n    DeviceName,\r\n    AccountName = InitiatingProcessAccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0011
+    - TA0001
+techniques:
+    - T1041
+    - T1071.001
+    - T1195.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.picussecurity.com/resource/blog/notepad-supply-chain-attack-chrysalis-backdoor
+    - https://securelist.com/notepad-supply-chain-attack/118708/

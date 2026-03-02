@@ -1,0 +1,16 @@
+id: 019caf2f-8a02-71f8-8b2b-7d2f66d3bab5
+name: Evasive ZIP/CAB Payload Reassembly via Copy Command
+description: Detects the command-line pattern of reassembling a ZIP or CAB file from fragmented parts using the 'copy' command. This technique was observed in a campaign where adversaries manually reconstructed payloads on disk to evade detection by splitting them into multiple parts and then reassembling them.
+query: "// Name: Evasive ZIP Payload Reassembly\r\n// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-02\r\n// Description: Detects the command-line pattern of reassembling a ZIP or CAB file from fragmented parts. This technique was observed in a campaign where adversaries manually reconstructed payloads on disk to evade detection.\r\n// Tags: T1027.001\r\n// Tactics: Defense Evasion\r\n// Techniques: Obfuscated Files or Information\r\n// References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control\r\n// False Positive Sensitivity: Medium\r\nDeviceProcessEvents\r\n// Look for command-line execution of the copy command with specific arguments.\r\n| where ProcessCommandLine has \"copy\"\r\n// The first pattern looks for the reconstruction of a ZIP file from a 'PK' header and a numbered fragment.\r\n// The second pattern looks for binary concatenation of .dat files, often used to build a CAB file.\r\n| where\r\n    (ProcessCommandLine has \"PK\" and ProcessCommandLine contains \".1\") or\r\n    (ProcessCommandLine has \"/b\" and ProcessCommandLine contains \".dat\")\r\n// FP Tuning: The use of 'copy /b' with .dat files can be a legitimate activity for some software installers.\r\n// If false positives occur, investigate the parent process and file paths. Consider adding exclusions for known good processes.\r\n// e.g., | where not(InitiatingProcessFileName in~ ('legit_installer.exe'))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    FolderPath,\r\n    InitiatingProcessFileName,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1027
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control
