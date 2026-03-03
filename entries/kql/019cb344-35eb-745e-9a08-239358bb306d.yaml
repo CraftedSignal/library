@@ -1,0 +1,17 @@
+id: 019cb344-35eb-745e-9a08-239358bb306d
+name: Numeric Scheduled Task Creation
+description: Detects the creation of scheduled tasks with purely numeric names using schtasks.exe. This technique has been observed in campaigns where threat actors use Unix epoch-style timestamps as task names for rapid lateral movement and persistence, attempting to blend in or avoid simple string-based detections.
+query: "// Name: Numeric Scheduled Task Creation\r\n// Author: Adarsh Pandey\r\n// Date: 2026-03-03\r\n// Description: Detects the creation of scheduled tasks with purely numeric names. This technique was observed in a campaign where threat actors used Unix epoch-style timestamps as task names for rapid lateral movement and persistence.\r\n// MITRE ATT&CK: T1053.005 (Scheduled Task/Job: Scheduled Task), T1021.002 (Remote Services: SMB/Windows Admin Shares)\r\n// References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control\r\n// False Positive Sensitivity: Medium\r\n// Rationale: Legitimate scheduled tasks typically have descriptive, human-readable names. Using purely numeric names, especially those resembling timestamps, is an uncommon practice and can be an indicator of automated or scripted task creation by an adversary attempting to blend in or avoid simple string-based detections.\r\nDeviceProcessEvents\r\n// Look for the execution of the schtasks utility to create a new task.\r\n| where FileName =~ \"schtasks.exe\"\r\n| where ProcessCommandLine has_any (\"/create\", \"-create\")\r\n// Extract the task name provided with the /tn argument. A case-insensitive regex is used.\r\n| extend TaskName = extract(@'(?i)/tn\\s+\"?(\\d+)\"?', 1, ProcessCommandLine)\r\n// Filter for events where a purely numeric task name was successfully extracted.\r\n| where isnotempty(TaskName)\r\n// Tuning suggestion: To reduce potential false positives from legitimate scripts that might use numeric identifiers,\r\n// you could filter for longer numbers that are more likely to be timestamps, e.g., | where strlen(TaskName) >= 10\r\n// For higher fidelity, correlate with the specific payload from the report: | where ProcessCommandLine contains @\"C:\\Windows\\SoftwareDistribution\\Download\\go.bat\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    ProcessCommandLine,\r\n    TaskName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control

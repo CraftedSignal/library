@@ -1,0 +1,37 @@
+id: 019cb344-95f7-73db-8929-6871620f014e
+name: Malicious Level RMM Enrollment
+description: Detects the execution of the Level RMM agent with a specific enrollment key associated with a known threat actor campaign. This indicates that the RMM agent is being registered to an adversary-controlled tenant for persistence and remote access.
+query: |
+    // Name: Malicious Level RMM Enrollment
+    // Author: Adarsh Pandey
+    // Date: 2026-03-03
+    // Description: Detects the execution of the Level RMM agent with a specific enrollment key associated with a known threat actor campaign.
+    // MITRE ATT&CK: T1219 (Remote Access Software)
+    // References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control
+    // False Positive Sensitivity: Medium
+    // Rationale: While Level RMM is a legitimate tool, its deployment with a specific, hardcoded enrollment key observed in a malicious campaign is a high-fidelity indicator of compromise. This indicates that the RMM agent is being registered to an adversary-controlled tenant for persistence and remote access.
+    DeviceProcessEvents
+    // Look for process command lines containing the specific Level RMM enrollment key.
+    | where ProcessCommandLine has "--key uGTYwD7VzX3bnwX9PVGdXtiD"
+    // Tuning suggestion: This key is a specific IoC. If other RMM tools are abused, this logic can be expanded.
+    // For example: | where ProcessCommandLine has_any ("--key uGTYwD7VzX3bnwX9PVGdXtiD", "--another-bad-key")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1219
+    - T1219.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control

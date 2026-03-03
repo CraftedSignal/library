@@ -1,0 +1,17 @@
+id: 019cb343-181b-77cd-8a00-b70d41e3b1e9
+name: Havoc C2 Registry Persistence
+description: Detects the creation or modification of specific registry keys used by a modified Havoc Demon agent to store fallback C2 configuration and payload paths. This detection identifies a custom persistence mechanism observed in a 2026 campaign involving a modified Havoc C2 framework. The adversary uses these registry keys as a fallback for C2 resilience.
+query: "kql\r\n// Name: Havoc C2 Registry Persistence\r\n// Author: Adarsh Pandey\r\n// Date: 2026-03-03\r\n// Description: Detects the creation or modification of specific registry keys used by a modified Havoc Demon agent to store fallback C2 configuration and payload paths.\r\n// MITRE ATT&CK: T1112 (Modify Registry), T1027.011 (Fileless Storage)\r\n// References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control\r\n// False Positive Sensitivity: Medium\r\n// Rationale: This detection identifies a custom persistence mechanism observed in a 2026 campaign involving a modified Havoc C2 framework. The adversary uses these registry keys as a fallback for C2 resilience.\r\nDeviceRegistryEvents\r\n// Look for registry events (creation or modification).\r\n| where ActionType in (\"RegistryValueSet\", \"RegistryKeyCreated\")\r\n// The report specifies two primary registry paths for storing C2 data.\r\n| where RegistryKey has_any (\r\n    @\"HKEY_USERS\\S-1-5-21-\", // Targeting HKCU for any user\r\n    @\"HKEY_LOCAL_MACHINE\\SOFTWARE\\Microsoft\\SQMClient\"\r\n)\r\n// The specific values used for C2 fallback and payload location.\r\n| where RegistryValueName in~ (\"UXMP\", \"UCID\", \"UFID\")\r\n// The HKCU path is more specific.\r\n| where RegistryKey endswith @\"\\Software\\Classes\\Local Settings\\Software\\Microsoft\" or RegistryKey contains @\"\\SOFTWARE\\Microsoft\\SQMClient\"\r\n// Potential for false positives: While these value names are specific, other software could potentially use them.\r\n// Tuning suggestion: If false positives occur, you may need to correlate this activity with other suspicious process executions or network connections from the same device.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RegistryKey,\r\n    RegistryValueName,\r\n    RegistryValueData,\r\n    InitiatingProcessAccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1112
+    - T1027.011
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control

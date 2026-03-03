@@ -1,0 +1,17 @@
+id: 019cb343-b412-71d9-b10b-32971712812e
+name: Sideloading Host Execution in ProgramData
+description: Detects the execution of legitimate binaries, commonly used as DLL sideloading hosts, from non-standard paths within the ProgramData directory. This technique was observed in a campaign delivering a modified Havoc C2 agent.
+query: "// Name: Sideloading Host Execution in ProgramData\r\n// Author: Adarsh Pandey\r\n// Date: 2026-03-03\r\n// Description: Detects the execution of legitimate binaries, commonly used as DLL sideloading hosts, from non-standard paths within the ProgramData directory. This technique was observed in a campaign delivering a modified Havoc C2 agent.\r\n// MITRE ATT&CK: T1574.002 (DLL Side-Loading)\r\n// References: https://www.huntress.com/blog/fake-tech-support-havoc-command-control\r\n// False Positive Sensitivity: Medium\r\n// Rationale: Threat actors move legitimate, signed applications to attacker-controlled directories (like subfolders in C:\\ProgramData) to load malicious DLLs. This allows them to bypass defenses that trust the signed executable. This detection looks for specific binaries known to be abused in this campaign executing from an unusual parent directory.\r\nDeviceProcessEvents\r\n// Look for specific legitimate binaries known to be abused for DLL sideloading in this campaign.\r\n| where FileName in~ (\"ADNotificationManager.exe\", \"DLPUserAgent.exe\", \"WerFault.exe\")\r\n// The adversary was observed staging these binaries in a subdirectory of ProgramData.\r\n| where FolderPath startswith @\"C:\\ProgramData\\\"\r\n// Tuning suggestion: The intel specifically mentions the path \"C:\\ProgramData\\Adobe\\ARM\\\".\r\n// A more targeted but potentially brittle rule could use: | where FolderPath =~ @\"C:\\ProgramData\\Adobe\\ARM\\\"\r\n// If false positives occur from legitimate software, exclude known good paths.\r\n// For example: | where not(FolderPath in~ (@\"C:\\ProgramData\\LegitApp\\\"))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control

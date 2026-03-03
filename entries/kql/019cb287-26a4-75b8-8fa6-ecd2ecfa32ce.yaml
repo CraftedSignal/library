@@ -1,0 +1,19 @@
+id: 019cb287-26a4-75b8-8fa6-ecd2ecfa32ce
+name: WebDAV Remote Share Mounting
+description: Detects command-line activity indicative of mounting a remote WebDAV share, a technique used to bypass browser security controls and deliver malware. This rule looks for specific keywords used to force a connection to a remote WebDAV server.
+query: "// Name: WebDAV Remote Share Mounting\r\n// Author: m41on\r\n// Description: Detects command-line activity indicative of mounting a remote WebDAV share, a technique used to bypass browser security controls and deliver malware. This rule looks for specific keywords used to force a connection to a remote WebDAV server.\r\n// MITRE TTPs: T1021.002, T1570\r\n// References: https://cybersecuritynews.com/hackers-abuse-windows-file-explorer-and-webdav/\r\nlet timeframe = 1d;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ProcessCommandLine has \"DavWWWRoot\" or ProcessCommandLine contains \"@SSL\\\\DavWWWRoot\"\r\n// FP Tuning: Legitimate enterprise use of WebDAV can trigger this alert.\r\n// To reduce noise, consider excluding processes or command lines pointing to known internal WebDAV servers.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    ReportId,\r\n    MD5\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0008
+techniques:
+    - T1187
+    - T1021.002
+    - T1570
+tags:
+    - kql
+author: m41on
+version: "3"
+references:
+    - https://cybersecuritynews.com/hackers-abuse-windows-file-explorer-and-webdav/
