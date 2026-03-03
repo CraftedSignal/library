@@ -1,0 +1,78 @@
+id: 019cb0c5-3d91-746d-9b02-aff4e884a901
+name: ActiveMQ Post-Exploitation Shell Spawning
+description: Detects the Apache ActiveMQ process (java.exe or wrapper.exe) spawning a command shell or web utility. This behavior is a strong indicator of post-exploitation activity following the exploitation of vulnerabilities like CVE-2023-46604, often used as an entry point for ransomware like LockBit 5.0.
+query: |
+    title: ActiveMQ Post-Exploitation Shell Spawning
+    id: 81efde4e-a99e-42fb-ae4a-70cd9f3fd7b4
+    status: experimental
+    description: >-
+      Detects the Apache ActiveMQ process (java.exe or wrapper.exe) spawning a
+      command shell or web utility. This behavior is a strong indicator of
+      post-exploitation activity following the exploitation of vulnerabilities like
+      CVE-2023-46604, often used as an entry point for ransomware like LockBit 5.0.
+    author: detections.ai
+    references:
+      - >-
+        https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+      - https://attack.mitre.org/techniques/T1190/
+      - https://attack.mitre.org/techniques/T1059/001/
+      - https://attack.mitre.org/techniques/T1059/003/
+    date: 2026-02-24T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.t1190
+      - attack.t1059.001
+      - attack.t1059.003
+      - cve.2023.46604
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - \java.exe
+      selection_child:
+        Image|endswith:
+          - \cmd.exe
+          - \curl.exe
+          - \powershell.exe
+          - \wget.exe
+          - \certutil.exe
+        CommandLine|contains:
+          - certutil -urlcache
+          - http
+      condition: selection_parent and selection_child
+    falsepositives:
+      - Legitimate administrative actions or other Java-based applications might
+        spawn these utilities. If this is too noisy, filter on the parent process
+        command line, ensuring it is the ActiveMQ service.
+    level: high
+    associated_cves:
+      - CVE-2023-46604
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1190
+    - T1059
+    - T1059.001
+    - T1059.003
+tags:
+    - attack.execution
+    - attack.t1190
+    - attack.t1059.001
+    - attack.t1059.003
+    - cve.2023.46604
+author: detections.ai
+version: "1"
+references:
+    - https://thedfirreport.com/2026/02/23/apache-activemq-exploit-leads-to-lockbit-ransomware/
+    - https://attack.mitre.org/techniques/T1190/
+    - https://attack.mitre.org/techniques/T1059/001/
+    - https://attack.mitre.org/techniques/T1059/003/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

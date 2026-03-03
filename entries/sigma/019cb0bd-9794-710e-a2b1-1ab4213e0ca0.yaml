@@ -1,0 +1,52 @@
+id: 019cb0bd-9794-710e-a2b1-1ab4213e0ca0
+name: SURXRAT LLM Module Download from Hugging Face
+description: Detects network connections to Hugging Face to download a large Large Language Model (LLM) module, a technique used by the SURXRAT Android RAT to induce network lag and degrade device performance.
+query: |
+    title: SURXRAT LLM Module Download from Hugging Face
+    id: db5dda41-9c9d-406f-bd0e-49e47534dbd9
+    status: experimental
+    description: Detects network connections to Hugging Face to download a large
+      Large Language Model (LLM) module, a technique used by the SURXRAT Android RAT
+      to induce network lag and degrade device performance.
+    author: detections.ai
+    references:
+      - https://cyble.com/blog/surxrat-downloads-large-llm-module-from-hugging-face/
+    date: 2026-03-02
+    tags:
+      - attack.impact
+      - attack.t1499.004
+      - detection.emerging-threats
+    logsource:
+      category: webproxy
+    detection:
+      selection:
+        cs-host|endswith: 'huggingface.co' # Domain for Hugging Face
+        c-uri|contains|all:
+          # Key URI components for the specific model download
+          - '/mradermacher/'
+          - '.gguf'
+        cs-method: 'GET' # The HTTP method for downloading
+      filter_large_download:
+        sc-bytes|gt: 10000000000 # Filter for downloads greater than 10GB. Note: The field name for bytes transferred (e.g., sc-bytes, bytes_out) may vary by log source.
+      condition: selection and filter_large_download
+    falsepositives:
+      - Legitimate, albeit large, downloads of LLM modules by developers or
+        researchers. The likelihood of this occurring on a typical corporate mobile
+        device is low. Tuning by source IP or user-agent may be necessary.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1499.004
+tags:
+    - attack.impact
+    - attack.t1499.004
+    - detection.emerging-threats
+author: detections.ai
+version: "2"
+references:
+    - https://cyble.com/blog/surxrat-downloads-large-llm-module-from-hugging-face/
+data_sources:
+    - webproxy
