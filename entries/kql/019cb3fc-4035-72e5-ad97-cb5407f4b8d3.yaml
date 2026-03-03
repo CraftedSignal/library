@@ -1,0 +1,18 @@
+id: 019cb3fc-4035-72e5-ad97-cb5407f4b8d3
+name: OAuth Redirect Malware - Full Attack Chain (Korplug/Znyonm)
+description: Correlates PowerShell extraction of specific files (steam_monitor, crashhandler, crashlog) with subsequent DLL side-loading where 'crashhandler.dll' is loaded by 'steam_monitor.exe' from a non-standard program or Steam directory, indicating a potential malware infection chain.
+query: "// Name: OAuth Redirect Malware - Full Attack Chain (Korplug/Znyonm)\n// Author: tim@detections.ai\n// Date: 2026-03-03\n// Description: Correlates PowerShell extraction with subsequent DLL side-loading\n// References: https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/\n// MITRE ATT&CK: T1574.002 (Hijack Execution Flow: DLL Side-Loading)\n// False Positives: Legitimate Steam client installations or other software using identical naming.\n//                  Validate by checking InitiatingProcessFolderPath and SHA256 hashes.\n// Severity: High\nlet ExtractorProcesses = \n    DeviceProcessEvents\n    | where Timestamp > ago(7d)\n    | where FileName in~ (\"powershell.exe\", \"pwsh.exe\")\n    | where ProcessCommandLine has_all (\".zip\", \"tar\") \n        or ProcessCommandLine has_all (\"Get-ChildItem\", \".zip\", \"OpenRead\")\n    | where ProcessCommandLine has_any (\"steam_monitor\", \"crashhandler\", \"crashlog\")\n    | project \n        ExtractTimestamp = Timestamp,\n        DeviceId,\n        DeviceName,\n        ExtractorCommandLine = ProcessCommandLine,\n        ExtractorProcessId = ProcessId;\nlet SideLoadEvents =\n    DeviceImageLoadEvents\n    | where Timestamp > ago(7d)\n    | where InitiatingProcessFileName =~ \"steam_monitor.exe\"\n    | where FileName =~ \"crashhandler.dll\"\n    | extend DllDirectoryPath = tostring(parse_path(FolderPath).DirectoryPath)\n    | where DllDirectoryPath =~ InitiatingProcessFolderPath\n    | where not(DllDirectoryPath has_any (@\"\\Program Files\", @\"\\Steam\\\"))\n    | project\n        SideLoadTimestamp = Timestamp,\n        DeviceId,\n        DeviceName,\n        InitiatingProcessFolderPath,\n        InitiatingProcessSHA256,\n        DllSHA256 = SHA256;\nExtractorProcesses\n| join kind=inner SideLoadEvents on DeviceId\n| where SideLoadTimestamp between (ExtractTimestamp .. (ExtractTimestamp + 1h))\n| project\n    ExtractTimestamp,\n    SideLoadTimestamp,\n    DeviceName,\n    ExtractorCommandLine,\n    InitiatingProcessFolderPath,\n    InitiatingProcessSHA256,\n    DllSHA256"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - kql
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/

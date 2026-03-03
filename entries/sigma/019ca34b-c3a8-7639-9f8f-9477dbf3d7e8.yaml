@@ -1,0 +1,70 @@
+id: 019ca34b-c3a8-7639-9f8f-9477dbf3d7e8
+name: WinRAR Spawned Suspicious Child Process
+description: |
+    This rule is meant to help analysts quickly spot a high-confidence indicator related to Google WinRAR CVE-2025-8088 Exploitation. It is written to be easy to understand and to keep false alarms low by focusing on a very specific match: WinRAR launching a command shell or scripting engine. A match does not automatically prove an attacker is currently active, and it does not prove a file was executed, but it does mean the event is important because it lines up with a public threat intelligence source. When this triggers, start by identifying the host, user, and timeframe involved, then decide whether the activity is expected for that system. If it is unexpected, preserve the related logs and any files, and look for nearby events that could explain how the indicator appeared, such as a download, a new process, or a new connection. If the same indicator appears on multiple systems, treat it as a scoping signal and expand the investigation window. Use the reference link (https://cloud.google.com/blog/topics/threat-intelligence/exploiting-critical-winrar- vulnerability) to document where the indicator came from and to support incident notes and reporting.
+query: |
+    title: >-
+      WinRAR Spawned Suspicious Child Process
+    id: d3487698-0a23-4353-ab8a-97d858ea48df
+    status: experimental
+    description: >
+      This rule is meant to help analysts quickly spot a high-confidence indicator
+      related to Google WinRAR CVE-2025-8088 Exploitation. It is written to be easy
+      to understand and to keep false alarms low by focusing on a very specific
+      match: WinRAR launching a command shell or scripting engine. A match does not
+      automatically prove an attacker is currently active, and it does not prove a
+      file was executed, but it does mean the event is important because it lines up
+      with a public threat intelligence source. When this triggers, start by
+      identifying the host, user, and timeframe involved, then decide whether the
+      activity is expected for that system. If it is unexpected, preserve the
+      related logs and any files, and look for nearby events that could explain how
+      the indicator appeared, such as a download, a new process, or a new
+      connection. If the same indicator appears on multiple systems, treat it as a
+      scoping signal and expand the investigation window. Use the reference link
+      (https://cloud.google.com/blog/topics/threat-intelligence/exploiting-critical-winrar-
+      vulnerability) to document where the indicator came from and to support
+      incident notes and reporting.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/exploiting-critical-winrar-vulnerability
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_parent:
+        ParentImage|endswith: \\WinRAR.exe
+      selection_child:
+        Image|endswith:
+          - \cmd.exe
+          - \powershell.exe
+          - \pwsh.exe
+          - \wscript.exe
+          - \cscript.exe
+          - \mshta.exe
+          - \rundll32.exe
+      condition: selection_parent and selection_child
+    falsepositives:
+      - Rare automation or custom tooling that intentionally drives WinRAR to launch
+        processes.
+    level: high
+    associated_cves:
+      - CVE-2025-8088
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1203
+    - T1059
+    - T1218
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/exploiting-critical-winrar-vulnerability
+data_sources:
+    - process_creation
+    - windows

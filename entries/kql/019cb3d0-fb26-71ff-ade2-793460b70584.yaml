@@ -1,0 +1,41 @@
+id: 019cb3d0-fb26-71ff-ade2-793460b70584
+name: StegaBin Primary C2 Communication
+description: Detects network connections to the primary C2 IP and port (103.106.67.63:1244) used across all modules of the StegaBin infostealer toolkit. This specific IP and port combination is highly indicative of StegaBin activity.
+query: |
+    // Name: StegaBin Primary C2 Communication
+    // Author: AK
+    // Date: 2026-03-03
+    // Description: Detects network connections to the primary C2 IP and port (103.106.67.63:1244) used across all modules of the StegaBin infostealer toolkit.
+    // Tactic: Command and Control
+    // Technique: T1071.001, T1571.000
+    // False Positive Sensitivity: Medium
+    // Reference: https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
+
+    DeviceNetworkEvents
+    // Search for network connections to the known StegaBin C2 IP and port.
+    | where RemoteIP == "103.106.67.63" and RemotePort == 1244
+    // This IP and port combination is highly specific to the StegaBin campaign.
+    // However, IP addresses can be reallocated over time. If false positives occur, consider adding process-level context.
+    // For example, you could join this with DeviceProcessEvents to check if the initiating process is suspicious (e.g., node.exe, powershell.exe from an unusual path).
+    | project
+        TimeGenerated,
+        DeviceName,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteIP,
+        RemotePort,
+        RemoteUrl
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1571
+tags:
+    - kql
+author: AK
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography

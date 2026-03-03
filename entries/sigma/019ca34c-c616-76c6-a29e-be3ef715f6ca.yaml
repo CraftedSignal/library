@@ -1,0 +1,62 @@
+id: 019ca34c-c616-76c6-a29e-be3ef715f6ca
+name: ShinyHunters rclone Copy/Sync Command
+description: |
+    This rule is meant to help analysts quickly spot a high-confidence indicator related to Google ShinyHunters SaaS Defense Guidance. It is written to be easy to understand and to keep false alarms low by focusing on a very specific match: rclone used with copy/sync style commands to move data to a remote destination. A match does not automatically prove an attacker is currently active, and it does not prove a file was executed, but it does mean the event is important because it lines up with a public threat intelligence source. When this triggers, start by identifying the host, user, and timeframe involved, then decide whether the activity is expected for that system. If it is unexpected, preserve the related logs and any files, and look for nearby events that could explain how the indicator appeared, such as a download, a new process, or a new connection. If the same indicator appears on multiple systems, treat it as a scoping signal and expand the investigation window. Use the reference link (https://cloud.google.com/blog/topics/threat- intelligence/defense-against-shinyhunters-cybercrime-saas) to document where the indicator came from and to support incident notes and reporting.
+query: |
+    title: "ShinyHunters rclone Copy/Sync Command"
+    id: 3048bde8-20f9-4646-98fc-24bc13c4f632
+    status: experimental
+    description: >
+      This rule is meant to help analysts quickly spot a high-confidence indicator
+      related to Google ShinyHunters SaaS Defense Guidance. It is written to be easy
+      to understand and to keep false alarms low by focusing on a very specific
+      match: rclone used with copy/sync style commands to move data to a remote
+      destination. A match does not automatically prove an attacker is currently
+      active, and it does not prove a file was executed, but it does mean the event
+      is important because it lines up with a public threat intelligence source.
+      When this triggers, start by identifying the host, user, and timeframe
+      involved, then decide whether the activity is expected for that system. If it
+      is unexpected, preserve the related logs and any files, and look for nearby
+      events that could explain how the indicator appeared, such as a download, a
+      new process, or a new connection. If the same indicator appears on multiple
+      systems, treat it as a scoping signal and expand the investigation window. Use
+      the reference link (https://cloud.google.com/blog/topics/threat-
+      intelligence/defense-against-shinyhunters-cybercrime-saas) to document where
+      the indicator came from and to support incident notes and reporting.
+    author: Daniel Jeremiah
+    date: 2026-02-25T00:00:00.000Z
+    references:
+      - >-
+        https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas
+    logsource:
+      product: windows
+      category: process_creation
+      service: security
+    detection:
+      selection_img:
+        Image|endswith: \\rclone.exe
+      selection_cmd:
+        CommandLine|contains:
+          - ' copy '
+          - ' sync '
+          - ' copyto '
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Legitimate backup or migration jobs using rclone; validate owner and
+        destination.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1020
+    - T1041
+    - T1567
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/defense-against-shinyhunters-cybercrime-saas
+data_sources:
+    - process_creation
+    - windows

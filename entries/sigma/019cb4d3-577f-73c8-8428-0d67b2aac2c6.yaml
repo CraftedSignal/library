@@ -1,0 +1,63 @@
+id: 019cb4d3-577f-73c8-8428-0d67b2aac2c6
+name: Suspicious Python Runtime Staging
+description: Detects the download and staging of an official Python embedded runtime zip file from python.org into suspicious user-writable directories like %TEMP% or %LOCALAPPDATA%, followed by its extraction. This is a key staging technique used by malware like VOID#GEIST to ensure its scripts can execute regardless of the victim's environment.
+query: |
+    title: Suspicious Python Runtime Staging
+    id: 2e028047-b44b-492f-96b4-fe76da53db8a
+    status: experimental
+    description: >-
+      Detects the download and staging of an official Python embedded runtime zip
+      file from python.org into suspicious user-writable directories like %TEMP% or
+      %LOCALAPPDATA%, followed by its extraction. This is a key staging technique
+      used by malware like VOID#GEIST to ensure its scripts can execute regardless
+      of the victim's environment.
+    author: detections.ai
+    references:
+      - https://connect.securonix.com/threat-research-intelligence-62/early-release-void-geist-stealthy-multi-stage-python-loader-with-embedded-runtime-deployment-startup-persistence-and-fileless-early-bird-apc-injection-into-explorer-exe-216
+    date: 2026-03-03
+    tags:
+      - attack.t1059.006
+      - attack.t1105
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      # Detects the characteristic filename pattern of a Python embedded runtime
+      selection_file:
+        TargetFilename|contains|all:
+          - 'python-'
+          - '-embed-'
+        TargetFilename|endswith: '.zip'
+      # Focuses on common temporary or user-writable directories used for staging
+      selection_path:
+        TargetFilename|contains:
+          - '\AppData\Local\Temp\'
+          - '\AppData\Roaming\'
+          - '\Windows\Temp\'
+          - '\Users\Public\'
+      condition: selection_file and selection_path
+    falsepositives:
+      - Legitimate portable applications or developer tools that bundle a Python
+        runtime for their own use.
+      - Developers or administrators downloading Python embedded runtimes for
+        legitimate purposes. Consider excluding known developer machines or trusted
+        processes if noise occurs.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.006
+    - T1105
+tags:
+    - attack.t1059.006
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://connect.securonix.com/threat-research-intelligence-62/early-release-void-geist-stealthy-multi-stage-python-loader-with-embedded-runtime-deployment-startup-persistence-and-fileless-early-bird-apc-injection-into-explorer-exe-216
+data_sources:
+    - file_event
+    - windows

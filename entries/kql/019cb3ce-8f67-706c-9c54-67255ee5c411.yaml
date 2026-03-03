@@ -1,0 +1,79 @@
+id: 019cb3ce-8f67-706c-9c54-67255ee5c411
+name: GRIDTIDE Backdoor Activity Detection
+description: Detects behaviors associated with the GRIDTIDE backdoor, including a specific self-deletion technique using 'ping 127.0.0.1 && del' and the creation of unique mutexes. These indicators are highly specific to the GRIDTIDE threat.
+query: |
+    // Name: GRIDTIDE Backdoor Activity
+    // Author: detections.ai
+    // Date: 2026-03-03
+    // Description: Detects behaviors associated with the GRIDTIDE backdoor, as identified in the YARA rule G_APT_Backdoor_GRIDTIDE_1. This includes a specific self-deletion technique and the creation of unique mutexes.
+    // Tactic: Defense Evasion
+    // Technique: T1070.004
+    // False Positive Sensitivity: Medium
+    // Reference: https://github.com/Neo23x0/signature-base/blob/master/yara/apt_cn_group.yar#L133
+
+    let self_deletion =
+        DeviceProcessEvents
+        // This logic identifies the specific self-deletion technique using a local ping for delay.
+        | where FileName =~ "cmd.exe"
+            and ProcessCommandLine has "ping 127.0.0.1"
+            and ProcessCommandLine contains "&& del"
+        | extend ActivityType = "GRIDTIDE Self-Deletion Technique", RegistryKey = "" // Add empty column to align schema
+        | project
+            TimeGenerated,
+            DeviceName,
+            ActivityType,
+            InitiatingProcessFileName,
+            FileName,
+            ProcessCommandLine,
+            RegistryKey,
+            InitiatingProcessAccountName;
+
+    let mutex_creation =
+        DeviceEvents
+        // This logic detects the creation of highly specific mutexes associated with the GRIDTIDE backdoor.
+        | where ActionType == "MutexCreated"
+        | where RegistryKey has_any (
+                "Global\\A8923331-2AD7-4643-A525-434285A05528",
+                "Global\\E575365C-8424-4546-B543-C45345345532",
+                "Global\\F3452345-1432-4532-A525-434285A05528",
+                "Global\\A8923331-2AD7-4643-A525-434285A05529",
+                "Global\\E575365C-8424-4546-B543-C45345345533",
+                "Global\\F3452345-1432-4532-A525-434285A05529"
+            )
+        | extend ActivityType = "GRIDTIDE Mutex Created", ProcessCommandLine = "" // Add empty column to align schema
+        | project
+            TimeGenerated,
+            DeviceName,
+            ActivityType,
+            InitiatingProcessFileName,
+            FileName,
+            ProcessCommandLine,
+            RegistryKey,
+            InitiatingProcessAccountName;
+
+    union self_deletion, mutex_creation
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActivityType,
+        InitiatingProcessFileName,
+        FileName,
+        ProcessCommandLine,
+        RegistryKey,
+        AccountName = InitiatingProcessAccountName
+    // The self-deletion technique is a known malware pattern, but this specific implementation is a strong indicator for GRIDTIDE.
+    // The mutexes are highly specific to this threat.
+    // If false positives occur on the self-deletion technique, consider adding more specific file paths or parent processes if known patterns emerge.
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1070.004
+    - T1480.002
+tags:
+    - kql
+author: AK
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
