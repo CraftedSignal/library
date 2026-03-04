@@ -1,0 +1,68 @@
+id: 019cb939-3cc0-73bb-8794-0a64fde8f216
+name: SloppyLemming Sideloading via Renamed Microsoft Binaries
+description: Detects the execution of legitimate Microsoft binaries, such as NGenTask.exe and phoneactivate.exe, from suspicious user-writable directories when the process has been renamed. This is a known TTP of the SloppyLemming threat actor for DLL sideloading.
+query: |
+    title: SloppyLemming Sideloading via Renamed Microsoft Binaries
+    id: e81a58ed-70e4-44e6-87be-50957dc4394e
+    status: experimental
+    description: Detects the execution of legitimate Microsoft binaries, such as
+      NGenTask.exe and phoneactivate.exe, from suspicious user-writable directories
+      when the process has been renamed. This is a known TTP of the SloppyLemming
+      threat actor for DLL sideloading.
+    author: tim@detections.ai
+    references:
+      - https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/
+    date: 2026-03-04
+    tags:
+      - attack.t1574.001
+      - attack.t1574.002
+      - attack.defense_evasion
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection:
+        OriginalFileName:
+          - 'NGenTask.exe'
+          - 'phoneactivate.exe'
+      selection_path:
+        Image|contains:
+          # Suspicious Paths
+          - '\AppData\Local'
+          - '\AppData\Roaming'
+          - '\ProgramData'
+          - '\Users\Public'
+          - '\Temp'
+      filter:
+        # Excludes process name matches the original filename
+        Image|endswith:
+          - '\NGenTask.exe'
+          - '\phoneactivate.exe'
+      condition: selection and selection_path and not filter
+    falsepositives:
+      - Legitimate software might be installed in these directories and could
+        potentially rename these binaries, although it is uncommon. This more
+        generic detection may require tuning if legitimate software exhibits this
+        behavior.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+tags:
+    - attack.t1574.001
+    - attack.t1574.002
+    - attack.defense_evasion
+author: tim@detections.ai
+version: "3"
+references:
+    - https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/
+data_sources:
+    - process_creation
+    - windows
+    - sysmon
