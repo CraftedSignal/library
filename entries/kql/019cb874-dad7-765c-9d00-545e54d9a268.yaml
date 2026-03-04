@@ -1,0 +1,33 @@
+id: 019cb874-dad7-765c-9d00-545e54d9a268
+name: Steam_Monitor DLL Side-Loading
+description: Detects the legitimate 'steam_monitor.exe' loading 'crashhandler.dll' from a non-standard directory like ProgramData. This side-loading technique was observed in campaigns delivering Korplug/GreedyRobin malware, often following initial access via OAuth redirection abuse.
+query: |-
+    let lookback = 7d;
+    DeviceImageLoadEvents
+    | where Timestamp > ago(lookback)
+    | where InitiatingProcessFileName =~ "steam_monitor.exe" and FileName =~ "crashhandler.dll"
+    | where tostring(parse_path(FolderPath).DirectoryPath) == tostring(parse_path(InitiatingProcessFolderPath).DirectoryPath)
+    | where not(InitiatingProcessFolderPath has_any (@"\Windows\System32", @"\Windows\SysWOW64", @"\Windows\WinSxS", @"\Program Files", @"\Program Files (x86)"))
+    | where InitiatingProcessFolderPath has @"\ProgramData"
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessFolderPath,
+        InitiatingProcessVersionInfo,
+        FileName,
+        FolderPath,
+        SHA1,
+        SHA256,
+        ReportId,
+        DeviceId
+query_type: kql
+severity: medium
+techniques:
+    - T1547.002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/

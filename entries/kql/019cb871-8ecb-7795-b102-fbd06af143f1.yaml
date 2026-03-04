@@ -1,0 +1,15 @@
+id: 019cb871-8ecb-7795-b102-fbd06af143f1
+name: Payload Download Following OAuth Redirection Abuse
+description: Detects a file download where the referrer URL is a Microsoft Entra ID OAuth endpoint returning an error. This pattern is indicative of an attacker abusing OAuth's error-handling redirection mechanism to lead a user to a malicious payload on an attacker-controlled domain.
+query: "DeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessFileName in~ (\"msedge.exe\", \"chrome.exe\", \"firefox.exe\", \"iexplore.exe\", \"opera.exe\", \"brave.exe\")\r\n| where FileOriginReferrerUrl has_all (\"login.microsoftonline.com\", \"error=\")\r\n| where FileOriginReferrerUrl has_any (\"interaction_required\", \"consent_required\", \"access_denied\")\r\n// Exclude downloads from legitimate Microsoft domains to reduce noise.\r\n| where not(FileOriginUrl has \".microsoft.com\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessFileName,\r\n    FileOriginUrl,\r\n    FileOriginReferrerUrl,\r\n    ReportId,\r\n    DeviceId"
+query_type: kql
+severity: medium
+techniques:
+    - T1204.002
+    - T1566.002
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/

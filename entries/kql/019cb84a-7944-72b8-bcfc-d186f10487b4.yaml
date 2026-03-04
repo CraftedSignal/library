@@ -1,0 +1,15 @@
+id: 019cb84a-7944-72b8-bcfc-d186f10487b4
+name: Suspicious Gemini Panel Hijack Extension
+description: Detects the installation of a browser extension that requests both the 'declarativeNetRequest' permission and host permissions for 'gemini.google.com'. This specific combination of permissions was the vector for CVE-2026-0628, a vulnerability that allowed an extension to inject code into the privileged Gemini side panel, leading to privilege escalation and unauthorized access to local files, camera, and microphone.
+query: "DeviceEvents\r\n| where ActionType == \"BrowserExtensionInstalled\"\r\n| extend Permissions = parse_json(AdditionalFields).Permissions\r\n| extend HostPermissions = parse_json(AdditionalFields).HostPermissions\r\n| where Permissions has \"declarativeNetRequest\" or Permissions has \"declarativeNetRequestFeedback\"\r\n| where HostPermissions has \"gemini.google.com\" or HostPermissions has \"google.com\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    FileName,\r\n    ActionType,\r\n    Permissions,\r\n    HostPermissions,\r\n    AdditionalFields"
+query_type: kql
+severity: medium
+techniques:
+    - T1176
+    - T1068
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/gemini-live-in-chrome-hijacking/

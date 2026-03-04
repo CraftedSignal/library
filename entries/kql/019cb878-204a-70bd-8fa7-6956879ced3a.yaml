@@ -1,0 +1,15 @@
+id: 019cb878-204a-70bd-8fa7-6956879ced3a
+name: OAuth Silent Redirection Probe
+description: Detects OAuth authorization requests to Microsoft or Google that use the 'prompt=none' parameter in combination with an intentionally invalid or missing 'scope'. This combination is used to force a silent error redirect to an attacker-controlled URI, bypassing some security filters.
+query: "let lookback = 1d;\r\nUrlClickEvents\r\n| where Timestamp > ago(lookback)\r\n| where ActionType == \"ClickAllowed\" or IsClickedThrough == true\r\n// The request targets a major identity provider's authorization endpoint.\r\n| where Url has_any (\"login.microsoftonline.com/common/oauth2\", \"accounts.google.com/o/oauth2\")\r\n| where Url has \"prompt=none\"\r\n| where Url has_any (\"scope=invalid\", \"scope=none\", \"scope= \")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    Url,\r\n    UrlChain,\r\n    NetworkMessageId,\r\n    AccountName,\r\n    ReportId,\r\n    DeviceId"
+query_type: kql
+severity: medium
+techniques:
+    - T1566.002
+    - T1071.001
+tags:
+    - kql
+author: Kaung Khant Ko
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
