@@ -1,0 +1,19 @@
+id: 019cb589-0a2c-7358-ac4b-40b8030acde2
+name: Suspicious PowerShell Archive Extraction (Steam_Monitor Campaign)
+description: Detects the execution of PowerShell with a command line containing a specific sequence of strings associated with extracting and executing malware from a ZIP file, as observed in the Steam_Monitor campaign. This typically involves using PowerShell commands like 'Get-ChildItem', '::OpenRead', and 'TaR' in conjunction with a '.zip' file.
+query: "// Name: Suspicious PowerShell Archive Extraction\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-03\r\n// Description: Detects the execution of PowerShell with a command line containing a specific sequence of strings associated with extracting and executing malware from a ZIP file, as seen in the Steam_Monitor campaign.\r\n// MITRE ATT&CK: T1059.001 (Command and Scripting Interpreter: PowerShell), T1140 (Deobfuscate/Decode Files or Information)\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/\r\n// False Positives: Legitimate, complex administration or software deployment scripts might use a similar combination of commands. Review the parent process and script content for legitimacy.\r\n// Version: 1.0\r\nDeviceProcessEvents\r\n// Filter for PowerShell process execution events.\r\n| where FileName in~ (\"powershell.exe\", \"powershell_ise.exe\")\r\n// Look for the specific combination of keywords used to extract and run a payload from an archive.\r\n| where ProcessCommandLine has_all (\".zip\", \"Get-ChildItem\", \"::OpenRead\", \"TaR\")\r\n// Project relevant fields for investigation.\r\n| project-reorder Timestamp, DeviceName, AccountUpn, ProcessCommandLine, InitiatingProcessParentFileName, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0009
+techniques:
+    - T1059.001
+    - T1140
+    - T1560.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/

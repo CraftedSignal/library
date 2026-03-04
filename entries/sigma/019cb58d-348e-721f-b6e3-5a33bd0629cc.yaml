@@ -1,0 +1,84 @@
+id: 019cb58d-348e-721f-b6e3-5a33bd0629cc
+name: Indirect Prompt Injection via Dynamic or Obfuscated Payload
+description: Detects Indirect Prompt Injection (IDPI) attempts where malicious instructions are dynamically injected into the DOM using JavaScript or concealed within HTML data attributes. Attackers use these methods to bypass static analysis tools and deliver hidden prompts to AI/LLM agents that process raw web content.
+query: |
+    title: Indirect Prompt Injection via Dynamic or Obfuscated Payload
+    id: 5a3cd69c-1e04-4fd0-9511-5f91c843cd0d
+    status: experimental
+    description: >-
+      Detects Indirect Prompt Injection (IDPI) attempts where malicious instructions
+      are dynamically injected into the DOM using JavaScript or concealed within
+      HTML data attributes. Attackers use these methods to bypass static analysis
+      tools and deliver hidden prompts to AI/LLM agents that process raw web
+      content.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+    date: 2026-03-03
+    tags:
+      - attack.t1027
+      - attack.t1059.007
+      - attack.t1497.002
+      - attack.defense_evasion
+    logsource:
+      category: web
+      # This rule is designed for logs containing the full body of web pages, such as from a web proxy or network security appliance.
+    detection:
+      # Correlates Base64 decoding with DOM injection
+      dynamic_js_pattern:
+        - 'atob('
+        - 'innerHTML'
+      dynamic_js_pattern_alt:
+        - 'atob('
+        - 'document.write'
+      # Looks for prompts hidden in custom HTML data attributes
+      attribute_cloak:
+        - 'data-instruction'
+        - 'data-cmd'
+        - 'data-prompt'
+      # Basic obfuscation techniques seen in the wild. Note: HTML entities are common and may require tuning.
+      obfuscation_pattern:
+        - '&#' # HTML entity encoding
+        - '\u200b' # Zero-width space
+        - '\u200c' # Zero-width non-joiner
+        - '\u200d' # Zero-width joiner
+      # Keywords common in prompt injection attacks
+      keywords:
+        - 'ignore'
+        - 'override'
+        - 'approved'
+        - 'confidential'
+        - 'act as'
+        - 'delete your database'
+        - 'validation_result'
+      condition: 1 of keywords and ( (all of dynamic_js_pattern) or (all of
+        dynamic_js_pattern_alt) or 1 of attribute_cloak or 1 of obfuscation_pattern
+        )
+    falsepositives:
+      - Legitimate web applications may use Base64 decoding and DOM manipulation for
+        benign purposes. The correlation with prompt injection keywords helps reduce
+        this, but tuning may be necessary.
+      - Custom data attributes could be used legitimately, although the ones listed
+        are based on observed malicious activity.
+      - HTML entity encoding ('&#') is very common on the web and may cause false
+        positives if not correlated with more specific indicators.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.007
+tags:
+    - attack.t1027
+    - attack.t1059.007
+    - attack.t1497.002
+    - attack.defense_evasion
+author: detections.ai
+version: "3"
+references:
+    - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+data_sources:
+    - web

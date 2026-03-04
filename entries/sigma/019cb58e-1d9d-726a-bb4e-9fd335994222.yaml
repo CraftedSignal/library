@@ -1,0 +1,61 @@
+id: 019cb58e-1d9d-726a-bb4e-9fd335994222
+name: IDPI Attempting Destructive Commands
+description: Detects web content containing strings associated with destructive commands or unauthorized financial transactions, often embedded as part of an Indirect Prompt Injection (IDPI) attack. These prompts are designed to be executed by an AI agent or LLM, potentially leading to data loss, denial of service, or financial theft.
+query: |
+    title: IDPI Attempting Destructive Commands
+    id: 72dd0f47-3fa2-4629-8a37-987c73ed48c3
+    status: experimental
+    description: >-
+      Detects web content containing strings associated with destructive commands or
+      unauthorized financial transactions, often embedded as part of an Indirect
+      Prompt Injection (IDPI) attack. These prompts are designed to be executed by
+      an AI agent or LLM, potentially leading to data loss, denial of service, or
+      financial theft.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+    date: 2026-03-03
+    tags:
+      - attack.impact
+      - attack.t1485
+      - attack.t1499.001
+      - attack.t1657
+    logsource:
+      category: web
+      # This rule is designed for logs containing the full body of web pages, such as from a web proxy or network security appliance.
+    detection:
+      selection:
+        # Scans for destructive commands, fork bombs, and unauthorized transaction URLs
+        - 'rm -rf'
+        - ':(){ :|:& };:'
+        - 'delete your database'
+        - 'paypal.me/'
+        - 'buy.stripe.com/'
+      condition: 1 of selection
+    falsepositives:
+      - Technical blogs, security articles, or code repositories may legitimately
+        contain these strings for educational purposes.
+      - Legitimate payment links can be present on benign websites.
+      - The phrase "delete your database" can be found in tutorials or
+        documentation. Correlation with other IDPI indicators (e.g., hidden text) is
+        recommended to increase fidelity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1485
+    - T1499.001
+    - T1657
+tags:
+    - attack.impact
+    - attack.t1485
+    - attack.t1499.001
+    - attack.t1657
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+data_sources:
+    - web

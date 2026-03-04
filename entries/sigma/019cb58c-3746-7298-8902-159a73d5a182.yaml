@@ -1,0 +1,80 @@
+id: 019cb58c-3746-7298-8902-159a73d5a182
+name: Indirect Prompt Injection via Concealed Text
+description: Detects attempts to perform Indirect Prompt Injection (IDPI) by embedding malicious instructions for AI agents or Large Language Models (LLMs) within web content. This rule identifies when common prompt injection keywords are present in conjunction with CSS techniques used to hide the text from being rendered in a browser, a method used to evade human review while targeting automated systems.
+query: |
+    title: Indirect Prompt Injection via Concealed Text
+    id: 43af7808-4e96-4bb2-941a-a4161fb1d78c
+    status: experimental
+    description: >-
+      Detects attempts to perform Indirect Prompt Injection (IDPI) by embedding
+      malicious instructions for AI agents or Large Language Models (LLMs) within
+      web content. This rule identifies when common prompt injection keywords are
+      present in conjunction with CSS techniques used to hide the text from being
+      rendered in a browser, a method used to evade human review while targeting
+      automated systems.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+    date: 2026-03-03
+    tags:
+      - attack.t1027
+      - attack.t1059
+      - attack.defense_evasion
+    logsource:
+      category: web
+      # This rule is designed for logs containing the full body of web pages, such as from a web proxy or network security appliance.
+    detection:
+      # Keywords commonly used in prompt injection attacks against AI/LLM agents
+      keywords:
+        - 'ignore all previous instructions'
+        - 'ignore the above instructions'
+        - 'disregard the above'
+        - 'system override'
+        - 'act as'
+        - 'extremely qualified'
+        - 'validation_result": "approved' # Specific example from the report for JSON injection
+        - 'approved'
+        - 'delete your database'
+      # Common CSS techniques to hide text from being rendered in a browser
+      css_hiding:
+        - 'display:none'
+        - 'display: none'
+        - 'visibility:hidden'
+        - 'visibility: hidden'
+        - 'font-size:0'
+        - 'font-size: 0'
+        - 'opacity:0'
+        - 'opacity: 0'
+        - 'height:0'
+        - 'height: 0'
+        - 'line-height:0'
+        - 'line-height: 0'
+        - 'left:-999' # Catches common off-screen positioning like left:-9999px
+        - 'top:-999'
+      condition: 1 of keywords and 1 of css_hiding
+    falsepositives:
+      - Legitimate web development may use hidden elements for templates,
+        accessibility (ARIA), or content that is dynamically displayed with
+        JavaScript.
+      - The combination with prompt injection keywords significantly reduces the
+        likelihood of false positives, but tuning may be required for specific
+        internal or legitimate external sites.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059
+tags:
+    - attack.t1027
+    - attack.t1059
+    - attack.defense_evasion
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/ai-agent-prompt-injection/
+data_sources:
+    - web

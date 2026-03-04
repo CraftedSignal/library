@@ -1,0 +1,18 @@
+id: 019cb587-66d5-7018-b33c-ff1e24d204fb
+name: Silent OAuth Redirection Probe
+description: Detects URL click events or browser launches where the URL targets Microsoft or Google OAuth endpoints and contains the combination of 'prompt=none' and 'scope=invalid'. This specific combination is used by attackers to force a silent error redirect to a malicious URI.
+query: "// Name: Silent OAuth Redirection Probe\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-03\r\n// Description: Detects URL click events or browser launches where the URL targets Microsoft or Google OAuth endpoints and contains the combination of 'prompt=none' and 'scope=invalid'. This specific combination is used by attackers to force a silent error redirect to a malicious URI.\r\n// MITRE ATT&CK: T1566.002 (Spearphishing Link), T1204.001 (Malicious Link)\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/\r\n// False Positives: This technique is highly specific to abuse, but false positives may occur from developers or security researchers testing OAuth flows.\r\n// Version: 1.0\r\nlet oauthProviders = dynamic([\"login.microsoftonline.com\", \"accounts.google.com\"]);\r\n// Combine email link clicks and browser launch events for comprehensive coverage.\r\nunion isfuzzy=true\r\n    (\r\n        UrlClickEvents\r\n        | where ActionType == \"ClickAllowed\" or IsClickedThrough == true\r\n        | where isnotempty(Url)\r\n        | extend Url = tostring(Url)\r\n        | project Timestamp, Url, AccountUpn, NetworkMessageId, ReportId, Type\r\n    ),\r\n    (\r\n    DeviceEvents\r\n    | where ActionType == \"BrowserLaunchedToOpenUrl\"\r\n    | where isnotempty(RemoteUrl)\r\n    | extend Url = RemoteUrl\r\n    | project Timestamp, Url, DeviceName, \r\n              AccountUpn = InitiatingProcessAccountUpn, Type\r\n)\r\n// Filter for URLs targeting legitimate OAuth providers.\r\n| where parse_url(Url).Host in~ (oauthProviders)\r\n// Look for the specific combination of parameters used to force a silent error redirect.\r\n| where Url has \"prompt=none\" and Url has \"scope=invalid\"\r\n// Project relevant fields for investigation.\r\n| project-reorder Timestamp, AccountUpn, DeviceName, Url, NetworkMessageId, ReportId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.002
+    - T1204.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
