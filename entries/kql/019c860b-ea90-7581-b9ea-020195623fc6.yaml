@@ -1,0 +1,14 @@
+id: 019c860b-ea90-7581-b9ea-020195623fc6
+name: Git Clone of Nanoclaw Repository on Claude-Related System
+description: This rule detects the execution of a 'git clone' command to download the 'qwibitai/nanoclaw' repository, specifically on devices where a 'node' or 'node.exe' process associated with 'claude' is also observed. This could indicate an adversary installing tools or malicious code on a system potentially related to a 'claude' application or service.
+query: "let Lookback = 7d;\r\nlet InstallCmd = \"git clone https://github.com/qwibitai/nanoclaw\";\r\nlet ClaudeEP =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(Lookback)\r\n| where (FileName has \"node\" or FileName has \"node.exe\") and \r\n(InitiatingProcessCommandLine has \"claude\" or ProcessCommandLine has \"claude\")\r\n| distinct DeviceName;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(Lookback)\r\n| where InitiatingProcessCommandLine has InstallCmd or ProcessCommandLine has InstallCmd\r\n| where DeviceName has_any(ClaudeEP)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1105
+tags:
+    - kql
+author: Steven Lim
+version: "8"

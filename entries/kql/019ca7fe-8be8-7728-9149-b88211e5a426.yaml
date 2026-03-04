@@ -1,0 +1,14 @@
+id: 019ca7fe-8be8-7728-9149-b88211e5a426
+name: Zig Build-Exe with GitHub Repository Interaction
+description: This rule detects the execution of a process that attempts to build an executable using 'zig build-exe' and subsequently initiates a process with a command line containing 'https://github.com/nullclaw/nullclaw.git'. This could indicate an adversary building a malicious executable on a host and then attempting to download or interact with a malicious GitHub repository, potentially for further stages of an attack.
+query: "let Lookback = 30d;\r\nlet InstallCmd = \"https://github.com/nullclaw/nullclaw.git\";\r\nlet ZigEP =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(Lookback)\r\n| where InitiatingProcessCommandLine == \"zig build-exe\"\r\n| distinct DeviceName;\r\nDeviceProcessEvents\r\n| where Timestamp > ago(1h)\r\n| where InitiatingProcessCommandLine has InstallCmd or ProcessCommandLine has InstallCmd\r\n| where DeviceName has_any(ZigEP)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1612
+tags:
+    - kql
+author: Steven Lim
+version: "4"

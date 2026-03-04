@@ -1,0 +1,12 @@
+id: 0199fd27-c295-7455-9a3b-5a0cf34a253e
+name: Potential C2 Activity After IP Reconnaissance
+description: This rule detects potential command and control (C2) activity by identifying devices that first query 'api.ipify.org' (often used by malware to determine external IP addresses) and then subsequently establish an outbound network connection on port 7712 to a non-private IP address. This sequence of events can indicate a compromised host attempting to beacon out to a C2 server after initial reconnaissance.
+query: "let Lookback = 1h;\r\nlet PreC2Behaviour =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(Lookback)\r\n| where RemoteUrl has \"api.ipify.org\"\r\n| distinct DeviceName;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(Lookback)\r\n| where not(ipv4_is_private(RemoteIP)) and RemoteIP != \"127.0.0.1\"\r\n| where RemotePort == 7712\r\n| where DeviceName has_any(PreC2Behaviour)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+tags:
+    - kql
+author: Steven Lim
+version: "11"

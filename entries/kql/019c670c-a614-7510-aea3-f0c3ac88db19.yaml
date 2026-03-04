@@ -1,0 +1,17 @@
+id: 019c670c-a614-7510-aea3-f0c3ac88db19
+name: Suspicious Python Command-Line Execution with Network Activity
+description: This rule detects suspicious Python command-line executions that attempt to import the 'requests' library, use 'exec()', and make HTTP/HTTPS requests. This pattern is commonly observed in malicious Python scripts used for command and control, data exfiltration, or downloading additional payloads.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where ProcessCommandLine has \" -c \"\r\n| where ProcessCommandLine has \"import requests\"\r\n| where ProcessCommandLine has \"exec(\"\r\n| where ProcessCommandLine has_any (\"requests.get\",\"urllib\",\"http://\",\"https://\")\r\n| project Timestamp,\r\n          DeviceName,\r\n          AccountName,\r\n          FileName,\r\n          ProcessCommandLine,\r\n          InitiatingProcessFileName\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.006
+    - T1071.001
+    - T1105
+tags:
+    - kql
+author: AwaisM
+version: "3"

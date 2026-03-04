@@ -1,0 +1,16 @@
+id: 019a0c22-c533-760e-ba88-709a4c4df724
+name: Outbound Connection to Tykit Malware C2 or Credential Phishing Domain
+description: This rule detects outbound network connections to domains associated with the Tykit malware family or domains matching a specific regular expression pattern often used for credential harvesting (e.g., 'loginmicr.s*.cc'). It leverages an external intelligence feed for known Tykit domains and a regex for common phishing/credential theft patterns.
+query: "let Tykit=externaldata(Domain:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/TyKit.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project Domain;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1h)\r\n| where ActionType == \"ConnectionSuccess\"\r\n| where RemoteUrl has_any(Tykit) or RemoteUrl matches regex @\"^loginmicr.?s*.*\\.cc$\""
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - kql
+author: Steven Lim
+version: "7"
+references:
+    - https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/TyKit.csv

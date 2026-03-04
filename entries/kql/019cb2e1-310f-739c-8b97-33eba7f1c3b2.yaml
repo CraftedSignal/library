@@ -1,0 +1,18 @@
+id: 019cb2e1-310f-739c-8b97-33eba7f1c3b2
+name: OAuth Phishing Attempt via Malicious Redirect URL
+description: This rule detects emails containing URLs that initiate OAuth 2.0 authorization flows for Microsoft or Google, and where the URL contains a known malicious OAuth ID. This is indicative of an OAuth phishing attempt, where attackers try to trick users into granting access to malicious applications.
+query: "let OauthID=externaldata(OAID:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/OauthRedirPhishing.csv']\r\n| project OAID;\r\nEmailUrlInfo\r\n| where TimeGenerated > ago(90d)\r\n| where Url startswith \"https://login.microsoftonline.com/common/oauth2/v2.0/authorize\" or\r\nUrl startswith \"https://accounts.google.com/o/oauth2/v2/auth\"\r\n| where Url has_any(OauthID)\r\n| join EmailEvents on NetworkMessageId"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566.002
+    - T1528
+tags:
+    - kql
+author: Steven Lim
+version: "4"
+references:
+    - https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/OauthRedirPhishing.csv

@@ -1,0 +1,16 @@
+id: 019ca574-51d7-7209-92ae-075aa3bee8b8
+name: Network Communication to AI Model Providers
+description: This rule detects network communication with known AI model providers by checking `RemoteUrl` against a list of AI API URLs from an external CSV file. It aims to identify potential unauthorized use of AI services, data exfiltration to AI models, or to monitor AI usage within an environment.
+query: "let AIModelProvider=externaldata(AIModel:string,AIAPIUrl:string,RiskScore:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/AIModelProvider.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project AIAPIUrl;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where RemoteUrl has_any(AIModelProvider)\r\n| extend AIProvider = replace_string(RemoteUrl, \"https://\", \"\")\r\n| summarize Count=count() by AIProvider\r\n| sort by Count desc "
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+    - TA0040
+techniques:
+    - T1567
+    - T1496.004
+tags:
+    - kql
+author: Steven Lim
+version: "4"

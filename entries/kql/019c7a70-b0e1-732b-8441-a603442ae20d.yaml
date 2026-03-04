@@ -1,0 +1,14 @@
+id: 019c7a70-b0e1-732b-8441-a603442ae20d
+name: Internet-Facing Windows Admin Center Listening on Default Port (Non-2.6.4 Version)
+description: This rule detects Windows Admin Center (WAC) creating a listening connection on its default port (6516) on internet-facing devices, specifically when the WAC version is not '2.6.4'. This could indicate an unpatched or vulnerable version of WAC exposed to the internet, potentially making it susceptible to exploitation.
+query: "DeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where ActionType == \"ListeningConnectionCreated\"\r\n| where LocalPort == \"6516\"\r\n| where InitiatingProcessVersionInfoFileDescription == \"Windows Admin Center\"\r\n| summarize arg_max(Timestamp, *) by DeviceName\r\n| extend WACVersion = substring(InitiatingProcessVersionInfoProductVersion, 0, 6)\r\n| where WACVersion != \"2.6.4\" // Filter for Non Patch Version\r\n| join DeviceInfo on DeviceName\r\n| where IsInternetFacing == true and isnotempty(PublicIP) // Remark this to get full vulnerable list"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: Steven Lim
+version: "4"

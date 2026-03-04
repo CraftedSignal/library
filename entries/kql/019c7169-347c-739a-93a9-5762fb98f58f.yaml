@@ -1,0 +1,17 @@
+id: 019c7169-347c-739a-93a9-5762fb98f58f
+name: Active Directory Web Services Connection Followed by LDAP Activity
+description: This rule detects inbound network connections to Active Directory Web Services (ADWS) on port 9389, followed by either LDAP query events (Event ID 1644) or operations on Active Directory objects (Event ID 4662) originating from the same device. This combination of events can indicate reconnaissance or malicious activity targeting Active Directory, such as attempts to enumerate accounts or groups, or to modify AD objects.
+query: "let ADWSSrv =\r\nDeviceNetworkEvents\r\n| where TimeGenerated > ago(1h)\r\n| where ActionType == \"InboundConnectionAccepted\"\r\n| where LocalPort == 9389\r\n| distinct DeviceName;\r\nSecurityEvent\r\n| where TimeGenerated > ago(1h)\r\n| where EventID == 1644 or EventID == 4662\r\n| where Computer has_any(ADWSSrv)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1087
+    - T1087.002
+    - T1069
+    - T1069.002
+tags:
+    - kql
+author: Steven Lim
+version: "4"

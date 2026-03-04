@@ -1,0 +1,16 @@
+id: 019c6703-bf85-71f9-8730-eeb2b979d934
+name: Suspicious Python Execution via Svchost.exe
+description: This rule detects suspicious Python script execution via svchost.exe. Specifically, it looks for svchost.exe processes running from a user's profile directory that execute Python commands containing 'import', 'requests', 'exec(', and a URL (http:// or https://). This pattern is indicative of a Python interpreter being used to download and execute malicious code, potentially masquerading as a legitimate svchost process.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(7d)\r\n| where FileName =~ \"svchost.exe\"\r\n| where FolderPath has @\"\\Users\\\"\r\n| where ProcessCommandLine has \" -c \"\r\n| where ProcessCommandLine has_all (\"import\", \"requests\")\r\n| where ProcessCommandLine has \"exec(\"\r\n| where ProcessCommandLine has_any (\"http://\", \"https://\")\r\n| where ProcessVersionInfoOriginalFileName in~ (\"python.exe\", \"pythonw.exe\")\r\n| project Timestamp,\r\n          DeviceName,\r\n          AccountName,\r\n          FileName,\r\n          FolderPath,\r\n          ProcessCommandLine,\r\n          InitiatingProcessFileName,\r\n          InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.006
+    - T1036.005
+tags:
+    - kql
+author: AwaisM
+version: "3"

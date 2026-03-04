@@ -3133,6 +3133,18 @@ entries:
         - https://attack.mitre.org/techniques/T1218/005/
         - https://attack.mitre.org/techniques/T1204/002/
       file: entries/sigma/0199f800-10c0-70dd-870a-5e2c307fe75f.yaml
+    - id: 0199fd27-c295-7455-9a3b-5a0cf34a253e
+      name: Potential C2 Activity After IP Reconnaissance
+      description: This rule detects potential command and control (C2) activity by identifying devices that first query 'api.ipify.org' (often used by malware to determine external IP addresses) and then subsequently establish an outbound network connection on port 7712 to a non-private IP address. This sequence of events can indicate a compromised host attempting to beacon out to a C2 server after initial reconnaissance.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+      tags:
+        - kql
+      author: Steven Lim
+      version: "11"
+      file: entries/kql/0199fd27-c295-7455-9a3b-5a0cf34a253e.yaml
     - id: 0199fec7-0b38-71ed-b5b0-23ea3aa4c3a4
       name: 'Detect Suspicious Usage of Windows Subsystem for Linux (WSL) '
       description: Detects suspicious activity related to the Windows Subsystem for Linux (WSL), such as installing new distributions (especially penetration testing ones like Kali), importing custom images, or executing commands non-interactively. Attackers may use WSL to run malicious Linux binaries, hide artifacts, and evade defenses.
@@ -3867,6 +3879,22 @@ entries:
         - https://www.microsoft.com/en-us/security/blog/2025/07/22/disrupting-active-exploitation-of-on-premises-sharepoint-vulnerabilities/
         - https://research.checkpoint.com/2025/before-toolshell-exploring-storm-2603s-previous-ransomware-operations/
       file: entries/sigma/019a0c1e-29bf-726e-9cde-1b61bf904e38.yaml
+    - id: 019a0c22-c533-760e-ba88-709a4c4df724
+      name: Outbound Connection to Tykit Malware C2 or Credential Phishing Domain
+      description: This rule detects outbound network connections to domains associated with the Tykit malware family or domains matching a specific regular expression pattern often used for credential harvesting (e.g., 'loginmicr.s*.cc'). It leverages an external intelligence feed for known Tykit domains and a regex for common phishing/credential theft patterns.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+      techniques:
+        - T1071.001
+      tags:
+        - kql
+      author: Steven Lim
+      version: "7"
+      references:
+        - https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/TyKit.csv
+      file: entries/kql/019a0c22-c533-760e-ba88-709a4c4df724.yaml
     - id: 019a0c35-5247-7219-8fe0-fb59aac30ed8
       name: Risky SignIn after EmailUrlClickEvent
       description: 'This rule detects a highly suspicious sequence of events: a user clicking on a URL (potentially a phishing link) followed by a risky sign-in attempt to Azure AD from an IP address outside the organization''s defined range. The rule specifically looks for sign-ins with a high-risk level (>= 50) that occur after a URL click event, suggesting a potential compromise initiated by a phishing attack.'
@@ -4312,6 +4340,22 @@ entries:
         - registry_set
         - windows
       file: entries/sigma/019a249b-c28c-717c-a987-e23984db112c.yaml
+    - id: 019a24b1-3380-75be-bdd8-e9ec4ea65924
+      name: Suspicious WSUS Activity Correlation
+      description: 'This rule detects suspicious activity related to Windows Server Update Services (WSUS) that could indicate compromise. It correlates three types of events: 1) external network connections to WSUS ports, 2) modifications to the WSUS log file (SoftwareDistribution.log), and 3) suspicious processes (like cmd.exe, powershell.exe, whoami.exe, net.exe) spawned by WSUS-related processes (w3wp.exe, wsusservice.exe) with specific command-line arguments. The rule aims to identify scenarios where an attacker might be interacting with or manipulating a WSUS server.'
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0008
+      techniques:
+        - T1059
+        - T1021
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019a24b1-3380-75be-bdd8-e9ec4ea65924.yaml
     - id: 019a24c6-d31a-74fd-911b-fa083c8a652e
       name: Detection for WSUS Remote Code Execution (CVE-2025-59287)
       description: This query looks for indicators of CVE-2025-59287 exploitation, a critical WSUS deserialization flaw (CVSS 9.8) enabling unauthenticated remote code execution. Focuses on network, process, and file artifacts associated with exploitation.
@@ -4401,6 +4445,21 @@ entries:
       references:
         - https://hawktrace.com/blog/CVE-2025-59287-UNAUTH
       file: entries/kql/019a2602-01b3-75fc-972a-6cb6c02690b2.yaml
+    - id: 019a2605-2777-718c-b971-0ab2cafd0f33
+      name: Suspicious Browser Extension File Write and Registry Modification
+      description: This rule detects the creation of executable files (.exe, .dll, .pyd) within browser extension folders (Chrome, Edge, Firefox) followed by a related registry modification within a one-hour window. This behavior is indicative of malicious browser extension installation or modification, often used for persistence or data exfiltration.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+      techniques:
+        - T1176
+        - T1176.001
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019a2605-2777-718c-b971-0ab2cafd0f33.yaml
     - id: 019a263d-fde7-718c-98f5-4b600390ed63
       name: CLSID override
       description: This rule detects modifications to the HKEY_CURRENT_USER\SOFTWARE\Classes\CLSID\{CLSID}\InProcServer32 registry key where the RegistryValueData ends with ".dll" and does not point to common system directories (%systemroot%, C:\Program Files (x86)\, C:\Program Files\). This behavior is indicative of CLSID hijacking, a technique used by adversaries to achieve persistence or privilege escalation by redirecting legitimate COM object calls to a malicious DLL.
@@ -5040,6 +5099,24 @@ entries:
       references:
         - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/
       file: entries/kql/019a52dc-2ead-760d-9602-b87e5e4cfb09.yaml
+    - id: 019a5330-cbce-7794-94e4-d55750792382
+      name: Unsigned/Untrusted DLL Loaded from Suspicious Path
+      description: This rule detects the loading of unsigned or untrusted DLLs from suspicious, non-standard file paths into a set of common Windows processes. It correlates DLL load events with recent process executions to identify potentially malicious shared module usage, often indicative of DLL hijacking or side-loading techniques. The rule specifically looks for DLLs loaded from paths like \Users\Public\, \Temp\, \AppData\, \ProgramData\, \Downloads\, and \PerfLogs\, into processes such as explorer.exe, svchost.exe, lsass.exe, and common applications like chrome.exe or winword.exe. It then filters these events to only include DLLs that are either unsigned or untrusted, and whose signer is not part of a predefined list of trusted entities (e.g., Microsoft, Google).
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1129
+        - T1574.001
+      tags:
+        - kql
+      author: AwaisM
+      version: "6"
+      file: entries/kql/019a5330-cbce-7794-94e4-d55750792382.yaml
     - id: 019a53ae-53ad-7472-8fce-ab78cd6f6f36
       name: Entra Cross-Tenant Modifications
       description: This detection looks for administrative activity that creates or updates Cross-Tenant Access Settings or Cross-Tenant Identity Synchronization Settings in Microsoft Entra ID (Azure AD). These settings control how identities, claims, and trust relationships are shared between Microsoft Entra tenants.
@@ -10411,6 +10488,23 @@ entries:
         - kql
       version: "2"
       file: entries/kql/019b21c4-a81c-71ba-ad29-3a5f92683712.yaml
+    - id: 019b2260-6d4f-77ad-8104-0eb5aa0c73df
+      name: Suspicious DLL Load by consent.exe
+      description: This rule detects suspicious DLL loads by the 'consent.exe' process. It specifically looks for known DLLs often abused in DLL side-loading or hijacking scenarios, such as 'msimg32.dll', 'version.dll', 'rtworkq.dll', 'wmsgapi.dll', and other DLLs containing 'sh4nya' or 'shanya' in their name. The rule excludes legitimate Microsoft versions of 'wmsgapi.dll' and 'msimg32.dll' based on their SHA1 hashes to reduce false positives. The 'consent.exe' process is associated with User Account Control (UAC) and its abuse can lead to privilege escalation or defense evasion.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1574.001
+        - T1134.004
+      tags:
+        - kql
+      author: AwaisM
+      version: "4"
+      file: entries/kql/019b2260-6d4f-77ad-8104-0eb5aa0c73df.yaml
     - id: 019b2270-0d1d-76a8-ae9b-c6c7c33e7534
       name: 'Threat Hunt: Shanya BYOVD Activity - vulnerable Driver Drops and Loads'
       description: This KQL query identifies potential Bring Your Own Vulnerable Driver (BYOVD) activity associated with the Shanya packer by detecting the creation/modification of known vulnerable or malicious driver files (e.g., ThrottleStop.sys, rwdrv.sys, hlpdrv.sys) and their subsequent loads, a technique used to gain kernel access for disabling EDR/AV tools in ransomware attacks.
@@ -10515,6 +10609,20 @@ entries:
       references:
         - https://reliaquest.com/blog/threat-spotlight-storm-0249-precision-endpoint-exploitation/
       file: entries/kql/019b2789-5cb2-70b8-8c0d-d63e7f2d8404.yaml
+    - id: 019b2790-4e0d-761b-b73c-6eb3e7f145f2
+      name: Group Policy Discovery via Command Line and Network Activity
+      description: This rule detects attempts to discover Group Policy settings on a system. It identifies the execution of common command-line interpreters (cmd.exe, powershell.exe, wmic.exe, rundll32.exe) followed by specific commands or PowerShell cmdlets used for GPO enumeration. This includes native Windows commands like 'gpresult' and 'secedit', registry queries for policy settings, PowerShell cmdlets such as 'Get-GPO' and 'Get-GPResultantSetOfPolicy', and LDAP-related queries for 'groupPolicyContainer'. Additionally, it correlates these process events with network connections to SYSVOL shares or LDAP ports (389, 636) that also contain 'groupPolicyContainer' in the URL, indicating potential GPO access. The rule filters out common system processes to reduce noise.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0007
+      techniques:
+        - T1615
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019b2790-4e0d-761b-b73c-6eb3e7f145f2.yaml
     - id: 019b2792-4298-754d-8d3e-3e7e144516d6
       name: Group Policy Discovery via Command Line and Network Activity
       description: This rule detects attempts to discover Group Policy settings on a Windows system. It identifies the execution of common command-line interpreters (cmd.exe, powershell.exe, wmic.exe, rundll32.exe) followed by specific commands or PowerShell cmdlets used for GPO enumeration. This includes native Windows commands like 'gpresult' and 'secedit', registry queries for policy settings, and PowerShell cmdlets such as 'Get-GPO' and 'Get-GPResultantSetOfPolicy'. Additionally, it looks for LDAP-related commands or patterns ('ldapsearch', 'groupPolicyContainer') that might indicate GPO discovery via directory services. The rule also correlates these process events with network connections to SYSVOL shares or LDAP ports (389, 636) to further confirm GPO-related activity.
@@ -11282,6 +11390,29 @@ entries:
       author: AwaisM
       version: "1"
       file: entries/kql/019b505c-d87b-707e-a252-5f23508bd383.yaml
+    - id: 019b506b-32d4-705f-8966-af31006b4d8a
+      name: Detection of Known Malicious Browser Extensions
+      description: This rule detects the presence of known malicious browser extensions on devices. It identifies extensions based on a curated list of Extension IDs associated with various threats, including Urban VPN, extensions that turned malicious, general malicious browser extensions, and those involved in Chrome extension supply chain attacks. The rule queries `DeviceTvmBrowserExtensions` to find any activated extensions matching these IDs.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0001
+      techniques:
+        - T1176
+        - T1176.001
+        - T1195
+        - T1195.002
+      tags:
+        - kql
+      author: AwaisM
+      version: "6"
+      references:
+        - https://www.koi.ai/blog/urban-vpn-browser-extension-ai-conversations-data-collection
+        - https://www.infosecurity-magazine.com/news/18-malicious-chrome-edge-extensions/
+        - https://gitlab-com.gitlab.io/gl-security/security-tech-notes/threat-intelligence-tech-notes/malicious-browser-extensions-feb-2025/
+        - https://cybersecuritynews.com/35-google-chrome-extensions-hacked/
+      file: entries/kql/019b506b-32d4-705f-8966-af31006b4d8a.yaml
     - id: 019b50bc-fc72-721d-9468-771bbed3b253
       name: Evasive Panda Python Library DLL Sideloading via evteng.exe
       description: Detects the DLL sideloading technique used by the Evasive Panda APT group, where the legitimate and signed 'evteng.exe' executable is used to load the malicious 'libpython2.4.dll'.
@@ -11571,6 +11702,21 @@ entries:
         - https://github.com/rtecCyberSec/BitlockMove
         - https://cybersecuritynews.com/bitlockmove/
       file: entries/kql/019b69e2-7f95-72a1-8080-a26e38533621.yaml
+    - id: 019b6a5c-9905-770e-b1bd-f35d7020cb83
+      name: Malicious Browser Extension File Creation
+      description: This rule detects the creation of files with specific malicious extension IDs on devices. These extensions are typically associated with browser-based malware or unwanted programs that modify browser behavior, steal data, or perform other malicious activities. The rule specifically looks for `FileCreated` events where the `FileName` matches any of the predefined malicious extension IDs.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+      techniques:
+        - T1176
+        - T1176.001
+      tags:
+        - kql
+      author: Steven Lim
+      version: "7"
+      file: entries/kql/019b6a5c-9905-770e-b1bd-f35d7020cb83.yaml
     - id: 019b6a71-3356-7796-8291-a717d1682ba9
       name: HoneyMyte Disables Microsoft Defender via Altitude Tampering
       description: Detects the tampering of the Microsoft Defender file system mini-filter driver's 'Altitude' registry value. The HoneyMyte APT's rootkit sets this value to '0' to prevent the driver from loading, effectively impairing system defenses.
@@ -12208,6 +12354,16 @@ entries:
         - kql
       version: "3"
       file: entries/kql/019b9deb-3aff-751b-8cec-01e65805f3f5.yaml
+    - id: 019b9dfa-9b56-7345-b8fc-135bc1c0d562
+      name: AI-Generated Detection Rule
+      description: Detection rule generated by AI system
+      query_type: kql
+      severity: medium
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019b9dfa-9b56-7345-b8fc-135bc1c0d562.yaml
     - id: 019b9e08-813b-74aa-b6fb-0a8e620e40f0
       name: Bulbature Network Reconnaissance Command
       description: Detects a specific command used by the Bulbature malware (associated with UAT-7290) to obtain the local network interface's name. This is part of its system reconnaissance routine.
@@ -12936,6 +13092,29 @@ entries:
         - kql
       version: "1"
       file: entries/kql/019ba04a-2bbf-75a8-ad5c-4c640b9d8e89.yaml
+    - id: 019ba2f5-18eb-7699-b7db-a2b7aaf24829
+      name: Suspicious PowerShell and MSBuild Activity with Defense Evasion and Persistence
+      description: This rule detects several suspicious activities often associated with post-exploitation and defense evasion. It identifies PowerShell commands used for recursively searching for msbuild.exe, tampering with Windows Defender settings (disabling real-time monitoring or adding exclusions), and downloading files from the internet to common temporary or application data directories. Additionally, it flags msbuild.exe executing suspicious .proj files from temporary directories, and any executable launched from temporary or program data folders by PowerShell or MSBuild. The rule also includes detection for persistence via .url file creation in the Startup folder and the dropping of specific suspicious files (.proj, pins.dat, staxs.exe, tybd7.exe) by PowerShell or MSBuild in temporary or program data directories.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+        - TA0011
+        - TA0003
+        - TA0004
+      techniques:
+        - T1059.001
+        - T1562.001
+        - T1105
+        - T1059
+        - T1547.001
+        - T1027
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019ba2f5-18eb-7699-b7db-a2b7aaf24829.yaml
     - id: 019ba318-7512-774a-8de9-0ef2f4cd8d42
       name: Outbound Chrome Connection to Known C2 Domains
       description: This rule detects outbound network connections initiated by 'chrome.exe' to a predefined list of known Command and Control (C2) domains over HTTPS (port 443). This indicates potential communication with malicious infrastructure.
@@ -17132,6 +17311,23 @@ entries:
       references:
         - https://snyk.io/articles/clawdbot-ai-assistant/
       file: entries/kql/019c0922-21a7-7341-b71e-011d4025c019.yaml
+    - id: 019c09ce-0aa6-7168-b9be-733c7a9ae730
+      name: Suspicious Conhost.exe Execution with Headless Flag and Malicious Keywords
+      description: This rule detects suspicious command-line activity involving 'conhost.exe' running in headless mode, combined with specific keywords often associated with malware or malicious scripts. The presence of '--headless' with other suspicious strings like 'svchost.exe', 'certutil -decode', common temporary directories, or specific file extensions/initiating processes (cmd.exe, powershell.exe, curl) suggests an attempt to execute hidden or obfuscated malicious code. This pattern is frequently observed in various stages of an attack, including execution, persistence, and defense evasion.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1564.003
+        - T1036.005
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019c09ce-0aa6-7168-b9be-733c7a9ae730.yaml
     - id: 019c09d1-20e6-73a8-9b8c-ae5ea0f1d539
       name: PXA Stealer - Suspicious Conhost.exe Execution with Headless Argument
       description: This rule detects suspicious `conhost.exe` processes executing with the `--headless` argument and other indicators commonly associated with malware or malicious activity. The presence of `--headless` suggests an attempt to hide the console window, while additional command-line arguments like `svchost.exe`, `certutil -decode`, paths within `Users\Public` or `AppData`, and specific file extensions (`.ico`, `.png`) or keywords (`MRB_`, `DA_NEW_VER_`, `BOT`) further indicate potential compromise. The rule also looks for initiating processes like `cmd.exe`, `powershell.exe`, `curl`, or `start` which are often used to launch malicious payloads.
@@ -24862,6 +25058,22 @@ entries:
         - file_event
         - windows
       file: entries/sigma/019c66c4-0040-7698-8e28-178dc95744cf.yaml
+    - id: 019c6703-bf85-71f9-8730-eeb2b979d934
+      name: Suspicious Python Execution via Svchost.exe
+      description: This rule detects suspicious Python script execution via svchost.exe. Specifically, it looks for svchost.exe processes running from a user's profile directory that execute Python commands containing 'import', 'requests', 'exec(', and a URL (http:// or https://). This pattern is indicative of a Python interpreter being used to download and execute malicious code, potentially masquerading as a legitimate svchost process.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.006
+        - T1036.005
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019c6703-bf85-71f9-8730-eeb2b979d934.yaml
     - id: 019c6706-48c0-721f-968b-fb8247d8ff40
       name: PXA Stealer - Suspicious Python Execution Masquerading as svchost.exe
       description: This rule detects suspicious Python script execution masquerading as 'svchost.exe'. Specifically, it looks for 'svchost.exe' processes running from a user's profile directory that execute Python code containing 'import', 'requests', 'exec(', and references to 'http://' or 'https://' in the command line. This pattern is indicative of a Python-based malware or script attempting to download and execute additional code, potentially for command and control or further compromise, while trying to blend in with legitimate system processes.
@@ -24916,6 +25128,23 @@ entries:
       references:
         - https://arcticwolf.com/resources/blog-uk/update-arctic-wolf-observes-threat-campaign-targeting-beyondtrust-remote-support-following-cve-2026-1731/
       file: entries/kql/019c670c-11f0-75ca-b878-c767e75fe200.yaml
+    - id: 019c670c-a614-7510-aea3-f0c3ac88db19
+      name: Suspicious Python Command-Line Execution with Network Activity
+      description: This rule detects suspicious Python command-line executions that attempt to import the 'requests' library, use 'exec()', and make HTTP/HTTPS requests. This pattern is commonly observed in malicious Python scripts used for command and control, data exfiltration, or downloading additional payloads.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0011
+      techniques:
+        - T1059.006
+        - T1071.001
+        - T1105
+      tags:
+        - kql
+      author: AwaisM
+      version: "3"
+      file: entries/kql/019c670c-a614-7510-aea3-f0c3ac88db19.yaml
     - id: 019c670e-4b24-7478-a817-5a43c6e65051
       name: PXA Stealer - Suspicious Python Command-Line Execution with Requests and Exec
       description: This rule detects suspicious Python command-line executions that involve importing the 'requests' library, using 'exec()' for dynamic code execution, and making HTTP/HTTPS requests. This pattern is often observed in malicious Python scripts used for command and control, data exfiltration, or downloading additional payloads.
@@ -26115,6 +26344,23 @@ entries:
       references:
         - https://objective-see.org/blog/blog_0x85.html
       file: entries/kql/019c7161-896e-70a2-87de-260543bd11e3.yaml
+    - id: 019c7169-347c-739a-93a9-5762fb98f58f
+      name: Active Directory Web Services Connection Followed by LDAP Activity
+      description: This rule detects inbound network connections to Active Directory Web Services (ADWS) on port 9389, followed by either LDAP query events (Event ID 1644) or operations on Active Directory objects (Event ID 4662) originating from the same device. This combination of events can indicate reconnaissance or malicious activity targeting Active Directory, such as attempts to enumerate accounts or groups, or to modify AD objects.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0007
+      techniques:
+        - T1087
+        - T1087.002
+        - T1069
+        - T1069.002
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019c7169-347c-739a-93a9-5762fb98f58f.yaml
     - id: 019c717e-3569-774b-8bf3-b922008f702d
       name: Malicious VSCode Configuration Modification
       description: Detects modification of the VSCode settings.json file by a process other than VSCode itself. This could indicate an attempt to exploit vulnerabilities where an attacker tricks a user into applying a malicious configuration to achieve remote code execution.
@@ -26953,6 +27199,20 @@ entries:
         - file_event
         - macos
       file: entries/sigma/019c784e-c05e-7363-bd85-4fd39311ba4d.yaml
+    - id: 019c7a70-b0e1-732b-8441-a603442ae20d
+      name: Internet-Facing Windows Admin Center Listening on Default Port (Non-2.6.4 Version)
+      description: This rule detects Windows Admin Center (WAC) creating a listening connection on its default port (6516) on internet-facing devices, specifically when the WAC version is not '2.6.4'. This could indicate an unpatched or vulnerable version of WAC exposed to the internet, potentially making it susceptible to exploitation.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0001
+      techniques:
+        - T1190
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019c7a70-b0e1-732b-8441-a603442ae20d.yaml
     - id: 019c7b38-d289-73ae-8317-ec73471a236b
       name: High-Impact Phishing Campaign Detected (≥25 Recipients in 48h)
       description: Detects high-impact phishing campaigns identified by Microsoft Defender for Office 365. Alerts when a campaign (CampaignName, CampaignId) targets 25 or more recipients (RecipientEmailAddress) within 48 hours, providing timestamp and message details (NetworkMessageId) for investigation.
@@ -27668,6 +27928,21 @@ entries:
         - spl
       version: "1"
       file: entries/spl/019c7e37-5052-728f-a3e8-f908df2c08e9.yaml
+    - id: 019c7ee4-48e5-71de-8066-efb928f7c7dc
+      name: Registry Run Key Persistence via MonitoringService
+      description: This rule detects the creation of a registry key named 'MonitoringService' under 'HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Windows\CurrentVersion\Run'. This registry key is commonly used by adversaries to establish persistence, ensuring that a malicious program or script executes automatically each time a user logs on to the system.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1547.001
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019c7ee4-48e5-71de-8066-efb928f7c7dc.yaml
     - id: 019c7f0a-932e-7575-b34e-e2b4228701cb
       name: Suspicious Network Discovery Utilities Hunt
       description: "Detects activity related to Network Discovery.\nHere, one group of network commands has to match for the rule to trigger. \n"
@@ -27922,6 +28197,20 @@ entries:
         - email
         - windows
       file: entries/sigma/019c845f-3241-71cc-a42b-13eb646c1d60.yaml
+    - id: 019c860b-ea90-7581-b9ea-020195623fc6
+      name: Git Clone of Nanoclaw Repository on Claude-Related System
+      description: This rule detects the execution of a 'git clone' command to download the 'qwibitai/nanoclaw' repository, specifically on devices where a 'node' or 'node.exe' process associated with 'claude' is also observed. This could indicate an adversary installing tools or malicious code on a system potentially related to a 'claude' application or service.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+      techniques:
+        - T1105
+      tags:
+        - kql
+      author: Steven Lim
+      version: "8"
+      file: entries/kql/019c860b-ea90-7581-b9ea-020195623fc6.yaml
     - id: 019c8694-6e12-71ca-8221-7efd1b6f8a52
       name: Unauthorized Azure AD Account Creation or Deletion
       description: This rule identifies the creation or deletion of user accounts in Azure AD (Entra ID) by principals not on an approved list. It relies on a customized list of approved administrators/service principals to reduce false positives.
@@ -39982,6 +40271,22 @@ entries:
       references:
         - https://www.securonix.com/blog/securonix-threat-labs-2025-annual-autonomous-threat-sweeper-intelligence-insights/
       file: entries/kql/019ca54d-3c20-7046-b9c8-8cd68549c451.yaml
+    - id: 019ca574-51d7-7209-92ae-075aa3bee8b8
+      name: Network Communication to AI Model Providers
+      description: This rule detects network communication with known AI model providers by checking `RemoteUrl` against a list of AI API URLs from an external CSV file. It aims to identify potential unauthorized use of AI services, data exfiltration to AI models, or to monitor AI usage within an environment.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0010
+        - TA0040
+      techniques:
+        - T1567
+        - T1496.004
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019ca574-51d7-7209-92ae-075aa3bee8b8.yaml
     - id: 019ca5b4-a8f3-7457-a745-0b70f9b6facd
       name: Linux SSH Session Other User
       description: |
@@ -40114,6 +40419,20 @@ entries:
       author: KnightArtorias42 (AI, it was AI)
       version: "2"
       file: entries/kql/019ca68b-f7c9-72fc-b0c5-656527123489.yaml
+    - id: 019ca7fe-8be8-7728-9149-b88211e5a426
+      name: Zig Build-Exe with GitHub Repository Interaction
+      description: This rule detects the execution of a process that attempts to build an executable using 'zig build-exe' and subsequently initiates a process with a command line containing 'https://github.com/nullclaw/nullclaw.git'. This could indicate an adversary building a malicious executable on a host and then attempting to download or interact with a malicious GitHub repository, potentially for further stages of an attack.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0005
+      techniques:
+        - T1612
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019ca7fe-8be8-7728-9149-b88211e5a426.yaml
     - id: 019ca80d-979a-766a-bf6a-cec935f216eb
       name: Firewall Configuration Change Detection
       description: "Detects configuration changes on firewall devices via CommonSecurityLog.\nSpecifically looks for CONFIG activity that is not an audit-commit,\nindicating an actual configuration change was made rather than a\nread-only audit operation.\nNote: Field aliasing (Client, Administrator, Host_IP, Command, Result,\nConfiguration_Path, Before_Change, After_Change) via extend,\nfixed date window via datetime_local_to_utc, and project-reorder\nare handled natively in KQL post-conversion. See third item of the\nreference. Original query was scoped to a fixed date window, which is \n(2026-02-09 to 2026-02-10 PST) suggesting threat hunting intent.\nHowever, it's worthnoting that Sigma version uses a rolling 24h window \nfor continuous detection. This is the detection version of my KQL script.\n"
@@ -40702,6 +41021,24 @@ entries:
       references:
         - https://cybersecuritynews.com/hackers-abuse-windows-file-explorer-and-webdav/
       file: entries/kql/019cb287-26a4-75b8-8fa6-ecd2ecfa32ce.yaml
+    - id: 019cb2e1-310f-739c-8b97-33eba7f1c3b2
+      name: OAuth Phishing Attempt via Malicious Redirect URL
+      description: This rule detects emails containing URLs that initiate OAuth 2.0 authorization flows for Microsoft or Google, and where the URL contains a known malicious OAuth ID. This is indicative of an OAuth phishing attempt, where attackers try to trick users into granting access to malicious applications.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0001
+        - TA0006
+      techniques:
+        - T1566.002
+        - T1528
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      references:
+        - https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/OauthRedirPhishing.csv
+      file: entries/kql/019cb2e1-310f-739c-8b97-33eba7f1c3b2.yaml
     - id: 019cb343-181b-77cd-8a00-b70d41e3b1e9
       name: Havoc C2 Registry Persistence
       description: Detects the creation or modification of specific registry keys used by a modified Havoc Demon agent to store fallback C2 configuration and payload paths. This detection identifies a custom persistence mechanism observed in a 2026 campaign involving a modified Havoc C2 framework. The adversary uses these registry keys as a fallback for C2 resilience.

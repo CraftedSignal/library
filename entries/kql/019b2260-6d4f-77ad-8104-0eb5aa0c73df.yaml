@@ -1,0 +1,17 @@
+id: 019b2260-6d4f-77ad-8104-0eb5aa0c73df
+name: Suspicious DLL Load by consent.exe
+description: This rule detects suspicious DLL loads by the 'consent.exe' process. It specifically looks for known DLLs often abused in DLL side-loading or hijacking scenarios, such as 'msimg32.dll', 'version.dll', 'rtworkq.dll', 'wmsgapi.dll', and other DLLs containing 'sh4nya' or 'shanya' in their name. The rule excludes legitimate Microsoft versions of 'wmsgapi.dll' and 'msimg32.dll' based on their SHA1 hashes to reduce false positives. The 'consent.exe' process is associated with User Account Control (UAC) and its abuse can lead to privilege escalation or defense evasion.
+query: "DeviceImageLoadEvents\r\n| where Timestamp > ago(1d)\r\n| where SHA1 != @\"b2a2412c57b0fc2e6abf40d09d3ec0895102f428\" // Legit wmsgapi.dll from Microsoft\r\n| where SHA1 != @\"a01dc7a9ed2e4b9c3a6e05290a8b108f0e379498\" // Legit msimg32.dll from Microsoft\r\n| where FolderPath contains \"consent.exe\" or InitiatingProcessFileName == \"consent.exe\"\r\n| where FileName in~ (\"msimg32.dll\", \"version.dll\", \"rtworkq.dll\", \"wmsgapi.dll\", \"sh4nya_fuckav.dll\", \"shanya.dll\")\r\n    or FileName contains \"sh4nya\" or FileName contains \"shanya\"\r\n| project Timestamp, DeviceName, FileName, FolderPath, SHA1, InitiatingProcessFileName, InitiatingProcessSHA256\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+    - T1134.004
+tags:
+    - kql
+author: AwaisM
+version: "4"

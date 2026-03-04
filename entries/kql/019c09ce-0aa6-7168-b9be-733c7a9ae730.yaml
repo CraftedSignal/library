@@ -1,0 +1,17 @@
+id: 019c09ce-0aa6-7168-b9be-733c7a9ae730
+name: Suspicious Conhost.exe Execution with Headless Flag and Malicious Keywords
+description: This rule detects suspicious command-line activity involving 'conhost.exe' running in headless mode, combined with specific keywords often associated with malware or malicious scripts. The presence of '--headless' with other suspicious strings like 'svchost.exe', 'certutil -decode', common temporary directories, or specific file extensions/initiating processes (cmd.exe, powershell.exe, curl) suggests an attempt to execute hidden or obfuscated malicious code. This pattern is frequently observed in various stages of an attack, including execution, persistence, and defense evasion.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(3d)\r\n| where FileName =~ \"conhost.exe\"\r\n| where ProcessCommandLine has \"--headless\"\r\n| where ProcessCommandLine has_any (\r\n    \"svchost.exe\",\r\n    \"synaptics.exe\",\r\n    \"certutil -decode\",\r\n    \"Users\\\\Public\",\r\n    \"AppData\\\\Local\",\r\n    \"AppData\\\\Roaming\",\r\n    // Optional - Remove in case of noise\r\n    \"Temp\", \r\n    \"tmp\"\r\n)\r\n| where \r\n    (\r\n        ProcessCommandLine has_any (\".ico \", \".png \", \"MRB_\", \"DA_NEW_VER_\", \"BOT\") \r\n        or InitiatingProcessCommandLine has_any (\"cmd.exe\", \"powershell.exe\", \"curl \", \"start \", \"certutil -decode\")\r\n    )\r\n| project \r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FolderPath\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1564.003
+    - T1036.005
+tags:
+    - kql
+author: AwaisM
+version: "3"
