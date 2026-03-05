@@ -1,0 +1,67 @@
+id: 019cbf0e-575f-70ce-bb3c-15058cf439f3
+name: Suspicious NPM Install Hook Execution
+description: Detects the execution of `node` running scripts from a `vendor` directory during an `npm install` lifecycle. This behavior was observed in the StegaBin campaign where malicious npm packages used an install hook to execute a loader from 'vendor/scrypt-js/version.js'.
+query: |
+    title: Suspicious NPM Install Hook Execution
+    id: b98fb5db-8d52-43c7-b002-204a577da997
+    status: experimental
+    description: Detects the execution of `node` running scripts from a `vendor`
+      directory during an `npm install` lifecycle. This behavior was observed in the
+      StegaBin campaign where malicious npm packages used an install hook to execute
+      a loader from 'vendor/scrypt-js/version.js'.
+    author: detections.ai
+    references:
+      - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
+    date: 2026-03-05
+    tags:
+      - attack.t1059.007
+      - attack.t1195.002
+      - attack.g0032
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        # Detects node.js process execution
+        Image|endswith:
+          - '\node.exe'
+          - '/node'
+      selection_scripts:
+        # Detects common install script names
+        CommandLine|contains:
+          - 'install.js'
+          - 'version.js'
+      selection_path:
+        # Detects scripts running from a vendor directory
+        CommandLine|contains:
+          - 'vendor/'
+          - 'vendor\'
+      selection_specific_ioc:
+        # Detects the specific loader path used in the StegaBin campaign
+        CommandLine|contains: 'vendor/scrypt-js/version.js'
+      condition: (selection_process and selection_scripts and selection_path) or
+        selection_specific_ioc
+    falsepositives:
+      - Legitimate npm packages may use install scripts located in vendor
+        directories, although it's not a common pattern. Review the package and
+        script content for malicious indicators if a generic match occurs.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059.007
+    - T1195.002
+tags:
+    - attack.t1059.007
+    - attack.t1195.002
+    - attack.g0032
+author: detections.ai
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
+data_sources:
+    - process_creation
+    - windows

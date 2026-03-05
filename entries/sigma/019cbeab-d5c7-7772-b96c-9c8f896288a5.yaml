@@ -1,0 +1,54 @@
+id: 019cbeab-d5c7-7772-b96c-9c8f896288a5
+name: ClipXDaemon Process Masquerading as Kernel Worker
+description: Detects processes masquerading as kernel worker threads (e.g., 'kworker/*') but running in a non-root user context. This technique is used by the ClipXDaemon malware to evade detection by blending in with legitimate system processes.
+query: |
+    title: ClipXDaemon Process Masquerading as Kernel Worker
+    id: b45f333f-8ff0-4ef5-88d4-bb02fb7c81b3
+    status: experimental
+    description: Detects processes masquerading as kernel worker threads (e.g.,
+      'kworker/*') but running in a non-root user context. This technique is used by
+      the ClipXDaemon malware to evade detection by blending in with legitimate
+      system processes.
+    author: detections.ai
+    references:
+      - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+    date: 2026-03-05
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.004
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection:
+        # Detects processes with names mimicking kernel worker threads
+        # Note: The field for the process name might vary (e.g., ProcessName) depending on the log source.
+        Image|startswith: 'kworker/'
+      filter_non_root:
+        # Legitimate kernel workers run as root (user 'root' or UserID '0').
+        # This logic looks for kworker processes NOT running as root.
+        User|ne: 'root'
+        UserID|ne: '0'
+      condition: selection and filter_non_root
+    falsepositives:
+      - Legitimate kernel worker threads (`kworker`) are managed by the kernel and
+        always run as the root user. It is highly unusual and suspicious for a
+        process with this name to run under a non-root user context. Therefore,
+        false positives are expected to be very low.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036.004
+tags:
+    - attack.defense_evasion
+    - attack.t1036.004
+author: detections.ai
+version: "2"
+references:
+    - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+data_sources:
+    - process_creation
+    - linux

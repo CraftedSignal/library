@@ -1,0 +1,52 @@
+id: 019cbe4b-cb85-7236-811a-09145180f76a
+name: Linux User-Space Kernel Worker Masquerading
+description: Detects a process running with a name that mimics a Linux kernel worker thread (e.g., 'kworker/...') but is not running as the root user. This is a known masquerading technique used by malware such as ClipXDaemon to evade detection.
+query: |
+    title: Linux User-Space Kernel Worker Masquerading
+    id: 365f01a9-be3e-4de0-9d08-3dac577c955d
+    status: experimental
+    description: Detects a process running with a name that mimics a Linux kernel
+      worker thread (e.g., 'kworker/...') but is not running as the root user. This
+      is a known masquerading technique used by malware such as ClipXDaemon to evade
+      detection.
+    author: tim@detections.ai
+    references:
+      - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+    date: 2026-03-05
+    tags:
+      - attack.defense_evasion
+      - attack.t1036.004
+      - attack.t1036.005
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection:
+        Image|contains: 'kworker/' # Detects processes with names like 'kworker/0:2-events'
+      filter_root:
+        User: 'root'
+        Uid: 0
+      condition: selection and not filter_root
+    falsepositives:
+      - This activity is highly suspicious. False positives are unlikely as
+        legitimate kernel workers should always run as root. Some misconfigured
+        container environments could potentially trigger this.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036.004
+    - T1036.005
+tags:
+    - attack.defense_evasion
+    - attack.t1036.004
+    - attack.t1036.005
+author: tim@detections.ai
+version: "3"
+references:
+    - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+data_sources:
+    - process_creation
+    - linux

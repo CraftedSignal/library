@@ -1,0 +1,76 @@
+id: 019cbf0f-eaf5-74c2-9d57-a9b5f59bc195
+name: Unauthorized Browser Data Access by Non-Browser Process
+description: Detects non-browser processes accessing sensitive files within web browser profiles, such as credential stores (Login Data), cookies, or local storage databases (LevelDB). This behavior is indicative of credential theft and was observed in multiple modules of the StegaBin infostealer toolkit, which targeted browser-stored credentials and cryptocurrency wallet extensions.
+query: |
+    title: Unauthorized Browser Data Access by Non-Browser Process
+    id: 9b8de895-fe8c-41a8-91e3-43aad9af33c5
+    status: experimental
+    description: >-
+      Detects non-browser processes accessing sensitive files within web browser
+      profiles, such as credential stores (Login Data), cookies, or local storage
+      databases (LevelDB). This behavior is indicative of credential theft and was
+      observed in multiple modules of the StegaBin infostealer toolkit, which
+      targeted browser-stored credentials and cryptocurrency wallet extensions.
+    author: detections.ai
+    references:
+      - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
+    date: 2026-03-05
+    tags:
+      - attack.t1555.003
+      - attack.t1539
+      - attack.t1552.001
+      - attack.g0032
+    logsource:
+      category: file_event # This rule requires file access events, not just process creation.
+      product: windows
+    detection:
+      target_files:
+        TargetFilename|contains:
+          # Sensitive files for Chromium-based browsers (Chrome, Edge, Brave, Opera, Vivaldi)
+          - '\Login Data'
+          - '\Web Data'
+          - '\Cookies'
+          - '\Local Storage\leveldb\'
+          # Sensitive files for Firefox
+          - '\logins.json'
+          - '\key4.db'
+          - '\key3.db'
+          - '\cookies.sqlite'
+          - '\webappsstore.sqlite'
+      filter_legitimate_processes:
+        Image|endswith:
+          # Legitimate browser processes that are expected to access these files
+          - '\chrome.exe'
+          - '\msedge.exe'
+          - '\brave.exe'
+          - '\opera.exe'
+          - '\vivaldi.exe'
+          - '\firefox.exe'
+      condition: target_files and not filter_legitimate_processes
+    falsepositives:
+      - Legitimate password managers or security tools that import or analyze
+        browser data.
+      - Backup software accessing user profile directories.
+      - Legitimate diagnostic or developer scripts. Consider adding specific trusted
+        tools to the filter if they cause noise.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1555.003
+    - T1539
+    - T1552.001
+tags:
+    - attack.t1555.003
+    - attack.t1539
+    - attack.t1552.001
+    - attack.g0032
+author: detections.ai
+version: "2"
+references:
+    - https://socket.dev/blog/stegabin-26-malicious-npm-packages-use-pastebin-steganography
+data_sources:
+    - file_event
+    - windows

@@ -1,0 +1,13 @@
+id: 019cbf5f-b77e-70a2-b152-9ef2c4a36fed
+name: Brute Force Activity Detected
+description: This rule detects brute force activity based on 'BruteForceActivityDetected' events from DeviceEvents. It identifies the attacking IP, the device being attacked, the credential being targeted, the workstation name, domain name, and the type of attack. It then summarizes the count of attacks per unique combination of these fields, ordered by the attack count.
+query: "DeviceEvents\r\n| where Timestamp > ago(1d)\r\n| where ActionType == \"BruteForceActivityDetected\"\r\n| extend AF = todynamic(AdditionalFields)\r\n| extend AttackCredential = tostring(AF.Username)\r\n| extend WorkStationName = tostring(AF.WorkStationName)\r\n| extend DomainName = tostring(AF.DomainName)\r\n| extend AttackIP = tostring(AF.IP)\r\n| extend AttackType = tostring(AF.AttackType)\r\n| where isnotempty(AttackIP)\r\n| summarize AttackCount = count(), HostBeingAttack = dcount(DeviceName) by AttackIP, DeviceName, AttackCredential, WorkStationName, DomainName, AttackType\r\n| sort by AttackCount desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+tags:
+    - kql
+version: "1"

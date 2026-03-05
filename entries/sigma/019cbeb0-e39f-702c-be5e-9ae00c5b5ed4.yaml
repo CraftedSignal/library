@@ -1,0 +1,56 @@
+id: 019cbeb0-e39f-702c-be5e-9ae00c5b5ed4
+name: Pac4j-jwt Authentication Bypass Exploit Attempt (CVE-2026-29000)
+description: Detects attempts to exploit the authentication bypass vulnerability (CVE-2026-29000) in the pac4j-jwt library. An attacker can craft a JWE token containing an unsigned PlainJWT, which causes the library to skip signature verification. This is often indicated by a successfully authenticated token with an 'alg' (algorithm) claim of 'none'. This detection requires application logs to be configured to record the claims of successfully authenticated JWTs.
+query: |
+    title: Pac4j-jwt Authentication Bypass Exploit Attempt (CVE-2026-29000)
+    id: 42a345e5-3696-43b4-aedd-ae2f30917507
+    status: experimental
+    description: Detects attempts to exploit the authentication bypass vulnerability
+      (CVE-2026-29000) in the pac4j-jwt library. An attacker can craft a JWE token
+      containing an unsigned PlainJWT, which causes the library to skip signature
+      verification. This is often indicated by a successfully authenticated token
+      with an 'alg' (algorithm) claim of 'none'. This detection requires application
+      logs to be configured to record the claims of successfully authenticated JWTs.
+    author: detections.ai
+    references:
+      - https://www.codeant.ai/security-research/pac4j-jwt-authentication-bypass-public-key
+    date: 2026-03-05
+    tags:
+      - attack.t1190
+      - attack.t1078
+      - cve.2026.29000
+    logsource:
+      category: application
+    detection:
+      selection:
+        # This field should contain the log message indicating a successful authentication.
+        message|contains: 'Authentication successful' # This field should contain the claims of the authenticated JWT, likely as a JSON string.
+        jwt_claims|contains: '"alg":"none"'
+      condition: all of selection
+    falsepositives:
+      - This rule may require tuning based on the specific fields and content of
+        your application logs.
+    level: critical
+    fields:
+      - message
+      - jwt_claims
+query_type: sigma
+severity: critical
+tactics:
+    - TA0001
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1190
+    - T1078
+tags:
+    - attack.t1190
+    - attack.t1078
+    - cve.2026.29000
+author: detections.ai
+version: "2"
+references:
+    - https://www.codeant.ai/security-research/pac4j-jwt-authentication-bypass-public-key
+data_sources:
+    - application

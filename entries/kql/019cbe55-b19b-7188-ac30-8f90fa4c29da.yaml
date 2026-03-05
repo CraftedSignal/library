@@ -1,0 +1,16 @@
+id: 019cbe55-b19b-7188-ac30-8f90fa4c29da
+name: File Association Hijacking via Registry Manipulation
+description: This rule detects attempts to hijack file associations by monitoring command-line executions of 'cmd.exe' or 'reg.exe' that involve deleting 'UserChoice' registry keys or adding 'ApplicationAssociationToasts'. This behavior is indicative of an adversary attempting to modify default program associations to achieve persistence or execute malicious code.
+query: "// File Association Hijacking via Registry Manipulation — UserChoice Abuse & Toast Suppression\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where FileName =~ \"cmd.exe\" or FileName =~ \"reg.exe\"\r\n| where ProcessCommandLine has_all (\"delete\", \"UserChoice\")\r\n    or ProcessCommandLine has_all (\"add\", \"ApplicationAssociationToasts\")\r\n| summarize\r\n    Count = count(),\r\n    Devices = dcount(DeviceName),\r\n    DeviceList = make_set(DeviceName, 10),\r\n    Commands = make_set(ProcessCommandLine, 5)\r\n    by InitiatingProcessFileName\r\n| sort by Count desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+    - TA0005
+techniques:
+    - T1546.001
+    - T1112
+tags:
+    - kql
+version: "1"

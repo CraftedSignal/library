@@ -1,0 +1,15 @@
+id: 019cbe3e-836a-7514-9a42-746801eecb06
+name: Non-Browser Process Communicating with Paste Sites
+description: This rule detects network connections to known pastebin and text storage sites initiated by processes that are not common web browsers. This could indicate data exfiltration, staging of malicious code, or command and control activity where sensitive information is uploaded or retrieved by non-standard applications.
+query: "// https://github.com/lorien/awesome-pastebins\r\nlet PasteDomains = dynamic([\r\n    \"pastebin.com\", \"paste.ee\", \"justpaste.it\", \"jpst.it\", \"ghostbin.com\",\r\n    \"paste.org\", \"paste.mozilla.org\", \"dpaste.com\", \"dpaste.org\", \"ideone.com\",\r\n    \"codepad.org\", \"jsbin.com\", \"jsfiddle.net\", \"plnkr.co\",  \"pastebin.fr\", \"hastebin.com\",\r\n    \"paste.centos.org\", \"paste.debian.net\", \"fpaste.org\", \"paste.fedoraproject.org\",\r\n    \"bpa.st\", \"paste.opensuse.org\", \"paste.ubuntu.com\", \"privatebin.net\",\r\n    \"zerobin.net\", \"bin.disroot.org\", \"paste.rohitab.com\", \"dumpz.org\",\r\n    \"paste2.org\", \"pastecode.io\", \"rentry.co\", \"rentry.org\", \"termbin.com\",\r\n    \"del.dog\", \"paste.rs\", \"centos.pastebin.com\", \"paste.sh\", \"transfer.sh\",\r\n    \"ix.io\", \"sprunge.us\", \"clbin.com\", \"p.ip.fi\", \"paste.c-net.org\",\r\n    \"paste.xinu.at\", \"paste.pound-python.org\", \"pasted.co\", \"pastesio.com\",\r\n    \"paste.ax\", \"99paste.com\", \"pastebin.ai\", \"pastejustit.com\",\r\n    \"tny.cz\", \"paste.ofcode.org\", \"codebeautify.org\", \"codeshare.io\",\r\n    \"paste.jp\", \"cl1p.net\", \"friendpaste.com\", \"paste.imirhil.fr\",\r\n    \"paste.gg\", \"paste.md\", \"notes.io\", \"controlc.com\", \"pasteall.org\",\r\n    \"paste.pics\", \"paste.fo\", \"bitbin.it\", \"nekobin.com\",\r\n    \"spaceb.in\", \"pastes.io\", \"pst.innomi.net\", \"paste.lv\",\r\n    \"snippet.host\", \"hasty.paste.sh\"\r\n]);\r\nlet BrowserProcesses = dynamic([\r\n    \"chrome.exe\", \"msedge.exe\", \"firefox.exe\", \"brave.exe\", \"opera.exe\",\r\n    \"iexplore.exe\", \"safari.exe\", \"vivaldi.exe\", \"chromium.exe\", \"arc.exe\"\r\n]);\r\nDeviceNetworkEvents\r\n| where RemoteUrl has_any (PasteDomains)\r\n| where InitiatingProcessFileName !in~ (BrowserProcesses)\r\n| project Timestamp, DeviceName, RemoteUrl, RemoteIP, RemotePort,\r\n    InitiatingProcessFileName, InitiatingProcessCommandLine,\r\n    InitiatingProcessAccountName\r\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.003
+tags:
+    - kql
+version: "3"
+references:
+    - https://github.com/lorien/awesome-pastebins

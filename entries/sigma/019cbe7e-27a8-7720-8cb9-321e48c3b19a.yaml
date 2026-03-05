@@ -1,0 +1,56 @@
+id: 019cbe7e-27a8-7720-8cb9-321e48c3b19a
+name: ClipXDaemon Persistence via ~/.profile Modification
+description: Detects the modification of the .profile file to establish persistence, a technique used by the ClipXDaemon malware. The rule looks for a command that appends the execution of a file from the `~/.local/bin` directory to the `.profile` file.
+query: |
+    title: ClipXDaemon Persistence via ~/.profile Modification
+    id: d12b8a78-42a5-45a2-b45d-3499f3e31999
+    status: experimental
+    description: Detects the modification of the .profile file to establish
+      persistence, a technique used by the ClipXDaemon malware. The rule looks for a
+      command that appends the execution of a file from the `~/.local/bin` directory
+      to the `.profile` file.
+    author: detections.ai
+    references:
+      - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+    date: 2026-03-05
+    tags:
+      - attack.persistence
+      - attack.t1547.001
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection:
+        Image|endswith:
+          - '/sh'
+          - '/bash'
+        CommandLine|contains|all:
+          # Detects the use of echo to append a command
+          - 'echo '
+          - '>>' # Targets the .profile file for persistence
+          - '.profile' # Looks for execution from the user's local bin directory, as used by ClipXDaemon
+          - '.local/bin/' # The malware executes the payload in the background
+          - '&'
+      condition: selection
+    falsepositives:
+      - Legitimate user scripts or administrative actions might modify the
+        `.profile` file. However, the specific combination of adding a backgrounded
+        executable from `~/.local/bin` is suspicious and warrants investigation.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.004
+tags:
+    - attack.persistence
+    - attack.t1547.001
+author: detections.ai
+version: "2"
+references:
+    - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+data_sources:
+    - process_creation
+    - linux
