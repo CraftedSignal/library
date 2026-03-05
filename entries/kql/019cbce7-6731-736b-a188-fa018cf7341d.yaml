@@ -1,0 +1,14 @@
+id: 019cbce7-6731-736b-a188-fa018cf7341d
+name: Privilege Escalation to Global Admin
+description: 'The below Sentinel KQL analytics rule is able to detect potential privilege escalation to Global Admin role via compromised service principal '
+query: "let GA = dynamic(['GA1@echo.com', 'GA2@echo.com', 'GA3@echo.com']);\r\nAuditLogs \r\n| where TimeGenerated > ago(1h)\r\n| where Category == \"RoleManagement\"\r\n| where ActivityDisplayName == \"Add member to role\"\r\n| where TargetResources contains \"Global Administrator\"\r\n| extend UPN = tostring(TargetResources[0].userPrincipalName)\r\n| where not (UPN has_any(GA))\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0043
+techniques:
+    - T1591.004
+tags:
+    - kql
+version: "1"
