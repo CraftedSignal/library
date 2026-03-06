@@ -1,0 +1,18 @@
+id: 019cc16d-116e-708a-8757-6b3ce0373d35
+name: Correlated Phishing URL Click and Risky Sign-in
+description: This detection identifies when a user clicks a URL in an email and shortly after, a risky sign-in is detected for the same user account. This pattern is indicative of a successful phishing attack, where a user is lured to a malicious site, enters their credentials, and the attacker uses those credentials or the session token to log in from a different location.
+query: "kql\r\n// Name: Correlated Phishing URL Click and Risky Sign-in\r\n// Author: m41on\r\n// Date: 2026-03-06\r\n// Description: This detection identifies when a user clicks a URL in an email and shortly after, a risky sign-in is detected for the same user account. This pattern is indicative of a successful phishing attack, where a user is lured to a malicious site, enters their credentials, and the attacker uses those credentials or the session token to log in from a different location.\r\n// Tactic: Initial Access\r\n// Technique: T1566.001, T1566.002\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/\r\nlet timeframe = 1d;\r\nlet correlation_window = 30m;\r\n// Collect URL click events from emails that were not blocked.\r\nlet Clicks = UrlClickEvents\r\n| where Timestamp > ago(timeframe)\r\n| where ActionType == \"ClickAllowed\"\r\n| project AccountUpn, Url, ClickTime = Timestamp, NetworkMessageId;\r\n// Collect sign-in events flagged as medium or high risk by Entra ID.\r\nlet RiskySignins = SigninLogs\r\n| where TimeGenerated > ago(timeframe)\r\n// Risk levels 50 (Medium) and 100 (High) indicate a higher probability of compromise.\r\n| where toint(RiskLevelDuringSignIn) >= 50\r\n| project UserPrincipalName, IPAddress, SigninTime = TimeGenerated, RiskLevelDuringSignIn, RiskEventTypes;\r\n// Join clicks and risky sign-ins on the user principal name.\r\nClicks\r\n| join kind=inner (RiskySignins) on $left.AccountUpn == $right.UserPrincipalName\r\n// Correlate events where the risky sign-in occurs within a short window after the URL click.\r\n| where SigninTime between (ClickTime .. (ClickTime + correlation_window))\r\n| project\r\n    ClickTime,\r\n    SigninTime,\r\n    UserPrincipalName = AccountUpn,\r\n    ClickedUrl = Url,\r\n    SignInIpAddress = IPAddress,\r\n    RiskLevelDuringSignIn,\r\n    RiskEventTypes,\r\n    NetworkMessageId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: m41on
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
