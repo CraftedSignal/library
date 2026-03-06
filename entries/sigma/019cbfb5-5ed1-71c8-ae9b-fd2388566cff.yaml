@@ -1,0 +1,63 @@
+id: 019cbfb5-5ed1-71c8-ae9b-fd2388566cff
+name: Suspicious Process DNS Query for TryCloudflare
+description: |
+    Detects DNS queries for subdomains of 'trycloudflare.com' originating from suspicious processes, such as script interpreters and LOLBins.
+    Attackers, such as those behind the VOID#GEIST campaign, leverage Cloudflare Tunnels to host command and control (C2) infrastructure, and initiating these connections from script interpreters or LOLBins is a common TTP.
+query: |
+    title: Suspicious Process DNS Query for TryCloudflare
+    id: f19855a0-660e-4204-80a1-22ecb515210d
+    status: experimental
+    description: |
+      Detects DNS queries for subdomains of 'trycloudflare.com' originating from suspicious processes, such as script interpreters and LOLBins.
+      Attackers, such as those behind the VOID#GEIST campaign, leverage Cloudflare Tunnels to host command and control (C2) infrastructure, and initiating these connections from script interpreters or LOLBins is a common TTP.
+    author: tim@detections.ai
+    references:
+      - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
+    date: 2026-03-05
+    tags:
+      - attack.t1071.001
+      - attack.t1102.003
+    logsource:
+      category: dns_query
+      service: sysmon
+    detection:
+      selection_domain:
+        QueryName|endswith: '.trycloudflare.com'
+      selection_process:
+        Image|endswith:
+          # common script interpreters and LOLBins
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\wscript.exe'
+          - '\cscript.exe'
+          - '\python.exe'
+          - '\pythonw.exe'
+          - '\curl.exe'
+          - '\certutil.exe'
+          - '\mshta.exe'
+      condition: selection_domain and selection_process
+    falsepositives:
+      - Legitimate administrative or development scripts that use Cloudflare Tunnels
+        for remote access or testing.
+      - Some applications may bundle these interpreters or tools and use them to
+        connect to legitimate services via Cloudflare Tunnels.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1102.003
+    - T1071.004
+tags:
+    - attack.t1071.001
+    - attack.t1102.003
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
+data_sources:
+    - dns_query
+    - sysmon
