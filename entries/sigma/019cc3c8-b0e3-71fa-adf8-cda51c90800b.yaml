@@ -1,0 +1,55 @@
+id: 019cc3c8-b0e3-71fa-adf8-cda51c90800b
+name: Malicious AI Assistant Browser Extension Loaded
+description: Detects browser processes (Chrome or Edge) launched with command lines containing known malicious extension IDs associated with AI chat harvesting.
+query: |
+    title: Malicious AI Assistant Browser Extension Loaded
+    id: e2562739-926c-445a-8b73-229559fe2999
+    status: experimental
+    description: Detects browser processes (Chrome or Edge) launched with command
+      lines containing known malicious extension IDs associated with AI chat
+      harvesting.
+    author: detections.ai
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/03/05/malicious-ai-assistant-extensions-harvest-llm-chat-histories/
+    date: 2026-03-06
+    tags:
+      - attack.t1176
+      - attack.collection
+      - attack.persistence
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_browser:
+        # Detects common Chromium-based browsers
+        Image|endswith:
+          - '\chrome.exe'
+          - '\msedge.exe'
+      selection_extension_id:
+        # Command line arguments containing the malicious extension IDs
+        CommandLine|contains:
+          - 'fnmihdojmnkclgjpcoonokmkhjpjechg' # Corresponds to "Chat GPT for Chrome with GPT-5, Claude Sonnet & DeepSeek AI"
+          - 'inhcgfpbfdjbjogdfjbclgolkmhnooop' # Corresponds to "AI Sidebar with Deepseek, ChatGPT, Claude and more"
+      condition: all of selection_*
+    falsepositives:
+      - This detection relies on specific, known malicious extension IDs, making
+        false positives highly unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0003
+techniques:
+    - T1176.001
+tags:
+    - attack.t1176
+    - attack.collection
+    - attack.persistence
+author: detections.ai
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/05/malicious-ai-assistant-extensions-harvest-llm-chat-histories/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,83 @@
+id: 019cc3ed-a01c-7377-9df4-122d88d19aae
+name: Web Server Spawning Exfiltration and Staging Tools
+description: Detects a web server process spawning tools commonly used for data staging and exfiltration, such as rar.exe, certutil.exe, and type.exe. This behavior is characteristic of the CL-UNK-1068 actor's exfiltration TTP, often performed via a web shell.
+query: |
+    title: Web Server Spawning Exfiltration and Staging Tools
+    id: 68914b50-1979-4d8a-88bd-59dc5e5f3e51
+    status: experimental
+    description: Detects a web server process spawning tools commonly used for data
+      staging and exfiltration, such as rar.exe, certutil.exe, and type.exe. This
+      behavior is characteristic of the CL-UNK-1068 actor's exfiltration TTP, often
+      performed via a web shell.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+    date: 2026-03-06
+    tags:
+      - attack.collection
+      - attack.exfiltration
+      - attack.t1020
+      - attack.t1041
+      - attack.t1074
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      parent_process:
+        # Detects known web server processes as the parent
+        ParentImage|endswith:
+          - '\w3wp.exe'
+          - '\httpd.exe'
+          - '\nginx.exe'
+          - '\tomcat.exe'
+          - '\tomcat6.exe'
+          - '\tomcat7.exe'
+          - '\tomcat8.exe'
+          - '\tomcat9.exe'
+      child_rar:
+        # Detects archiving tools used for staging
+        Image|endswith:
+          - '\rar.exe'
+          - '\winrar.exe'
+          - '\7z.exe'
+      child_certutil:
+        # Detects certutil used for encoding data
+        Image|endswith: '\certutil.exe'
+        CommandLine|contains: ' -encode'
+      child_type:
+        # Detects the 'type' command, used to print file contents for exfiltration via web shell
+        Image|endswith: '\type.exe'
+      condition: parent_process and (1 of child_*)
+    falsepositives:
+      - Legitimate administrative scripts run through a web interface.
+    level: high
+    fields:
+      - CommandLine
+      - ParentCommandLine
+      - Image
+      - ParentImage
+      - User
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0010
+    - TA0005
+techniques:
+    - T1020
+    - T1041
+    - T1074
+    - T1027.015
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.t1020
+    - attack.t1041
+    - attack.t1074
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+data_sources:
+    - process_creation
+    - windows

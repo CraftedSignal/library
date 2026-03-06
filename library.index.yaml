@@ -19543,18 +19543,20 @@ entries:
       version: "3"
       file: entries/kql/019c2204-4ec0-71ea-a97c-29edb37bcc08.yaml
     - id: 019c225d-96cc-7409-9332-ac6be53b48cf
-      name: Identify Vulnerable versions of Notepad++ (Ver <8.9.1)
-      description: Identify Vulnerable versions of Notepad++ (Ver <8.9.1)
+      name: Vulnerable Notepad++ Version Detected
+      description: This rule identifies devices running vulnerable versions of Notepad++. It parses the software version to determine if it is older than 8.9.1, which was identified as vulnerable in a security incident. The rule specifically looks for Notepad++ installations and flags any instances where the major version is less than 8, or if the major version is 8 and the minor version is less than 9, or if the major version is 8, the minor version is 9, and the patch version is less than 1.
       query_type: kql
       severity: medium
+      tactics:
+        - TA0007
+        - TA0043
       techniques:
-        - T1195.002
-        - T1204.002
-        - T1105
+        - T1518
+        - T1592.002
       tags:
         - kql
       author: AJ
-      version: "2"
+      version: "4"
       references:
         - https://notepad-plus-plus.org/news/hijacked-incident-info-update/
       file: entries/kql/019c225d-96cc-7409-9332-ac6be53b48cf.yaml
@@ -41937,6 +41939,180 @@ entries:
         - kql
       version: "1"
       file: entries/kql/019cc2c5-7e65-759a-9bca-1ccee87950ca.yaml
+    - id: 019cc390-a947-7607-a3d9-c17e5a0a198b
+      name: Aggressive File Association Hijacking via Registry
+      description: Detects attempts to aggressively hijack file associations by modifying the Windows Registry using 'reg.exe' or 'cmd.exe'. Specifically looks for command-line arguments indicating deletion of 'UserChoice' registry keys (which define default applications for file types) and addition of 'ApplicationAssociationToasts' keys (which can suppress notifications related to file association changes). This behavior is indicative of an attacker trying to silently change default applications to maintain persistence or execute malicious code.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0004
+        - TA0003
+        - TA0005
+      techniques:
+        - T1546.001
+        - T1112
+      tags:
+        - kql
+      version: "2"
+      file: entries/kql/019cc390-a947-7607-a3d9-c17e5a0a198b.yaml
+    - id: 019cc3c7-fcbb-775a-9100-0dc9decb1861
+      name: Malicious AI Extension C2 Communication
+      description: Detects network connections to known command-and-control (C2) domains used by malicious AI browser extensions for data exfiltration.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0010
+        - TA0011
+      techniques:
+        - T1071.001
+        - T1041
+      tags:
+        - attack.t1071.001
+        - attack.t1041
+        - attack.exfiltration
+        - attack.command_and_control
+      author: detections.ai
+      version: "3"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/05/malicious-ai-assistant-extensions-harvest-llm-chat-histories/
+      data_sources:
+        - network_connection
+        - windows
+      file: entries/sigma/019cc3c7-fcbb-775a-9100-0dc9decb1861.yaml
+    - id: 019cc3c8-b0e3-71fa-adf8-cda51c90800b
+      name: Malicious AI Assistant Browser Extension Loaded
+      description: Detects browser processes (Chrome or Edge) launched with command lines containing known malicious extension IDs associated with AI chat harvesting.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0009
+        - TA0003
+      techniques:
+        - T1176.001
+      tags:
+        - attack.t1176
+        - attack.collection
+        - attack.persistence
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/05/malicious-ai-assistant-extensions-harvest-llm-chat-histories/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc3c8-b0e3-71fa-adf8-cda51c90800b.yaml
+    - id: 019cc3ec-6f19-72f3-a652-c90a8187286e
+      name: CL-UNK-1068 Custom FRP Tunneling Tool
+      description: Detects CL-UNK-1068's custom-compiled Fast Reverse Proxy (FRP) variant based on unique command-line artifacts.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0011
+      techniques:
+        - T1090.002
+      tags:
+        - attack.t1090.002
+        - attack.command_and_control
+      author: detections.ai
+      version: "2"
+      references:
+        - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+      data_sources:
+        - process_creation
+      file: entries/sigma/019cc3ec-6f19-72f3-a652-c90a8187286e.yaml
+    - id: 019cc3ec-d43e-722b-9b5a-43cc1f99dbf0
+      name: CL-UNK-1068 Reconnaissance Batch Script Execution
+      description: Detects the execution of specific batch scripts (hp.bat, hpp.bat, a.bat) used by the CL-UNK-1068 actor for host reconnaissance and information gathering.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0007
+        - TA0002
+      techniques:
+        - T1059.003
+      tags:
+        - attack.t1059.003
+        - attack.discovery
+      author: detections.ai
+      version: "2"
+      references:
+        - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc3ec-d43e-722b-9b5a-43cc1f99dbf0.yaml
+    - id: 019cc3ed-2bfe-769d-863a-a9ebb49c23f2
+      name: LsaRecorder Credential Dumping Tool
+      description: Detects the execution of LsaRecorder, a credential dumping tool used by CL-UNK-1068.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0006
+      techniques:
+        - T1003.001
+      tags:
+        - attack.credential_access
+        - attack.t1003.001
+      author: detections.ai
+      version: "2"
+      references:
+        - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc3ed-2bfe-769d-863a-a9ebb49c23f2.yaml
+    - id: 019cc3ed-a01c-7377-9df4-122d88d19aae
+      name: Web Server Spawning Exfiltration and Staging Tools
+      description: Detects a web server process spawning tools commonly used for data staging and exfiltration, such as rar.exe, certutil.exe, and type.exe. This behavior is characteristic of the CL-UNK-1068 actor's exfiltration TTP, often performed via a web shell.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0009
+        - TA0010
+        - TA0005
+      techniques:
+        - T1020
+        - T1041
+        - T1074
+        - T1027.015
+      tags:
+        - attack.collection
+        - attack.exfiltration
+        - attack.t1020
+        - attack.t1041
+        - attack.t1074
+      author: detections.ai
+      version: "2"
+      references:
+        - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc3ed-a01c-7377-9df4-122d88d19aae.yaml
+    - id: 019cc451-2393-765a-973f-d7189f2e5a67
+      name: Moonrise Malware Detected (Initial execution of powershell)
+      description: "The rule detects the processes that are executed by the Moonrise malware, which is a backdoor used by the APT29 group. \nThe rule is based on the analysis of the malware's behavior and the processes it creates during execution.\n"
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1036.005
+      tags:
+        - attack.Execution
+        - attack.T1059.001
+      author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+      version: "2"
+      references:
+        - https://any.run/cybersecurity-blog/moonrise-rat-detected
+        - https://app.any.run/tasks/d3e5e733-3b0d-4cf7-a7a8-ea1553cd16b9/?utm_source=twitter&utm_medium=post&utm_campaign=moonrise&utm_term=180226&utm_content=linktoservice
+      data_sources:
+        - process_creation
+        - windows
+        - sysmon
+      file: entries/sigma/019cc451-2393-765a-973f-d7189f2e5a67.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'
