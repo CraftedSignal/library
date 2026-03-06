@@ -1,0 +1,49 @@
+id: 019cc1f9-52e9-723e-9c16-24883113a2c9
+name: UAT-9244 TernDoor DLL Side-Loading
+description: Detects the DLL side-loading of 'BugSplatRc64.dll' by 'wsprint.exe' from the 'C:\ProgramData' directory. This is a specific technique used by the China-nexus actor UAT-9244 to load the TernDoor backdoor.
+query: |
+    title: UAT-9244 TernDoor DLL Side-Loading
+    description: Detects the DLL side-loading of 'BugSplatRc64.dll' by 'wsprint.exe'
+      from the 'C:\ProgramData' directory. This is a specific technique used by the
+      China-nexus actor UAT-9244 to load the TernDoor backdoor.
+    author: Akshay Gaikwad
+    references:
+      - https://blog.talosintelligence.com/uat-9244/
+    date: 2026-03-06
+    tags:
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection:
+        # Detects the specific process name used by the actor.
+        Image|endswith: '\wsprint.exe'
+        # Detects the specific malicious DLL name used by the actor.
+        ImageLoaded|endswith: '\BugSplatRc64.dll'
+        # Ensures the DLL is loaded from a non-standard, suspicious directory.
+        ImageLoaded|startswith: 'C:\ProgramData\'
+      filter_legit:
+        # Filters out legitimate system and program file locations.
+        ImageLoaded|startswith:
+          - 'C:\Windows\System32\'
+          - 'C:\Windows\SysWOW64\'
+          - 'C:\Program Files\'
+          - 'C:\Program Files (x86)\'
+      condition: selection and not filter_legit
+    falsepositives:
+      - Unlikely, as this specific combination of executable name, DLL name, and
+        loading from 'C:\ProgramData' is highly indicative of UAT-9244 activity. The
+        filter for legitimate paths further reduces the chance of false positives.
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.t1574.002
+author: Akshay Gaikwad
+version: "2"
+references:
+    - https://blog.talosintelligence.com/uat-9244/
+data_sources:
+    - image_load
+    - windows
