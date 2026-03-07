@@ -1,0 +1,11 @@
+id: 019cc769-8a6e-7799-ab73-dd15c4a45800
+name: Network Connections and Sign-ins from Iranian IP Addresses
+description: This rule detects network connections and user sign-ins originating from IP addresses identified as belonging to Iran. It also identifies sign-ins where the reported country is Iran, but the IP address is not found within the provided Iranian IP list, which could indicate IP geolocation discrepancies or obfuscation attempts.
+query: "let IranIPList = toscalar(\r\n    externaldata(ip:string)\r\n    [\r\n        h@\"https://raw.githubusercontent.com/Ramtiiin/iran-ip/main/ip-list.rsc\"\r\n    ]\r\n    with(format=\"txt\")\r\n    | summarize make_list(ip)\r\n);\r\nlet DNE_IranRanges = DeviceNetworkEvents\r\n| where isnotempty(RemoteIP)\r\n| where ipv4_is_in_any_range(RemoteIP, IranIPList)\r\n| extend SourceType = \"DeviceNetworkEvent_IranIPRange\"\r\n| project\r\n    TimeGenerated,\r\n    SourceType,\r\n    IP = RemoteIP,\r\n    RemotePort,\r\n    Protocol,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    ActionType;\r\nlet Signin_IranRanges = SigninLogs\r\n| where isnotempty(IPAddress)\r\n| where ipv4_is_in_any_range(IPAddress, IranIPList)\r\n| extend SourceType = \"SigninLog_IranIPRange\"\r\n| project\r\n    TimeGenerated,\r\n    SourceType,\r\n    IP = IPAddress,\r\n    UserPrincipalName,\r\n    LocationDetails,\r\n    ClientAppUsed,\r\n    ConditionalAccessStatus,\r\n    ResultType;\r\nlet Signin_IranCountryNotInRange = SigninLogs\r\n| where isnotempty(IPAddress)\r\n| extend Country = tostring(LocationDetails.countryOrRegion)\r\n| where Country == \"IR\"\r\n| where not(ipv4_is_in_any_range(IPAddress, IranIPList))\r\n| extend SourceType = \"SigninLog_IranCountry_NotInRange\"\r\n| project\r\n    TimeGenerated,\r\n    SourceType,\r\n    IP = IPAddress,\r\n    UserPrincipalName,\r\n    Country,\r\n    ClientAppUsed,\r\n    ConditionalAccessStatus,\r\n    ResultType;\r\nDNE_IranRanges\r\n| union Signin_IranRanges\r\n| union Signin_IranCountryNotInRange\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
+references:
+    - https://raw.githubusercontent.com/Ramtiiin/iran-ip/main/ip-list.rsc
