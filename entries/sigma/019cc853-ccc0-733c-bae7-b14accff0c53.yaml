@@ -1,0 +1,56 @@
+id: 019cc853-ccc0-733c-bae7-b14accff0c53
+name: CL-UNK-1068 Python Sideload python20.dll
+description: 'This rule looks for a Python process loading a helper file called python20.dll, which was part of the toolset used in the CL-UNK-1068 activity. The rule is useful because it combines two details that are not common together in modern normal use: a current Python process and an old helper file name used as a loading trick. It does not try to flag every Python action or every helper file, which helps reduce noise. In plain language, the rule is meant to catch a hidden helper attached to Python that can be used to start other attacker tools while blending in with a familiar program name. When this match appears, it can point to scanning, hidden connections, or other follow-on activity described in the campaign. The focus on the exact file name helps keep the match useful and lowers the chance of confusing it with ordinary Python use.'
+query: |
+    title: CL-UNK-1068 Python Sideload python20.dll
+    id: a1b2c3d4-0006-4000-8000-000000000006
+    status: experimental
+    description: >-
+      This rule looks for a Python process loading a helper file called
+      python20.dll, which was part of the toolset used in the CL-UNK-1068 activity.
+      The rule is useful because it combines two details that are not common
+      together in modern normal use: a current Python process and an old helper file
+      name used as a loading trick. It does not try to flag every Python action or
+      every helper file, which helps reduce noise. In plain language, the rule is
+      meant to catch a hidden helper attached to Python that can be used to start
+      other attacker tools while blending in with a familiar program name. When this
+      match appears, it can point to scanning, hidden connections, or other
+      follow-on activity described in the campaign. The focus on the exact file name
+      helps keep the match useful and lowers the chance of confusing it with
+      ordinary Python use.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+    tags:
+      - attack.execution
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_process:
+        Image|endswith:
+          - \python.exe
+          - \pythonw.exe
+      selection_dll:
+        ImageLoaded|endswith: \python20.dll
+      condition: selection_process and selection_dll
+    falsepositives:
+      - Very old legitimate Python 2.x environments shipping python20.dll
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+tags:
+    - attack.execution
+    - attack.t1574.002
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/cl-unk-1068-targets-critical-sectors/
+data_sources:
+    - image_load
+    - windows

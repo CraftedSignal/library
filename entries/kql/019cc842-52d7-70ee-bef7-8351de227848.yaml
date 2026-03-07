@@ -1,0 +1,25 @@
+id: 019cc842-52d7-70ee-bef7-8351de227848
+name: VoidGeist Startup Batch Persistence
+description: This rule detects the creation of specific batch files ("non.bat" or "spol.bat") within the Windows Startup folder (`\Microsoft\Windows\Start Menu\Programs\Startup`). This activity is indicative of persistence, as files placed in this location will execute automatically when a user logs in, potentially associated with the VoidGeist malware chain.
+query: |
+    // Rule: VoidGeist Startup Batch Persistence
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-07
+    // Description:
+    // This hunt looks for the batch files used by the VoidGeist chain when they appear in the Windows Startup folder. That location matters because it gives the malware a simple way to come back after the user signs in again. In plain language, this query checks whether the named startup files from the report were created in the place used for automatic restart.
+
+    DeviceFileEvents
+    | where FileName in~ ("non.bat", "spol.bat")
+    | where FolderPath contains @"\Microsoft\Windows\Start Menu\Programs\Startup"
+    | project Timestamp, DeviceName, FileName, FolderPath, InitiatingProcessFileName
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"

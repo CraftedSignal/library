@@ -1,0 +1,28 @@
+id: 019cc842-76c9-74df-82f9-717ad472e554
+name: Risky Browser Sign-ins from Unmanaged Devices
+description: This rule detects potentially risky browser sign-ins from unmanaged devices, which aligns with account access patterns observed in AiTM (Adversary-in-the-Middle) phishing campaigns like those discussed in the Tycoon2FA report. It identifies sign-ins where the risk level is elevated (50 or 100), the client application used is a browser, and device trust type and device name information are empty, suggesting an unknown or untrusted device. This serves as a lead to investigate suspicious browser-based sign-ins that might indicate an AiTM compromise.
+query: |
+    // Rule: Tycoon2FA Risky Browser Sign-ins
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-07
+    // Description:
+    // This hunt looks for risky browser sign-ins from unmanaged devices, which fits the kind of account access pattern discussed in the Tycoon2FA report. It is not a full proof of phishing by itself, but it is a useful lead for checking whether browser-based sign-ins are showing the same shape as an AiTM compromise. In plain language, this query asks whether an account may have signed in through a suspicious browser session from a device that does not look known or trusted.
+
+    AADSignInEventsBeta
+    | where Timestamp > ago(7d)
+    | where RiskLevelDuringSignIn in (50, 100)
+    | where ClientAppUsed == "Browser"
+    | where isempty(DeviceTrustType)
+    | where isempty(DeviceName)
+    | project Timestamp, AccountDisplayName, AccountUpn, IPAddress, Browser, Application, RiskLevelDuringSignIn
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1557
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"

@@ -1,0 +1,28 @@
+id: 019cc842-64cb-75ee-8c35-990cb312c075
+name: Python Process Loading python20.dll
+description: This rule detects instances where a Python process loads the 'python20.dll' file. This activity is suspicious because 'python20.dll' is an older Python 2 library, and its loading by a Python process in modern environments may indicate a sideloading technique. This could be indicative of an attacker using Python as a cover to load malicious helper files for reconnaissance, tunneling, or other post-exploitation activities.
+query: |
+    // Rule: CL-UNK-1068 Python20 DLL Load
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-07
+    // Description:
+    // This hunt looks for a Python process loading python20.dll, which matches the sideloading trick described in the CL-UNK-1068 report. The value of this check is that it ties a familiar program name to an unusual helper file name that should stand out in modern environments. In plain language, this query asks whether Python was used as a cover for loading a helper that may lead to scanning tools, hidden tunnels, or other follow-on attacker activity.
+
+    DeviceImageLoadEvents
+    | where InitiatingProcessFileName in~ ("python.exe", "pythonw.exe")
+    | where FileName =~ "python20.dll"
+    | project Timestamp, DeviceName, InitiatingProcessFileName, InitiatingProcessFolderPath, FileName, FolderPath
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0002
+techniques:
+    - T1574.001
+    - T1059.006
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"

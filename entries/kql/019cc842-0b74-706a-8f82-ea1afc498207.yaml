@@ -1,0 +1,27 @@
+id: 019cc842-0b74-706a-8f82-ea1afc498207
+name: OAuth Redirect Abuse - Invalid Scope with Hidden Prompt
+description: This rule detects suspicious sign-in links that exhibit characteristics of OAuth redirect abuse. Specifically, it looks for URLs that contain "oauth2", "prompt=none", and "scope=invalid". This pattern suggests an attempt to use a trusted sign-in service to redirect users to a malicious page, potentially for phishing or malware delivery, by manipulating OAuth parameters.
+query: |
+    // Rule: OAuth Redirect Abuse - Invalid Scope
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-07
+    // Description:
+    // This hunt looks for suspicious sign-in links that use a bad scope value together with a hidden prompt setting. That pattern matches the redirect abuse described in the OAuth report, where a trusted sign-in service is used as part of the path to a harmful page. In plain language, this query is looking for sign-in links that appear normal at first glance but contain settings that suggest they were built to push the user toward phishing or malware delivery after the redirect.
+
+    UrlClickEvents
+    | where ActionType in ("ClickAllowed", "ClickThrough")
+    | where Url has "oauth2"
+    | where Url has "prompt=none"
+    | where Url has "scope=invalid"
+    | project Timestamp, AccountUpn, Url, NetworkMessageId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"

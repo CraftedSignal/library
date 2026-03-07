@@ -1,0 +1,26 @@
+id: 019cc842-97b8-725c-a3da-e156fa4392c4
+name: WSPrint Persistence via Scheduled Task
+description: This rule detects the creation of a scheduled task named "WSPrint" that executes "C:\ProgramData\WSPrint\WSPrint.exe" at system startup. This specific pattern of `schtasks.exe` usage, including the task name and program path, is associated with persistence mechanisms described in the Cisco Talos UAT-9244 report.
+query: |
+    // Rule: UAT-9244 WSPrint Persistence
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-05
+    // Description:
+    // This hunt looks for the scheduled task creation pattern described in the Cisco Talos UAT-9244 report. The value is in the exact combination of schtasks usage, the WSPrint task name, and the ProgramData path tied to the staged program. In plain language, this query asks whether the malware used the same named task to make sure it would start again automatically.
+
+    DeviceProcessEvents
+    | where FileName =~ "schtasks.exe"
+    | where ProcessCommandLine has_all ("/create", "/tn WSPrint", @"C:\ProgramData\WSPrint\WSPrint.exe", "/sc onstart")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"

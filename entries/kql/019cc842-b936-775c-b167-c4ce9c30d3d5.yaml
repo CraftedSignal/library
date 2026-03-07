@@ -1,0 +1,32 @@
+id: 019cc842-b936-775c-b167-c4ce9c30d3d5
+name: APT36 Vibeware Suspicious Scheduled Tasks
+description: 'This rule detects the creation or modification of scheduled tasks using specific names identified in the Bitdefender APT36 Vibeware report. The rule looks for `schtasks.exe` executions where the command line contains one of the following task names: "MicrosoftEdgesUpdatesTasksMachineUAs-Task", "MicrosoftEdgesUpdatesTasksMachineUAs-1234-87hy", "DateAndTimeService", "personalServiceTask", or "LuminousBackupService". This helps identify campaign-specific persistence mechanisms used by APT36 Vibeware.'
+query: |
+    // Rule: APT36 Vibeware Suspicious Tasks
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-05
+    // Description:
+    // This hunt looks for the scheduled task names highlighted in the Bitdefender APT36 vibeware report. Those names are useful because they give an analyst a campaign-specific clue instead of a generic persistence result. In plain language, this query asks whether malware may have been given one of the same task names described in the report so it can keep running in the background.
+
+    DeviceProcessEvents
+    | where FileName =~ "schtasks.exe"
+    | where ProcessCommandLine has_any (
+        "MicrosoftEdgesUpdatesTasksMachineUAs-Task",
+        "MicrosoftEdgesUpdatesTasksMachineUAs-1234-87hy",
+        "DateAndTimeService",
+        "personalServiceTask",
+        "LuminousBackupService"
+    )
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"

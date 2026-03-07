@@ -1,0 +1,25 @@
+id: 019cc842-2e56-72c9-8e66-d21d4bf92d5f
+name: StegaBin NPM Install Script Execution
+description: This rule detects the execution of specific Node.js scripts associated with the StegaBin package campaign. It looks for 'node.exe' or 'node' processes executing command lines containing 'scripts/test/install.js' or 'vendor/scrypt-js/version.js'. The intent is to identify the initial phase of a malicious package installation chain, which could lead to further compromise.
+query: |
+    // Rule: StegaBin NPM Install Script
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-07
+    // Description:
+    // This hunt looks for Node starting one of the setup files tied to the StegaBin package campaign. The point is not to alert on every package install, but to focus on the exact file paths described in the report. In plain language, this query is meant to catch the moment a booby-trapped developer package begins its hidden install chain, which can lead to follow-on downloads, secret theft, and remote control.
+
+    DeviceProcessEvents
+    | where FileName in~ ("node.exe", "node")
+    | where ProcessCommandLine has_any ("scripts/test/install.js", "vendor/scrypt-js/version.js")
+    | project Timestamp, DeviceName, FileName, ProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1195.002
+    - T1195
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "2"
