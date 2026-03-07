@@ -1,0 +1,15 @@
+id: 019cc4a4-ddc5-70d3-a78a-729d27312ce5
+name: FakeGit EtherHiding C2 Resolution via Polygon
+description: Detects the "EtherHiding" technique used by the FakeGit campaign. The malware queries a Polygon Mainnet smart contract via a public RPC node to resolve its current C2 server address. This rule looks for network connections to known blockchain RPC providers containing the specific function selectors used by the malware's V1 and V2 contracts.
+query: "// Name: FakeGit EtherHiding C2 Resolution via Polygon\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-06\r\n// Description: Detects the \"EtherHiding\" technique used by the FakeGit campaign. The malware queries a Polygon Mainnet smart contract via a public RPC node to resolve its current C2 server address. This rule looks for network connections to known blockchain RPC providers containing the specific function selectors used by the malware's V1 and V2 contracts.\r\n// References: https://www.derp.ca/research/fakegit-luajit-github-campaign/\r\n// Tactics: CommandAndControl\r\n// Techniques: T1102.001\r\n\r\n// Define known public blockchain RPC provider domains\r\nlet rpc_domains = dynamic([\r\n    \"alchemy.com\",\r\n    \"infura.io\",\r\n    \"polygon-rpc.com\",\r\n    \"ankr.com\"\r\n]);\r\n// Define the specific function selectors used by FakeGit contracts\r\nlet function_selectors = dynamic([\r\n    \"0xb68d1809\", // V1 contract getDomain()\r\n    \"0x3bc5de30\"  // V2 contract getData()\r\n]);\r\nDeviceNetworkEvents\r\n// Filter for network connections to the specified RPC domains\r\n| where RemoteUrl has_any (rpc_domains)\r\n// The POST body containing the JSON-RPC call is often in the AdditionalFields property.\r\n// This may need tuning depending on the specific logging source and configuration.\r\n| where isnotempty(AdditionalFields)\r\n// Check for the eth_call method and one of the campaign-specific function selectors in the POST body\r\n| where tostring(AdditionalFields) has \"eth_call\" and tostring(AdditionalFields) has_any (function_selectors)\r\n// FP Tuning: Legitimate cryptocurrency applications or developer tools may interact with smart contracts.\r\n// If false positives occur, consider filtering to exclude known legitimate processes by name in InitiatingProcessFileName.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    ProcessCommandLine,\r\n    RemoteUrl,\r\n    RemoteIP,\r\n    AdditionalFields\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.derp.ca/research/fakegit-luajit-github-campaign/

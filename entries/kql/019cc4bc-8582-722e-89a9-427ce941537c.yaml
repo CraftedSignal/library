@@ -1,0 +1,17 @@
+id: 019cc4bc-8582-722e-89a9-427ce941537c
+name: Suspicious LuaJIT Payload Execution (FakeGit Campaign)
+description: Detects the execution of LuaJIT or renamed variants with a single text, log, or JSON file as an argument, a pattern characteristic of the FakeGit campaign's loader. The rule specifically looks for process creation events where the executable name is one of the known suspicious processes (luajit.exe, lua.exe, vm_s390x.exe, init.exe, luad.exe, gcc.exe) and the command line contains a .txt, .log, or .json file extension. It further refines the detection by checking if the command line has a limited number of arguments (2 or 3), which is typical for the malware's simple execution pattern.
+query: "// Name: Suspicious LuaJIT Payload Execution\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-06\r\n// Description: Detects the execution of LuaJIT or renamed variants with a single text, log, or JSON file as an argument, a pattern characteristic of the FakeGit campaign's loader.\r\n// References: https://www.derp.ca/research/fakegit-luajit-github-campaign/\r\n// False Positive Sensitivity: Medium\r\n// MITRE ATT&CK: T1059.007 (Command and Scripting Interpreter: Lua), T1036.005 (Masquerading: Match Legitimate Name)\r\nlet suspicious_processes = dynamic([\r\n    \"luajit.exe\",\r\n    \"lua.exe\",\r\n    \"vm_s390x.exe\",\r\n    \"init.exe\",\r\n    \"luad.exe\",\r\n    \"gcc.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Filter for process creation events matching the known executable names used by FakeGit\r\n| where FileName in~ (suspicious_processes)\r\n// The malware executes by passing an obfuscated script file as a command-line argument\r\n| where ProcessCommandLine has_any (\".txt\", \".log\", \".json\")\r\n// The typical execution pattern is simple, involving only the executable and the script file.\r\n// We count the number of space-separated arguments to filter out legitimate, more complex command lines.\r\n// A count of 2 or 3 is common (e.g., \"luajit.exe script.txt\" or \"C:\\\\path\\\\luajit.exe script.txt\").\r\n| where array_length(split(ProcessCommandLine, ' ')) <= 3\r\n// FP Tuning: Legitimate development or automation tools might use a similar command structure.\r\n// Consider adding exclusions for known parent processes (InitiatingProcessFileName) or file paths (FolderPath) if false positives occur.\r\n// Example: | where not(FolderPath has_any (\"C:\\\\Program Files\\\\\", \"C:\\\\Users\\\\developer\\\\\"))\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA1,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.011
+    - T1036.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.derp.ca/research/fakegit-luajit-github-campaign/
