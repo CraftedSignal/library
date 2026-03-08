@@ -1,0 +1,49 @@
+id: 019cca87-20a0-71e8-bf7c-2bbc465c9c40
+name: Github Branch Force Push
+description: |
+    Detects action of Repo branch protection being disabled by the means of a force push.  This would mean no PR or review process is needed and an actor (Insider or attacker) could push arbitrary code.
+query: |
+    title: Github Branch Force Push
+    id: ce3d4060-0bb5-46a8-a2f1-0c766e72a2b1
+    status: experimental
+    description: >
+      Detects action of Repo branch protection being disabled by the means of a
+      force push.  This would mean no PR or review process is needed and an actor
+      (Insider or attacker) could push arbitrary code.
+    references:
+      - >-
+        https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#protected_branch
+    author: zendannyy
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      product: github
+      category: audit
+    detection:
+      selection_action:
+        - protected_branch.update_allow_force_pushes_enforcement_level
+      filter_automations:
+        TargetFilename|contains:
+          - '%automation_scripts%'
+      condition: selection_action and not filter_automations
+    level: medium
+    falsepositives:
+      - Legitimate administrative action to temporarily bypass branch protection
+        (break-fix).
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: zendannyy
+version: "1"
+references:
+    - https://docs.github.com/en/enterprise-cloud@latest/admin/monitoring-activity-in-your-enterprise/reviewing-audit-logs-for-your-enterprise/audit-log-events-for-your-enterprise#protected_branch
+data_sources:
+    - audit
+    - github

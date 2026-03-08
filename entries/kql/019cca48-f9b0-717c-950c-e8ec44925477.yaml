@@ -1,0 +1,37 @@
+id: 019cca48-f9b0-717c-950c-e8ec44925477
+name: Post-Phish Click Risky Sign-in KQL
+description: This rule correlates an email URL click with a subsequent risky sign-in from the same user within a short timeframe (1 hour). This is a strong indicator of a successful Adversary-in-the-Middle (AiTM) phishing attack, such as those conducted with the Tycoon2FA kit, where a user is tricked into authenticating through a malicious site, allowing the attacker to capture their session.
+query: |-
+    // Detection: Post-Phish Click Risky Sign-in
+    // Author: zendannyy
+    // Description: Correlates an email URL click with a subsequent risky sign-in from the same user within a short timeframe.
+    // This pattern is a strong indicator of a successful Adversary-in-the-Middle (AiTM) phishing attack, such as those conducted with the Tycoon2FA kit, where a user is tricked into authenticating through a malicious site, allowing the attacker to capture their session.
+
+    let click_events = AuditLogs
+    | where TimeGenerated > ago(1h)
+    | where OperationName == "ClickAllowed"
+    | extend UserName = tostring(InitiatedBy.user.userPrincipalName)
+    | project ClickTime = TimeGenerated, UserName, ClientIP = tostring(InitiatedBy.user.ipAddress);
+    let signin_events = SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where RiskLevelDuringSignIn in ("medium", "high")
+    | extend UserName = tostring(UserPrincipalName)
+    | project SignInTime = TimeGenerated, UserName, ClientIP = tostring(IPAddress);
+    click_events
+    | join kind=inner (signin_events) on UserName
+    | where SignInTime >= ClickTime and SignInTime <= (ClickTime + 1h)
+    | project ClickTime, SignInTime, UserName, ClickClientIP = ClientIP, SignInClientIP = ClientIP
+    | order by ClickTime asc
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1566.002
+    - T1557
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/

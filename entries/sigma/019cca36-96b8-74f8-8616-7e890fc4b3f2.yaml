@@ -1,0 +1,66 @@
+id: 019cca36-96b8-74f8-8616-7e890fc4b3f2
+name: Possible Adversary-in-the-Middle (AiTM) Session Cookie Hijack
+description: |
+    Detects successful Entra ID sign-ins that exhibit characteristics of an Adversary-in-the-Middle (AiTM) session cookie hijack.
+    This activity is often associated with AiTM phishing kits like Tycoon2FA, where attackers replay stolen session cookies from unmanaged devices to bypass MFA.
+query: |
+    title: Possible Adversary-in-the-Middle (AiTM) Session Cookie Hijack
+    id: 0683b6a4-bd7c-4737-ac87-cadca1998b49
+    status: experimental
+    description: >
+      Detects successful Entra ID sign-ins that exhibit characteristics of an
+      Adversary-in-the-Middle (AiTM) session cookie hijack.
+
+      This activity is often associated with AiTM phishing kits like Tycoon2FA,
+      where attackers replay stolen session cookies from unmanaged devices to bypass
+      MFA.
+    author: zendannyy
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+    date: 2026-03-07T00:00:00.000Z
+    tags:
+      - attack.credential_access
+      - attack.t1557
+      - attack.t1098.005
+    logsource:
+      product: azure
+      service: signinlogs
+    detection:
+      selection:
+        properties.clientAppUsed: Browser
+        properties.riskLevelDuringSignIn:
+          - medium
+          - high
+        properties.deviceDetail.isManaged: 'false'
+        properties.deviceDetail.isCompliant: 'false'
+        properties.deviceDetail.trustType: null
+        properties.deviceDetail.deviceId: null
+      condition: selection
+    falsepositives:
+      - Legitimate user sign-ins from personal or unmanaged devices that are flagged
+        as risky by Entra ID Protection for other reasons (e.g., anonymous IP,
+        unfamiliar location).
+      - Tuning may be required based on the organization's baseline for risky
+        sign-ins and device management policies.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0009
+    - TA0003
+    - TA0004
+techniques:
+    - T1557
+    - T1098.005
+tags:
+    - attack.credential_access
+    - attack.t1557
+    - attack.t1098.005
+author: zendannyy
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+data_sources:
+    - azure
+    - signinlogs

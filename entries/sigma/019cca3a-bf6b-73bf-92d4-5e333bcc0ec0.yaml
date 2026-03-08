@@ -1,0 +1,66 @@
+id: 019cca3a-bf6b-73bf-92d4-5e333bcc0ec0
+name: Post-Phish Click Risky Sign-in
+description: |
+    Correlates an email URL click with a subsequent risky sign-in from the same user within a short timeframe. This pattern is a strong indicator of a successful Adversary-in-the-Middle (AiTM) phishing attack, such as those conducted with the Tycoon2FA kit, where a user is tricked into authenticating through a malicious site, allowing the attacker to capture their session.
+query: |
+    title: Post-Phish Click Risky Sign-in
+    id: 5f0569ac-0ef0-4247-a5e1-aa17e5e84778
+    status: experimental
+    description: >
+      Correlates an email URL click with a subsequent risky sign-in from the same
+      user within a short timeframe.
+      This pattern is a strong indicator of a successful Adversary-in-the-Middle
+      (AiTM) phishing attack, such as those conducted with the Tycoon2FA kit, where
+      a user is tricked into authenticating through a malicious site, allowing the
+      attacker to capture their session.
+    author: zendannyy
+    references:
+      - >-
+        https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+    date: 2026-03-07T00:00:00.000Z
+    tags:
+      - attack.initial_access
+      - attack.credential_access
+      - attack.t1566.002
+      - attack.t1557
+    logsource:
+      product: microsoft
+      category: threat_detection
+      service: auditlogs
+    detection:
+      selection_click:
+        ActionType: ClickAllowed
+      selection_signin:
+        properties.riskLevelDuringSignIn:
+          - medium
+          - high
+      timeframe: 1h
+      condition: sequence of [selection_click, selection_signin] by user.name
+    falsepositives:
+      - A legitimate user might click a link and then immediately sign in from a new
+        device or location (e.g., while traveling), which could trigger a risky
+        sign-in alert from Entra ID Protection.
+      - Benign marketing or transactional emails that require a sign-in after a
+        click could also cause false positives. Further tuning might involve
+        excluding known safe sender domains or URLs.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566.002
+    - T1557
+tags:
+    - attack.initial_access
+    - attack.credential_access
+    - attack.t1566.002
+    - attack.t1557
+author: zendannyy
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+data_sources:
+    - threat_detection
+    - microsoft
