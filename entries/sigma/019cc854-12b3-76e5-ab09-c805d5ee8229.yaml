@@ -1,0 +1,65 @@
+id: 019cc854-12b3-76e5-ab09-c805d5ee8229
+name: OAuth Redirect Abuse - Invalid Scope Parameter
+description: This rule is based on a phishing method that abuses normal sign-in links instead of relying on an obviously fake website at the start. The trick works by sending a person to a real sign-in service with settings that force an error and then pass the browser along to the attacker’s page. The rule stays narrow by looking for both the hidden sign-in setting and the clearly bad scope value together. That matters because silent sign-in by itself can appear in normal environments, but the bad scope value changes the story and makes the pattern much more suspicious. In plain language, this rule is trying to spot a link that pretends to be a normal sign-in step but is really being used as a doorway to a phishing or malware page after the trusted service does the redirect. Keeping both parts together helps the rule stay tied to the abusive redirect trick instead of ordinary sign-in traffic.
+query: |
+    title: OAuth Redirect Abuse - Invalid Scope Parameter
+    id: a1b2c3d4-0002-4000-8000-000000000002
+    status: experimental
+    description: >-
+      This rule is based on a phishing method that abuses normal sign-in links
+      instead of relying on an obviously fake website at the start. The trick works
+      by sending a person to a real sign-in service with settings that force an
+      error and then pass the browser along to the attacker’s page. The rule stays
+      narrow by looking for both the hidden sign-in setting and the clearly bad
+      scope value together. That matters because silent sign-in by itself can appear
+      in normal environments, but the bad scope value changes the story and makes
+      the pattern much more suspicious. In plain language, this rule is trying to
+      spot a link that pretends to be a normal sign-in step but is really being used
+      as a doorway to a phishing or malware page after the trusted service does the
+      redirect. Keeping both parts together helps the rule stay tied to the abusive
+      redirect trick instead of ordinary sign-in traffic.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - >-
+        https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
+    tags:
+      - attack.initial-access
+      - attack.t1566
+    logsource:
+      category: proxy
+    detection:
+      selection_msft:
+        url|contains|all:
+          - login.microsoftonline.com
+          - oauth2
+          - prompt=none
+          - scope=
+      selection_google:
+        url|contains|all:
+          - accounts.google.com
+          - oauth2
+          - prompt=none
+      selection_invalid_scope:
+        url|contains: scope=invalid
+      condition: >-
+        (selection_msft and selection_invalid_scope) or (selection_google and
+        selection_invalid_scope)
+    falsepositives:
+      - Security testing against OAuth redirect handling
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+tags:
+    - attack.initial-access
+    - attack.t1566
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
+data_sources:
+    - proxy

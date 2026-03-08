@@ -1,0 +1,50 @@
+id: 019cc853-b8ab-74dc-afe2-db2fe6a4f6a9
+name: APT36 Vibeware Scheduled Task Creation
+description: This rule detects the creation of scheduled tasks with specific names identified in the Bitdefender APT36 Vibeware report. These task names are associated with APT36's persistence mechanisms, used to maintain malware execution, launch hidden components, and continue operations after initial infection. The rule specifically targets these known malicious task names rather than broadly detecting all scheduled task creations, aiming to provide high-fidelity alerts indicative of APT36 activity.
+query: |
+    title: APT36 Vibeware Suspicious Scheduled Tasks
+    id: a1b2c3d4-0012-4000-8000-000000000012
+    status: experimental
+    description: >-
+      This rule looks for a set of scheduled task names described in the Bitdefender APT36 vibeware report posted on 2026-03-05. Those task names were used by different parts of the campaign to keep malware running, launch hidden components, and quietly continue operations after the first infection. The rule does not try to detect every scheduled task creation event because that would create noise in normal Windows environments. Instead, it focuses on the exact names that stood out in the report. That makes the alert much more useful as a campaign clue rather than a broad persistence warning. In plain language, this rule is trying to catch a setup step where the attacker gives their malware a normal-sounding task name so it can run again later without the user noticing.
+    author: Daniel Jeremiah
+    date: 2026/03/05
+    references:
+      - https://www.bitdefender.com/en-us/blog/businessinsights/apt36-nightmare-vibeware
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains:
+          - 'MicrosoftEdgesUpdatesTasksMachineUAs-Task'
+          - 'MicrosoftEdgesUpdatesTasksMachineUAs-1234-87hy'
+          - 'DateAndTimeService'
+          - 'personalServiceTask'
+          - 'LuminousBackupService'
+      condition: selection
+    falsepositives:
+      - Very unlikely unless names are intentionally reused during testing
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.bitdefender.com/en-us/blog/businessinsights/apt36-nightmare-vibeware
+data_sources:
+    - process_creation
+    - windows

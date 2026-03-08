@@ -1,0 +1,50 @@
+id: 019cc853-dcc4-7730-adf2-e1b875352c23
+name: ClipXDaemon User-Writable ELF Execution
+description: This rule detects the execution of ELF binaries from user-writable directories within the home folder, specifically targeting paths containing '/.local/bin/'. It aims to identify potentially malicious programs, such as clipboard hijackers, that are dropped and launched by a user. The rule filters out common packaging paths like '/snap/' and '/flatpak/' to reduce false positives.
+query: |
+    title: ClipXDaemon User-Writable ELF Execution
+    id: a1b2c3d4-0007-4000-8000-000000000007
+    status: test
+    description: >-
+      This rule focuses on a simple but useful sign that lines up with the Linux clipboard hijacker story: a binary running from a user-writable folder under the home directory. The malware in the report drops itself where a normal user can write and then runs quietly in the background. The rule avoids trying to read command content or inspect clipboard behavior directly, which can be noisy or hard to collect, and instead watches for a narrower path-based sign that can be reviewed by an analyst. In plain language, this rule is looking for a program that should not usually be trusted just because it lives in the user’s home folder. On managed systems, that can be a strong clue that something unwanted has been placed there and started running. The rule excludes a few common packaging paths to help lower false alarms. In the right environment, that makes it a practical starting point for checking whether a quiet user-level implant has been dropped and launched.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.t1547.001
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        Image|contains: '/.local/bin/'
+      filter_known_packaging:
+        Image|contains:
+          - '/snap/'
+          - '/flatpak/'
+      condition: selection and not filter_known_packaging
+    falsepositives:
+      - User-managed binaries stored in ~/.local/bin
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.t1547.001
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+data_sources:
+    - process_creation
+    - linux

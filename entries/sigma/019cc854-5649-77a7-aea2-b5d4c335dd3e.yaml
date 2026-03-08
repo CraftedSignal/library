@@ -1,0 +1,49 @@
+id: 019cc854-5649-77a7-aea2-b5d4c335dd3e
+name: WSPrint Persistence via Scheduled Task Creation
+description: This rule detects the creation of a scheduled task named 'WSPrint' that executes 'C:\ProgramData\WSPrint\WSPrint.exe' at system startup. This specific pattern is associated with the persistence mechanism described in the Cisco Talos UAT-9244 report. The rule focuses on the 'schtasks.exe' process creating a task with these specific parameters to avoid generic scheduled task alerts.
+query: |
+    title: UAT-9244 WSPrint Persistence
+    id: a1b2c3d4-0010-4000-8000-000000000010
+    status: experimental
+    description: >-
+      This rule looks for the persistence step described in the Cisco Talos UAT-9244 report. In that campaign, the attacker used the WSPrint name for the staged program and then created a scheduled task so it would run again at system start. The rule stays focused on that specific task name and path instead of trying to alert on every use of scheduled tasks, because scheduled tasks are common in normal Windows activity. By requiring the create action, the WSPrint task name, and the ProgramData path together, the rule stays close to the story from the report and avoids becoming a generic task alert. In plain language, this rule is meant to catch the moment the malware stops being a one-time run and starts making sure it comes back automatically whenever the system starts again.
+    author: Daniel Jeremiah
+    date: 2026/03/05
+    references:
+      - https://blog.talosintelligence.com/uat-9244/
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create'
+          - '/tn WSPrint'
+          - 'C:\ProgramData\WSPrint\WSPrint.exe'
+          - '/sc onstart'
+      condition: selection
+    falsepositives:
+      - Manual testing using the same task name
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blog.talosintelligence.com/uat-9244/
+data_sources:
+    - process_creation
+    - windows

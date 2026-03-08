@@ -42310,6 +42310,28 @@ entries:
       author: Daniel Jeremiah
       version: "2"
       file: entries/kql/019cc842-b936-775c-b167-c4ce9c30d3d5.yaml
+    - id: 019cc853-b8ab-74dc-afe2-db2fe6a4f6a9
+      name: APT36 Vibeware Scheduled Task Creation
+      description: This rule detects the creation of scheduled tasks with specific names identified in the Bitdefender APT36 Vibeware report. These task names are associated with APT36's persistence mechanisms, used to maintain malware execution, launch hidden components, and continue operations after initial infection. The rule specifically targets these known malicious task names rather than broadly detecting all scheduled task creations, aiming to provide high-fidelity alerts indicative of APT36 activity.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0002
+        - TA0004
+      techniques:
+        - T1053.005
+      tags:
+        - attack.persistence
+        - attack.t1053.005
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://www.bitdefender.com/en-us/blog/businessinsights/apt36-nightmare-vibeware
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc853-b8ab-74dc-afe2-db2fe6a4f6a9.yaml
     - id: 019cc853-ccc0-733c-bae7-b14accff0c53
       name: CL-UNK-1068 Python Sideload python20.dll
       description: 'This rule looks for a Python process loading a helper file called python20.dll, which was part of the toolset used in the CL-UNK-1068 activity. The rule is useful because it combines two details that are not common together in modern normal use: a current Python process and an old helper file name used as a loading trick. It does not try to flag every Python action or every helper file, which helps reduce noise. In plain language, the rule is meant to catch a hidden helper attached to Python that can be used to start other attacker tools while blending in with a familiar program name. When this match appears, it can point to scanning, hidden connections, or other follow-on activity described in the campaign. The focus on the exact file name helps keep the match useful and lowers the chance of confusing it with ordinary Python use.'
@@ -42328,6 +42350,155 @@ entries:
         - image_load
         - windows
       file: entries/sigma/019cc853-ccc0-733c-bae7-b14accff0c53.yaml
+    - id: 019cc853-dcc4-7730-adf2-e1b875352c23
+      name: ClipXDaemon User-Writable ELF Execution
+      description: This rule detects the execution of ELF binaries from user-writable directories within the home folder, specifically targeting paths containing '/.local/bin/'. It aims to identify potentially malicious programs, such as clipboard hijackers, that are dropped and launched by a user. The rule filters out common packaging paths like '/snap/' and '/flatpak/' to reduce false positives.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0003
+        - TA0004
+      techniques:
+        - T1547.001
+      tags:
+        - attack.execution
+        - attack.persistence
+        - attack.t1547.001
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://cyble.com/blog/clipxdaemon-autonomous-x11-clipboard-hijacker/
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019cc853-dcc4-7730-adf2-e1b875352c23.yaml
+    - id: 019cc853-ee52-75d4-9e92-5971196600cd
+      name: Havoc Loader DLL Sideload via ADNotificationManager
+      description: This rule detects the execution of 'ADNotificationManager.exe' from a specific path within 'ProgramData\Adobe\ARM\'. This activity is associated with a support-scam malware chain, specifically Havoc Loader, which stages itself in a folder designed to mimic legitimate Adobe directories. The rule focuses on this unusual path and exact helper name to identify the transition from social engineering to malicious execution, aiming to provide a strong lead for review by flagging suspicious activity in a trusted-looking directory.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+      tags:
+        - attack.execution
+        - attack.t1574.002
+        - attack.defense-evasion
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://www.huntress.com/blog/fake-tech-support-havoc-command-control
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc853-ee52-75d4-9e92-5971196600cd.yaml
+    - id: 019cc854-12b3-76e5-ab09-c805d5ee8229
+      name: OAuth Redirect Abuse - Invalid Scope Parameter
+      description: This rule is based on a phishing method that abuses normal sign-in links instead of relying on an obviously fake website at the start. The trick works by sending a person to a real sign-in service with settings that force an error and then pass the browser along to the attacker’s page. The rule stays narrow by looking for both the hidden sign-in setting and the clearly bad scope value together. That matters because silent sign-in by itself can appear in normal environments, but the bad scope value changes the story and makes the pattern much more suspicious. In plain language, this rule is trying to spot a link that pretends to be a normal sign-in step but is really being used as a doorway to a phishing or malware page after the trusted service does the redirect. Keeping both parts together helps the rule stay tied to the abusive redirect trick instead of ordinary sign-in traffic.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0001
+      techniques:
+        - T1566
+      tags:
+        - attack.initial-access
+        - attack.t1566
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
+      data_sources:
+        - proxy
+      file: entries/sigma/019cc854-12b3-76e5-ab09-c805d5ee8229.yaml
+    - id: 019cc854-23e5-7660-ab9e-6c076c402a2e
+      name: SolarWinds Web Help Desk Deserialization RCE
+      description: This rule is meant to catch a very specific web request pattern tied to the SolarWinds Web Help Desk issue described in the report. The attack sends a crafted request to a known application path and includes a small group of values that are unusual in normal traffic but important in the exploit chain. The rule stays tight by requiring the request method, the path, and the special body values together. That matters because web applications often have busy and messy traffic, and loose matching on only one keyword would create noise. In plain language, this rule tries to spot a request that is not just using the help desk site, but is trying to abuse it to make the server handle attacker-controlled data in a dangerous way. It is best used as a high-confidence lead for review rather than a generic web alert. When it fires, it should be treated as a focused sign of attempted abuse rather than normal help desk.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0001
+      techniques:
+        - T1190
+      tags:
+        - attack.initial-access
+        - attack.t1190
+      author: Daniel Jeremiah
+      version: "3"
+      references:
+        - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+      data_sources:
+        - webserver
+      file: entries/sigma/019cc854-23e5-7660-ab9e-6c076c402a2e.yaml
+    - id: 019cc854-5649-77a7-aea2-b5d4c335dd3e
+      name: WSPrint Persistence via Scheduled Task Creation
+      description: This rule detects the creation of a scheduled task named 'WSPrint' that executes 'C:\ProgramData\WSPrint\WSPrint.exe' at system startup. This specific pattern is associated with the persistence mechanism described in the Cisco Talos UAT-9244 report. The rule focuses on the 'schtasks.exe' process creating a task with these specific parameters to avoid generic scheduled task alerts.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0002
+        - TA0004
+      techniques:
+        - T1053.005
+      tags:
+        - attack.persistence
+        - attack.t1053.005
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://blog.talosintelligence.com/uat-9244/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cc854-5649-77a7-aea2-b5d4c335dd3e.yaml
+    - id: 019cc854-68d1-7641-82b9-0d51f40c992e
+      name: VoidGeist Batch Script Persistence in Startup Folder
+      description: This rule detects the creation of specific batch files, 'spol.bat' or 'non.bat', within the Windows Startup folder. This activity is indicative of persistence, as these files will execute automatically when a user logs in, allowing an attacker to re-establish control or continue malicious operations. The rule specifically targets these filenames and the Startup folder path to reduce false positives and focus on a known persistence mechanism used by the VoidGeist threat chain.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0002
+        - TA0004
+      techniques:
+        - T1547.001
+      tags:
+        - attack.persistence
+        - attack.t1547.001
+        - attack.execution
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
+      data_sources:
+        - file_event
+        - windows
+      file: entries/sigma/019cc854-68d1-7641-82b9-0d51f40c992e.yaml
+    - id: 019cc854-7a4f-7360-bc92-cb181ec2aeda
+      name: VoidLink Cloud Metadata Access Hunting
+      description: This rule detects command-line access to cloud metadata services from utilities such as curl, wget, busybox, or python. It specifically looks for command lines containing IP addresses or hostnames commonly associated with cloud metadata endpoints (e.g., 169.254.169.254, metadata.google.internal, 100.100.100.200) or metadata paths (e.g., /latest/meta-data, /computeMetadata/v1/). This is a hunting rule designed to identify unusual process activity that might indicate a cloud-aware malware framework attempting to discover cloud environment details.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0007
+        - TA0006
+      techniques:
+        - T1082
+        - T1552
+      tags:
+        - attack.discovery
+        - attack.t1082
+        - attack.t1552
+      author: Daniel Jeremiah
+      version: "2"
+      references:
+        - https://blogs.cisco.com/security/voidlink-ai-built-malware-and-the-future-of-workload-security
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019cc854-7a4f-7360-bc92-cb181ec2aeda.yaml
     - id: 019cc900-97a2-766b-8bdd-4a76c6022df3
       name: Potential DNS Data Exfiltration via Long Subdomains
       description: This rule detects potential DNS exfiltration or command and control (C2) activity by identifying unusually long and complex DNS queries. It focuses on devices making a high number of DNS queries with an average length exceeding 60 characters and a subdomain depth of at least 4. The rule excludes common infrastructure domains and trusted cloud domains when queried by known legitimate processes to reduce false positives.

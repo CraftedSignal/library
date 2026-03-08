@@ -1,0 +1,50 @@
+id: 019cc854-68d1-7641-82b9-0d51f40c992e
+name: VoidGeist Batch Script Persistence in Startup Folder
+description: This rule detects the creation of specific batch files, 'spol.bat' or 'non.bat', within the Windows Startup folder. This activity is indicative of persistence, as these files will execute automatically when a user logs in, allowing an attacker to re-establish control or continue malicious operations. The rule specifically targets these filenames and the Startup folder path to reduce false positives and focus on a known persistence mechanism used by the VoidGeist threat chain.
+query: |
+    title: VoidGeist Batch Script Persistence in Startup
+    id: a1b2c3d4-0005-4000-8000-000000000005
+    status: experimental
+    description: >-
+      This rule is meant to catch one of the clearest ways the VoidGeist chain keeps coming back. The report showed that batch files named non.bat or spol.bat were placed in the Windows Startup folder so they would run again when the user signed in. The rule stays close to that exact behavior by looking for those names in that exact folder instead of matching on every batch file or every startup item. That keeps the signal more useful. In simple terms, the rule looks for the point where a one-time infection starts turning into a repeating problem. Once a file is placed there, the attacker has a simple way to restart parts of the chain later without needing the victim to open the original file again. That makes this a strong persistence clue when it appears in the right place. Because the path and names are specific, the result is more suitable for investigation than a broad startup-folder watchlist.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
+    tags:
+      - attack.persistence
+      - attack.t1547.001
+      - attack.execution
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_name:
+        TargetFilename|endswith:
+          - '\spol.bat'
+          - '\non.bat'
+      selection_path:
+        TargetFilename|contains: '\Microsoft\Windows\Start Menu\Programs\Startup\'
+      condition: selection_name and selection_path
+    falsepositives:
+      - User-created batch files in the Startup folder
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - attack.persistence
+    - attack.t1547.001
+    - attack.execution
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
+data_sources:
+    - file_event
+    - windows

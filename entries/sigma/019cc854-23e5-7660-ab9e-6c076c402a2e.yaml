@@ -1,0 +1,61 @@
+id: 019cc854-23e5-7660-ab9e-6c076c402a2e
+name: SolarWinds Web Help Desk Deserialization RCE
+description: This rule is meant to catch a very specific web request pattern tied to the SolarWinds Web Help Desk issue described in the report. The attack sends a crafted request to a known application path and includes a small group of values that are unusual in normal traffic but important in the exploit chain. The rule stays tight by requiring the request method, the path, and the special body values together. That matters because web applications often have busy and messy traffic, and loose matching on only one keyword would create noise. In plain language, this rule tries to spot a request that is not just using the help desk site, but is trying to abuse it to make the server handle attacker-controlled data in a dangerous way. It is best used as a high-confidence lead for review rather than a generic web alert. When it fires, it should be treated as a focused sign of attempted abuse rather than normal help desk.
+query: |
+    title: SolarWinds Web Help Desk Deserialization RCE
+    id: a1b2c3d4-0008-4000-8000-000000000008
+    status: experimental
+    description: >-
+      This rule is meant to catch a very specific web request pattern tied to the
+      SolarWinds Web Help Desk issue described in the report. The attack sends a
+      crafted request to a known application path and includes a small group of
+      values that are unusual in normal traffic but important in the exploit chain.
+      The rule stays tight by requiring the request method, the path, and the
+      special body values together. That matters because web applications often have
+      busy and messy traffic, and loose matching on only one keyword would create
+      noise. In plain language, this rule tries to spot a request that is not just
+      using the help desk site, but is trying to abuse it to make the server handle
+      attacker-controlled data in a dangerous way. It is best used as a
+      high-confidence lead for review rather than a generic web alert. When it
+      fires, it should be treated as a focused sign of attempted abuse rather than
+      normal help desk.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - >-
+        https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+    tags:
+      - attack.initial-access
+      - attack.t1190
+    logsource:
+      category: webserver
+      service: iis-configuration
+    detection:
+      selection_method:
+        cs-method: POST
+      selection_uri:
+        cs-uri|contains: /WebObjects/Helpdesk.woa/ajax/
+      selection_body:
+        c-body|contains|all:
+          - wopage.takeValueForKey
+          - WrapperConnectionPoolDataSource
+          - HexAsciiSerializedMap
+      condition: selection_method and selection_uri and selection_body
+    falsepositives:
+      - Manual security testing against SolarWinds WHD
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - attack.initial-access
+    - attack.t1190
+author: Daniel Jeremiah
+version: "3"
+references:
+    - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+data_sources:
+    - webserver

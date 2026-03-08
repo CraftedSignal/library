@@ -1,0 +1,48 @@
+id: 019cc853-ee52-75d4-9e92-5971196600cd
+name: Havoc Loader DLL Sideload via ADNotificationManager
+description: This rule detects the execution of 'ADNotificationManager.exe' from a specific path within 'ProgramData\Adobe\ARM\'. This activity is associated with a support-scam malware chain, specifically Havoc Loader, which stages itself in a folder designed to mimic legitimate Adobe directories. The rule focuses on this unusual path and exact helper name to identify the transition from social engineering to malicious execution, aiming to provide a strong lead for review by flagging suspicious activity in a trusted-looking directory.
+query: |
+    title: Havoc Loader DLL Sideload via ADNotificationManager
+    id: a1b2c3d4-0004-4000-8000-000000000004
+    status: experimental
+    description: >-
+      This rule looks for a support-scam malware chain that stages itself inside a folder made to look like it belongs to Adobe. The report showed that the attacker relied on social pressure first, then placed files under ProgramData and launched a helper program from that folder. The rule does not attempt to flag every Adobe update, because that would not be useful. It focuses on the unusual path and the exact helper name that appeared in the case. In plain language, this rule is trying to catch the moment the scam moves from talk to action. A user may believe they are getting help, but the program starting from that staged folder is part of what gives the attacker control. The narrow path check helps keep the alert meaningful and lowers the chance of false positives. It is written to be a strong lead for review when a trusted-looking path is being used to hide something that should not be there.
+    author: Daniel Jeremiah
+    date: 2026/03/07
+    references:
+      - https://www.huntress.com/blog/fake-tech-support-havoc-command-control
+    tags:
+      - attack.execution
+      - attack.t1574.002
+      - attack.defense-evasion
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\ADNotificationManager.exe'
+        Image|contains: '\ProgramData\Adobe\ARM\'
+      optional_context:
+        CommandLine|contains:
+          - 'license.key'
+          - 'UXMP'
+      condition: selection
+    falsepositives:
+      - Legitimate Adobe updater execution from ProgramData
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+tags:
+    - attack.execution
+    - attack.t1574.002
+    - attack.defense-evasion
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://www.huntress.com/blog/fake-tech-support-havoc-command-control
+data_sources:
+    - process_creation
+    - windows

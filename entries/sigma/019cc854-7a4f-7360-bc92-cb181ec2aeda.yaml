@@ -1,0 +1,59 @@
+id: 019cc854-7a4f-7360-bc92-cb181ec2aeda
+name: VoidLink Cloud Metadata Access Hunting
+description: This rule detects command-line access to cloud metadata services from utilities such as curl, wget, busybox, or python. It specifically looks for command lines containing IP addresses or hostnames commonly associated with cloud metadata endpoints (e.g., 169.254.169.254, metadata.google.internal, 100.100.100.200) or metadata paths (e.g., /latest/meta-data, /computeMetadata/v1/). This is a hunting rule designed to identify unusual process activity that might indicate a cloud-aware malware framework attempting to discover cloud environment details.
+query: |
+    title: VoidLink Cloud Metadata Access Hunting
+    id: a1b2c3d4-0013-4000-8000-000000000013
+    status: test
+    description: >-
+      This rule is a hunting rule based on the Cisco VoidLink retrospective posted on 2026-03-03. That article described a cloud-aware malware framework built to inspect cloud and container environments and collect the information it needs to decide what to do next. Because the article is more strategic than a classic malware write-up, there are fewer hard file indicators to lean on. The safest event-based clue is unusual command-line access to cloud metadata services from utilities such as curl or wget. The rule is marked as a hunting rule because some cloud agents and scripts may access those services for real reasons. In plain language, this rule is meant to help an analyst ask whether a Linux process that normally should not be probing cloud identity or instance details is reaching out to the metadata paths commonly checked by cloud-aware malware.
+    author: Daniel Jeremiah
+    date: 2026/03/03
+    references:
+      - https://blogs.cisco.com/security/voidlink-ai-built-malware-and-the-future-of-workload-security
+    tags:
+      - attack.discovery
+      - attack.t1082
+      - attack.t1552
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_tool:
+        Image|endswith:
+          - '/curl'
+          - '/wget'
+          - '/busybox'
+          - '/python'
+          - '/python3'
+      selection_metadata:
+        CommandLine|contains:
+          - '169.254.169.254'
+          - 'metadata.google.internal'
+          - '100.100.100.200'
+          - '/latest/meta-data'
+          - '/computeMetadata/v1/'
+      condition: selection_tool and selection_metadata
+    falsepositives:
+      - Cloud bootstrap or inventory scripts
+      - Legitimate metadata collection by management agents
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0006
+techniques:
+    - T1082
+    - T1552
+tags:
+    - attack.discovery
+    - attack.t1082
+    - attack.t1552
+author: Daniel Jeremiah
+version: "2"
+references:
+    - https://blogs.cisco.com/security/voidlink-ai-built-malware-and-the-future-of-workload-security
+data_sources:
+    - process_creation
+    - linux
