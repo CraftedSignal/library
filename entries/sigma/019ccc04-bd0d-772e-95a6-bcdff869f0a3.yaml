@@ -1,0 +1,53 @@
+id: 019ccc04-bd0d-772e-95a6-bcdff869f0a3
+name: Linux Package Manager Hook Persistence
+description: Detects abuse of package manager hooks for persistence, by hijacking the package manager execution flow
+query: |
+    title: Linux Package Manager Hook Persistence
+    id: 74532fda-348f-486a-8e4e-5e504cac4a24
+    description: Detects abuse of package manager hooks for persistence, by
+      hijacking the package manager execution flow
+    references:
+      - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+    tags:
+      - attack.persistence
+      - attack.t1546.016
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_hook_paths:
+        TargetFilename|contains:
+          - '/etc/apt/apt.conf.d/'
+          - '/etc/yum/pluginconf.d/'
+          - '/usr/lib/yum-plugins/'
+          - '/etc/dnf/plugins/'
+      selection_executable_hooks:
+        TargetFilename|endswith:
+          - '.py'
+          - '.sh'
+          - '.conf'
+      selection_suspicious_content:
+        FileContent|contains:
+          - 'system('
+          - 'exec('
+          - '/dev/tcp/'
+      condition: >-
+        selection_hook_paths and selection_executable_hooks and
+        selection_suspicious_content
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.016
+tags:
+    - attack.persistence
+    - attack.t1546.016
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+data_sources:
+    - process_creation
+    - linux
