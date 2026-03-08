@@ -1,0 +1,21 @@
+id: 019cce17-ad9f-718c-b31e-a96cb6d59e91
+name: VOID#GEIST KQL
+description: This rule detects various stages of the VOID#GEIST multi-stage Python loader as described in the Securonix blog. It identifies initial batch file execution, Chrome decoy PDF lures, hidden PowerShell relaunching of the batch file, persistence via the Startup folder, curl commands downloading zip payloads, Python embedded runtime downloads, and final Python payload execution. The rule is designed to catch the distinct command-line patterns associated with each stage of this specific malware.
+query: "// https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader\r\n\r\nDeviceProcessEvents\r\n| where\r\n    // Stage 0 - Initial execution of batch file\r\n    ProcessCommandLine contains \"non.bat\"\r\n    or\r\n    // Stage 1 - Chrome decoy PDF lure\r\n    (FileName =~ \"chrome.exe\"\r\n     and ProcessCommandLine contains \"–start-maximized\"\r\n     and ProcessCommandLine contains \".pdf\")\r\n    or\r\n    // Stage 2 - Hidden PowerShell relaunch\r\n    (FileName =~ \"powershell.exe\"\r\n     and ProcessCommandLine contains \"WindowStyle Hidden\"\r\n     and ProcessCommandLine contains \"-FilePath ‘non.bat’\"\r\n     and ProcessCommandLine contains \"Start-Process\")\r\n    or\r\n    // Stage 3 - Persistence via Startup folder\r\n    ProcessCommandLine contains @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\"\r\n    and ProcessCommandLine contains \"spol.bat\"\r\n    or\r\n    // Stage 4 - Curl downloads payloads\r\n    (ProcessCommandLine contains \"curl\"\r\n     and ProcessCommandLine contains \".zip\"\r\n     and ProcessCommandLine contains \"-s -o\")\r\n    or\r\n    // Stage 5 - Python embedded runtime download\r\n    ProcessCommandLine contains \"python-3.10.0-embed\"\r\n    or\r\n    // Stage 6 - Python payload execution\r\n    (FileName startswith \"python\"\r\n     and ProcessCommandLine contains \"runn.py\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0003
+    - TA0004
+    - TA0002
+techniques:
+    - T1104
+    - T1547.001
+    - T1059.006
+    - T1059.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader
