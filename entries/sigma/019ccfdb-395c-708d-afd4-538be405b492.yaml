@@ -1,0 +1,25 @@
+id: 019ccfdb-395c-708d-afd4-538be405b492
+name: Suspicious Cron Job or Trojanized Crontab Execution
+description: 'Detects suspicious cron job executions or the execution of a potentially trojanized ''crontab'' binary. Adversaries, as seen with malware like Perfctl, may replace or modify the ''crontab'' utility to hide malicious scheduled tasks from administrators. This detection looks for common patterns of malicious cron jobs. '
+query: "title: Suspicious Cron Job or Trojanized Crontab Execution\nid: 320f59cb-ffd4-4470-be8e-31ffd8712d55\nstatus: experimental\ndescription: >-\n  Detects suspicious cron job executions or the execution of a potentially\n  trojanized 'crontab' binary. Adversaries, as seen with malware like Perfctl,\n  may replace or modify the 'crontab' utility to hide malicious scheduled tasks\n  from administrators. This detection looks for common patterns of malicious\n  cron jobs. \nauthor: zendannyy\nreferences:\n  - https://ostechnix.com/cron-persistence-linux-malware/\ndate: 2026-03-08T00:00:00.000Z\ntags:\n  - attack.persistence\n  - attack.t1053.003\n  - attack.defense_evasion\n  - attack.t1574.006\nlogsource:\n  category: process_creation\n  product: linux\n  service: cron\ndetection:\n  suspicious_cron_job:\n    ParentImage|endswith:\n      - /cron\n      - /crond\n    CommandLine|contains:\n      - 'curl '\n      - 'wget '\n      - '|base64'\n      - '|bash'\n      - '|sh'\n      - /tmp/\n      - /var/tmp/\n      - /dev/shm\n  trojanized_crontab_miner:\n    Image|endswith: /crontab\n    CommandLine|contains:\n      - stratum+\n      - '--donate-level'\n      - pool.\n      - monero\n  condition: 2 of them\nfalsepositives:\n  - Legitimate administrative or software update scripts may use 'curl' or\n    'wget' within a cron job. These should be reviewed and known good scripts\n    should be excluded.\nlevel: high\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0005
+    - TA0002
+techniques:
+    - T1053.003
+    - T1574.006
+tags:
+    - attack.persistence
+    - attack.t1053.003
+    - attack.defense_evasion
+    - attack.t1574.006
+author: zendannyy
+version: "3"
+references:
+    - https://ostechnix.com/cron-persistence-linux-malware/
+data_sources:
+    - process_creation
+    - linux

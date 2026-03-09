@@ -1,0 +1,63 @@
+id: 019cca1f-c362-735d-afea-f6450913c420
+name: Linux VNC Install
+description: Detects VNC-based lateral movement activities. Looking for the initial install
+query: |-
+    title: Linux VNC Install
+    id: 6b41c0da-918a-4283-a3a1-89c13a3a5757
+    status: experimental
+    description: Detects VNC-based lateral movement activities. Looking for the initial install
+    references:
+      - https://attack.mitre.org/techniques/T1021/005/
+      - https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-vnc-on-ubuntu-22-04
+    author: zendannyy
+    date: 2026-03-06T00:00:00.000Z
+    tags:
+      - attack.lateral_movement
+      - attack.t1021.005
+      - linux.vnc
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection_vnc_ports:
+        dst_port:
+          - 5900
+          - 5901
+          - 5902
+          - 5903
+      selection_vnc_process:
+        Image|endswith:
+          - tightvnc
+          - vncserver
+          - x11vnc
+      selection_install:
+        CommandLine|contains:
+          - sudo apt install tightvncserver
+          - sudo apt install tightvncserver -y
+          - sudo dnf install tightvncserver -y
+          - sudo yum install tightvncserver -y
+      selection_successful_connection:
+        connection_state: established
+      condition: 2 of selection_*
+    falsepositives:
+      - Legitimate remote desktop access by an admin
+      - Remote administration
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.005
+    - T1021
+tags:
+    - attack.lateral_movement
+    - attack.t1021.005
+    - linux.vnc
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1021/005/
+    - https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-vnc-on-ubuntu-22-04
+data_sources:
+    - network

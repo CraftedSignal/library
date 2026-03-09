@@ -1,0 +1,16 @@
+id: 019ccf3c-8126-73e0-98bf-5d514e44f8cd
+name: Host Isolation via Netsh Firewall Modification
+description: Detects the use of netsh.exe to create a firewall rule that blocks all outbound traffic. This technique is often used by attackers to isolate a compromised host from external resources (like security tool cloud consoles) while maintaining internal network access for lateral movement.
+query: "// Name: Host Isolation via Netsh Firewall Modification\r\n// Author: Nomit Vyas\r\n// Date: 2026-01-28\r\n// Description: Detects the use of netsh.exe to create a firewall rule that blocks all outbound traffic. This technique is often used by attackers to isolate a compromised host from external resources (like security tool cloud consoles) while maintaining internal network access for lateral movement.\r\n// References: https://www.huntress.com/blog/esxi-vm-escape-exploit\r\n// MITRE ATT&CK: T1562.004, T1021.0016\r\n\r\nDeviceProcessEvents\r\n// Look for netsh.exe process execution\r\n| where FileName =~ \"netsh.exe\"\r\n// Filter for command line arguments that add a firewall rule to block all outbound traffic\r\n| where ProcessCommandLine has \"advfirewall\"\r\n    and ProcessCommandLine has \"add rule\"\r\n    and ProcessCommandLine has \"action=block\"\r\n    and ProcessCommandLine contains \"remoteip=0.0.0.0-255.255.255.255\"\r\n// FP Tuning: This activity could be performed by administrators for legitimate host isolation.\r\n// To increase fidelity, correlate this alert with other suspicious activity on the host,\r\n// or look for preceding firewall rules that explicitly allow internal network ranges (e.g., 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16).\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessCommandLine,\r\n    ReportId,\r\n    InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.004
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://www.huntress.com/blog/esxi-vm-escape-exploit

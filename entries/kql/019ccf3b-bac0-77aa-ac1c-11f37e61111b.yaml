@@ -1,0 +1,18 @@
+id: 019ccf3b-bac0-77aa-ac1c-11f37e61111b
+name: Payload Download Post-OAuth Error
+description: Identifies file downloads (archives, shortcuts) originating from a legitimate OAuth provider URL that contains error parameters. This pattern is indicative of an attacker abusing OAuth error redirection to deliver a malicious payload.
+query: "// Name: Payload Download Post-OAuth Error\r\n// Author: Nomit Vyas\r\n// Date: 2026-03-03\r\n// Description: Identifies file downloads (archives, shortcuts) originating from a legitimate OAuth provider URL that contains error parameters. This pattern is indicative of an attacker abusing OAuth error redirection to deliver a malicious payload.\r\n// MITRE ATT&CK: T1204.002 (Malicious File), T1027.006 (HTML Smuggling)\r\n// References: https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/\r\n// False Positives: Legitimate application error pages that trigger a download might be caught. However, the combination of an OAuth error redirect and a direct file download is highly suspicious.\r\n// Version: 1.0\r\nlet oauthProviders = dynamic([\"login.microsoftonline.com\", \"accounts.google.com\"]);\r\nlet oauthErrors = dynamic([\"error=interaction_required\", \"error=consent_required\", \"error_subtype=access_denied\"]);\r\nlet suspiciousExtensions = dynamic([\".zip\", \".lnk\", \".iso\", \".img\", \".html\"]);\r\nDeviceFileEvents\r\n// Filter for file creation events.\r\n| where ActionType == \"FileCreated\"\r\n// Check that the download was referred by a known OAuth provider.\r\n| where parse_url(FileOriginReferrerUrl).Host in~ (oauthProviders)\r\n// Check that the download URL itself contains known OAuth error parameters.\r\n| where FileOriginUrl has_any (oauthErrors)\r\n// Look for suspicious file extensions associated with malware delivery.\r\n// Consider using 'endswith' for higher fidelity if this generates noise from filenames containing these strings.\r\n| where FileName has_any (suspiciousExtensions)\r\n// Project relevant fields for investigation.\r\n| project-reorder Timestamp, DeviceName, InitiatingProcessAccountUpn, FileName, FolderPath, SHA256, FileOriginUrl, FileOriginReferrerUrl"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1204.002
+    - T1027.006
+tags:
+    - kql
+author: Nomit Vyas
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/

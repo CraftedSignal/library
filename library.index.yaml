@@ -26465,13 +26465,13 @@ entries:
     - id: 019c71fd-31c1-7209-a3bd-176b76e93e22
       name: Cryptographic Algorithm Downgrade Attempts
       description: |
-        Detects attempts to downgrade or use outdated cryptographic algorithms that may be vulnerable to several attacks.
+        Detects attempts to downgrade or use outdated cryptographic algorithms that may be vulnerable to several attacks. Such as RC4, DES, 3DES, MD5, or outdated TLS/SSL versions (TLS 1.0, TLS 1.1, SSL 3.0)
       query_type: sigma
       severity: medium
       tactics:
         - TA0006
       author: zendannyy
-      version: "2"
+      version: "3"
       references:
         - https://owasp.org/Top10/2025/A04_2025-Cryptographic_Failures/
       data_sources:
@@ -42550,6 +42550,44 @@ entries:
         - network_connection
         - linux
       file: entries/sigma/019cca1e-8717-75fe-8138-3fd7744e6600.yaml
+    - id: 019cca1f-c362-735d-afea-f6450913c420
+      name: Linux VNC Install
+      description: Detects VNC-based lateral movement activities. Looking for the initial install
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0008
+      techniques:
+        - T1021.005
+        - T1021
+      tags:
+        - attack.lateral_movement
+        - attack.t1021.005
+        - linux.vnc
+      author: zendannyy
+      version: "2"
+      references:
+        - https://attack.mitre.org/techniques/T1021/005/
+        - https://www.digitalocean.com/community/tutorials/how-to-install-and-configure-vnc-on-ubuntu-22-04
+      data_sources:
+        - network
+      file: entries/sigma/019cca1f-c362-735d-afea-f6450913c420.yaml
+    - id: 019cca1f-d409-72ff-b552-906d7bfac1b8
+      name: Windows VNC Application Usage
+      description: |-
+        The rule detects VNC (Virtual Network Computing) application usage on Windows systems, looking for specific indicators in conjunction.
+        This combination suggests active VNC communication, potentially indicating lateral movement or unauthorized remote access, particularly in environments where VNC is not standard for enterprise use.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0008
+      techniques:
+        - T1021.005
+        - T1219.002
+        - T1219
+      author: zendannyy
+      version: "2"
+      file: entries/sigma/019cca1f-d409-72ff-b552-906d7bfac1b8.yaml
     - id: 019cca36-96b8-74f8-8616-7e890fc4b3f2
       name: Possible Adversary-in-the-Middle (AiTM) Session Cookie Hijack
       description: |
@@ -42776,6 +42814,143 @@ entries:
       author: Steven Lim
       version: "3"
       file: entries/kql/019cce3d-aecc-762c-bfcf-5a9e6052c0b5.yaml
+    - id: 019ccf3a-de2a-705f-9c67-446d248fe719
+      name: FakeGit - StealC Browser Module Detected
+      description: This rule detects the presence of a specific browser credential extraction module associated with the StealC information stealer, as used in the FakeGit campaign. The detection is based on the module's SHA256 hash. The rule looks for the presence of this hash in DeviceFileEvents (file creation on disk) or DeviceImageLoadEvents (module loaded into a process). This indicates an attempt to steal credentials from web browsers or web session cookies.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0006
+      techniques:
+        - T1555.003
+        - T1539
+      tags:
+        - kql
+      author: Nomit Vyas
+      version: "1"
+      references:
+        - https://www.derp.ca/research/fakegit-luajit-github-campaign/
+      file: entries/kql/019ccf3a-de2a-705f-9c67-446d248fe719.yaml
+    - id: 019ccf3b-bac0-77aa-ac1c-11f37e61111b
+      name: Payload Download Post-OAuth Error
+      description: Identifies file downloads (archives, shortcuts) originating from a legitimate OAuth provider URL that contains error parameters. This pattern is indicative of an attacker abusing OAuth error redirection to deliver a malicious payload.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1204.002
+        - T1027.006
+      tags:
+        - kql
+      author: Nomit Vyas
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/02/oauth-redirection-abuse-enables-phishing-malware-delivery/
+      file: entries/kql/019ccf3b-bac0-77aa-ac1c-11f37e61111b.yaml
+    - id: 019ccf3c-8126-73e0-98bf-5d514e44f8cd
+      name: Host Isolation via Netsh Firewall Modification
+      description: Detects the use of netsh.exe to create a firewall rule that blocks all outbound traffic. This technique is often used by attackers to isolate a compromised host from external resources (like security tool cloud consoles) while maintaining internal network access for lateral movement.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0005
+      techniques:
+        - T1562.004
+      tags:
+        - kql
+      author: Nomit Vyas
+      version: "1"
+      references:
+        - https://www.huntress.com/blog/esxi-vm-escape-exploit
+      file: entries/kql/019ccf3c-8126-73e0-98bf-5d514e44f8cd.yaml
+    - id: 019ccf3d-2618-7155-8c5b-dbef295d9d4a
+      name: Telnetd Authentication Bypass via Login Flag Injection (CVE-2026-24061)
+      description: Detects instances where the telnetd process spawns the login binary with the '-f' flag. This behavior is indicative of exploitation of CVE-2026-24061, which allows an attacker to bypass authentication by injecting arguments into the login process via a crafted USER environment variable.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0001
+        - TA0004
+      techniques:
+        - T1190
+        - T1068
+        - DS0028
+      tags:
+        - kql
+      author: Nomit Vyas
+      version: "1"
+      references:
+        - https://www.safebreach.com/blog/safebreach-labs-root-cause-analysis-and-poc-exploit-for-cve-2026-24061/
+      file: entries/kql/019ccf3d-2618-7155-8c5b-dbef295d9d4a.yaml
+    - id: 019ccfb0-8c80-76a6-a46b-1d8d278a036b
+      name: Linux Container Escape Persistence Detection
+      description: Detects persistence establishment after docker container escape
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1611
+      tags:
+        - attack.persistence
+        - attack.t1611
+      author: zendanny
+      version: "2"
+      references:
+        - https://github.com/Aegrah/PANIX
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019ccfb0-8c80-76a6-a46b-1d8d278a036b.yaml
+    - id: 019ccfdb-395c-708d-afd4-538be405b492
+      name: Suspicious Cron Job or Trojanized Crontab Execution
+      description: 'Detects suspicious cron job executions or the execution of a potentially trojanized ''crontab'' binary. Adversaries, as seen with malware like Perfctl, may replace or modify the ''crontab'' utility to hide malicious scheduled tasks from administrators. This detection looks for common patterns of malicious cron jobs. '
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0005
+        - TA0002
+      techniques:
+        - T1053.003
+        - T1574.006
+      tags:
+        - attack.persistence
+        - attack.t1053.003
+        - attack.defense_evasion
+        - attack.t1574.006
+      author: zendannyy
+      version: "3"
+      references:
+        - https://ostechnix.com/cron-persistence-linux-malware/
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019ccfdb-395c-708d-afd4-538be405b492.yaml
+    - id: 019cd00f-2b56-731e-bbb8-7a3b5bba4843
+      name: Linux Container Escape Persistence
+      description: Detects persistence establishment after docker container escape
+      query_type: spl
+      severity: high
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1611
+      tags:
+        - attack.persistence
+        - attack.t1611
+      author: zendanny
+      version: "2"
+      references:
+        - https://github.com/Aegrah/PANIX
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/spl/019cd00f-2b56-731e-bbb8-7a3b5bba4843.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'

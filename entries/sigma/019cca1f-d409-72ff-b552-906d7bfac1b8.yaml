@@ -1,0 +1,53 @@
+id: 019cca1f-d409-72ff-b552-906d7bfac1b8
+name: Windows VNC Application Usage
+description: |-
+    The rule detects VNC (Virtual Network Computing) application usage on Windows systems, looking for specific indicators in conjunction.
+    This combination suggests active VNC communication, potentially indicating lateral movement or unauthorized remote access, particularly in environments where VNC is not standard for enterprise use.
+query: |
+    title: Windows VNC Application Usage
+    id: 835026d0-3aef-4702-b857-4932b46cbbe6
+    status: experimental
+    description: >-
+      The rule detects VNC (Virtual Network Computing) application usage on Windows
+      systems, looking for specific indicators in conjunction.
+
+      This combination suggests active VNC communication, potentially indicating
+      lateral movement or unauthorized remote access, particularly in environments
+      where VNC is not standard for enterprise use.
+    date: 2026-03-05T00:00:00.000Z
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection_vnc_ports:
+        dst_port:
+          - 5900
+          - 5901
+          - 5902
+          - 5903
+      selection_vnc_process:
+        Image|endswith:
+          - tvncserver.exe'
+          - vncviewer.exe
+          - ultravnc.exe
+      selection_successful_connection:
+        connection_state: established
+      condition: >-
+        selection_vnc_ports and selection_vnc_process and
+        selection_successful_connection
+    level: medium
+    author: zendannyy
+    falsepositives:
+      - Legitimate VNC usage in environments where it is an approved remote access
+        solution.
+      - Development or testing environments using VNC for legitimate purposes.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.005
+    - T1219.002
+    - T1219
+author: zendannyy
+version: "2"

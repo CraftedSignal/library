@@ -1,0 +1,26 @@
+id: 019cd00f-2b56-731e-bbb8-7a3b5bba4843
+name: Linux Container Escape Persistence
+description: Detects persistence establishment after docker container escape
+query: |-
+    ` Detects persistence establishment after docker container escape `
+    index=linux_auditd
+    (ParentImage IN ("*docker*", "*containerd*", "*runc*", "*podman*") AND (Image IN ("*/systemctl", "*/etc/init.d/", "*/update-rc.d") AND CommandLine IN ("*enable*", "*daemon-reload*")))
+    OR CommandLine IN ("*/proc/1/root/*", "*nsenter*", "*chroot /host*")
+    | table _time user_nameParentImage ParentCommandLine CommandLine
+query_type: spl
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1611
+tags:
+    - attack.persistence
+    - attack.t1611
+author: zendanny
+version: "2"
+references:
+    - https://github.com/Aegrah/PANIX
+data_sources:
+    - process_creation
+    - linux

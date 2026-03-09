@@ -1,0 +1,60 @@
+id: 019ccfb0-8c80-76a6-a46b-1d8d278a036b
+name: Linux Container Escape Persistence Detection
+description: Detects persistence establishment after docker container escape
+query: |
+    title: Linux Container Escape Persistence Detection
+    id: 13af56b2f-e16b-47bf-9927-f41d111cde8
+    description: Detects persistence establishment after docker container escape
+    references:
+      - https://github.com/Aegrah/PANIX
+    tags:
+      - attack.persistence
+      - attack.t1611
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_container_process:
+        ParentImage|contains:
+          - docker
+          - containerd
+          - runc
+          - podman
+      selection_host_persistence:
+        Image|endswith:
+          - /systemctl
+          - /etc/init.d/
+          - /update-rc.d
+        CommandLine|contains:
+          - enable
+          - daemon-reload
+      selection_escape_indicators:
+        CommandLine|contains:
+          - /proc/1/root/
+          - nsenter
+          - chroot /host
+      condition: >-
+        selection_container_process and (selection_host_persistence or
+        selection_escape_indicators)
+    level: high
+    author: zendanny
+    falsepositives:
+      - Legitimate container management operations by administrators.
+      - Automated container orchestration tools performing system-level changes.
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1611
+tags:
+    - attack.persistence
+    - attack.t1611
+author: zendanny
+version: "2"
+references:
+    - https://github.com/Aegrah/PANIX
+data_sources:
+    - process_creation
+    - linux
