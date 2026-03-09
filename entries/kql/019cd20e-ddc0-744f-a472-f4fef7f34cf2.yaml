@@ -1,0 +1,15 @@
+id: 019cd20e-ddc0-744f-a472-f4fef7f34cf2
+name: Azure AD Brute Force or Credential Stuffing Detection
+description: This rule detects potential brute force or credential stuffing attacks against Azure AD by identifying multiple failed sign-in attempts followed by a successful sign-in from the same user and IP address within a short time frame (1 minute). It specifically looks for scenarios where the successful sign-in occurs after the failed attempts and involves different applications, excluding common Office 365 services to reduce noise.
+query: " let logonDiff = 1m;\r\n  let Success = SigninLogs\r\n  | where ResultType == \"0\"\r\n  | where AppDisplayName !in (\"Office 365 Exchange Online\", \"Skype for Business Online\", \"Office 365 SharePoint Online\")\r\n  | project SuccessLogonTime = TimeGenerated, UserPrincipalName, IPAddress , SuccessAppDisplayName = AppDisplayName;\r\n  let Fail = SigninLogs\r\n  | where ResultType !in (\"0\", \"50140\")\r\n  | where ResultDescription !~ \"Other\"\r\n  | where AppDisplayName !in (\"Office 365 Exchange Online\", \"Skype for Business Online\", \"Office 365 SharePoint Online\")\r\n  | project FailedLogonTime = TimeGenerated, UserPrincipalName, IPAddress , FailedAppDisplayName = AppDisplayName, ResultType, ResultDescription;\r\n  let InitialDataSet =\r\n  Success | join kind= inner (\r\n  Fail\r\n  ) on UserPrincipalName, IPAddress\r\n  | where isnotempty(FailedAppDisplayName)\r\n  | where SuccessLogonTime < FailedLogonTime and FailedLogonTime - SuccessLogonTime <= logonDiff and SuccessAppDisplayName != FailedAppDisplayName;\r\n  let InitialHits =\r\n  InitialDataSet\r\n  | summarize FailedLogonTime = min(FailedLogonTime), SuccessLogonTime = min(SuccessLogonTime)\r\n  by UserPrincipalName, SuccessAppDisplayName, FailedAppDisplayName, IPAddress, ResultType, ResultDescription;\r\n  // Only take hits where there is 5 or less distinct AppDisplayNames on the success side as this limits highly active applications where failures occur more regularly\r\n  let Distribution =\r\n  InitialDataSet\r\n  | summarize count_SuccessAppDisplayName = count() by SuccessAppDisplayName, ResultType\r\n  | where count_SuccessAppDisplayName <= 5;\r\n  InitialHits | join (\r\n     Distribution\r\n  ) on SuccessAppDisplayName, ResultType\r\n  | project UserPrincipalName, SuccessLogonTime, IPAddress, SuccessAppDisplayName, FailedLogonTime, FailedAppDisplayName, ResultType, ResultDescription\r\n  | extend timestamp = SuccessLogonTime, AccountCustomEntity = UserPrincipalName, IPCustomEntity = IPAddress\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.004
+    - T1110.001
+tags:
+    - kql
+version: "1"

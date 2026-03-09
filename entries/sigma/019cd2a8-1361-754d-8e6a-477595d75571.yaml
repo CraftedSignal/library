@@ -1,0 +1,59 @@
+id: 019cd2a8-1361-754d-8e6a-477595d75571
+name: GhostWeaver Headless Persistence Task
+description: Detects the execution of a scheduled task characteristic of the GhostWeaver RAT. The malware's persistence mechanism involves a hidden task that executes PowerShell via 'conhost --headless' and often uses a task name that mimics legitimate PowerShell cmdlets to blend in.
+query: |
+    title: GhostWeaver Headless Persistence Task
+    id: 9d628211-ef63-4c91-9264-3fe513884537
+    status: experimental
+    description: Detects the execution of a scheduled task characteristic of the
+      GhostWeaver RAT. The malware's persistence mechanism involves a hidden task
+      that executes PowerShell via 'conhost --headless' and often uses a task name
+      that mimics legitimate PowerShell cmdlets to blend in.
+    author: tim@detections.ai
+    references:
+      - https://www.derp.ca/research/ghostweaver-tag124-powershell-rat/
+    date: 2026-03-09
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_process:
+        Image|endswith: '\conhost.exe'
+        CommandLine|contains|all:
+          - '--headless'
+          - 'powershell'
+      selection_task_name:
+        # task name masquerades as a legitimate PowerShell function
+        RuleName|contains:
+          - 'Start-AutologgerConfig'
+          - 'Get-NetAdapter'
+          - 'Update-Help'
+      condition: all of selection_*
+    falsepositives:
+      - Unlikely
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059.001
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - attack.t1059.001
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.derp.ca/research/ghostweaver-tag124-powershell-rat/
+data_sources:
+    - process_creation
+    - windows

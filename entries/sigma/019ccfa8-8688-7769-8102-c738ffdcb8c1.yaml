@@ -1,0 +1,52 @@
+id: 019ccfa8-8688-7769-8102-c738ffdcb8c1
+name: Linux MOTD Persistence Detection
+description: Detects malicious Message of the Day scripts for persistence
+query: |
+    title: Linux MOTD Persistence Detection
+    id: 84998714-0b6b-4965-910b-45bb33da4783
+    description: Detects malicious Message of the Day scripts for persistence
+    references:
+      - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+    tags:
+      - attack.persistence
+      - attack.t1037
+    logsource:
+      product: linux
+      catergory: process-creation
+    detection:
+      selection_motd_paths:
+        TargetFilename|contains:
+          - '/etc/update-motd.d/'
+          - '/etc/motd.d/'
+      selection_executable_scripts:
+        TargetFilename|re: '/\d{2}-[a-zA-Z0-9_-]+'
+        FilePermissions|contains: '+x'
+      selection_malicious_content:
+        FileContent|contains:
+          - '/dev/tcp/'
+          - 'curl'
+          - 'nc -'
+          - 'wget'
+      condition: selection_motd_paths and selection_executable_scripts and
+        selection_malicious_content
+    level: medium
+    falsepositives:
+      - Legitimate system administration scripts or software installations that
+        modify MOTD scripts for valid purposes and happen to contain the monitored
+        keywords. This is particularly true for custom system banners or monitoring
+        scripts that might use 'curl' or 'wget' to fetch information.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1037
+tags:
+    - attack.persistence
+    - attack.t1037
+version: "3"
+references:
+    - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+data_sources:
+    - linux

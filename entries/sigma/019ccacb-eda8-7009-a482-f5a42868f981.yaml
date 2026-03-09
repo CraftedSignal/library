@@ -1,0 +1,57 @@
+id: 019ccacb-eda8-7009-a482-f5a42868f981
+name: Linux Udev At/Cron Persistence
+description: Detects usage udev rules launching at jobs or cron jobs for persistence
+query: |
+    title: Linux Udev At/Cron Persistence
+    id: 53eb76c5-924f-402f-a3dc-9e565dd8f07b
+    description: Detects usage udev rules launching at jobs or cron jobs for persistence
+    references:
+      - https://attack.mitre.org/techniques/T1546/017/
+      - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+    tags:
+      - attack.persistence
+      - attack.t1546.017
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_udev_creation:
+        OriginalFileName|contains:
+          - '/etc/udev/rules.d/'
+          - '/run/udev/rules.d/'
+          - '/usr/lib/udev/rules.d/'
+        OriginalFileName|endswith: '.rules'
+      selection_at_cron:
+        TargetFilename|contains:
+          - '/etc/cron.d/'
+          - '/etc/cron.d/'
+          - '/var/spol/cron/crontab'
+          - '/var/spool/cron/atjobs'
+      condition: selection_udev_creation and selection_at_cron
+    level: high
+    falsepositives:
+      - Legitimate system administration tasks involving the creation or
+        modification of udev rules and scheduled tasks for system maintenance or
+        software deployment.
+      - Installation of legitimate software that uses udev rules and cron/at jobs
+        for its functionality.
+    author: zendannyy
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.017
+    - T1053.003
+tags:
+    - attack.persistence
+    - attack.t1546.017
+author: zendannyy
+version: "3"
+references:
+    - https://attack.mitre.org/techniques/T1546/017/
+    - https://www.elastic.co/security-labs/sequel-on-persistence-mechanisms
+data_sources:
+    - process_creation
+    - linux
