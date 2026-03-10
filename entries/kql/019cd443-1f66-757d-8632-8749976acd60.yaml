@@ -1,0 +1,15 @@
+id: 019cd443-1f66-757d-8632-8749976acd60
+name: PowerShell Command with Embedded IPv4 Address
+description: This rule detects PowerShell commands that contain IPv4 addresses. This could indicate an attempt to establish network connections to specific IP addresses, potentially for command and control (C2) communication, data exfiltration, or other malicious activities. The rule extracts the IPv4 address for further analysis.
+query: "// let LegitimateIPs = (\"127.0.0.1\", \"0.0.0.0\"); // Add here the legitimate IP addresses that you may have in your environment\r\nDeviceEvents\r\n| where ActionType == \"PowerShellCommand\"\r\n| extend Command = tostring(AdditionalFields.Command)\r\n| where Command matches regex @\"(\\b25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(\\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3}\"\r\n| extend IPv4Extracted = extract(\r\n    @\"(\\b(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\\.(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)){3})\",\r\n    1,\r\n    Command\r\n)\r\n//| where not (IPv4Extracted has_any(LegitimateIPs)) // Remove the \"//\" if you want to filter by Legitimate IP Addresses\r\n| where isnotempty(IPv4Extracted)\r\n| project TimeGenerated, DeviceName, Command, IPv4Extracted, InitiatingProcessAccountName, InitiatingProcessFolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1059.001
+tags:
+    - kql
+author: Vicente Neto
+version: "4"
