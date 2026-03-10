@@ -1,0 +1,18 @@
+id: 019cd80a-5e54-7640-8ae9-f09d287c37b4
+name: Intune Company Portal Device Compliance Bypass
+description: Detects successful sign-ins to the Microsoft Intune Company Portal (AppId '9ba1a5c7-f17a-4de9-a1f1-6178c8d51223') where Conditional Access Policies (CAP) have failed. This indicates an attempt to bypass device compliance requirements, potentially allowing access from non-compliant or unmanaged devices.
+query: "// Intune Company Portal Device Compliance Bypass\r\n// Detects: Successful Graph access via Intune Portal from non-compliant/unmanaged device\r\n// MITRE: T1078.004 (Valid Accounts: Cloud)\r\nSigninLogs\r\n| where TimeGenerated > ago(30d)\r\n| where AppId == \"9ba1a5c7-f17a-4de9-a1f1-6178c8d51223\" // Microsoft Intune Company Portal\r\n| where ResultType == 0 // Successful sign-in\r\n// | where ResourceDisplayName == \"Microsoft Graph\"\r\n| mv-expand CAP = parse_json(ConditionalAccessPolicies)\r\n| where CAP.result == \"failure\"\r\n| project\r\n    TimeGenerated,\r\n    UserPrincipalName,\r\n    AppDisplayName,\r\n    ResourceDisplayName,\r\n    IPAddress,\r\n    City = tostring(LocationDetails.city),\r\n    Country = tostring(LocationDetails.countryOrRegion),\r\n    DeviceId = tostring(DeviceDetail.deviceId),\r\n    DeviceOS = tostring(DeviceDetail.operatingSystem),\r\n    IsCompliant = tostring(DeviceDetail.isCompliant),\r\n    IsManaged = tostring(DeviceDetail.isManaged),\r\n    TrustType = tostring(DeviceDetail.trustType),\r\n    UserAgent,\r\n    ClientAppUsed,\r\n    AuthMethod = tostring(MfaDetail.authMethod),\r\n    CAPolicyName = tostring(CAP.displayName),\r\n    CAPolicyResult = tostring(CAP.result),\r\n    CAPolicyGrant = tostring(CAP.enforcedGrantControls),\r\n    CorrelationId,\r\n    SessionId = tostring(parse_json(SessionLifetimePolicies)[0].detail)\r\n| sort by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+techniques:
+    - T1078.004
+    - T1021.007
+tags:
+    - kql
+version: "1"

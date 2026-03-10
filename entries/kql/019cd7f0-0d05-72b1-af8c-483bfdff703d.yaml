@@ -1,0 +1,58 @@
+id: 019cd7f0-0d05-72b1-af8c-483bfdff703d
+name: Chaos RaaS - RMM Tool Persistence from Suspicious Paths or Processes
+description: Detects the execution of legitimate Remote Monitoring and Management (RMM) tools, such as AnyDesk, ScreenConnect, OptiTuneAgent, and SplashtopStreamer, when initiated from non-standard directories (outside 'C:\Program Files') or by command-line shells (powershell.exe, cmd.exe, wscript.exe, cscript.exe). This behavior is often abused by threat actors, including groups like Chaos RaaS, for persistence and remote access.
+query: |
+    // Name: Chaos RaaS - RMM Tool Persistence
+    // Author: detections.ai
+    // Date: 2026-03-10
+    // Description: Detects the execution of legitimate Remote Monitoring and Management (RMM) tools often abused by threat actors, such as the Chaos RaaS group, for persistence and remote access. This detection focuses on executions from non-standard paths or initiated by command-line shells.
+    // MITRE ATT&CK: T1133
+    // References: https://blog.talosintelligence.com/new-chaos-ransomware/
+    // False Positive Sensitivity: Medium
+
+    // Define the list of RMM tool executables mentioned in the intel
+    let rmm_executables = dynamic([
+        "AnyDesk.exe",
+        "ScreenConnect.ClientService.exe",
+        "ScreenConnect.Client.exe",
+        "OptiTuneAgent.exe",
+        "SplashtopStreamer.exe",
+        "srservice.exe"
+    ]);
+    DeviceProcessEvents
+    // Look for process creation events involving these RMM tools
+    | where FileName in~ (rmm_executables)
+    // Filter for suspicious execution patterns to reduce false positives
+    | where
+        // Execution via command line shells can indicate scripted installation by an adversary
+        InitiatingProcessFileName in~ ("powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe")
+        // Execution from non-standard directories is suspicious. Legitimate installs are typically in Program Files.
+        or FolderPath !startswith @"C:\Program Files"
+    // FP Tuning: If your organization uses any of these RMM tools legitimately,
+    // consider adding their specific installation paths or parent processes (e.g., software management tools) to an exclusion list.
+    // For example: `and not (FileName == "AnyDesk.exe" and InitiatingProcessFileName == "SCCM.exe")`
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        FolderPath,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0011
+techniques:
+    - T1219.002
+    - T1219
+tags:
+    - kql
+version: "4"
+references:
+    - https://blog.talosintelligence.com/new-chaos-ransomware/

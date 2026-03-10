@@ -1,0 +1,13 @@
+id: 019cd7bb-aa10-7278-b2ec-88f7c81b4597
+name: Reverse DNS Query Activity
+description: This rule detects DNS queries for reverse lookups, specifically those ending with '.in-addr.arpa' or '.ip6.arpa'. While legitimate, frequent or unusual reverse DNS queries from a specific device or process could indicate reconnaissance activities or attempts to map internal network infrastructure by an attacker.
+query: "DeviceNetworkEvents\r\n| where ActionType == \"DnsQueryResponse\"\r\n| where RemoteUrl endswith \".in-addr.arpa\" or RemoteUrl endswith \".ip6.arpa\"\r\n| where isnotempty(RemoteIP)\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    make_set(RemoteIP),\r\n    RequestCount = count()\r\n    by\r\n    RemoteUrl,\r\n    DeviceName,\r\n    InitiatingProcessAccountName\r\n| extend\r\n    timestamp = StartTime,\r\n    HostCustomEntity = DeviceName,\r\n    DomainCustomEntity = RemoteUrl,\r\n    AccountCustomEntity = InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1590.002
+tags:
+    - kql
+version: "1"

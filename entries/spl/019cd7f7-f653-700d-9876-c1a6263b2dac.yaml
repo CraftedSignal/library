@@ -1,0 +1,37 @@
+id: 019cd7f7-f653-700d-9876-c1a6263b2dac
+name: MuddyWater FMAPP.exe DLL Side-Load and C2
+description: Detects potential DLL side-loading activity associated with the MuddyWater threat actor. The rule identifies the legitimate Fortemedia application, FMAPP.exe, initiating network connections while running from a non-standard or suspicious directory, such as C:\Users\Public\Downloads\. This behavior is indicative of a malicious FMAPP.dll being loaded for command-and-control (C2) communications.
+query: |
+    `# Name: MuddyWater FMAPP.exe DLL Side-Load and C2
+    # Author: detections.ai
+    # Date: 2026-03-10
+    # Description: Detects potential DLL side-loading activity associated with the MuddyWater threat actor. The rule identifies the legitimate Fortemedia application, FMAPP.exe, initiating network connections while running from a non-standard or suspicious directory, such as C:\Users\Public\Downloads\. This behavior is indicative of a malicious FMAPP.dll being loaded for command-and-control (C2) communications.
+    # References: https://www.huntress.com/blog/muddywater-attack-chain`
+
+    `comment("This search leverages process and network events. Adjust the index and sourcetype to match your environment's data sources, such as Sysmon.")`
+    (index=* (sourcetype=XmlWinEventLog:Microsoft-Windows-Sysmon/Operational OR sourcetype=wineventlog))
+    `comment("Filter for network connection events (EventCode 3) initiated by FMAPP.exe.")`
+    | search EventCode=3 Image="*\\FMAPP.exe"
+    `comment("Core logic: Filter for instances where FMAPP.exe is NOT running from a standard Program Files directory. The explicit check for 'Users\\Public' aligns directly with observed MuddyWater TTPs.")`
+    | where (NOT (like(Image, "%ProgramFiles%"))) OR (like(Image, "%\\Users\\Public\\%"))
+    `comment("False Positive Tuning: While unlikely, a legitimate portable version of this tool could trigger this alert. If false positives occur, consider adding more specific path exclusions or filtering by user context.")`
+    | stats count min(_time) as firstTime max(_time) as lastTime values(Image) as process_path values(DestinationIp) as dest_ip values(DestinationPort) as dest_port by ComputerName, User
+    | `security_content_ctime(firstTime)`
+    | `security_content_ctime(lastTime)`
+    | rename ComputerName as host, User as user
+    | fields firstTime, lastTime, host, user, process_path, dest_ip, dest_port, count
+query_type: spl
+severity: medium
+tactics:
+    - TA0011
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+    - T1071.001
+tags:
+    - spl
+version: "2"
+references:
+    - https://www.huntress.com/blog/muddywater-attack-chain

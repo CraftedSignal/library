@@ -1,0 +1,59 @@
+id: 019cd7d7-40f3-74e4-a00e-01e7c07cf803
+name: TunnesshClient Backdoor Credential Retrieval
+description: Detects HTTP POST requests to "/api/get_challenge" or "/api/get_credentials" on port 5000. This is the initial communication pattern of the TunnesshClient backdoor, a component of the BoryptGrab campaign, to retrieve SSH credentials from its C2 server before establishing a reverse SSH tunnel.
+query: |
+    title: TunnesshClient Backdoor Credential Retrieval
+    id: 2bc09532-59b4-4771-9b41-44642443b1d3
+    status: experimental
+    description: Detects HTTP POST requests to "/api/get_challenge" or
+      "/api/get_credentials" on port 5000. This is the initial communication pattern
+      of the TunnesshClient backdoor, a component of the BoryptGrab campaign, to
+      retrieve SSH credentials from its C2 server before establishing a reverse SSH
+      tunnel.
+    author: detections.ai
+    references:
+      - https://www.trendmicro.com/en_us/research/26/c/boryptgrab-stealer-targets-users-via-deceptive-github-pages.html
+    date: 2026-03-10
+    tags:
+      - attack.credential_access
+      - attack.t1555.003
+      - attack.command_and_control
+      - attack.t1071.001
+      - detection.emerging-threats
+    logsource:
+      category: proxy
+    detection:
+      selection:
+        # Detects POST request to the specific C2 endpoints
+        http.request.method: 'POST'
+        url.path:
+          - '/api/get_challenge'
+          - '/api/get_credentials' # TunnesshClient communicates over port 5000 for credential retrieval
+        destination.port: 5000
+      condition: selection
+    falsepositives:
+      - Legitimate applications might use similar API endpoints. However, the
+        combination of the specific paths, the POST method, and the non-standard
+        port 5000 is highly indicative of TunnesshClient. If false positives occur,
+        consider further tuning by destination IP address.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0011
+techniques:
+    - T1555.003
+    - T1071.001
+tags:
+    - attack.credential_access
+    - attack.t1555.003
+    - attack.command_and_control
+    - attack.t1071.001
+    - detection.emerging-threats
+author: detections.ai
+version: "2"
+references:
+    - https://www.trendmicro.com/en_us/research/26/c/boryptgrab-stealer-targets-users-via-deceptive-github-pages.html
+data_sources:
+    - proxy
