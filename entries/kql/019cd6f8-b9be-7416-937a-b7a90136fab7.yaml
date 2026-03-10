@@ -1,0 +1,20 @@
+id: 019cd6f8-b9be-7416-937a-b7a90136fab7
+name: Multi-Stage BaqiyatLock/Remcos Activity Detection
+description: This rule detects multiple stages of activity associated with BaqiyatLock ransomware and Remcos RAT. It identifies the execution of known BaqiyatLock/Remcos files, attempts to bypass User Account Control (UAC) via ms-settings registry hijack, creation of files with the '.bqtlock' extension indicative of BaqiyatLock encryption, and network communication with 'icanhazip.com' for external IP discovery, which is a common reconnaissance step.
+query: "let lookback = 1d;\r\nlet fileHash = \"4437ab9c5db3c5ebb9235b4adade504153fa39ca5774ac8c6145a0b7c97a97eb\";\r\n(union kind=outer\r\n    (\r\n        DeviceProcessEvents\r\n        | where TimeGenerated > ago(lookback)\r\n        | where SHA256 =~ fileHash\r\n        | extend Activity = \"Known BaqiyatLock/Remcos File Execution\", Tactic = \"Execution\", Technique = \"T1204.002\", Indicator = SHA256\r\n        | project TimeGenerated, DeviceName, Activity, Tactic, Technique, Indicator, FileName, FolderPath, ProcessCommandLine, InitiatingProcessCommandLine\r\n    ),\r\n    (\r\n        DeviceRegistryEvents\r\n        | where TimeGenerated > ago(lookback)\r\n        | where ActionType == \"RegistryValueSet\"\r\n        | where RegistryKey == @\"HKEY_CLASSES_ROOT\\ms-settings\\shell\\open\\command\" and isempty(RegistryValueName)\r\n        | extend Activity = \"UAC Bypass via ms-settings Hijack\", Tactic = \"Defense Evasion\", Technique = \"T1548.002\", Indicator = RegistryKey\r\n        | project TimeGenerated, DeviceName, Activity, Tactic, Technique, Indicator, InitiatingProcessCommandLine, RegistryValueData\r\n    ),\r\n    (\r\n        DeviceFileEvents\r\n        | where TimeGenerated > ago(lookback)\r\n        | where ActionType == \"FileCreated\" and FileName endswith \".bqtlock\"\r\n        | extend Activity = \"BaqiyatLock Ransomware File Created\", Tactic = \"Impact\", Technique = \"T1486\", Indicator = FileName\r\n        | project TimeGenerated, DeviceName, Activity, Tactic, Technique, Indicator, FolderPath, InitiatingProcessCommandLine\r\n    ),\r\n    (\r\n        DeviceNetworkEvents\r\n        | where TimeGenerated > ago(lookback)\r\n        | where RemoteUrl has \"icanhazip.com\"\r\n        | extend Activity = \"External IP Check via icanhazip.com\", Tactic = \"Discovery\", Technique = \"T1016\", Indicator = RemoteUrl\r\n        | project TimeGenerated, DeviceName, Activity, Tactic, Technique, Indicator, InitiatingProcessCommandLine, RemoteUrl\r\n    )\r\n)\r\n| extend HostName = tostring(split(DeviceName, \".\")[0]), DnsDomain = tostring(strcat_array(array_slice(split(DeviceName, \".\"), 1, -1), \".\"))\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0004
+    - TA0005
+    - TA0040
+    - TA0007
+techniques:
+    - T1204.002
+    - T1548.002
+    - T1486
+    - T1016
+tags:
+    - kql
+version: "1"

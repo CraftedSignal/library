@@ -1,0 +1,13 @@
+id: 019cd6a7-e2ac-7312-83b1-e3fc9aee53bb
+name: Inhibit System Recovery via REAGENTC and WBADMIN
+description: This rule detects the execution of 'REAGENTC.EXE' with the '/disable' argument and 'WBADMIN.EXE' with 'delete catalog -quiet' within a 10-minute window on the same device. This combination of commands is indicative of an adversary attempting to inhibit system recovery by disabling Windows Recovery Environment and deleting the Windows Backup Catalog, often seen in ransomware attacks.
+query: "let timeWindow = 10m;\r\nDeviceProcessEvents\r\n| where TimeGenerated > ago(timeWindow)\r\n| where\r\n    (ProcessVersionInfoOriginalFileName =~ \"REAGENTC.EXE\" and ProcessCommandLine has \"/disable\") or\r\n    (ProcessVersionInfoOriginalFileName =~ \"WBADMIN.EXE\" and ProcessCommandLine has \"delete\" and ProcessCommandLine has \"catalog\" and ProcessCommandLine has \"-quiet\")\r\n| summarize\r\n    StartTime = min(TimeGenerated),\r\n    EndTime = max(TimeGenerated),\r\n    DistinctProcesses = make_set(ProcessVersionInfoOriginalFileName),\r\n    CommandLines = make_set(ProcessCommandLine)\r\n    by DeviceId, DeviceName, bin(TimeGenerated, timeWindow)\r\n| where array_length(DistinctProcesses) == 2\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    DeviceName,\r\n    DeviceId,\r\n    CommandLines\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+techniques:
+    - T1490
+tags:
+    - kql
+version: "1"

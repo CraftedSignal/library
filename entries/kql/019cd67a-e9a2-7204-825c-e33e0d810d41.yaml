@@ -1,0 +1,17 @@
+id: 019cd67a-e9a2-7204-825c-e33e0d810d41
+name: Interactive Logon from Same Domain Account to Multiple Devices
+description: This rule detects interactive logons (LogonType 10) where a single account from the same domain logs into multiple distinct devices. This could indicate an attacker using compromised credentials to move laterally within the network or access multiple systems.
+query: "SecurityEvent\r\n| where TimeGenerated > ago (30d)\r\n| where EventID == \"4624\"\r\n| where LogonType == 10\r\n| where SubjectDomainName == TargetDomainName\r\n| summarize\r\n    ['Total logon count']=count(),\r\n    ['Distinct device logon count']=dcount(Computer),\r\n    ['List of devices']=make_set(Computer)\r\n    by tolower(Account)\r\n| sort by ['Distinct device logon count'] desc "
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078
+    - DS0028
+tags:
+    - kql
+version: "1"

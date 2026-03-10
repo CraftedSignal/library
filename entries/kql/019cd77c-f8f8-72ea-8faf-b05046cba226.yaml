@@ -1,0 +1,15 @@
+id: 019cd77c-f8f8-72ea-8faf-b05046cba226
+name: Double Extention- Executable Masquerading as Document or Archive File
+description: This rule detects processes where an executable file (.exe) attempts to masquerade as a common document, image, or archive file type by including extensions like .pdf, .doc, .zip, .jpg, etc., within its filename, followed by the .exe extension. It specifically excludes executables originating from Microsoft Office root directories to reduce false positives.
+query: "DeviceProcessEvents\r\n| where FileName endswith \".exe\"\r\n| where FileName has_any (\r\n    \".pdf\",\r\n    \".doc\",\r\n    \".docx\",\r\n    \".ppt\",\r\n    \".pptx\",\r\n    \".xls\",\r\n    \".xlsx\",\r\n    \".csv\",\r\n    \".txt\",\r\n    \".zip\",\r\n    \".jpg\",\r\n    \".jpeg\",\r\n    \".png\",\r\n    \".html\",\r\n    \".rtf\",\r\n    \".lnk\"\r\n)\r\n| where not(InitiatingProcessFolderPath has \"\\\\Program Files\\\\Microsoft Office\\\\root\")\r\n| where FileName matches regex \"[^\\\\\\\\]+\\\\.[^\\\\.]{1,4}[\\\\.\\\\-_]+exe$\"\r\n| project Timestamp, DeviceName, ActionType, AccountName, AccountDomain, \r\n    FileName, FolderPath, ProcessId, ProcessCommandLine, \r\n    InitiatingProcessFileName, InitiatingProcessCommandLine, \r\n    InitiatingProcessFolderPath, InitiatingProcessId, \r\n    InitiatingProcessParentFileName, InitiatingProcessParentId, \r\n    InitiatingProcessAccountDomain, InitiatingProcessAccountName, \r\n    ProcessVersionInfoCompanyName, ProcessVersionInfoProductName, \r\n    ProcessVersionInfoProductVersion, ProcessVersionInfoInternalFileName, \r\n    ProcessVersionInfoOriginalFileName, ProcessVersionInfoFileDescription, \r\n    FileSize, SHA256, DeviceId, ReportId\r\n| order by Timestamp\r\n "
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1204
+    - T1566
+tags:
+    - kql
+version: "1"

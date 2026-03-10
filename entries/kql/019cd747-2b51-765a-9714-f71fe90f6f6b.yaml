@@ -1,0 +1,9 @@
+id: 019cd747-2b51-765a-9714-f71fe90f6f6b
+name: ' Detection of Gh0st RAT Related File Hashes in Process or File Events'
+description: This rule detects the presence of files or processes with known malicious SHA256 or MD5 hashes. It queries both DeviceProcessEvents and DeviceFileEvents to identify if any file or running process matches the provided list of malicious hashes.
+query: "let malicious_hashes = dynamic([\r\n    \"91b6eafd5af576f3d0b8cc8b88c7d8cf79a1ad3c68961f7f66a37ae36edfa56e\", \r\n    \"d4d0face071e99ce2f34e370d637ad6995d96206d85270fbadd4ca67260d809a2\",\r\n    \"ec6ef50587a847d4a655e9bfc5c1aee4078005c0774a3e6fa23949cc4d8fbad3\", \r\n    \"18b5ded739ef47097634ebcb776407d4\"  \r\n]);\r\nunion DeviceProcessEvents, DeviceFileEvents\r\n| where SHA256 in (malicious_hashes) or MD5 in (malicious_hashes)\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    MD5,\r\n    InitiatingProcessCommandLine,\r\n    ProcessCommandLine = iif(ActionType has \"Process\", ProcessCommandLine, \"\")\r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

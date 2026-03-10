@@ -1,0 +1,16 @@
+id: 019cd783-d722-7640-a3c8-8ab2fc2e9ec4
+name: Schtasks Creation/Modification with SYSTEM Privileges
+description: Detects the creation or modification of scheduled tasks using 'schtasks.exe' where the task is configured to run under 'NT AUTHORITY\SYSTEM' or 'NT AUTHORITY\NETWORK SERVICE' (represented as 'SYSTEM' or 'NT AUT' in the command line), but the initiating process is not a standard system process. This can indicate an attempt to establish persistence or elevate privileges.
+query: "DeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where FileName =~ \"schtasks.exe\"\r\n    and ProcessCommandLine has_any (\" /change \", \" /create \")\r\n    and ProcessCommandLine has \"/ru \"\r\n    and ProcessCommandLine has_any (\"NT AUT\", \" SYSTEM \")\r\n// filter: TeamViewer\r\n| where not (\r\n    ProcessCommandLine has \"/TN TVInstallRestore\"\r\n    and ProcessCommandLine has @\"\\TeamViewer_.exe\"\r\n)\r\n// filter: Office Heartbeat\r\n| where not (\r\n    ProcessCommandLine has \"Subscription Heartbeat\"\r\n    and ProcessCommandLine has @\"\\HeartbeatConfig.xml\"\r\n    and ProcessCommandLine has @\"\\Microsoft Shared\\OFFICE\"\r\n)\r\n// filter: Avira\r\n| where not (\r\n    ProcessCommandLine has_any (\r\n        \"/Create /F /RU System /SC WEEKLY /TN AviraSystemSpeedupVerify /TR \",\r\n        @\":\\Program Files (x86)\\Avira\\System Speedup\\setup\\avira_speedup_setup.exe\",\r\n        '/VERIFY /VERYSILENT /NOSTART /NODOTNET /NORESTART\" /RL HIGHEST'\r\n    )\r\n)\r\n| summarize count_ = count() by InitiatingProcessFileName\r\n| order by count_ desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053
+    - T1053.005
+tags:
+    - kql
+version: "1"
