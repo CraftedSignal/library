@@ -1,0 +1,57 @@
+id: 019cda75-5b59-7644-b5e5-2016a84cc83e
+name: AppleScript Susp Payload Download
+description: Detects 'osascript' (AppleScript) executing 'curl' to download a second-stage payload. This updated rule is tuned to detect specific indicators from a known campaign, such as the use of silent/insecure flags, downloads to hidden script files (e.g., .ex.scpt), or connections to known malicious domains.
+query: |
+    title: AppleScript Susp Payload Download
+    id: 68fc3038-5779-4bfc-939a-0bd67f927964
+    status: Test
+    description: >-
+      Detects 'osascript' (AppleScript) executing 'curl' to download a second-stage
+      payload. This updated rule is tuned to detect specific indicators from a known
+      campaign, such as the use of silent/insecure flags, downloads to hidden script
+      files (e.g., .ex.scpt), or connections to known malicious domains.
+    author: zendannyy
+    references:
+      - >-
+        http://darktrace.com/blog/applescript-abuse-unpacking-a-macos-phishing-campaign
+    date: 2026-03-10T00:00:00.000Z
+    tags:
+      - attack.t1059.002
+      - attack.t1105
+    logsource:
+      category: process_creation
+      product: macos
+    detection:
+      selection_base:
+        ParentImage|endswith: /osascript
+        Image|endswith: /curl
+      selection_indicators:
+        CommandLine|contains:
+          - '-sLk'
+          - /.ex.scpt
+          - .docx.scpt
+          - .pdf.scpt
+      condition: selection_base and selection_indicators
+    falsepositives:
+      - This rule is honed in on specific indicators, reducing the likelihood of
+        false positives. However, other tools could potentially use similar
+        command-line patterns.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.002
+    - T1105
+tags:
+    - attack.t1059.002
+    - attack.t1105
+author: zendannyy
+version: "1"
+references:
+    - http://darktrace.com/blog/applescript-abuse-unpacking-a-macos-phishing-campaign
+data_sources:
+    - process_creation
+    - macos

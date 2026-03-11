@@ -1,0 +1,60 @@
+id: 019cda79-77af-75ae-a852-310e405683cc
+name: SolarWinds Web Help Desk Obfuscated JSON
+description: Detects attempts to exploit a remote code execution vulnerability (CVE-2025-40553) in SolarWinds Web Help Desk. Attackers use hex-encoded escape sequences (`\xNN`) and other JSON parsing gotchas to bypass security filters and achieve deserialization of malicious objects.
+query: |
+    title: SolarWinds Web Help Desk Obfuscated JSON
+    id: 5d1b898b-88d3-4255-87ae-5e497c99b3b4
+    status: experimental
+    description: Detects attempts to exploit a remote code execution vulnerability
+      (CVE-2025-40553) in SolarWinds Web Help Desk. Attackers use hex-encoded escape
+      sequences (`\xNN`) and other JSON parsing gotchas to bypass security filters
+      and achieve deserialization of malicious objects.
+    author: zendannyy
+    references:
+      - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+    date: 2026-03-10
+    tags:
+      - attack.initial_access
+      - attack.execution
+      - attack.t1190
+      - attack.t1027
+      - cve.2025.40553
+      - cve.2025.26399
+    logsource:
+      category: webserver
+    detection:
+      selection_base:
+        cs-method: 'POST'
+        c-uri|contains: '/helpdesk/WebObjects/Helpdesk.woa/ajax/' # Vulnerable AjaxProxy endpoint
+      selection_obfuscation:
+        http.request.body.content|contains:
+          - 'p\\x61rams' # Obfuscated 'params' key using \x encoding
+          - 'java\\x43lass' # Obfuscated 'javaClass' key using \x encoding
+      selection_bypass:
+        http.request.body.content|contains: '"wat":"\\u0022"' # Technique to bypass JSON length checks
+      condition: selection_base and (1 of selection_*)
+    falsepositives:
+      - The specific strings used for obfuscation are unique to this exploit and are
+        unlikely to appear in legitimate traffic.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0005
+techniques:
+    - T1190
+    - T1027
+tags:
+    - attack.initial_access
+    - attack.execution
+    - attack.t1190
+    - attack.t1027
+    - cve.2025.40553
+    - cve.2025.26399
+author: zendannyy
+version: "2"
+references:
+    - https://labs.watchtowr.com/buy-a-help-desk-bundle-a-remote-access-solution-solarwinds-web-help-desk-pre-auth-rce-chain-s/
+data_sources:
+    - webserver

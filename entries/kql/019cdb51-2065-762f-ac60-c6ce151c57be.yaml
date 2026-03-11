@@ -1,0 +1,149 @@
+id: 019cdb51-2065-762f-ac60-c6ce151c57be
+name: Hunting MuddyWater Attack Chain
+description: Detects possible MuddyWater related activity in Microsoft Defender XDR Advanced Hunting by correlating suspicious process, network, file, and logon telemetry into a unified timeline. The hunt focuses on behaviours reported in the Huntress MuddyWater attack chain, including Remote Desktop logons, reconnaissance commands, OpenSSH reverse tunnelling, suspicious network connections, and possible DLL side loading involving FMAPP.exe and FMAPP.dll.
+query: |-
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-11
+    // References:
+    // 1. Huntress, "MuddyWater Attack Chain".
+    //    https://www.huntress.com/blog/muddywater-attack-chain
+    // Description:
+    // Advanced Hunting query for MuddyWater-related activity using a unified timeline
+    // across process, network, file, and logon telemetry.
+
+
+    let startTime = ago(30d);
+    let muddy_ips = dynamic(["162.0.230.185", "157.20.182.49", "173.16.10.1"]);
+    let muddy_domains = dynamic(["ifconfig.me"]);
+    let muddy_sha256 = dynamic([
+        "e25892603c42e34bd7ba0d8ea73be600d898cadc290e3417a82c04d6281b743b",
+        "589ecb0bb31adc6101b9e545a4e5e07ae2e97d464b0a62242a498e613a7740b6"
+    ]);
+    let suspicious_cmd_terms = dynamic([
+        "asuedulimit",
+        "StrictHostKeyChecking=no",
+        " -R ",
+        " -N",
+        "whoami /priv",
+        "whoami /pric",
+        "net groups /do",
+        "net group admi /do",
+        "net localgroup adminstraots",
+        "net localgroup administrators",
+        "tasklist | findstr FMAPP",
+        "ping 157.20.182.49",
+        "curl ifconfig.me"
+    ]);
+    union isfuzzy=true
+    (
+        DeviceProcessEvents
+        | where Timestamp >= startTime
+        | where FileName in~ ("ssh.exe", "powershell.exe", "cmd.exe", "net.exe", "whoami.exe", "curl.exe", "ping.exe", "tasklist.exe", "FMAPP.exe")
+            or InitiatingProcessFileName =~ "FMAPP.exe"
+            or has_any_ipv4(ProcessCommandLine, muddy_ips)
+            or ProcessCommandLine has_any (muddy_domains)
+            or ProcessCommandLine has_any (suspicious_cmd_terms)
+            or FolderPath has @"\Users\Public\Downloads\"
+            or SHA256 in (muddy_sha256)
+            or SHA1 in ("PUT_SHA1_HERE_IF_KNOWN")
+        | project
+            Timestamp,
+            DeviceName,
+            TableName = "DeviceProcessEvents",
+            AccountName,
+            ActionType = ActionType,
+            FileName,
+            FolderPath,
+            SHA1,
+            SHA256,
+            RemoteIP = "",
+            RemoteUrl = "",
+            Details = ProcessCommandLine,
+            InitiatingProcessFileName,
+            InitiatingProcessCommandLine
+    ),
+    (
+        DeviceNetworkEvents
+        | where Timestamp >= startTime
+        | where RemoteIP in (muddy_ips)
+            or RemoteUrl has_any (muddy_domains)
+            or InitiatingProcessFileName in~ ("ssh.exe", "FMAPP.exe", "powershell.exe", "cmd.exe", "curl.exe", "ping.exe")
+            or has_any_ipv4(InitiatingProcessCommandLine, muddy_ips)
+            or InitiatingProcessCommandLine has_any (muddy_domains)
+            or InitiatingProcessCommandLine has_any (suspicious_cmd_terms)
+        | project
+            Timestamp,
+            DeviceName,
+            TableName = "DeviceNetworkEvents",
+            AccountName = InitiatingProcessAccountName,
+            ActionType,
+            FileName = InitiatingProcessFileName,
+            FolderPath = InitiatingProcessFolderPath,
+            SHA1 = InitiatingProcessSHA1,
+            SHA256 = InitiatingProcessSHA256,
+            RemoteIP,
+            RemoteUrl,
+            Details = InitiatingProcessCommandLine,
+            InitiatingProcessFileName,
+            InitiatingProcessCommandLine
+    ),
+    (
+        DeviceFileEvents
+        | where Timestamp >= startTime
+        | where FileName in~ ("FMAPP.exe", "FMAPP.dll")
+            or SHA256 in (muddy_sha256)
+            or FolderPath has @"\Users\Public\Downloads\"
+        | project
+            Timestamp,
+            DeviceName,
+            TableName = "DeviceFileEvents",
+            AccountName = InitiatingProcessAccountName,
+            ActionType,
+            FileName,
+            FolderPath,
+            SHA1,
+            SHA256,
+            RemoteIP = "",
+            RemoteUrl = "",
+            Details = strcat("File event on ", FolderPath, "\\", FileName),
+            InitiatingProcessFileName,
+            InitiatingProcessCommandLine
+    ),
+    (
+        DeviceLogonEvents
+        | where Timestamp >= startTime
+        | where LogonType =~ "RemoteInteractive"
+        | project
+            Timestamp,
+            DeviceName,
+            TableName = "DeviceLogonEvents",
+            AccountName,
+            ActionType,
+            FileName = "",
+            FolderPath = "",
+            SHA1 = "",
+            SHA256 = "",
+            RemoteIP,
+            RemoteUrl = "",
+            Details = strcat("Remote interactive logon from ", RemoteIP),
+            InitiatingProcessFileName = "",
+            InitiatingProcessCommandLine = ""
+    )
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1021.001
+    - T1590.004
+    - T1563.002
+    - T1574.001
+    - T1021.004
+    - T1572
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "6"
+references:
+    - https://www.huntress.com/blog/muddywater-attack-chain

@@ -1,0 +1,63 @@
+id: 019c774e-9cb2-727e-9e20-0032565c7ca6
+name: Gatekeeper Bypass via Shell Script Execution from DMG
+description: |
+    Detects execution of shell scripts from mounted disk images (DMG), a technique
+    used to bypass Gatekeeper restrictions after macOS Sequoia updates.
+query: |
+    title: Gatekeeper Bypass via Shell Script Execution from DMG
+    id: 005d7198-9033-4107-b99e-7cacc30ee825
+    status: experimental
+    description: |
+      Detects execution of shell scripts from mounted disk images (DMG), a technique
+      used to bypass Gatekeeper restrictions after macOS Sequoia updates.
+    references:
+      - https://redcanary.com/threat-detection-report/trends/mac-malware/
+    tags:
+      - attack.defense-evasion
+      - attack.t1553.001
+    logsource:
+      product: macos
+      category: process_creation
+    detection:
+      selection_shell_execution:
+        Image|endswith:
+          - '/bash'
+          - '/sh'
+          - '/zsh'
+        ParentImage|endswith: '/Terminal'
+      selection_dmg_source:
+        CommandLine|contains:
+          - '/Volumes/'
+        CurrentDirectory|contains:
+          - '/Volumes/'
+      selection_suspicious_scripts:
+        CommandLine|contains:
+          - '.command'
+          - '.sh'
+          - 'installer'
+          - 'setup'
+      condition: 1 of selection_shell_execution and 1 of selection_dmg_source and 1 of
+        selection_suspicious_scripts
+    level: medium
+    falsepositives:
+      - Legitimate software installations or updates that use shell scripts from
+        mounted DMG files.
+      - Developers or system administrators executing scripts from DMG files for
+        testing or administrative purposes.
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1553.001
+    - T1059.004
+tags:
+    - attack.defense-evasion
+    - attack.t1553.001
+version: "3"
+references:
+    - https://redcanary.com/threat-detection-report/trends/mac-malware/
+data_sources:
+    - process_creation
+    - macos

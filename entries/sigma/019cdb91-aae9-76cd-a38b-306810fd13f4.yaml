@@ -1,0 +1,60 @@
+id: 019cdb91-aae9-76cd-a38b-306810fd13f4
+name: BadPaw Persistence via Scheduled Task
+description: Detects the creation of scheduled tasks with specific names and command-line patterns associated with the BadPaw PowerShell backdoor. This technique is used by the threat actor to establish persistence on the compromised system.
+query: |
+    title: BadPaw Persistence via Scheduled Task
+    description: >-
+      Detects the creation of scheduled tasks with specific names and command-line
+      patterns associated with the BadPaw PowerShell backdoor. This technique is
+      used by the threat actor to establish persistence on the compromised system.
+    author: Akshay Gaikwad
+    references:
+      - >-
+        https://www.clearskysec.com/wp-content/uploads/2026/03/BadPaw_and_MeowMeow.pdf
+    date: 2026-03-11T00:00:00.000Z
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_base:
+        Image|endswith: \schtasks.exe
+        CommandLine|contains|all:
+          - /create
+          - /tn
+          - /tr
+      selection_payload:
+        CommandLine|contains:
+          - powershell
+          - pwsh
+      selection_taskname:
+        CommandLine|contains:
+          - ' "SystemUpdate" '
+          - ' "BrowserUpdateCheck" '
+          - ' "Adobe Update" '
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate system administration activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059.001
+tags:
+    - attack.persistence
+    - attack.t1053.005
+author: Akshay Gaikwad
+version: "2"
+references:
+    - https://www.clearskysec.com/wp-content/uploads/2026/03/BadPaw_and_MeowMeow.pdf
+data_sources:
+    - process_creation
+    - windows
