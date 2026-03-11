@@ -1,0 +1,53 @@
+id: 019cd964-2a02-76cf-8ec6-6ca930dc3c8f
+name: DeadVax Self-Parsing Script Payload Extraction
+description: Detects a PowerShell process reading the content of a batch script named 'rEgX.cmd' to extract an appended payload. This technique is used by the DeadVax malware as part of its stage 3 execution.
+query: |
+    title: DeadVax Self-Parsing Script Payload Extraction
+    id: 3394f983-7163-409f-8b26-7ac03edeb216
+    status: experimental
+    description: Detects a PowerShell process reading the content of a batch script
+      named 'rEgX.cmd' to extract an appended payload. This technique is used by the
+      DeadVax malware as part of its stage 3 execution.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/?_gl=1*9ljzsj*_up*MQ..*_gs*MQ..&gclid=EAIaIQobChMInMvD1pGWkwMVeyatBh0ADDDaEAAYASABEgJt1vD_BwE&gbraid=0AAAAADverT5eX-BGJchhTipJhMQHkRXuQ
+    date: 2026-03-10
+    tags:
+      - attack.t1027
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe' # Detects PowerShell reading the content of a specific batch file to find and extract a payload.
+        CommandLine|contains|all:
+          - 'Get-Content'
+          - 'rEgX.cmd' # Specific batch file name used by the DeadVax malware.
+          - '-match'
+      condition: selection
+    falsepositives:
+      - Legitimate scripts could potentially use a similar self-parsing technique,
+        but the filename 'rEgX.cmd' is highly specific to this threat. Consider
+        tuning if this filename is used legitimately in your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.t1027
+    - attack.t1059.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/?_gl=1*9ljzsj*_up*MQ..*_gs*MQ..&gclid=EAIaIQobChMInMvD1pGWkwMVeyatBh0ADDDaEAAYASABEgJt1vD_BwE&gbraid=0AAAAADverT5eX-BGJchhTipJhMQHkRXuQ
+data_sources:
+    - process_creation
+    - windows

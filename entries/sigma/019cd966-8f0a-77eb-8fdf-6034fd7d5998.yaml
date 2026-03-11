@@ -1,0 +1,73 @@
+id: 019cd966-8f0a-77eb-8fdf-6034fd7d5998
+name: PowerShell Win32 API Process Injection Definition
+description: Detects the use of the PowerShell 'Add-Type' cmdlet to dynamically define a C# class containing Win32 API functions commonly used for process injection. This technique is leveraged by the Dead#Vax loader to inject its final payload, such as AsyncRAT, into the memory of legitimate processes without dropping a decrypted binary to disk.
+query: |
+    title: PowerShell Win32 API Process Injection Definition
+    id: 97a86112-315c-4e50-930a-3b6228aaeea5
+    status: experimental
+    description: >-
+      Detects the use of the PowerShell 'Add-Type' cmdlet to dynamically define a C#
+      class containing Win32 API functions commonly used for process injection. This
+      technique is leveraged by the Dead#Vax loader to inject its final payload,
+      such as AsyncRAT, into the memory of legitimate processes without dropping a
+      decrypted binary to disk.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.privilege_escalation
+      - attack.t1059.001
+      - attack.t1055.002
+      - attack.t1106
+    logsource:
+      category: ps_script
+      product: windows
+    detection:
+      # This rule requires PowerShell Script Block Logging (Event ID 4104) to be enabled for visibility into deobfuscated script content.
+      selection:
+        ScriptBlockText|contains|all:
+          # Detects dynamic compilation of C# code within PowerShell
+          - 'Add-Type'
+          # Specifies the import of a function from an unmanaged DLL
+          - 'DllImport'
+          # The DLL containing the core process and memory management functions
+          - 'kernel32.dll'
+          # The specific API calls used for the classic process injection technique
+          - 'OpenProcess'
+          - 'VirtualAllocEx'
+          - 'WriteProcessMemory'
+          - 'CreateRemoteThread'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative scripts, security tools, or penetration testing
+        frameworks (e.g., PowerSploit) may use this technique. However, the
+        combination of all these specific API calls in a single script block is
+        highly suspicious and warrants investigation.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1059.001
+    - T1055.002
+    - T1106
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.privilege_escalation
+    - attack.t1059.001
+    - attack.t1055.002
+    - attack.t1106
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - ps_script
+    - windows

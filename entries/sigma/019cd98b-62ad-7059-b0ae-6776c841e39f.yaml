@@ -1,0 +1,65 @@
+id: 019cd98b-62ad-7059-b0ae-6776c841e39f
+name: Dead#Vax Self-Parsing Script Payload Extraction
+description: Detects a PowerShell command used to read its own batch script container (e.g., rEgX.cmd) to find and extract a hidden, encoded payload. This self-parsing technique is a core feature of the Dead#Vax malware.
+query: |
+    title: Dead#Vax Self-Parsing Script Payload Extraction
+    id: a39b705c-6fe3-462f-a728-100f301f05e9
+    status: experimental
+    description: Detects a PowerShell command used to read its own batch script
+      container (e.g., rEgX.cmd) to find and extract a hidden, encoded payload. This
+      self-parsing technique is a core feature of the Dead#Vax malware.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.defense_evasion
+      - attack.execution
+      - attack.t1027.001
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_img:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+          - '\mbs.exe' # Renamed PowerShell used by Dead#Vax
+      selection_cmd_verb:
+        CommandLine|contains:
+          # Detects the command to read file content, including common aliases
+          - 'Get-Content'
+          - 'gc'
+          - 'type'
+          - 'cat'
+      selection_cmd_args:
+        CommandLine|contains|all:
+          - '.cmd' # The file being read is a command script, which is unusual for PowerShell to parse this way
+          - '^@' # Looks for a line starting with '@', the marker for the hidden payload
+      condition: selection_img and selection_cmd_verb and selection_cmd_args
+    falsepositives:
+      - Legitimate scripts could potentially read batch files in this manner, but it
+        is highly uncommon for them to parse for lines starting with an '@' symbol.
+        Scrutinize the script's purpose and origin.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1027.001
+    - T1059.001
+tags:
+    - attack.defense_evasion
+    - attack.execution
+    - attack.t1027.001
+    - attack.t1059.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

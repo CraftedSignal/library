@@ -1,0 +1,14 @@
+id: 019cd958-5fe8-715b-b74d-473330bf05e4
+name: WerFaultSecure Executes EDR-Freeze
+description: WerFaultSecure should load nearly immediately after EDR-Freeze. This query will correlate PID values instead of time deltas. Since EDR-Freeze requires the PID of an AV/EDR process and WerFaultSecure has to pass a PID to MiniDumpWriteDump so that it can suspend a process, both processes executing will have the same PID in the command line execution. One addition here is to look for the inclusion of dbghelp.dll or dbgcore.dll in the CallTrace field to limit false positive hits.
+query: "index=sysmon EventCode IN (1,10)\n| eval EventType=case(EventCode==1,\"ProcessCreate\", EventCode==10,\"ProcessAccess\")\n| rex field=CommandLine \"(?i)^(?<exe>[\\w:\\\\\\/.\\- ]+?\\.exe)\\s+(?<pid>\\d{3,5})\\b\\s+(?<sleep>\\d+)\\b$\"\n| eval pid = coalesce(pid, tostring(process_id))\n| where isnotnull(pid)\n| where (EventType!=\"ProcessAccess\") OR like(CallTrace,\"%dbghelp%\") OR like(CallTrace,\"%dbgcore%\")\n| stats values(EventType) as EventTypes\n        values(CommandLine) as CommandLines\n        values(Image) as Images\n        values(TargetImage) as TargetImages\n        values(SourceImage) as SourceImages\n        values(CallTrace) as CallTrace\n    by Computer, pid\n| where mvcount(EventTypes) > 1 \n      AND match(mvjoin(EventTypes, \",\"), \"ProcessCreate\")\n      AND match(mvjoin(EventTypes, \",\"), \"ProcessAccess\")\n| table Computer, pid, EventTypes, CommandLines, Images, SourceImages, TargetImages, CallTrace"
+query_type: spl
+severity: medium
+techniques:
+    - T1562.001
+tags:
+    - spl
+version: "3"
+references:
+    - https://blog.axelarator.net/hunting-for-edr-freeze/
+    - https://www.zerosalarium.com/2025/09/EDR-Freeze-Puts-EDRs-Antivirus-Into-Coma.html

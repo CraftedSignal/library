@@ -1,0 +1,88 @@
+id: 019cd971-5b46-7547-be68-f729696abaa8
+name: Script Execution from Mounted Virtual Disk
+description: |
+    Detects the execution of script interpreters (wscript.exe, cscript.exe, cmd.exe, powershell.exe) where the script file being executed resides on a newly mounted virtual disk volume (VHD, ISO, etc.).
+    This technique is used by malware, such as in the Dead#Vax campaign, to bypass the Mark-of-the-Web (MotW) security feature, allowing malicious files inside the container to execute without standard untrusted file warnings.
+query: |
+    title: Script Execution from Mounted Virtual Disk
+    id: 818ab3ad-15b1-48d6-8958-5c3a5fb1ba40
+    status: super production ready
+    description: >
+      Detects the execution of script interpreters (wscript.exe, cscript.exe,
+      cmd.exe, powershell.exe) where the script file being executed resides on a
+      newly mounted virtual disk volume (VHD, ISO, etc.).
+
+      This technique is used by malware, such as in the Dead#Vax campaign, to bypass
+      the Mark-of-the-Web (MotW) security feature, allowing malicious files inside
+      the container to execute without standard untrusted file warnings.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10T00:00:00.000Z
+    tags:
+      - attack.defense_evasion
+      - attack.t1553.005
+      - attack.execution
+      - attack.t1059.007
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.t1059.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_interpreters:
+        Image|endswith:
+          - \wscript.exe
+          - \cscript.exe
+          - \cmd.exe
+          - \powershell.exe
+      selection_script_on_vhd_extensions:
+        CommandLine|contains:
+          - .wsf
+          - .js
+          - .vbs
+          - .bat
+          - .cmd
+          - .ps1
+      selection_script_on_vhd_paths:
+        CommandLine|contains:
+          - \Device\Vhd
+          - \Device\CdRom
+          - \Device\ImDisk
+      condition: >-
+        selection_interpreters and selection_script_on_vhd_extensions and
+        selection_script_on_vhd_paths
+    falsepositives:
+      - Legitimate administrative scripts or software installers that are run from
+        mounted VHD or ISO files.
+      - This detection is dependent on the log source providing the full device path
+        (e.g., `\Device\Vhd...`) in the command-line arguments, which may not be
+        available in all environments.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1553.005
+    - T1059.007
+    - T1059.001
+    - T1059.003
+    - T1059.005
+tags:
+    - attack.defense_evasion
+    - attack.t1553.005
+    - attack.execution
+    - attack.t1059.007
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.t1059.005
+author: detections.ai
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,70 @@
+id: 019cd965-303d-700f-9fe9-73e84c1a6816
+name: Batch Script Self-Parsing To Extract Payload
+description: |
+    Detects the execution of a PowerShell command intended to read the content of the batch script that launched it.
+    This technique is often used as a form of steganography to hide and extract an embedded payload from the script file itself.
+    Attackers, such as in the Dead#Vax campaign, use this method to deobfuscate and load the next stage of an attack in memory.
+query: |
+    title: Batch Script Self-Parsing To Extract Payload
+    id: b89cbcd1-e9a8-42c8-b142-4140f6c8878a
+    status: experimental
+    description: |
+      Detects the execution of a PowerShell command intended to read the content of the batch script that launched it.
+      This technique is often used as a form of steganography to hide and extract an embedded payload from the script file itself.
+      Attackers, such as in the Dead#Vax campaign, use this method to deobfuscate and load the next stage of an attack in memory.
+    author: detections.ai and Dan
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.execution
+      - attack.defense_evasion
+      - attack.t1059.003
+      - attack.t1027
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        - Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+            - '\mbs.exe' # Renamed powershell.exe as seen in the Dead#Vax campaign
+        - OriginalFileName:
+            # Fallback for renamed binaries
+            - 'PowerShell.EXE'
+            - 'pwsh.dll'
+      selection_cmdline:
+        CommandLine|contains|all:
+          - 'Get-Content' # Command to read the content of a file
+          - '-match' # Filters objects based on property values, often used to find a marker
+        CommandLine|contains:
+          - '.bat' # The script reads a batch file
+          - '.cmd' # The script reads a command file
+      condition: selection_process and selection_cmdline
+    falsepositives:
+      - Legitimate administrative or automation scripts might use this technique to
+        parse data from batch files, although it is uncommon.
+      - Review the script content and execution context to determine legitimacy.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+    - T1027.010
+tags:
+    - attack.execution
+    - attack.defense_evasion
+    - attack.t1059.003
+    - attack.t1027
+author: detections.ai and Dan
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

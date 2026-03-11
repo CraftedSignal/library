@@ -1,0 +1,55 @@
+id: 019cd968-f4de-718d-8148-d2b231ab9ffc
+name: DeadVax Self-Parsing PowerShell Logic
+description: Detects a specific PowerShell command pattern used by the DeadVax malware campaign. The malware uses a self-parsing technique to read its own batch script file and extract a hidden, encoded payload from lines starting with an '@' character.
+query: |
+    title: DeadVax Self-Parsing PowerShell Logic
+    description: Detects a specific PowerShell command pattern used by the DeadVax
+      malware campaign. The malware uses a self-parsing technique to read its own
+      batch script file and extract a hidden, encoded payload from lines starting
+      with an '@' character.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    author: detections.ai
+    date: 2026-03-10
+    tags:
+      - attack.t1059.001
+      - attack.t1027.002
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith:
+          - '\powershell.exe'
+          - '\pwsh.exe'
+        CommandLine|contains|all:
+          - 'Get-Content'
+          - '-match'
+          - '^@\s+(.+)'
+      condition: selection
+    falsepositives:
+      - Legitimate scripts could potentially use a similar self-parsing logic,
+        although this specific pattern is unusual.
+      - This detection may be bypassed if attackers rename `powershell.exe` (e.g.,
+        to `mbs.exe` as seen in the campaign).
+      - Consider monitoring for the command line patterns regardless of the process
+        name, or pair with rules that detect renamed system utilities.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027.002
+tags:
+    - attack.t1059.001
+    - attack.t1027.002
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

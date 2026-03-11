@@ -1,0 +1,71 @@
+id: 019cd96d-16e7-7248-9b4c-1427cf1d6113
+name: WSF Script Execution from Suspicious Location
+description: Detects the execution of a Windows Script File (.wsf) from a suspicious or non-standard directory, such as temporary folders or removable/mounted drives. This technique was observed in the Dead#Vax campaign where a WSF file was executed from a mounted VHD to initiate the infection chain.
+query: |
+    title: WSF Script Execution from Suspicious Location
+    id: 39907311-482b-4ab7-be6e-9cf31f3066ba
+    status: experimental
+    description: Detects the execution of a Windows Script File (.wsf) from a
+      suspicious or non-standard directory, such as temporary folders or
+      removable/mounted drives. This technique was observed in the Dead#Vax campaign
+      where a WSF file was executed from a mounted VHD to initiate the infection
+      chain.
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.execution
+      - attack.t1059.005
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_process:
+        # Detects Windows Script Host executing a .wsf file
+        Image|endswith:
+          - '\wscript.exe'
+          - '\cscript.exe'
+        CommandLine|contains: '.wsf'
+      selection_path:
+        # Detects execution from common temp, public, or mounted drive paths
+        CommandLine|contains:
+          - '\AppData\Local\Temp\'
+          - '\Windows\Temp\'
+          - '\Users\Public\'
+          - '\ProgramData\'
+          - '\AppData\Roaming\'
+        CommandLine|startswith:
+          - 'D:\'
+          - 'E:\'
+          - 'F:\'
+          - 'G:\'
+          - 'H:\'
+          - 'I:\'
+          - 'J:\'
+          - 'K:\'
+      condition: selection_process and selection_path
+    falsepositives:
+      - Legitimate administrative or logon scripts might be executed from
+        non-standard paths, especially in custom software deployment scenarios or
+        from network drives that get mapped to these letters. Tuning may be required
+        to exclude known good scripts or specific drive letters.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.005
+    - T1059.007
+tags:
+    - attack.execution
+    - attack.t1059.005
+    - attack.t1059.007
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,52 @@
+id: 019cd970-0f88-73fc-9d43-8797d8a8454a
+name: DeadVax Staging File Creation
+description: Detects the creation of specific file artifacts used by the DeadVax loader as staging containers for encrypted payloads. The malware uses `rEgX.cmd` as a self-copy, `windows.dll` as a temporary text file to hold a Base64 payload, and `boot64x.w` to store the final shellcode.
+query: |
+    title: DeadVax Staging File Creation
+    id: 55593bc7-faaf-47b1-b44e-6b6014409a69
+    status: experimental
+    description: Detects the creation of specific file artifacts used by the DeadVax
+      loader as staging containers for encrypted payloads. The malware uses
+      `rEgX.cmd` as a self-copy, `windows.dll` as a temporary text file to hold a
+      Base64 payload, and `boot64x.w` to store the final shellcode.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.t1027.002
+      - attack.t1140
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection:
+        # Detects specific filenames used by DeadVax for staging payloads
+        TargetFileName|endswith:
+          - '\windows.dll'
+          - '\boot64x.w'
+          - '\rEgX.cmd'
+      condition: selection
+    falsepositives:
+      - A legitimate file named 'windows.dll' may exist, but it is unlikely to be
+        created in user-writable directories like %ProgramData% or %TEMP% where this
+        malware drops it. Consider tuning the rule to exclude standard system
+        directories.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1027.002
+    - T1140
+tags:
+    - attack.t1027.002
+    - attack.t1140
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - file_event
+    - windows

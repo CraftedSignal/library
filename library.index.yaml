@@ -43528,6 +43528,487 @@ entries:
         - kql
       version: "1"
       file: entries/kql/019cd80a-5e54-7640-8ae9-f09d287c37b4.yaml
+    - id: 019cd958-5fe8-715b-b74d-473330bf05e4
+      name: WerFaultSecure Executes EDR-Freeze
+      description: WerFaultSecure should load nearly immediately after EDR-Freeze. This query will correlate PID values instead of time deltas. Since EDR-Freeze requires the PID of an AV/EDR process and WerFaultSecure has to pass a PID to MiniDumpWriteDump so that it can suspend a process, both processes executing will have the same PID in the command line execution. One addition here is to look for the inclusion of dbghelp.dll or dbgcore.dll in the CallTrace field to limit false positive hits.
+      query_type: spl
+      severity: medium
+      techniques:
+        - T1562.001
+      tags:
+        - spl
+      version: "3"
+      references:
+        - https://blog.axelarator.net/hunting-for-edr-freeze/
+        - https://www.zerosalarium.com/2025/09/EDR-Freeze-Puts-EDRs-Antivirus-Into-Coma.html
+      file: entries/spl/019cd958-5fe8-715b-b74d-473330bf05e4.yaml
+    - id: 019cd962-4901-778e-bc1f-6c83e6420be7
+      name: Self-Parsing Script Payload Extraction
+      description: Detects a PowerShell process reading its own or another script's content to extract a hidden payload. This technique was observed in the Dead#Vax campaign to deobfuscate and execute payloads stored within the script file itself.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1027
+        - T1140
+      tags:
+        - attack.execution
+        - attack.defense_evasion
+        - attack.t1059.001
+        - attack.t1027
+        - attack.t1140
+      author: detections.ai
+      version: "3"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd962-4901-778e-bc1f-6c83e6420be7.yaml
+    - id: 019cd963-d3d0-74d1-b4af-741ea1c51492
+      name: PowerShell Reading Batch/Command Files
+      description: This rule detects PowerShell processes (powershell.exe, pwsh.exe, mbs.exe) that are executing commands to read the content of batch (.bat) or command (.cmd) files. This behavior has been observed in campaigns like Dead#Vax for self-parsing and in-memory payload extraction. The detection specifically looks for `Get-Content` or its alias `gc` within the PowerShell command line, targeting files with `.cmd` or `.bat` extensions.
+      query_type: spl
+      severity: medium
+      tactics:
+        - TA0002
+      techniques:
+        - T1059.001
+        - T1059
+      tags:
+        - spl
+      version: "2"
+      file: entries/spl/019cd963-d3d0-74d1-b4af-741ea1c51492.yaml
+    - id: 019cd964-26a8-7302-9b0b-e0f810085267
+      name: Script Self-Parsing Payload Extraction
+      description: Detects instances where PowerShell is used to read the contents of a batch file (specifically looking for '.cmd' or '.bat' extensions) to extract a payload. This logic focuses on the 'Get-Content' cmdlet being applied to a script file, which is a key component of the campaign's self-parsing and payload extraction mechanism, as seen in the Dead#Vax campaign.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.003
+        - T1140
+        - T1027
+      tags:
+        - attack.t1059.003
+        - attack.t1140
+        - attack.t1027
+        - attack.defense_evasion
+        - attack.execution
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd964-26a8-7302-9b0b-e0f810085267.yaml
+    - id: 019cd964-2a02-76cf-8ec6-6ca930dc3c8f
+      name: DeadVax Self-Parsing Script Payload Extraction
+      description: Detects a PowerShell process reading the content of a batch script named 'rEgX.cmd' to extract an appended payload. This technique is used by the DeadVax malware as part of its stage 3 execution.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0002
+      techniques:
+        - T1027
+        - T1059.001
+      tags:
+        - attack.t1027
+        - attack.t1059.001
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/?_gl=1*9ljzsj*_up*MQ..*_gs*MQ..&gclid=EAIaIQobChMInMvD1pGWkwMVeyatBh0ADDDaEAAYASABEgJt1vD_BwE&gbraid=0AAAAADverT5eX-BGJchhTipJhMQHkRXuQ
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd964-2a02-76cf-8ec6-6ca930dc3c8f.yaml
+    - id: 019cd964-4229-72d9-a450-d43f641718f5
+      name: Dead#Vax Self-Parsing PowerShell Loader
+      description: Detects PowerShell attempting to read a specific batch file named 'rEgX.cmd' using Get-Content, a signature behavior of the Dead#Vax self-parsing loader. This technique is used to extract a hidden payload from the script itself.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1027
+      tags:
+        - attack.t1059.001
+        - attack.t1027
+        - attack.s1029
+      author: detections.ai
+      version: "4"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd964-4229-72d9-a450-d43f641718f5.yaml
+    - id: 019cd964-9911-76fd-b9ac-66bdd9f33603
+      name: Dead#Vax Self-Parsing Script Execution
+      description: Detects a specific script execution pattern where a batch file, often named 'rEgX.cmd', is read by a PowerShell process (or a renamed variant like 'mbs.exe') to extract a hidden, encrypted payload from its own content. This self-parsing technique, used by the Dead#Vax malware, looks for lines starting with a specific marker (e.g., '@') to bypass traditional file-based detection.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1059.003
+        - T1027
+      tags:
+        - attack.execution
+        - attack.defense_evasion
+        - attack.t1059.001
+        - attack.t1059.003
+        - attack.t1027
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd964-9911-76fd-b9ac-66bdd9f33603.yaml
+    - id: 019cd964-ca19-750f-9c2e-3642a9a063dd
+      name: DeadVax Self-Parsing Script Payload Extraction
+      description: Detects a PowerShell script attempting to read the content of a command or batch file (.cmd) to extract a payload. This technique was observed in the DeadVax campaign where a batch script invokes PowerShell to parse its own content, looking for a line starting with '@' which contains the next stage's Base64-encoded payload.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1140
+      tags:
+        - attack.execution
+        - attack.defense_evasion
+        - attack.t1059.001
+        - attack.t1059.003
+        - attack.t1140
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - powershell_script
+        - windows
+      file: entries/sigma/019cd964-ca19-750f-9c2e-3642a9a063dd.yaml
+    - id: 019cd965-2469-756f-b03d-3a80d9a28810
+      name: Dead#Vax Persistence via VBS Scheduled Task
+      description: Detects the creation of a scheduled task designed to execute a VBScript from a temporary or user-specific directory. This technique is used by the Dead#Vax malware to establish persistence with a layer of indirection, avoiding direct PowerShell execution from the task itself.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0002
+        - TA0004
+      techniques:
+        - T1053.005
+        - T1059.005
+      tags:
+        - attack.persistence
+        - attack.t1053.005
+        - attack.t1059.005
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd965-2469-756f-b03d-3a80d9a28810.yaml
+    - id: 019cd965-303d-700f-9fe9-73e84c1a6816
+      name: Batch Script Self-Parsing To Extract Payload
+      description: |
+        Detects the execution of a PowerShell command intended to read the content of the batch script that launched it.
+        This technique is often used as a form of steganography to hide and extract an embedded payload from the script file itself.
+        Attackers, such as in the Dead#Vax campaign, use this method to deobfuscate and load the next stage of an attack in memory.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1027
+        - T1027.010
+      tags:
+        - attack.execution
+        - attack.defense_evasion
+        - attack.t1059.003
+        - attack.t1027
+      author: detections.ai and Dan
+      version: "3"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd965-303d-700f-9fe9-73e84c1a6816.yaml
+    - id: 019cd965-a478-7317-a5b9-b61f336d76a0
+      name: PowerShell Native API Injection via Add-Type
+      description: Detects PowerShell scripts that dynamically define Win32 APIs (e.g., OpenProcess, VirtualAllocEx, WriteProcessMemory, CreateRemoteThread) using the Add-Type cmdlet. This technique, observed in the Dead#Vax campaign, allows attackers to perform process injection in a fileless manner by loading and invoking native functions from within PowerShell.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+        - TA0004
+      techniques:
+        - T1059.001
+        - T1129
+        - T1055
+      tags:
+        - attack.t1059.001
+        - attack.t1129
+        - attack.t1055
+      author: detections.ai
+      version: "3"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - powershell_script_block
+        - windows
+      file: entries/sigma/019cd965-a478-7317-a5b9-b61f336d76a0.yaml
+    - id: 019cd966-8f0a-77eb-8fdf-6034fd7d5998
+      name: PowerShell Win32 API Process Injection Definition
+      description: Detects the use of the PowerShell 'Add-Type' cmdlet to dynamically define a C# class containing Win32 API functions commonly used for process injection. This technique is leveraged by the Dead#Vax loader to inject its final payload, such as AsyncRAT, into the memory of legitimate processes without dropping a decrypted binary to disk.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+        - TA0004
+      techniques:
+        - T1059.001
+        - T1055.002
+        - T1106
+      tags:
+        - attack.execution
+        - attack.defense_evasion
+        - attack.privilege_escalation
+        - attack.t1059.001
+        - attack.t1055.002
+        - attack.t1106
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019cd966-8f0a-77eb-8fdf-6034fd7d5998.yaml
+    - id: 019cd967-69fd-7750-81cc-028941e887d5
+      name: Dead#Vax Self-Parsing Script Execution
+      description: Detects a specific script execution pattern where a batch file, often named 'rEgX.cmd', is read by a PowerShell process (or a renamed variant like 'mbs.exe') to extract a hidden, encrypted payload from its own content. This self-parsing technique, used by the Dead#Vax malware, looks for lines starting with a specific marker (e.g., '@') to bypass traditional file-based detection.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1059.003
+        - T1027.001
+      tags:
+        - kql
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      file: entries/kql/019cd967-69fd-7750-81cc-028941e887d5.yaml
+    - id: 019cd967-dd34-71d5-9295-5565d48c6e67
+      name: Scheduled Task Launches VBScript from Suspicious Directory
+      description: This detection rule identifies a persistence mechanism observed in the Dead#Vax campaign. It detects the Windows Script Host (wscript.exe) being launched by the Task Scheduler engine (taskeng.exe or svchost.exe) to execute a VBScript from a suspicious, user-writable directory such as AppData or a specific ProgramData path like 'ProgramData\IntelDriver'. This behavior is indicative of malicious persistence.
+      query_type: spl
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1053.005
+        - T1059.005
+        - T1036.005
+      tags:
+        - spl
+      version: "2"
+      file: entries/spl/019cd967-dd34-71d5-9295-5565d48c6e67.yaml
+    - id: 019cd968-f4de-718d-8148-d2b231ab9ffc
+      name: DeadVax Self-Parsing PowerShell Logic
+      description: Detects a specific PowerShell command pattern used by the DeadVax malware campaign. The malware uses a self-parsing technique to read its own batch script file and extract a hidden, encoded payload from lines starting with an '@' character.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1059.001
+        - T1027.002
+      tags:
+        - attack.t1059.001
+        - attack.t1027.002
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd968-f4de-718d-8148-d2b231ab9ffc.yaml
+    - id: 019cd96d-16e7-7248-9b4c-1427cf1d6113
+      name: WSF Script Execution from Suspicious Location
+      description: Detects the execution of a Windows Script File (.wsf) from a suspicious or non-standard directory, such as temporary folders or removable/mounted drives. This technique was observed in the Dead#Vax campaign where a WSF file was executed from a mounted VHD to initiate the infection chain.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+      techniques:
+        - T1059.005
+        - T1059.007
+      tags:
+        - attack.execution
+        - attack.t1059.005
+        - attack.t1059.007
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd96d-16e7-7248-9b4c-1427cf1d6113.yaml
+    - id: 019cd970-0f88-73fc-9d43-8797d8a8454a
+      name: DeadVax Staging File Creation
+      description: Detects the creation of specific file artifacts used by the DeadVax loader as staging containers for encrypted payloads. The malware uses `rEgX.cmd` as a self-copy, `windows.dll` as a temporary text file to hold a Base64 payload, and `boot64x.w` to store the final shellcode.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+      techniques:
+        - T1027.002
+        - T1140
+      tags:
+        - attack.t1027.002
+        - attack.t1140
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - file_event
+        - windows
+      file: entries/sigma/019cd970-0f88-73fc-9d43-8797d8a8454a.yaml
+    - id: 019cd971-5b46-7547-be68-f729696abaa8
+      name: Script Execution from Mounted Virtual Disk
+      description: |
+        Detects the execution of script interpreters (wscript.exe, cscript.exe, cmd.exe, powershell.exe) where the script file being executed resides on a newly mounted virtual disk volume (VHD, ISO, etc.).
+        This technique is used by malware, such as in the Dead#Vax campaign, to bypass the Mark-of-the-Web (MotW) security feature, allowing malicious files inside the container to execute without standard untrusted file warnings.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+        - TA0005
+      techniques:
+        - T1553.005
+        - T1059.007
+        - T1059.001
+        - T1059.003
+        - T1059.005
+      tags:
+        - attack.defense_evasion
+        - attack.t1553.005
+        - attack.execution
+        - attack.t1059.007
+        - attack.t1059.001
+        - attack.t1059.003
+        - attack.t1059.005
+      author: detections.ai
+      version: "3"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd971-5b46-7547-be68-f729696abaa8.yaml
+    - id: 019cd973-f4c1-7774-a05c-785e0a275878
+      name: PowerShell Anti-Sandbox Memory Check
+      description: Detects PowerShell commands checking for low system memory (specifically less than 3GB), a common anti-sandbox technique used by the DeadVax campaign to evade analysis environments.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0005
+        - TA0007
+      techniques:
+        - T1497.001
+      tags:
+        - attack.t1497.001
+      author: detections.ai
+      version: "3"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd973-f4c1-7774-a05c-785e0a275878.yaml
+    - id: 019cd98b-62ad-7059-b0ae-6776c841e39f
+      name: Dead#Vax Self-Parsing Script Payload Extraction
+      description: Detects a PowerShell command used to read its own batch script container (e.g., rEgX.cmd) to find and extract a hidden, encoded payload. This self-parsing technique is a core feature of the Dead#Vax malware.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0002
+      techniques:
+        - T1027.001
+        - T1059.001
+      tags:
+        - attack.defense_evasion
+        - attack.execution
+        - attack.t1027.001
+        - attack.t1059.001
+      author: detections.ai
+      version: "2"
+      references:
+        - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019cd98b-62ad-7059-b0ae-6776c841e39f.yaml
+    - id: 019cda5e-3430-7698-a2b4-ac21cddb389a
+      name: macOS TCC Directory Masquerading
+      description: Detects the renaming of the macOS TCC (Transparency, Consent, and Control) directory. This is a specific evasion technique where malware renames the directory to 'com.appled.tcc' to release file locks on the TCC.db, allowing for the injection of permissions.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0004
+      techniques:
+        - T1222.002
+        - T1548.006
+      tags:
+        - attack.t1222.002
+        - attack.t1553.006
+        - attack.defense_evasion
+      author: zendannyy
+      version: "2"
+      references:
+        - http://darktrace.com/blog/applescript-abuse-unpacking-a-macos-phishing-campaign
+      data_sources:
+        - file_event
+        - macos
+      file: entries/sigma/019cda5e-3430-7698-a2b4-ac21cddb389a.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'

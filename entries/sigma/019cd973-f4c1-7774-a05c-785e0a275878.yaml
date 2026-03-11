@@ -1,0 +1,47 @@
+id: 019cd973-f4c1-7774-a05c-785e0a275878
+name: PowerShell Anti-Sandbox Memory Check
+description: Detects PowerShell commands checking for low system memory (specifically less than 3GB), a common anti-sandbox technique used by the DeadVax campaign to evade analysis environments.
+query: |
+    title: PowerShell Anti-Sandbox Memory Check
+    id: f8c822d9-dc51-46b4-b96f-9b1661cbfc9f
+    status: experimental
+    description: Detects PowerShell commands checking for low system memory
+      (specifically less than 3GB), a common anti-sandbox technique used by the
+      DeadVax campaign to evade analysis environments.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.t1497.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\powershell.exe' # Detects keywords related to checking physical memory size
+        CommandLine|contains|all:
+          - 'TotalPhysicalMemory' # This value corresponds to 3 GB in bytes, used in a less-than comparison
+          - '3221225472'
+      condition: selection
+    falsepositives:
+      - Legitimate system administration or inventory scripts may check for system
+        memory. However, this specific combination is suspicious and associated with
+        malware.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1497.001
+tags:
+    - attack.t1497.001
+author: detections.ai
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

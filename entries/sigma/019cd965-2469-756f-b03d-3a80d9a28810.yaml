@@ -1,0 +1,59 @@
+id: 019cd965-2469-756f-b03d-3a80d9a28810
+name: Dead#Vax Persistence via VBS Scheduled Task
+description: Detects the creation of a scheduled task designed to execute a VBScript from a temporary or user-specific directory. This technique is used by the Dead#Vax malware to establish persistence with a layer of indirection, avoiding direct PowerShell execution from the task itself.
+query: |
+    title: Dead#Vax Persistence via VBS Scheduled Task
+    id: b86ef9c4-4c9d-48ab-8954-c03caaa932a6
+    status: experimental
+    description: Detects the creation of a scheduled task designed to execute a
+      VBScript from a temporary or user-specific directory. This technique is used
+      by the Dead#Vax malware to establish persistence with a layer of indirection,
+      avoiding direct PowerShell execution from the task itself.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.persistence
+      - attack.t1053.005
+      - attack.t1059.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_base:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create' # Identifies the task creation action
+          - 'wscript.exe' # The task executes the VBScript host
+          - '.vbs' # The file being executed is a VBScript
+      selection_path:
+        CommandLine|contains:
+          - '\AppData\' # Common user-writable directory for persistence
+          - '\Temp\' # Common temporary directory for script staging
+      condition: selection_base and selection_path
+    falsepositives:
+      - Legitimate administrative or software deployment scripts may create
+        scheduled tasks that run VBScripts from user profiles. Review the script
+        path and task purpose to rule out legitimate activity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+    - T1059.005
+tags:
+    - attack.persistence
+    - attack.t1053.005
+    - attack.t1059.005
+author: detections.ai
+version: "2"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - process_creation
+    - windows

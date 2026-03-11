@@ -1,0 +1,63 @@
+id: 019cd965-a478-7317-a5b9-b61f336d76a0
+name: PowerShell Native API Injection via Add-Type
+description: Detects PowerShell scripts that dynamically define Win32 APIs (e.g., OpenProcess, VirtualAllocEx, WriteProcessMemory, CreateRemoteThread) using the Add-Type cmdlet. This technique, observed in the Dead#Vax campaign, allows attackers to perform process injection in a fileless manner by loading and invoking native functions from within PowerShell.
+query: |
+    title: PowerShell Native API Injection via Add-Type
+    id: 965db8f6-16ad-4bd6-b218-969f10bd83d0
+    status: experimental
+    description: Detects PowerShell scripts that dynamically define Win32 APIs
+      (e.g., OpenProcess, VirtualAllocEx, WriteProcessMemory, CreateRemoteThread)
+      using the Add-Type cmdlet. This technique, observed in the Dead#Vax campaign,
+      allows attackers to perform process injection in a fileless manner by loading
+      and invoking native functions from within PowerShell.
+    author: detections.ai
+    references:
+      - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+    date: 2026-03-10
+    tags:
+      - attack.t1059.001
+      - attack.t1129
+      - attack.t1055
+    logsource:
+      category: powershell_script_block
+      product: windows
+    detection:
+      # Detects the use of Add-Type and DllImport to load native code
+      selection_keywords:
+        ScriptBlockText|contains|all:
+          - 'Add-Type'
+          - 'DllImport'
+        # Looks for common Win32 API functions related to process injection
+      selection_apis:
+        ScriptBlockText|contains:
+          - 'OpenProcess'
+          - 'VirtualAllocEx'
+          - 'WriteProcessMemory'
+          - 'CreateRemoteThread'
+          - 'ReadProcessMemory'
+          - 'VirtualQueryEx'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate system management scripts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1059.001
+    - T1129
+    - T1055
+tags:
+    - attack.t1059.001
+    - attack.t1129
+    - attack.t1055
+author: detections.ai
+version: "3"
+references:
+    - https://www.securonix.com/blog/deadvax-threat-research-security-advisory/
+data_sources:
+    - powershell_script_block
+    - windows
