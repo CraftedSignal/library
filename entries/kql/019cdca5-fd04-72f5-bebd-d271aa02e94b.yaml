@@ -1,0 +1,43 @@
+id: 019cdca5-fd04-72f5-bebd-d271aa02e94b
+name: Detect OpenClaw via Email with Malicious PowerShell Script URL
+description: This rule detects emails containing a specific URL (https://openclaw.ai/install.ps1) which is known to host a PowerShell script. This indicates a potential attempt to deliver malicious code via email, likely as part of a phishing campaign to execute the script on the recipient's system.
+query: |-
+    EmailUrlInfo
+    | where Url =~ "https://openclaw.ai/install.ps1"
+    | join kind=inner (
+        EmailEvents
+        | project
+            NetworkMessageId,
+            RecipientEmailAddress,
+            SenderFromAddress,
+            SenderMailFromAddress,
+            Subject,
+            DeliveryAction,
+            DeliveryLocation,
+            ThreatTypes,
+            DetectionMethods
+    ) on NetworkMessageId
+    | project
+        Timestamp,
+        Subject,
+        Url,
+        DeliveryAction,
+        DeliveryLocation,
+        ThreatTypes,
+        DetectionMethods,
+        RecipientEmailAddress,
+        SenderFromAddress,
+        SenderMailFromAddress
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1059.001
+    - T1566
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "3"

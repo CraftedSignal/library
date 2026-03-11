@@ -1,0 +1,55 @@
+id: 019cdba0-eeab-74ba-a746-a1683082b07a
+name: Dust Specter DLL Sideloading Detection
+description: Detects the sideloading of libvlc.dll or hostfxr.dll when VLC.exe or WingetUI.exe are executed from the non-standard C:\ProgramData\PolGuid\ directory, a TTP associated with the Dust Specter APT group.
+query: |
+    title: Dust Specter DLL Sideloading Detection
+    description: >-
+      Detects the sideloading of libvlc.dll or hostfxr.dll when VLC.exe or
+      WingetUI.exe are executed from the non-standard C:\ProgramData\PolGuid\
+      directory, a TTP associated with the Dust Specter APT group.
+    author: "Akshay Gaikwad"
+    references:
+      - >-
+        https://www.zscaler.com/blogs/security-research/dust-specter-apt-targets-government-officials-iraq#threat-attribution
+    date: 2026-03-11T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.t1574.002
+    logsource:
+      category: image_load
+      product: windows
+      service: sysmon
+    detection:
+      selection_twintask:
+        Image|endswith: \vlc.exe
+        ImageLoaded|endswith: \libvlc.dll
+      selection_twintalk:
+        Image|endswith: \WingetUI.exe
+        ImageLoaded|endswith: \hostfxr.dll
+      filter_path:
+        Image|contains: \ProgramData\PolGuid\
+      condition: filter_path and (selection_twintask or selection_twintalk)
+    falsepositives:
+      - This detection is highly specific to the file path
+        `C:\ProgramData\PolGuid\`. False positives are considered unlikely unless
+        another application legitimately uses this exact path and file combination.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.001
+tags:
+    - attack.execution
+    - attack.t1574.002
+author: Akshay Gaikwad
+version: "2"
+references:
+    - https://www.zscaler.com/blogs/security-research/dust-specter-apt-targets-government-officials-iraq#threat-attribution
+data_sources:
+    - image_load
+    - windows
