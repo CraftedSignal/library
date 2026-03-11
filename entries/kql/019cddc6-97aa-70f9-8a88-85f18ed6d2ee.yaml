@@ -1,0 +1,16 @@
+id: 019cddc6-97aa-70f9-8a88-85f18ed6d2ee
+name: Analyzing AI MCP SaaS Usage In Your MDE Environment
+description: KQL Query
+query: "let AIMCPServer=externaldata(AIModel:string,AIAPIUrl:string,RiskScore:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/AIMCPServer.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project AIAPIUrl;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where RemoteUrl has_any(AIMCPServer)\r\n| extend AIMCP = replace_string(RemoteUrl, \"https://\", \"\")\r\n| summarize Count=count() by AIMCP\r\n| sort by Count desc "
+query_type: kql
+severity: medium
+tactics:
+    - TA0009
+    - TA0010
+techniques:
+    - T1530
+    - T1537
+tags:
+    - kql
+author: Steven Lim
+version: "2"

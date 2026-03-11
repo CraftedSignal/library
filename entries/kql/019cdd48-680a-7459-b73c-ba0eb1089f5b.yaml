@@ -1,0 +1,14 @@
+id: 019cdd48-680a-7459-b73c-ba0eb1089f5b
+name: FortiGate Edge Intrusions
+description: This rule detects network connections to or from known suspicious IP addresses and requests to known suspicious domains. These indicators are often associated with command and control (C2) activity, malware distribution, or other malicious infrastructure.
+query: "let suspiciousDomains = dynamic([\r\n    \"ndibstersoft.com\",\r\n    \"neremedysoft.com\",\r\n    \"fastdlvrss.s3.us-east-1.amazonaws.com\"\r\n]);\r\nlet suspiciousIPs = dynamic([\r\n    \"193.24.211.61\",\r\n    \"185.156.73.62\",\r\n    \"185.242.246.127\"\r\n    // \"172.67.196.232\"\r\n]);\r\nCommonSecurityLog\r\n| where SourceIP in (suspiciousIPs) or DestinationIP in (suspiciousIPs) or RequestURL has_any (suspiciousDomains)\r\n| extend MatchedIndicator = case(\r\n    SourceIP in (suspiciousIPs), SourceIP,\r\n    DestinationIP in (suspiciousIPs), DestinationIP,\r\n    RequestURL\r\n  )\r\n| project TimeGenerated, DeviceName, Activity, MatchedIndicator, SourceIP, DestinationIP, RequestURL, DestinationPort, Protocol\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1105
+tags:
+    - kql
+version: "1"
