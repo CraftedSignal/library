@@ -1,0 +1,17 @@
+id: 019ce1bb-2de9-746d-ad51-f50de7952700
+name: Detect Successful Device Code Authentication Shortly After URL Click
+description: This analytic query detects potential phishing compromise activity by correlating URL click events from Defender for Office 365 with Sign-in device code authentication logs.
+query: "// Time window to search\r\nlet TimeRange = 1h;\r\n// Max time between URL click and device code auth\r\nlet MaxIntervalMinutes = 30;\r\n// 1) URL clicks from Defender for Office 365\r\nlet UrlClicks = UrlClickEvents\r\n| where TimeGenerated >= ago(TimeRange)\r\n| project\r\n    UrlClickTime = TimeGenerated,\r\n    AccountUpn,\r\n    Url,\r\n    ActionType,\r\n    NetworkMessageId;\r\n// 2) Azure AD sign-ins where auth flow contain device code authentication\r\nlet DeviceCodeSignins = SigninLogs\r\n| where TimeGenerated >= ago(TimeRange)\r\n    and ResultType == 0 // Successful sign-in only; remove if you want failures too\r\n| where AuthenticationProtocol == \"deviceCode\"\r\n| where not( AppId == \"29d9ed98-a469-4536-ade2-f981bc1d605e\") // Microsoft Authentication Broker; reduce false positives\r\n| where isempty( tostring(DeviceDetail.deviceId))\r\n| extend operatingSystem = tostring(DeviceDetail.operatingSystem)\r\n| project\r\n    DeviceCodeSigninTime = TimeGenerated,\r\n    UserPrincipalName,\r\n    ResultSignature,\r\n    IPAddress,\r\n    AppDisplayName,\r\n    ResourceDisplayName,\r\n    ClientAppUsed,\r\n    operatingSystem,\r\n    UserAgent,\r\n    AuthenticationProtocol,\r\n    SessionId,\r\n    CorrelationId;\r\n// 3) Join URL click to device code auth by user and time proximity\r\nUrlClicks\r\n| join kind=innerunique (\r\n    DeviceCodeSignins\r\n) on $left.AccountUpn == $right.UserPrincipalName\r\n| where DeviceCodeSigninTime >= UrlClickTime\r\n    and DeviceCodeSigninTime <= UrlClickTime + totimespan(strcat(MaxIntervalMinutes, \"m\"))\r\n// 4) Final projection\r\n| project\r\n    Timestamp = DeviceCodeSigninTime,\r\n    UserPrincipalName,\r\n    UrlClickTime,\r\n    DeviceCodeSigninTime,\r\n    TimeDiffMinutes = datetime_diff(\"minute\", DeviceCodeSigninTime, UrlClickTime),\r\n    ResultSignature,\r\n    Url,\r\n    UrlActionType = ActionType,\r\n    AppDisplayName,\r\n    ResourceDisplayName,\r\n    ClientAppUsed,\r\n    IPAddress,\r\n    AuthenticationProtocol,\r\n    operatingSystem,\r\n    SessionId,\r\n    CorrelationId,\r\n    NetworkMessageId\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566.002
+    - T1136.003
+    - T1550.001
+    - T1078
+tags:
+    - kql
+version: "1"

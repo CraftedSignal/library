@@ -1,0 +1,15 @@
+id: 019ce133-7ee1-74bd-b5f4-5bebe6589927
+name: OAuth Device Code Phishing
+description: This rule detects suspicious activity where a newly registered device is immediately followed by a user browsing or clicking on a Microsoft device login page. This could indicate an adversary attempting to register a new device to bypass multi-factor authentication or establish persistence.
+query: "let timeframe = 7d;\nlet loopback = 14d;\n// Get registered devices in the past week\nlet newly_registered_device = AuditLogs\n| where TimeGenerated > ago(timeframe)\n| where OperationName == \"Register device\"\n| where AdditionalDetails !has \"Pre-created device successfully registered.\"\n| extend Initiator = tolower(tostring(InitiatedBy.user.userPrincipalName))\n| extend FromIp = InitiatedBy.user.ipAddress\n| extend DeviceId = TargetResources[0].id\n| extend DisplayName = TargetResources[0].displayName\n| extend Type = TargetResources[0].type\n| extend DeviceOS = AdditionalDetails[3].value\n| extend RegistrationTime=TimeGenerated;\n// Get account name of users navigating to devicelogin pages\nlet devicelogin_browsing = DeviceEvents\n| where TimeGenerated > ago(loopback)\n| where InitiatingProcessCommandLine has \"microsoft.com/devicelogin\" or RemoteUrl has \"microsoft.com/devicelogin\"\n| where isnotempty(InitiatingProcessAccountUpn)\n| extend UserUPN = tolower(InitiatingProcessAccountUpn)\n| project BrowseTime = TimeGenerated, UserUPN, DeviceName, RemoteUrl, LocalIP = LocalIP;\n// Get account name of users clicking on devicelogin pages\nlet devicelogin_click = UrlClickEvents\n| where TimeGenerated > ago(loopback)\n| where UrlChain has_any (\"microsoft.com/devicelogin\", \"login.microsoftonline.com/common/oauth2/deviceauth\") \n    or Url has_any (\"microsoft.com/devicelogin\", \"login.microsoftonline.com/common/oauth2/deviceauth\")\n| extend EmailAddress = tolower(AccountUpn)\n| extend ClickTime = TimeGenerated\n| project-away AccountUpn, TimeGenerated\n| join (IdentityInfo | where TimeGenerated > ago(loopback) | extend EmailAddress = tolower(EmailAddress)) on EmailAddress\n| summarize arg_max(ClickTime, *) by NetworkMessageId;\n// Correlate events\nunion\n(newly_registered_device\n| join (devicelogin_browsing) on $left.Initiator == $right.UserUPN),\n(newly_registered_device\n| join (devicelogin_click) on $left.Initiator == $right.AccountUpn)\n| project RegistrationTime, ClickTime, BrowseTime, Initiator, OperationName, FromIp, DeviceId, DisplayName, DeviceOS, ClickedFrom=Workload, ClickedFromApp=AppName, EmailAddress, AccountUpn"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.005
+tags:
+    - kql
+version: "1"
