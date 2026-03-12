@@ -1,0 +1,49 @@
+id: 019ce281-55d8-7723-a623-90547ae5e1ba
+name: KadNap Inbound SSH Blocking (iptables)
+description: Detects the use of iptables to drop incoming SSH traffic (port 22). This is a tactic used by the KadNap malware via its 'fwr.sh' script to prevent administrative access and secure its foothold on an infected device.
+query: |
+    title: KadNap Inbound SSH Blocking (iptables)
+    id: b12bad7b-565e-498b-9bad-b3477eee8654
+    status: experimental
+    description: Detects the use of iptables to drop incoming SSH traffic (port 22).
+      This is a tactic used by the KadNap malware via its 'fwr.sh' script to prevent
+      administrative access and secure its foothold on an infected device.
+    author: tim@detections.ai
+    references:
+      - https://blog.lumen.com/silence-of-the-hops-the-kadnap-botnet/
+    date: 2026-03-12
+    tags:
+      - attack.t1562.004
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      # Detects iptables command to block SSH
+      selection:
+        Image|endswith: '/iptables'
+        CommandLine|contains|all:
+          - 'INPUT'
+          - '-p tcp'
+          - '--dport 22'
+          - '-j DROP'
+      condition: selection
+    falsepositives:
+      - Legitimate administrators may use this command to block SSH access for
+        security reasons. However, on SOHO routers or in environments where SSH is
+        expected to be open, this could be a strong indicator of compromise.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1562.004
+tags:
+    - attack.t1562.004
+author: tim@detections.ai
+version: "3"
+references:
+    - https://blog.lumen.com/silence-of-the-hops-the-kadnap-botnet/
+data_sources:
+    - process_creation
+    - linux

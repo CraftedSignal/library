@@ -1,0 +1,61 @@
+id: 019ce204-10f2-77d9-9969-09e1b1051763
+name: Potential AiTM Session Hijacking via Session ID Reuse
+description: Detects potential adversary-in-the-middle (AiTM) session hijacking by identifying a single session ID being used in successful sign-ins from multiple distinct IP addresses and with different User-Agent strings within a short timeframe. This behavior is indicative of an attacker stealing a session cookie and replaying it from their own machine, a technique commonly used by phishing kits like Tycoon2FA.
+query: |
+    title: Potential AiTM Session Hijacking via Session ID Reuse
+    id: b3eebfc2-c6b3-4056-a9ab-3c8fe502d4d9
+    status: experimental
+    description: >-
+      Detects potential adversary-in-the-middle (AiTM) session hijacking by
+      identifying a single session ID being used in successful sign-ins from
+      multiple distinct IP addresses and with different User-Agent strings within a
+      short timeframe. This behavior is indicative of an attacker stealing a session
+      cookie and replaying it from their own machine, a technique commonly used by
+      phishing kits like Tycoon2FA.
+    author: detections.ai
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+    date: 2026-03-12
+    tags:
+      - attack.credential_access
+      - attack.t1539
+      - attack.t1557
+    logsource:
+      product: azure
+      service: signinlogs
+    detection:
+      selection:
+        resultType: 0 # Identifies successful sign-in events.
+        status.errorCode: 0
+      # Correlate events over a 1-hour window.
+      timeframe: 1h
+      # Group by session and user, then trigger if more than one distinct IP and User-Agent are seen.
+      condition: selection | group_by(correlationId, userPrincipalName) | where
+        count(distinct(ipAddress)) > 1 and count(distinct(userAgentHeader)) > 1
+    falsepositives:
+      - Legitimate user activity where a user switches networks (e.g., Wi-Fi to
+        cellular) and browsers/devices (e.g., laptop to phone) in a short period.
+      - Use of VPNs or proxies that may change the source IP address during a
+        session.
+      - This detection can be tuned by increasing the timeframe or adding logic to
+        check for significant geographic distance between the IP addresses.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1539
+    - T1557
+tags:
+    - attack.credential_access
+    - attack.t1539
+    - attack.t1557
+author: detections.ai
+version: "3"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+data_sources:
+    - azure
+    - signinlogs

@@ -1,0 +1,18 @@
+id: 019ce2eb-9479-767f-b700-130cfdf2754d
+name: SloppyLemming BurrowShell Persistence via OneDrive Run Key
+description: Detects the creation of a registry run key named 'OneDrive' that points to an executable located within the user's AppData ClickOnce cache directory. This is a specific persistence technique used by the SloppyLemming actor to execute the BurrowShell loader.
+query: "// Name: SloppyLemming BurrowShell Persistence via Run Key\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-12\r\n// Tactic: Persistence, Defense Evasion\r\n// Technique: T1547.001, T1036.005\r\n// Description: Detects the creation of a registry run key named 'OneDrive' that points to an executable located within the user's AppData ClickOnce cache directory. This is a specific persistence technique used by the SloppyLemming actor to execute the BurrowShell loader.\r\n// False Positive Sensitivity: Medium\r\n// References: https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/\r\n\r\nDeviceRegistryEvents\r\n// Look for the setting of a registry value, which indicates creation or modification.\r\n| where ActionType == \"RegistryValueSet\"\r\n// Filter for the specific 'OneDrive' value being added to a startup location.\r\n| where RegistryValueName =~ \"OneDrive\"\r\n// Focus on the main 'Run' key for the current user.\r\n| where RegistryKey endswith @\"Software\\Microsoft\\Windows\\CurrentVersion\\Run\"\r\n// The key indicator is the executable path pointing to a ClickOnce application cache folder.\r\n| where RegistryValueData contains @\"\\AppData\\Local\\Apps\\2.0\\\"\r\n// Potential for False Positives: While the legitimate OneDrive client typically installs to Program Files, non-standard installations or other applications named 'OneDrive' could cause FPs.\r\n// Tuning Suggestion: Further scrutinize the 'InitiatingProcessFileName' or the hash of the file specified in 'RegistryValueData' to exclude known good applications.\r\n| project TimeGenerated, DeviceName, InitiatingProcessAccountName, RegistryKey, RegistryValueData, InitiatingProcessCommandLine"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1547.001
+    - T1036.005
+tags:
+    - kql
+version: "3"
+references:
+    - https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/

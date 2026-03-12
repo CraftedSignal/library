@@ -1,20 +1,20 @@
 id: 019cc1b5-5a0d-7714-96be-273369792d69
 name: Network Connections and Entra ID Sign-ins from Iran
-description: This rule detects network connection events and Entra ID sign-in events originating from Iran. It specifically looks for various connection action types (InboundConnectionAccepted, ConnectionAcknowledged, ConnectionAttempt, ConnectionFailed, ConnectionSuccess, ConnectionRequest) in DeviceNetworkEvents and sign-in attempts from the country code 'IR' in EntraIdSignInEvents. The rule then aggregates these events hourly.
+description: This rule detects network connection events and Entra ID sign-in events originating from Iran. It aggregates these events hourly to identify potential suspicious activity from a geo-restricted or high-risk country.
 query: "let CT = dynamic([\"InboundConnectionAccepted\",\"ConnectionAcknowledged\"\r\n\"ConnectionAttempt\",\"ConnectionFailed\",\"ConnectionSuccess\",\"ConnectionRequest\"]);\r\nlet EndpointConnection =\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(7d)\r\n| where ActionType has_any(CT)\r\n| extend GeoLo = geo_info_from_ip_address(RemoteIP)\r\n| where GeoLo has \"Iran\";\r\nEntraIdSignInEvents\r\n| where Timestamp > ago(7d)\r\n| where Country == \"IR\"\r\n| union EndpointConnection\r\n| summarize Count=count() by bin(Timestamp,1h)"
 query_type: kql
 severity: medium
 tactics:
     - TA0007
-    - TA0003
-    - TA0004
     - TA0006
     - TA0005
+    - TA0003
+    - TA0004
 techniques:
     - T1614
-    - T1098.005
     - T1556.007
+    - T1098.005
 tags:
     - kql
 author: Steven Lim
-version: "4"
+version: "7"
