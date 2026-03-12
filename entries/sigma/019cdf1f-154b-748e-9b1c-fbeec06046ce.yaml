@@ -1,0 +1,59 @@
+id: 019cdf1f-154b-748e-9b1c-fbeec06046ce
+name: FortiGate Configuration Download Immediately After Login
+description: Detects a FortiGate configuration file download occurring within 10 minutes of a successful administrative login from the same user and source IP address. This rapid sequence of events can indicate an attacker who has gained administrative access and is proceeding to exfiltrate sensitive configuration data, which may contain credentials for other systems.
+query: |
+    title: FortiGate Configuration Download Immediately After Login
+    id: 18b14974-2ca5-47de-aebf-107eff1e3687
+    status: experimental
+    description: >-
+      Detects a FortiGate configuration file download occurring within 10 minutes of
+      a successful administrative login from the same user and source IP address.
+      This rapid sequence of events can indicate an attacker who has gained
+      administrative access and is proceeding to exfiltrate sensitive configuration
+      data, which may contain credentials for other systems.
+    author: detections.ai
+    references:
+      - https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+    date: 2026-03-11
+    tags:
+      - attack.collection
+      - attack.credential_access
+      - attack.t1552.001
+    logsource:
+      product: fortinet
+      service: fortigate
+    detection:
+      login:
+        LogId: '0100032001' # FortiGate log for a successful admin login.
+      config_download:
+        LogId: '0100032095' # FortiGate log for a system config file download.
+      timeframe: 10m
+      condition: login followed-by config_download by user, srcip
+    falsepositives:
+      - Legitimate administrators performing routine backups or configuration
+        reviews immediately after logging in. The legitimacy should be verified
+        based on the user, source IP, and time of day.
+    level: high
+    fields:
+      - user
+      - srcip
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+    - TA0006
+techniques:
+    - T1552.001
+    - T1005
+    - T1074
+tags:
+    - attack.collection
+    - attack.credential_access
+    - attack.t1552.001
+author: detections.ai
+version: "3"
+references:
+    - https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+data_sources:
+    - fortinet
+    - fortigate

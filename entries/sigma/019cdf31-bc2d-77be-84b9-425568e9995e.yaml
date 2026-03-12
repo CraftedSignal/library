@@ -1,0 +1,28 @@
+id: 019cdf31-bc2d-77be-84b9-425568e9995e
+name: WMI Abuse for Lateral Movement and Persistence
+description: "Detects WMI abuse for lateral movement, remote execution, and persistence. \nUsing native WMI, and one condition for PowerShell plus WMI queries "
+query: "title: WMI Abuse for Lateral Movement and Persistence\nid: f9e6d8c3-4b2a-4e7f-9d8c-2a6b5e9f1c4d\nstatus: test\ndescription: |-\n  Detects WMI abuse for lateral movement, remote execution, and persistence. \n  Using native WMI, and one condition for PowerShell plus WMI queries \nreferences:\n  - https://attack.mitre.org/techniques/T1047/\n  - https://attack.mitre.org/techniques/T1546/003/\nauthor: zendannyy\ndate: 2026/03/10\ntags:\n  - attack.lateral-movement\n  - attack.execution\n  - attack.t1047\n  - attack.t1546.003\nlogsource:\n  product: windows\n  category: wmi_event\n  service: security\ndetection:\n  selection_wmi_process_creation:\n    Image|endswith:\n      - \\wmic.exe\n      - \\wmiprvse.exe\n    CommandLine|contains:\n      - process call create\n      - '/node:'\n      - '/user:'\n      - '/password:'\n  selection_wmi_event_subscription:\n    EventID: 19\n    EventType: WmiEventFilter\n  selection_wmi_consumer:\n    EventID: 20\n    EventType: WmiEventConsumer\n    Destination|contains:\n      - CommandLineEventConsumer\n      - ActiveScriptEventConsumer\n  selection_powershell_wmi:\n    Image|endswith: \\powershell.exe\n    CommandLine|contains:\n      - Get-WmiObject\n      - Invoke-WmiMethod\n      - Register-WmiEvent\n      - Set-WmiInstance\n      - New-CimSession\n      - Invoke-CimMethod\n  selection_suspicious_wmi_queries:\n    CommandLine|contains:\n      - SELECT * FROM Win32_Process\n      - SELECT * FROM Win32_Service\n      - SELECT * FROM Win32_ComputerSystem\n      - __InstanceCreationEvent\n      - __InstanceModificationEvent\n  condition: >-\n    any of selection_wmi_* or  selection_powershell_wmi and\n    selection_suspicious_wmi_queries\nfalsepositives:\n  - Legitimate system administration using wmi and powershell\n  - System management tools\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.003
+    - T1059.001
+    - DS0005
+tags:
+    - attack.lateral-movement
+    - attack.execution
+    - attack.t1047
+    - attack.t1546.003
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1047/
+    - https://attack.mitre.org/techniques/T1546/003/
+data_sources:
+    - wmi_event
+    - windows
+    - security

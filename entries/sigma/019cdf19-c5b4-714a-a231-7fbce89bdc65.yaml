@@ -1,0 +1,66 @@
+id: 019cdf19-c5b4-714a-a231-7fbce89bdc65
+name: Potential AD Compromise Following FortiGate Configuration Export
+description: Detects a FortiGate configuration file download followed by the creation of a new computer account in Active Directory by the 'fortidcagent' service account within a short time window. This pattern may indicate an attacker has compromised a FortiGate appliance, extracted credentials from the configuration, and is now using them to join a rogue device to the domain for lateral movement.
+query: |
+    title: Potential AD Compromise Following FortiGate Configuration Export
+    id: 497c8476-d38d-4ecd-ae60-21453d2b3fed
+    status: experimental
+    description: >-
+      Detects a FortiGate configuration file download followed by the creation of a
+      new computer account in Active Directory by the 'fortidcagent' service account
+      within a short time window. This pattern may indicate an attacker has
+      compromised a FortiGate appliance, extracted credentials from the
+      configuration, and is now using them to join a rogue device to the domain for
+      lateral movement.
+    author: detections.ai
+    references:
+      - https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+    date: 2026-03-11
+    tags:
+      - attack.credential_access
+      - attack.persistence
+      - attack.t1552.001
+      - attack.t1098.001
+    logsource:
+      product: fortinet
+      service: fortigate
+      # The following logsource is for the Windows part of the detection
+      product_windows: windows
+      service_windows: security
+    detection:
+      config_export:
+        LogId: '0100032095'
+      rogue_join:
+        EventID: 4741
+        SubjectUserName: 'fortidcagent' # Remove SubjectUserName for broader detection
+      timeframe: 30m
+      condition: config_export and rogue_join
+    falsepositives:
+      - Legitimate administrative activity where an administrator exports a backup
+        and then performs domain join operations shortly after using this specific
+        service account.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0006
+    - TA0005
+    - TA0004
+    - TA0001
+techniques:
+    - T1552.001
+    - T1136.001
+    - T1078
+tags:
+    - attack.credential_access
+    - attack.persistence
+    - attack.t1552.001
+    - attack.t1098.001
+author: detections.ai
+version: "3"
+references:
+    - https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+data_sources:
+    - fortinet
+    - fortigate
