@@ -1,0 +1,18 @@
+id: 019ce62d-0ec9-774c-8810-f427cdc1610b
+name: Iranian RedAlert Malware Network Indicators
+description: This rule detects network connections to domains and URLs associated with a malicious 'RedAlert' APK used in an Iranian-aligned phishing campaign for mobile surveillance and data exfiltration, as reported by Unit 42.
+query: "// Name: Iranian RedAlert Malware Network Indicators\r\n// Author: Adarsh Pandey\r\n// Date: 2026-03-13\r\n// Description: This rule detects network connections to domains and URLs associated with a malicious 'RedAlert' APK used in an Iranian-aligned phishing campaign for mobile surveillance and data exfiltration, as reported by Unit 42.\r\n// Tactics: Command and Control\r\n// Techniques: T1571\r\n// References: https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/\r\n// False Positive Sensitivity: Medium. The file name 'RedAlert.apk' could potentially be used by legitimate applications. Consider adding more context, like the source of the download or process context, to reduce potential false positives.\r\n// Define the indicators of compromise from the intelligence report.\r\nlet ioc_domains = dynamic(['api.ra-backup.com', 'shirideitch.com']);\r\nlet ioc_url_keywords = dynamic(['RedAlert.apk', '/analytics/submit.php']);\r\nunion isfuzzy=true\r\n    (\r\n        // Check DNS query events for malicious domains.\r\n        DnsEvents\r\n        | where Name in~ (ioc_domains)\r\n        | extend EventTable=\"DnsEvents\", Indicator=Name, Url=Name\r\n    ),\r\n    (\r\n        // Check network connection events from endpoints.\r\n        DeviceNetworkEvents\r\n        | where RemoteUrl has_any (ioc_domains) or RemoteUrl has_any (ioc_url_keywords)\r\n        | extend EventTable=\"DeviceNetworkEvents\", Indicator=RemoteUrl, Url=RemoteUrl\r\n    ),\r\n    (\r\n        // Check web proxy logs (e.g., from CommonSecurityLog for Zscaler, Palo Alto, etc.).\r\n        CommonSecurityLog\r\n        | where CommunicationDirection == \"Outbound\"\r\n        | where isnotempty(RequestURL)\r\n        | where RequestURL has_any (ioc_domains) or RequestURL has_any (ioc_url_keywords)\r\n        | extend EventTable=\"CommonSecurityLog\", Indicator=RequestURL, Url=RequestURL\r\n    )\r\n| project-reorder TimeGenerated, DeviceName, Url, Indicator, EventTable, RemoteIp, InitiatingProcessCommandLine, ActionType\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0001
+techniques:
+    - T1571
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/

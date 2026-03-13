@@ -1,0 +1,44 @@
+id: 019ce618-f2e1-701d-9442-c43b3bd0966a
+name: Handala PowerShell Wiper Activity Detection
+description: This rule detects the execution of a PowerShell script that recursively deletes files within the 'C:\Users\' directory and then enters a loop to copy a file repeatedly, filling up disk space. This behavior is consistent with the AI-assisted wiper used by the Handala threat actor.
+query: |
+    // Name: Handala PowerShell Wiper Activity
+    // Author: Adarsh Pandey
+    // Date: 2026-03-13
+    // Description: This rule detects the execution of a PowerShell script that recursively deletes files within the 'C:\Users\' directory and then enters a loop to copy a file repeatedly, filling up disk space. This behavior is consistent with the AI-assisted wiper used by the Handala threat actor.
+    // False Positives: Medium. Legitimate administrative scripts are unlikely to combine recursive, forced deletion of all user profiles with a disk-filling loop. However, custom cleanup scripts could trigger this. Consider excluding known administrative scripts or hosts if false positives occur.
+    // References: https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/
+    // Tactics: Impact, Execution
+    // Techniques: T1485, T1059.001
+    DeviceProcessEvents
+    | where FileName =~ "powershell.exe"
+    // Detects the combination of destructive commands seen in the Handala wiper script.
+    | where ProcessCommandLine has "Remove-Item"
+        and ProcessCommandLine has_all ("C:\\Users", "-Recurse", "-Force") // Looks for recursive, forced deletion of user directories.
+        and ProcessCommandLine has "while"
+        and ProcessCommandLine has "Copy-Item" // Identifies the disk-filling loop behavior.
+        and (ProcessCommandLine has ".gif" or ProcessCommandLine has ".rar")
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        ReportId,
+        SHA1
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0002
+techniques:
+    - T1485
+    - T1059.001
+    - T1496
+tags:
+    - kql
+version: "3"
+references:
+    - https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/

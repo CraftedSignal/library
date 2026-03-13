@@ -1,0 +1,71 @@
+id: 019ce61a-e3d9-7608-977f-cb189212c317
+name: NetBird Tunneling Tool Deployment
+description: Detects the installation or execution of NetBird, a zero-trust mesh networking platform. This tool has been observed being used by the Handala threat actor for lateral movement and tunneling to bypass perimeter defenses.
+query: |
+    // Name: NetBird Tunneling Tool Deployment
+    // Author: Adarsh Pandey
+    // Date: 2026-03-13
+    // Description: Detects the installation or execution of NetBird, a zero-trust mesh networking platform. This tool has been observed being used by the Handala threat actor for lateral movement and tunneling to bypass perimeter defenses.
+    // False Positives: Medium. NetBird is a legitimate tool and may be used by IT or development teams. If NetBird is used legitimately in your environment, consider excluding specific hosts or user accounts to reduce noise.
+    // References: https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/
+    // Tactics: Command and Control, Execution
+    // Techniques: T1572, T1105
+    (union isfuzzy=true
+        (
+            DeviceProcessEvents
+            // Detects the execution of NetBird executables.
+            | where FileName in~ ("netbird.exe", "netbird-ui.exe")
+            | project
+                Timestamp,
+                DeviceName,
+                ActionType,
+                FileName,
+                ProcessCommandLine,
+                InitiatingProcessFileName,
+                AccountName,
+                ReportId,
+                SHA1
+        ),
+        (
+            DeviceEvents
+            // Detects the installation of the NetBird service.
+            | where ActionType == "ServiceInstalled" and ServiceName =~ "NetBird"
+            | project
+                Timestamp,
+                DeviceName,
+                ActionType,
+                FileName = ServiceName,
+                ProcessCommandLine = strcat("Service Installed: ", ServiceName, ", File: ", FileName),
+                InitiatingProcessFileName,
+                AccountName = tostring(AdditionalFields.Account),
+                ReportId,
+                SHA1
+        ),
+        (
+            DeviceFileEvents
+            // Detects the NetBird installer file based on its known hash from the report.
+            | where SHA1 =~ "3dfb151d082df7937b01e2bb6030fe4a"
+            | project
+                Timestamp,
+                DeviceName,
+                ActionType,
+                FileName,
+                ProcessCommandLine = FolderPath,
+                InitiatingProcessFileName,
+                AccountName,
+                ReportId,
+                SHA1
+        )
+    )
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1572
+    - T1105
+tags:
+    - kql
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/

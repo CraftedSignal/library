@@ -1,0 +1,17 @@
+id: 019ce62e-13ad-77f6-87be-c5f534658957
+name: Handala Hack Threatening Phishing Email with Doxxing
+description: This rule detects incoming emails containing threatening language and potential doxxing of physical addresses, characteristic of the Handala Hack group's psychological warfare campaign as reported by Unit 42.
+query: "// Name: Handala Hack Threatening Phishing Email\r\n// Author:  Adarsh Pandey\r\n// Date: 2026-03-13\r\n// Description: This rule detects incoming emails containing threatening language and potential doxxing of physical addresses, characteristic of the Handala Hack group's psychological warfare campaign as reported by Unit 42.\r\n// Tactics: Initial Access, Impact\r\n// Techniques: T1566, T1598\r\n// References: https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/\r\n// False Positive Sensitivity: Medium. The address-matching regex may trigger on legitimate email signatures containing business addresses. The combination with threatening keywords reduces this risk. Consider tuning by adding sender domain exclusions or focusing on emails sent to personal accounts if possible.\r\n\r\n// Define threatening keywords associated with the Handala Hack campaign.\r\nlet threat_keywords = dynamic(['Death to', 'ALLAHU AKBAR']);\r\n// Define a regex to identify patterns that look like a physical street address. This is a key part of the doxxing behavior.\r\n// Note: This regex is designed for common US/Western address formats and may need adjustment for other regions.\r\nlet address_regex = @'\\b\\d{1,5}\\s[\\w\\s]+\\s(?:St|Street|Ave|Avenue|Blvd|Boulevard|Rd|Road|Dr|Drive|Ct|Court|Way|Ln|Lane)\\b';\r\nEmailEvents\r\n// Filter for incoming emails only.\r\n| where EmailDirection == \"Inbound\"\r\n// Combine the two main conditions for efficiency: the email must contain both threatening keywords and a potential physical address.\r\n| where (Subject has_any (threat_keywords) or EmailBody has_any (threat_keywords))\r\n    and EmailBody matches regex address_regex\r\n| project\r\n    TimeGenerated,\r\n    Subject,\r\n    SenderFromAddress,\r\n    RecipientEmailAddress,\r\n    Threats,\r\n    UrlCount,\r\n    AttachmentCount,\r\n    EmailBody,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1566
+    - T1598
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/

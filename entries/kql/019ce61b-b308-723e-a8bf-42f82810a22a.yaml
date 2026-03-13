@@ -1,0 +1,46 @@
+id: 019ce61b-b308-723e-a8bf-42f82810a22a
+name: GPO-Based Wiper Distribution via SYSVOL
+description: Detects the creation of suspicious script or executable files in specific SYSVOL subdirectories, particularly 'Administtration' (with a typo) or 'install'. This technique is associated with the Handala threat actor for distributing destructive payloads like wipers across a compromised domain using Group Policy.
+query: |
+    // Name: GPO-Based Wiper Distribution
+    // Author: Adarsh Pandey
+    // Date: 2026-03-13
+    // Description: Detects the creation of suspicious script or executable files in specific SYSVOL subdirectories. The Handala threat actor uses this Group Policy-based technique to automate the distribution of destructive payloads, such as wipers, across a compromised domain. The detection specifically looks for a subdirectory named 'Administtration' (with a typo) as observed in the threat intel.
+    // False Positives: Medium. While the specific subdirectory 'Administtration' is a strong indicator, legitimate administrative scripts are also placed in SYSVOL. If legitimate scripts are deployed to subdirectories named 'install', consider adding exclusions for known script names or the accounts that deploy them.
+    // References: https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/
+    // Tactics: Persistence, Execution
+    // Techniques: T1484.001, T1037.003
+    DeviceFileEvents
+    // Look for files being created, as this indicates a new or modified GPO script.
+    | where ActionType == "FileCreated"
+    // SYSVOL is the default share for files related to Group Policy.
+    | where FolderPath has @"\SYSVOL\"
+    // The Handala actor was observed using a subdirectory with a typo: "Administtration". Also check for "install".
+    | where FolderPath has @"\Administtration\" or FolderPath has @"\install\"
+    // Filter for script or executable file types used to deploy the wiper.
+    | where FileName endswith ".bat" or FileName endswith ".exe" or FileName endswith ".ps1"
+    | project
+        Timestamp,
+        DeviceName,
+        FileName,
+        FolderPath,
+        SHA1,
+        InitiatingProcessAccountName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        ReportId
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0002
+    - TA0005
+    - TA0004
+techniques:
+    - T1484.001
+    - T1037.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/

@@ -1,0 +1,51 @@
+id: 019ce6fb-3a2a-761b-b48f-814797f30ff2
+name: PowerShell Reverse Shell Script Block
+description: Detects a common PowerShell reverse shell pattern in script block logs (EID 4104). This pattern involves creating a TCP client, getting the network stream, and using Invoke-Expression (iex) to execute commands received over the network.
+query: |
+    title: PowerShell Reverse Shell Script Block
+    id: c0860cfa-f49a-423b-b0a7-980c268f25d4
+    status: experimental
+    description: Detects a common PowerShell reverse shell pattern in script block logs (EID 4104). This pattern involves creating a TCP client, getting the network stream, and using Invoke-Expression (iex) to execute commands received over the network.
+    author: Fiza Ahmad
+    references:
+      - https://github.com/swisskyrepo/PayloadsAllTheThings
+    date: 2026-03-13
+    tags:
+      - attack.execution
+      - attack.command_and_control
+      - attack.t1059.001
+    logsource:
+      product: windows
+      category: powershell_script   # Event ID 4104
+    detection:
+      selection:
+        ScriptBlockText|contains|all:
+                # Identifies the creation of a TCP network client object
+          - 'System.Net.Sockets.TCPClient'
+                # Used to get the network stream for reading/writing data
+          - 'GetStream'
+                # Alias for Invoke-Expression, used to execute received commands
+          - 'iex'
+      condition: selection
+    falsepositives:
+        # Legitimate but rare administrative or network diagnostic scripts might use these components together.
+        # The presence of 'iex' in this combination is highly suspicious and significantly lowers the chance of it being a false positive.
+      - Custom network testing tools.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.command_and_control
+    - attack.t1059.001
+author: Fiza Ahmad
+version: "2"
+references:
+    - https://github.com/swisskyrepo/PayloadsAllTheThings
+data_sources:
+    - powershell_script
+    - windows

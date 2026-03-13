@@ -1,0 +1,64 @@
+id: 019cdb6c-8566-71ed-98fd-4fa1d41be437
+name: Hunting Suspicious SSH and Reconnaissance Activity
+description: This rule detects suspicious command-line activity indicative of SSH tunneling, external IP checks, and reconnaissance commands. It looks for specific IP addresses associated with known C2 or SSH tunnel infrastructure, SSH command-line options like 'StrictHostKeyChecking=no' and reverse tunnel flags ('-R', '-N'), the use of 'ifconfig.me' for external IP discovery, and various 'whoami' and 'groups' commands for system reconnaissance. It also flags activity related to 'FMAPP.exe' or 'FMAPP.dll'.
+query: |-
+    (index=* (sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" OR sourcetype="WinEventLog:Security"))
+    (
+        CommandLine="*162.0.230.185*"
+        OR CommandLine="*157.20.182.49*"
+        OR CommandLine="*ifconfig.me*"
+        OR CommandLine="*asuedulimit*"
+        OR CommandLine="*StrictHostKeyChecking=no*"
+        OR CommandLine="*-R*"
+        OR CommandLine="*-N*"
+        OR Image="*\\ssh.exe"
+        OR Image="*\\FMAPP.exe"
+        OR TargetFilename="*\\FMAPP.dll"
+        OR CommandLine="*whoami /priv*"
+        OR CommandLine="*whoami /pric*"
+        OR CommandLine="*groups /do*"
+        OR CommandLine="*group admi /do*"
+        OR CommandLine="*localgroup adminstraots*"
+        OR CommandLine="*localgroup administrators*"
+        OR CommandLine="*curl ifconfig.me*"
+        OR CommandLine="*ping 157.20.182.49*"
+    )
+    | eval DeviceName=coalesce(host, Computer, ComputerName)
+    | eval AccountName=coalesce(User, user, AccountName, SubjectUserName)
+    | eval FileName=coalesce(Image, NewProcessName, ParentImage, TargetFilename)
+    | eval FolderPath=replace(FileName, "\\\\[^\\\\]+$", "")
+    | eval ProcessCmd=coalesce(CommandLine, Process_Command_Line)
+    | eval RemoteIP=coalesce(DestinationIp, dest_ip, IpAddress)
+    | eval MatchReason=case(
+        like(lower(ProcessCmd), "%ssh.exe%") AND like(lower(ProcessCmd), "%-r%"), "OpenSSH reverse tunnel",
+        like(lower(ProcessCmd), "%stricthostkeychecking=no%"), "SSH option",
+        like(lower(ProcessCmd), "%asuedulimit%"), "Suspicious SSH user",
+        like(lower(FileName), "%fmapp.exe%") OR like(lower(FileName), "%fmapp.dll%"), "FMAPP activity",
+        like(lower(ProcessCmd), "%ifconfig.me%"), "External IP check",
+        like(lower(ProcessCmd), "%157.20.182.49%"), "Known C2 IP",
+        like(lower(ProcessCmd), "%162.0.230.185%"), "Known SSH tunnel IP",
+        like(lower(ProcessCmd), "%whoami /pr%") OR like(lower(ProcessCmd), "%groups /do%")
+          OR like(lower(ProcessCmd), "%group admi /do%") OR like(lower(ProcessCmd), "%localgroup admin%"), "Reconnaissance",
+        1=1, "Suspicious activity"
+    )
+    | table _time DeviceName AccountName FileName FolderPath ProcessCmd RemoteIP MatchReason EventCode sourcetype
+    | sort - _time
+query_type: spl
+severity: medium
+tactics:
+    - TA0008
+    - TA0007
+    - TA0002
+    - TA0011
+techniques:
+    - T1021.004
+    - T1033
+    - T1087
+    - T1059
+    - T1016
+    - T1572
+    - T1090
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "4"

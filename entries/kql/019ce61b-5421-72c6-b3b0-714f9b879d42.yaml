@@ -1,0 +1,42 @@
+id: 019ce61b-5421-72c6-b3b0-714f9b879d42
+name: Suspicious Default Hostname Connection from RDP/VPN
+description: Detects incoming RDP or VPN connections where the source hostname follows default Windows naming patterns (e.g., DESKTOP-XXXXXX or WIN-XXXXXX). This behavior has been observed in use by the Handala threat actor (Void Manticore) for attack infrastructure.
+query: |
+    // Name: Suspicious Default Hostname Connection
+    // Author: Adarsh Pandey
+    // Date: 2026-03-13
+    // Description: Detects incoming RDP or VPN connections where the source hostname follows default Windows naming patterns (e.g., DESKTOP-XXXXXX or WIN-XXXXXX). The Handala threat actor (Void Manticore) frequently uses attack infrastructure with these default names.
+    // False Positives: Medium. Legitimate non-domain-joined machines, new device setups, or temporary VMs may use default hostnames. It is recommended to filter out known benign source hostnames or IP ranges to reduce noise.
+    // References: https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/
+    // Tactics: Initial Access, Lateral Movement
+    // Techniques: T1133, T1021.001
+    SecurityEvent
+    // Look for successful logon events (RDP is LogonType 10, other network logons are Type 3)
+    | where EventID == 4624 and LogonType in (3, 10)
+    // Filter for source hostnames matching default Windows patterns observed in use by Handala.
+    | where WorkstationName startswith "DESKTOP-" or WorkstationName startswith "WIN-"
+    // FP Control: Exclude devices that match your organization's standard naming convention if it overlaps with the default patterns.
+    // For example: | where WorkstationName !startswith "WIN-PROD"
+    | project
+        Timestamp = TimeGenerated,
+        TargetDeviceName = Computer,
+        SourceDeviceName = WorkstationName,
+        AccountName = Account,
+        LogonTypeName = LogonType,
+        SourceIP = IpAddress,
+        AuthenticationPackage = AuthenticationPackageName,
+        EventID
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0001
+    - TA0008
+techniques:
+    - T1133
+    - T1021.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/handala-hack-unveiling-groups-modus-operandi/

@@ -1,0 +1,14 @@
+id: 019ce62e-9456-70cf-b9bb-6ac2a8f521c7
+name: Suspicious ICS/SCADA Protocol Access
+description: This rule detects an unusual volume of traffic over common ICS/SCADA protocols (Modbus, S7, BACnet). This could indicate scanning or unauthorized access attempts by threat actors like the FAD Team, who have been observed targeting these systems.
+query: "// Name: Suspicious ICS/SCADA Protocol Access\r\n// Author:  Adarsh Pandey\r\n// Date: 2026-03-13\r\n// Description: This rule detects an unusual volume of traffic over common ICS/SCADA protocols (Modbus, S7, BACnet). This could indicate scanning or unauthorized access attempts by threat actors like the FAD Team, who have been observed targeting these systems.\r\n// Tactics: Initial Access, Execution\r\n// Techniques: T0801, T0807\r\n// References: https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/\r\n// False Positive Sensitivity: Medium. Legitimate ICS communication or network scanners can trigger this alert. The threshold must be tuned based on a baseline of normal traffic in your OT environment. Consider adding known scanner IPs or management servers to an exclusion list.\r\n// Define the time window for analysis.\r\nlet timeframe = 1h;\r\n// Define common ICS/SCADA ports. Modbus (502), S7 (102), BACnet (47808).\r\nlet ics_ports = dynamic([502, 102, 47808]);\r\n// Define the threshold for what is considered an unusual number of requests.\r\n// This value should be baselined and tuned for your specific OT environment.\r\nlet threshold = 100;\r\n// Create an allowlist of known, legitimate hosts that communicate over these protocols.\r\nlet known_ics_hosts_allowlist = dynamic([]); // e.g., dynamic(['10.0.1.5', '192.168.50.100']);\r\n// Use CommonSecurityLog which often contains firewall logs from both IT and OT networks.\r\nCommonSecurityLog\r\n| where TimeGenerated > ago(timeframe)\r\n| where DestinationPort in (ics_ports)\r\n// Exclude known legitimate hosts to reduce false positives.\r\n| where SourceIP !in (known_ics_hosts_allowlist) and DestinationIP !in (known_ics_hosts_allowlist)\r\n// Summarize traffic to find high-volume connections.\r\n| summarize RequestCount = count(), StartTime = min(TimeGenerated), EndTime = max(TimeGenerated) by SourceIP, DestinationIP, DestinationPort, DeviceVendor, DeviceProduct\r\n| where RequestCount > threshold\r\n| project\r\n    StartTime,\r\n    EndTime,\r\n    SourceIP,\r\n    DestinationIP,\r\n    DestinationPort,\r\n    RequestCount,\r\n    DeviceVendor,\r\n    DeviceProduct\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+tags:
+    - kql
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/iranian-cyberattacks-2026/
