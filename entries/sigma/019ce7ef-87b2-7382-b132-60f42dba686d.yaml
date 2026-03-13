@@ -1,0 +1,56 @@
+id: 019ce7ef-87b2-7382-b132-60f42dba686d
+name: Trojanized Electron Application Archive (app.asar)
+description: Detects the creation or modification of "app.asar" files, which are archives used by Electron-based applications. Adversaries can replace this file in a legitimate, signed application to execute malicious code, as seen in a recent ClickFix campaign trojanizing the WorkFlowy application.
+query: |
+    title: Trojanized Electron Application Archive (app.asar)
+    id: ac398e1a-358a-4b33-adc8-82c6d3e20aed
+    status: experimental
+    description: Detects the creation or modification of "app.asar" files, which are
+      archives used by Electron-based applications. Adversaries can replace this
+      file in a legitimate, signed application to execute malicious code, as seen in
+      a recent ClickFix campaign trojanizing the WorkFlowy application.
+    author: detections.ai
+    references:
+      - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+    date: 2026-03-13
+    tags:
+      - attack.t1574.002
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection_behavioral:
+        # Detects creation or modification of the Electron application archive
+        TargetFilename|endswith: '\resources\app.asar'
+      selection_hash:
+        # Specific hash of malicious app.asar from the ClickFix campaign
+        Hashes|contains: 'SHA256=a390fe045f50a0697b14160132dfa124c7f92d85c18fba07df351c2fcfc11063'
+      filter_legit_updater:
+        # Filter for common application updater processes. This may need to be tuned for your environment.
+        Image|contains:
+          - '\app-update\'
+          - '\AppData\Local\'
+        Image|endswith:
+          - 'Setup.exe'
+          - 'Update.exe'
+      condition: selection_behavioral and (selection_hash or not filter_legit_updater)
+    falsepositives:
+      - Legitimate application installations or updates from processes not covered
+        by the filter. The filter may need to be expanded to include other
+        legitimate updater processes specific to your environment.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1204.004
+tags:
+    - attack.t1574.002
+author: detections.ai
+version: "2"
+references:
+    - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+data_sources:
+    - file_event
+    - windows

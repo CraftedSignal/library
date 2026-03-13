@@ -1,0 +1,51 @@
+id: 019ce7f0-8e2b-705e-89c9-48e0487d9f58
+name: ClickFix C2 Communication via Trojanized WorkFlowy App
+description: Detects network connections from a trojanized "WorkFlowy.exe" process to a known command and control (C2) server. This behavior was observed in a ClickFix campaign where a legitimate Electron application was modified to act as a C2 beacon and dropper, communicating with the C2 every two seconds.
+query: |
+    title: ClickFix C2 Communication via Trojanized WorkFlowy App
+    id: 335a703a-9222-409f-943f-95eb16ba8b2f
+    status: experimental
+    description: Detects network connections from a trojanized "WorkFlowy.exe"
+      process to a known command and control (C2) server. This behavior was observed
+      in a ClickFix campaign where a legitimate Electron application was modified to
+      act as a C2 beacon and dropper, communicating with the C2 every two seconds.
+    author: detections.ai
+    references:
+      - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+    date: 2026-03-13
+    tags:
+      - attack.t1071.001
+      - attack.command_and_control
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection_process:
+        # Identifies the specific application used in this campaign
+        Image|endswith: '\WorkFlowy.exe'
+      selection_destination:
+        # Known C2 infrastructure from the ClickFix campaign
+        DestinationIp: '144.31.165.173'
+        DestinationHostname: 'cloudflare.report'
+      condition: selection_process and selection_destination
+    falsepositives:
+      - This detection is highly specific. False positives are unlikely unless the
+        C2 IP address is reallocated to a benign service and a legitimate WorkFlowy
+        app connects to it.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.t1071.001
+    - attack.command_and_control
+author: detections.ai
+version: "2"
+references:
+    - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+data_sources:
+    - network_connection
+    - windows

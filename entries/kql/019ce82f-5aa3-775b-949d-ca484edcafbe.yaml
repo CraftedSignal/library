@@ -1,0 +1,16 @@
+id: 019ce82f-5aa3-775b-949d-ca484edcafbe
+name: Impossible Travel Detected for User After Device Wipe/Retire
+description: This rule detects impossible travel scenarios for user sign-ins that occur shortly after a device associated with that user has been wiped, retired, or deleted. It calculates the speed between consecutive sign-in locations for the same user and flags any travel exceeding 900 km/h, indicating a potential compromise or fraudulent activity.
+query: "let ImpossibleTravelThresholdKmPerHour = 900;  // Faster than commercial aviation\r\nSigninLogs\r\n| where TimeGenerated > ago(24h)\r\n| where ResultType == 0\r\n| where UserPrincipalName in (\r\n    IntuneAuditLogs\r\n    | where TimeGenerated > ago(24h)\r\n    | where OperationName has_any (\"wipe\", \"retire\", \"delete\")\r\n    | extend UPN = tostring(parse_json(Properties).Actor.UPN)\r\n    | distinct UPN\r\n)\r\n| extend Lat = toreal(LocationDetails.geoCoordinates.latitude)\r\n| extend Lon = toreal(LocationDetails.geoCoordinates.longitude)\r\n| sort by UserPrincipalName, TimeGenerated asc\r\n| serialize\r\n| extend PrevLat = prev(Lat, 1), PrevLon = prev(Lon, 1), PrevTime = prev(TimeGenerated, 1), PrevUser = prev(UserPrincipalName, 1)\r\n| where UserPrincipalName == PrevUser\r\n| extend TimeDiffHours = datetime_diff('second', TimeGenerated, PrevTime) / 3600.0\r\n| where TimeDiffHours > 0\r\n| extend DistanceKm = geo_distance_2points(Lon, Lat, PrevLon, PrevLat) / 1000.0\r\n| extend SpeedKmH = DistanceKm / TimeDiffHours\r\n| where SpeedKmH > ImpossibleTravelThresholdKmPerHour\r\n| project TimeGenerated, UserPrincipalName, IPAddress, \r\n    tostring(LocationDetails.city), tostring(LocationDetails.countryOrRegion),\r\n    DistanceKm, TimeDiffHours, SpeedKmH;"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+tags:
+    - kql
+version: "1"

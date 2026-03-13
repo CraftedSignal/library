@@ -1,0 +1,54 @@
+id: 019ce7ef-d2ec-7045-951f-4ae20d429feb
+name: Suspicious WebDAV Share Mount via Run Dialog
+description: Detects the use of "net.exe" to mount a remote WebDAV share, where the command is recorded in the Explorer RunMRU registry key. This technique was observed in a recent ClickFix campaign for initial access.
+query: |
+    title: Suspicious WebDAV Share Mount via Run Dialog
+    id: 7c57403d-24ee-4677-8a9a-eb012d115722
+    status: experimental
+    description: Detects the use of "net.exe" to mount a remote WebDAV share, where
+      the command is recorded in the Explorer RunMRU registry key. This technique
+      was observed in a recent ClickFix campaign for initial access.
+    author: detections.ai
+    references:
+      - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+    date: 2026-03-13
+    tags:
+      - attack.t1204.002
+      - attack.t1059.003
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection_key:
+        # Detects writes to the Run dialog (Win+R) history key
+        TargetObject|endswith: '\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RunMRU'
+      selection_proc:
+        # The Run dialog is part of the explorer.exe process
+        Image|endswith: '\explorer.exe'
+      selection_details:
+        # Detects the command pattern for mounting a WebDAV share
+        Details|contains|all:
+          - 'net use'
+          - 'http' # Catches both http:// and https:// based shares
+      condition: all of them
+    falsepositives:
+      - Legitimate administrative or user activity involving mounting WebDAV shares
+        via the Run dialog, although this is uncommon.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1204.004
+    - T1059.003
+tags:
+    - attack.t1204.002
+    - attack.t1059.003
+author: detections.ai
+version: "2"
+references:
+    - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+data_sources:
+    - registry_set
+    - windows
