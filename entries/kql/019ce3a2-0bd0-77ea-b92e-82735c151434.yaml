@@ -1,0 +1,16 @@
+id: 019ce3a2-0bd0-77ea-b92e-82735c151434
+name: SloppyLemming DLL Sideloading via Hijacked Microsoft Binaries
+description: Detects the execution of legitimate Microsoft binaries, NGenTask.exe or phoneactivate.exe (often renamed), from non-standard, user-writable directories. This is a known DLL Sideloading technique used by the threat actor SloppyLemming.
+query: "// Name: SloppyLemming DLL Sideloading via Hijacked Microsoft Binaries\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-12\r\n// Description: Detects the execution of legitimate Microsoft binaries, NGenTask.exe or phoneactivate.exe (often renamed), from non-standard, user-writable directories. This is a known DLL Sideloading technique used by the threat actor SloppyLemming.\r\n// Tactic: Defense Evasion, Persistence\r\n// Technique: T1574.002 - Hijack Execution Flow: DLL Side-Loading\r\n// False Positive Sensitivity: Medium\r\n// References: https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/\r\n\r\nlet suspiciousPaths = dynamic([\r\n    @\"C:\\ProgramData\\\",\r\n    @\"\\AppData\\Local\\Temp\\\",\r\n    @\"\\AppData\\Local\\Apps\\2.0\\\" // ClickOnce application cache path\r\n]);\r\n// Binaries known to be hijacked by SloppyLemming\r\nlet originalBinaries = dynamic([\r\n    \"NGenTask.exe\",\r\n    \"phoneactivate.exe\"\r\n]);\r\n// Renamed versions of the hijacked binaries\r\nlet renamedBinaries = dynamic([\r\n    \"OneDrive.exe\",\r\n    \"audiodg.exe\"\r\n]);\r\nDeviceProcessEvents\r\n// Look for process creation events\r\n| where ActionType == \"ProcessCreated\"\r\n// Filter for processes running from suspicious, user-writable locations\r\n| where FolderPath has_any (suspiciousPaths)\r\n// Filter for the specific binaries being hijacked, either by their original name or the actor's renamed version\r\n| where ProcessVersionInfoOriginalFileName in~ (originalBinaries) or FileName in~ (renamedBinaries)\r\n// FP Tuning: While NGenTask.exe is related to .NET, its execution from ProgramData or Temp is highly unusual.\r\n// Execution of phoneactivate.exe from any of these paths is also highly anomalous.\r\n// Consider adding parent process or command-line argument filtering specific to your environment to reduce noise.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    AccountName,\r\n    FileName,\r\n    FolderPath,\r\n    ProcessCommandLine,\r\n    ProcessVersionInfoOriginalFileName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    InitiatingProcessCommandLine,\r\n    MD5,\r\n    SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+techniques:
+    - T1574.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/

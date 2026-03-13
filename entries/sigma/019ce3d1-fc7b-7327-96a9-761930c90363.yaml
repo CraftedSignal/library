@@ -1,0 +1,74 @@
+id: 019ce3d1-fc7b-7327-96a9-761930c90363
+name: AWS User Activity From Multiple Source IPs
+description: |
+    Detects when the same AWS IAM user ARN performs actions from more than one distinct source IP within a 1-hour window. Indicative of session hijacking, credential sharing, or AiTM compromise where attacker egress IP differs from the victim's IP. AssumedRole is excluded by default due to high noise from automation — add back with tuned ARN exclusions if needed.
+query: |
+    title: AWS User Activity From Multiple Source IPs
+    id: f832494e-88a7-460b-ba22-b886161961ab
+    status: experimental
+    description: >
+      Detects when the same AWS IAM user ARN performs actions from more than one
+      distinct source IP within a 1-hour window. Indicative of session hijacking,
+      credential sharing, or AiTM compromise where attacker egress IP differs from
+      the victim's IP. AssumedRole is excluded by default due to high noise from
+      automation — add back with tuned ARN exclusions if needed.
+    author: detections.ai
+    date: 2026-03-12
+    modified: 2026-03-12
+    tags:
+      - attack.initial_access
+      - attack.t1078.004
+      - attack.credential_access
+      - attack.t1539
+    logsource:
+      product: aws
+      service: cloudtrail
+    detection:
+      selection:
+        userIdentity.type: 'IAMUser'
+      filter_service_invocations:
+        # Exclude events triggered by AWS services acting on behalf of the user,
+        # not direct user activity — these legitimately originate from service IPs.
+        userIdentity.invokedBy|contains:
+          - 'cloudtrail.amazonaws.com'
+          - 'signin.amazonaws.com'
+      filter_service_agents:
+        # Exclude events where the user agent indicates an AWS service, not a
+        # human or CLI session.
+        userAgent|contains:
+          - 'lambda.amazonaws.com'
+          - 'ec2.amazonaws.com'
+          - 'ecs-tasks.amazonaws.com'
+          - 'elasticmapreduce.amazonaws.com'
+      condition: selection and not (filter_service_invocations or
+        filter_service_agents) | count(distinct sourceIPAddress) by userIdentity.arn
+        > 1 over 1h
+    falsepositives:
+      - Users switching networks within the window (VPN connect/disconnect, WiFi to
+        hotspot).
+      - Legitimate use of rotating VPN egress nodes.
+      - Federated users where the IdP and the user originate from different IPs.
+      - Consider excluding specific user ARNs or known trusted CIDR ranges via
+        additional filter blocks.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+techniques:
+    - T1078.004
+    - T1539
+tags:
+    - attack.initial_access
+    - attack.t1078.004
+    - attack.credential_access
+    - attack.t1539
+author: detections.ai
+version: "2"
+data_sources:
+    - aws
+    - cloudtrail

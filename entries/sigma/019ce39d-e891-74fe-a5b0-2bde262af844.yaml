@@ -1,0 +1,52 @@
+id: 019ce39d-e891-74fe-a5b0-2bde262af844
+name: Suspicious Finger.exe Execution
+description: Detects the usage of the finger.exe utility with suspicious command line parameters. finger.exe is a legacy Windows tool that is rarely used in modern environments and is being leveraged by the HellsUchecker malware to download malicious batch commands.
+query: |
+    title: Suspicious Finger.exe Execution
+    id: 0b72d576-9e84-4766-9315-d0a42d7a8ed6
+    status: experimental
+    description: Detects the usage of the finger.exe utility with suspicious command
+      line parameters. finger.exe is a legacy Windows tool that is rarely used in
+      modern environments and is being leveraged by the HellsUchecker malware to
+      download malicious batch commands.
+    author: detections.ai
+    references:
+      - https://www.derp.ca/research/hellsuchecker-clickfix-etherhiding/
+    date: 2026-03-12
+    tags:
+      - attack.t1218
+      - attack.t1105
+    logsource:
+      product: windows
+      category: process_creation
+    detection:
+      selection_process:
+        Image|endswith: '\finger.exe' # Detects the finger.exe process
+      selection_cli:
+        CommandLine|contains:
+          # Detects suspicious command line arguments
+          - '@finger.cldvrfd.click' # remove these for generic detection
+          - '@on.cldvrfd.click'
+      condition: selection_process and selection_cli
+    falsepositives:
+      - Legitimate use of the finger utility is rare in modern enterprise networks
+        but may be used by network administrators or legacy applications.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1218
+    - T1105
+tags:
+    - attack.t1218
+    - attack.t1105
+author: detections.ai
+version: "2"
+references:
+    - https://www.derp.ca/research/hellsuchecker-clickfix-etherhiding/
+data_sources:
+    - process_creation
+    - windows

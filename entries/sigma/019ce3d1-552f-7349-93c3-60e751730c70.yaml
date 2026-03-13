@@ -1,0 +1,67 @@
+id: 019ce3d1-552f-7349-93c3-60e751730c70
+name: AWS Post-Compromise Discovery Activity
+description: Detects when a successful AWS Console Login is immediately followed by discovery actions from the same user and IP address. This pattern is indicative of an attacker performing reconnaissance after gaining initial access, as seen in recent AWS phishing campaigns.
+query: |
+    title: AWS Post-Compromise Discovery Activity
+    id: a8abb5a5-b5a1-4586-929c-a72cece62596
+    status: experimental
+    description: Detects when a successful AWS Console Login is immediately followed
+      by discovery actions from the same user and IP address. This pattern is
+      indicative of an attacker performing reconnaissance after gaining initial
+      access, as seen in recent AWS phishing campaigns.
+    author: detections.ai
+    references:
+      - https://securitylabs.datadoghq.com/articles/behind-the-console-aws-aitm-phishing-campaign/
+    date: 2026-03-12
+    tags:
+      - attack.discovery
+      - attack.t1087.004
+      - attack.t1069.003
+      - attack.t1580
+    logsource:
+      product: aws
+      service: cloudtrail
+    detection:
+      login:
+        # Detects a successful console login
+        eventName: 'ConsoleLogin'
+        responseElements.ConsoleLogin: 'Success'
+      discovery:
+        # Detects common initial discovery commands
+        eventName:
+          - 'GetCallerIdentity' # Near-universal first call post-access
+          - 'GetAccountSummary' # High-level account overview
+          - 'GetAccountAuthorizationDetails' # Dumps users, groups, roles, policies in one call
+          - 'ListUsers'
+          - 'ListRoles'
+          - 'ListGroups'
+          - 'ListAccountAliases' # Reveals account name/alias
+          - 'ListAttachedUserPolicies'
+        # Correlate the login and discovery events by user and source IP within a 20 minute window
+      condition: login then discovery by userIdentity.arn, sourceIPAddress over 20m
+    falsepositives:
+      - Legitimate administrators or automated systems may perform these actions
+        upon login as part of their normal workflow.
+      - Consider tuning by excluding trusted administrative roles, IP ranges, or
+        service accounts.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1087.004
+    - T1069.003
+    - T1580
+tags:
+    - attack.discovery
+    - attack.t1087.004
+    - attack.t1069.003
+    - attack.t1580
+author: detections.ai
+version: "2"
+references:
+    - https://securitylabs.datadoghq.com/articles/behind-the-console-aws-aitm-phishing-campaign/
+data_sources:
+    - aws
+    - cloudtrail
