@@ -1,0 +1,71 @@
+id: 019ceade-8bef-717a-acbf-eb856b07fe7a
+name: SMB Lateral Movement via Administrative Shares
+description: Detects lateral movement attempts using SMB administrative shares
+query: |-
+    title: SMB Lateral Movement via Administrative Shares
+    id: 2e46177f-23ec-4f98-a1a6-0d28a23d1234
+    status: stable
+    description: Detects lateral movement attempts using SMB administrative shares
+    references:
+        - https://attack.mitre.org/techniques/T1021/002/
+        - https://cyberdefenders.org/blog/soc-playbook-lateral-movement-detection-and-response-guide/
+    author: zendannyy
+    date: 2026/03/13
+    tags:
+        - attack.lateral-movement
+        - attack.t1021.002
+    logsource:
+        product: windows
+        service: security
+    detection:
+        selection_admin_share_access:
+            EventID:
+                - 5140
+                - 5145
+            ShareName|endswith:
+                - 'C$'
+                - 'ADMIN$'
+                - 'IPC$'
+        selection_remote_file_copy:
+            EventID: 5145
+            ObjectType: 'File'
+            AccessMask: '0x100180'
+            RelativeTargetName|endswith:
+                - '.dll'
+                - '.exe'
+                - '.bat'
+                - '.cmd'
+                - '.ps1'
+                - '.vbs'
+        selection_suspicious_source:
+            IpAddress|re: '^(?!127\.0\.0\.1|::1|localhost).*'
+            SubjectUserName|endswith: '$'
+        selection_psexec_like:
+            RelativeTargetName|contains:
+                - 'PSEXESVC'
+                - 'PSEXEC-'
+                - '\Windows\Temp\'
+                - '\Windows\System32\'
+        condition: selection_admin_share_access and (selection_suspicious_source or selection_psexec_like)
+    falsepositives:
+        - Legitimate administrative activities
+        - System backup operations
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.002
+    - T1021
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1021/002/
+    - https://cyberdefenders.org/blog/soc-playbook-lateral-movement-detection-and-response-guide/
+data_sources:
+    - windows
+    - security

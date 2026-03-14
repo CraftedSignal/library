@@ -1,0 +1,77 @@
+id: 019ceadd-dbcc-704f-8b5d-04bf39500f2c
+name: SMB Lateral Movement via Admin Shares or Network Connection
+description: Detects lateral movement attempts using SMB administrative shares via Network Connection
+query: |
+    title: SMB Lateral Movement via Admin Shares or Network Connection
+    id: c8e9a7f3-2d1b-4c5e-8f9a-6b3d7e4c2a1f
+    status: stable
+    description: "Detects lateral movement attempts using SMB administrative shares
+      via Network Connection"
+    references:
+      - https://attack.mitre.org/techniques/T1021/002/
+      - >-
+        https://cyberdefenders.org/blog/soc-playbook-lateral-movement-detection-and-response-guide/
+      - https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon
+    author: zendannyy
+    date: 2026/03/13
+    tags:
+      - attack.lateral-movement
+      - attack.t1021.002
+    logsource:
+      product: windows
+      category: process_creation
+      service: sysmon
+    detection:
+      selection_admin_share_access:
+        EventID:
+          - 5140
+          - 5145
+        ShareName|endswith:
+          - C$
+          - ADMIN$
+          - IPC$
+      selection_network:
+        EventID: 3
+        ObjectType: File
+        RelativeTargetName|endswith:
+          - .dll
+          - .exe
+          - .bat
+          - .cmd
+          - .ps1
+          - .vbs
+      selection_suspicious_source:
+        IpAddress|re: ^(?!127\.0\.0\.1|::1|localhost).*
+        SubjectUserName|endswith: $
+      selection_psexec_like:
+        RelativeTargetName|contains:
+          - PSEXESVC
+          - PSEXEC-
+          - \Windows\Temp\
+          - \Windows\System32\
+      condition: >-
+        selection_admin_share_access and (selection_suspicious_source or
+        selection_psexec_like)
+    falsepositives:
+      - Legitimate administrative activities
+      - System backup operations
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.002
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+author: zendannyy
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1021/002/
+    - https://cyberdefenders.org/blog/soc-playbook-lateral-movement-detection-and-response-guide/
+    - https://learn.microsoft.com/en-us/sysinternals/downloads/sysmon
+data_sources:
+    - process_creation
+    - windows
+    - sysmon
