@@ -1,0 +1,17 @@
+id: 019ce8e1-f3ba-76ca-afad-ac69873c2f65
+name: Fake VPN to Steal Credentials (dwmapi.dll and inspector.dll)
+description: |-
+    This is to search for the malicious dll loader, dwmapi.dll and the infostealer dll, inspector.dll. This search is from Microsoft's published article, "Storm-2561 users SEO poisoning to distribute fake VPN clients for credential theft". This will look for the two dll files digitally signed from Taiyuan Lihua Near Information Technology Co., Ltd.
+
+
+
+    https://www.microsoft.com/en-us/security/blog/2026/03/12/storm-2561-uses-seo-poisoning-to-distribute-fake-vpn-clients-for-credential-theft/
+query: "#event_simpleName=ClassifiedModuleLoad\r\n| event_platform=Win\r\n| ImageFileName=/dwmapi\\.dll/i or /inspector\\.dll/i\r\n| join(query={#event_simpleName=Event_ModuleSummaryInfoEvent\r\n| IssuerCN=/Taiyuan/i //You can change the Issuer to Microsoft to test it: IssuerCN=/Microsoft/i\r\n| groupBy([SHA256HashData], function=selectLast([IssuerCN]), limit=20000)}, field=[SHA256HashData], include=[IssuerCN], max=1)\r\n| table([@timestamp, ComputerName, ImageFileName, IssuerCN], limit=1000)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Lightkun Yagami
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/12/storm-2561-uses-seo-poisoning-to-distribute-fake-vpn-clients-for-credential-theft/

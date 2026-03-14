@@ -1,0 +1,47 @@
+id: 019ce8b8-6e97-7175-a9df-c142c5ad017b
+name: SloppyLemming C2 User-Agents
+description: This rule detects network traffic containing specific User-Agent strings used by the BurrowShell implant and the Rust-based keylogger to masquerade as legitimate Windows Update or browser traffic. These User-Agent strings are 'Windows-Update-Agent/10.0.10011.Client-Protocol/2.50' and 'Mozilla/5.0 (compatible; SecureNet/1.2)'.
+query: |
+    // Name: SloppyLemming C2 User-Agents
+    // Author: Brandon + detections.ai
+    // Date: 2026-03-13
+    // Description: This rule detects network traffic containing specific User-Agent strings used by the BurrowShell implant and the Rust-based keylogger to masquerade as legitimate Windows Update or browser traffic.
+    // False Positive Sensitivity: Medium
+    // Tactic: Command and Control, Defense Evasion
+    // Technique: T1071.001, T1036.005
+    // References: https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/
+    let sloppyLemmingUAs = dynamic([
+        "Windows-Update-Agent/10.0.10011.Client-Protocol/2.50", // Used by BurrowShell implant
+        "Mozilla/5.0 (compatible; SecureNet/1.2)" // Used by Rust-based keylogger
+    ]);
+    // Search across network events for the specific User-Agent strings.
+    // This could be from various log sources like DeviceNetworkEvents, CommonSecurityLog, etc.
+    // The table and field names below might need to be adjusted for your environment.
+    union DeviceNetworkEvents, CommonSecurityLog
+    | extend ParsedFields = parse_json(AdditionalFields)
+    | extend UserAgent = tostring(ParsedFields.HTTPUserAgent)
+    | where UserAgent in (sloppyLemmingUAs)
+    // The 'Windows-Update-Agent' string may be used by legitimate services.
+    // Consider filtering for destinations that are not known Microsoft update servers to reduce potential false positives.
+    // Example placeholder for filtering: | where RemoteUrl !has "microsoft.com"
+    | project
+        TimeGenerated,
+        DeviceName,
+        ActionType,
+        RemoteUrl,
+        RemoteIP,
+        UserAgent,
+        InitiatingProcessCommandLine
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0005
+techniques:
+    - T1071.001
+    - T1036.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://arcticwolf.com/resources/blog/sloppylemming-deploys-burrowshell-and-rust-based-rat-to-target-pakistan-and-bangladesh/

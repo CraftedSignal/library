@@ -1,0 +1,50 @@
+id: 019ce888-7b4e-719e-8d86-21a44d1cdeae
+name: Suspicious DNS Tunneling (Mori Backdoor)
+description: Detects potential DNS tunneling, a technique used by the Mori backdoor (associated with MuddyWater), by identifying an unusually high volume of long DNS queries from a single source. This could indicate C2 communication or data exfiltration.
+query: |
+    title: Suspicious DNS Tunneling (Mori Backdoor)
+    id: 6ec59157-b639-4aaf-a01a-01603364b509
+    status: experimental
+    description: Detects potential DNS tunneling, a technique used by the Mori
+      backdoor (associated with MuddyWater), by identifying an unusually high volume
+      of long DNS queries from a single source. This could indicate C2 communication
+      or data exfiltration.
+    author: detections.ai
+    references:
+      - https://www.cloudsek.com/blog/a-threat-actor-landscape-assessment-of-ics-ot-targeting-in-the-2026-iran-us-conflict-and-the-scale-of-the-risk
+    date: 2026-03-13
+    tags:
+      - attack.command_and_control
+      - attack.t1071.004
+      - attack.t1568.002
+      - attack.g0069
+    logsource:
+      category: dns_query
+    detection:
+      selection:
+        # This regex identifies DNS query names that are 100 characters or longer, a common characteristic of DNS tunneling.
+        dns.question.name|re: '.{100,}'
+        # The timeframe and count thresholds are starting points and may require tuning.
+      timeframe: 10m
+      condition: selection | count() > 50 by source.ip
+    falsepositives:
+      - Legitimate software that uses long DNS queries for specific functions.
+      - Security scanners or research tools.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - attack.command_and_control
+    - attack.t1071.004
+    - attack.t1568.002
+    - attack.g0069
+author: detections.ai
+version: "3"
+references:
+    - https://www.cloudsek.com/blog/a-threat-actor-landscape-assessment-of-ics-ot-targeting-in-the-2026-iran-us-conflict-and-the-scale-of-the-risk
+data_sources:
+    - dns_query

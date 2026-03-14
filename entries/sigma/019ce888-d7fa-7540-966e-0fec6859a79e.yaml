@@ -1,0 +1,56 @@
+id: 019ce888-d7fa-7540-966e-0fec6859a79e
+name: Volt Typhoon Netsh PortProxy Tunneling
+description: Detects living-off-the-land (LotL) activity associated with Volt Typhoon, specifically the use of 'netsh.exe' to configure port forwarding (portproxy), which is used for lateral movement and C2 tunneling.
+query: |
+    title: Volt Typhoon Netsh PortProxy Tunneling
+    id: 09de0c76-c701-434d-8b94-6e4552868967
+    status: experimental
+    description: Detects living-off-the-land (LotL) activity associated with Volt
+      Typhoon, specifically the use of 'netsh.exe' to configure port forwarding
+      (portproxy), which is used for lateral movement and C2 tunneling.
+    author: detections.ai
+    references:
+      - https://www.cloudsek.com/blog/a-threat-actor-landscape-assessment-of-ics-ot-targeting-in-the-2026-iran-us-conflict-and-the-scale-of-the-risk
+    date: 2026-03-13
+    tags:
+      - attack.proxy
+      - attack.t1090.001
+      - attack.defense_evasion
+      - attack.t1562.004
+      - attack.g0127
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\netsh.exe'
+        # Detects command-line arguments used to set up port forwarding, a known Volt Typhoon TTP.
+        CommandLine|contains|all:
+          - 'interface'
+          - 'portproxy'
+          - 'add'
+          - 'v4tov4'
+      condition: selection
+    falsepositives:
+      - Legitimate administrative activity.
+      - Network configuration scripts.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1090.001
+tags:
+    - attack.proxy
+    - attack.t1090.001
+    - attack.defense_evasion
+    - attack.t1562.004
+    - attack.g0127
+author: detections.ai
+version: "3"
+references:
+    - https://www.cloudsek.com/blog/a-threat-actor-landscape-assessment-of-ics-ot-targeting-in-the-2026-iran-us-conflict-and-the-scale-of-the-risk
+data_sources:
+    - process_creation
+    - windows
