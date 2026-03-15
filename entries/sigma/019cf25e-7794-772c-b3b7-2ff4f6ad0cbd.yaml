@@ -1,0 +1,69 @@
+id: 019cf25e-7794-772c-b3b7-2ff4f6ad0cbd
+name: Potential RegPwn EoP Vulnerability Exploit (CVE-2026-24291)
+description: |
+    Detects potential exploitation of the RegPwn privilege escalation vulnerability (CVE-2026-24291).
+    The exploit involves creating a registry symbolic link in a user-writable accessibility configuration path that is later accessed by a SYSTEM process.
+    This allows an attacker to write to an arbitrary registry location as SYSTEM. This rule detects the creation of the malicious registry symlink, the payload execution where osk.exe modifies a service, and the command-line arguments of the public proof-of-concept tool.
+query: |
+    title: Potential RegPwn EoP Vulnerability Exploit (CVE-2026-24291)
+    id: fdd2bf31-5172-4345-967d-615c9642dcf4
+    status: experimental
+    description: |
+      Detects potential exploitation of the RegPwn privilege escalation vulnerability (CVE-2026-24291).
+      The exploit involves creating a registry symbolic link in a user-writable accessibility configuration path that is later accessed by a SYSTEM process.
+      This allows an attacker to write to an arbitrary registry location as SYSTEM. This rule detects the creation of the malicious registry symlink, the payload execution where osk.exe modifies a service, and the command-line arguments of the public proof-of-concept tool.
+    author: tim@detections.ai
+    references:
+      - https://www.mdsec.co.uk/2026/03/rip-regpwn/
+      - https://github.com/mdsecactivebreach/RegPwn
+    date: 2026-03-15
+    tags:
+      - attack.privilege_escalation
+      - attack.t1068
+      - cve.2026.24291
+    logsource:
+      product: windows
+      service: sysmon
+      category:
+        - registry_event
+        - process_creation
+    detection:
+      selection_1:
+        # creation of the registry symbolic link in the specific path used by the exploit
+        category: registry_event
+        TargetObject|contains|all:
+          - '\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Accessibility\Session'
+          - '\ATConfig\osk'
+        Details: 'SymbolicLinkValue'
+      selection_2:
+        # payload execution: osk.exe modifies a service's ImagePath due to the symlink redirection
+        category: registry_event
+        Image|endswith: '\osk.exe'
+        TargetObject|startswith: 'HKLM\SYSTEM\CurrentControlSet\Services\'
+        TargetObject|endswith: '\ImagePath'
+      selection_3:
+        # command-line arguments of the public POC
+        category: process_creation
+        CommandLine|contains|all:
+          - '--regKey'
+          - '--regValueName'
+          - '--regValueData'
+          - '--regValueType'
+      condition: 1 of selection_*
+    falsepositives:
+      - The 'poc_cli' detection may trigger on other tools that use similar
+        command-line arguments, but this is considered unlikely.
+      - The 'symlink' and 'payload_write' detections are highly specific to this
+        exploit technique and are expected to have a very low false positive rate.
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+techniques:
+    - T1068
+author: tim@detections.ai
+version: "3"
+references:
+    - https://www.mdsec.co.uk/2026/03/rip-regpwn/
+    - https://github.com/mdsecactivebreach/RegPwn
