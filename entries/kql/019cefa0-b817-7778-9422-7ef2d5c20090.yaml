@@ -1,0 +1,15 @@
+id: 019cefa0-b817-7778-9422-7ef2d5c20090
+name: ShinyHunters Phishing Infrastructure Detection
+description: This rule detects network connections or email URLs that contain domains associated with the 'ShinyHunters' threat group's infrastructure. The rule specifically looks for a predefined list of domains known to be used by ShinyHunters for phishing or other malicious activities. It correlates email URL information with device network events to identify potential compromise attempts.
+query: "let ShinyHuntersInfra = dynamic([\".acess-terms.com\",\".okta.guide\",\".sso.guide\",\r\n\".okta.domains\",\".setup-okta.com\",\".help-okta.com\",\".desk-okta.com\",\".safe-okta.com\",\r\n\".prod-okta.com\",\".lock-okta.com\",\".passkeysetup.com\"]);\r\nlet EmailUrlThreat =\r\nEmailUrlInfo\r\n| where Timestamp > ago(1h)\r\n| where Url has_any(ShinyHuntersInfra);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(1h)\r\n| where RemoteUrl has_any(ShinyHuntersInfra)\r\n| union EmailUrlThreat"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Steven Lim
+version: "4"
