@@ -1,0 +1,43 @@
+id: 019cf716-b339-74db-9b84-0880cb7e36e9
+name: FortiGate Service Account Rogue Domain Join
+description: Detects the creation of a new computer account (Event ID 4741) where the creating user is a known service account used by FortiGate appliances. Attackers who compromise FortiGate devices can steal embedded LDAP credentials and use them to join rogue workstations to the domain, leveraging the `mS-DS-MachineAccountQuota` attribute.
+query: |
+    // Name: FortiGate Service Account Rogue Domain Join
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-03-16
+    // Description: Detects the creation of a new computer account (Event ID 4741) where the creating user is a known service account used by FortiGate appliances. Attackers who compromise FortiGate devices can steal embedded LDAP credentials and use them to join rogue workstations to the domain, leveraging the `mS-DS-MachineAccountQuota` attribute.
+    // Reference: https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+    // Tactics: Persistence, Defense Evasion
+    // Techniques: T1136.002, T1078.002
+    // False Positive Sensitivity: Medium
+    SecurityEvent
+    // Look for computer account creation events (Windows Event ID 4741) on Domain Controllers.
+    | where EventID == 4741
+    // Filter for events where the creating account name contains 'forti' or is a known FortiGate agent account.
+    | where ServiceAccount has "forti" or ServiceAccount =~ "fortidcagent"
+    // FP Tuning: This logic is designed to be broad. For higher fidelity, replace with the exact service account names used by your FortiGate appliances for LDAP binding.
+    // Example: | where SubjectAccountName in ("fortidcagent_prod", "fortinet_ldap_svc")
+    | project
+        TimeGenerated,
+        Computer, // Domain Controller that logged the event
+        ServiceAccount, // The service account that created the computer account
+        TargetUserName, // The name of the new computer account (e.g., WIN-X8WRBOSK0OF$)
+        WorkstationName, // Name of the machine from which the request was initiated, if available
+        IpAddress, // Source IP of the request, often the FortiGate appliance itself or a VPN-assigned IP
+        Activity // Raw event data for additional context
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0004
+    - TA0001
+techniques:
+    - T1136.002
+    - T1078.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.sentinelone.com/blog/fortigate-edge-intrusions/

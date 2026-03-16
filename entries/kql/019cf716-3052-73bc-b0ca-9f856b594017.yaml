@@ -1,0 +1,46 @@
+id: 019cf716-3052-73bc-b0ca-9f856b594017
+name: NTDS.dit or SYSTEM Hive Compression using Makecab
+description: This rule detects the use of the 'makecab.exe' utility to compress the Active Directory database (ntds.dit) or the SYSTEM registry hive. This is a technique used by attackers to prepare credentials and system secrets for exfiltration, as observed in intrusions following FortiGate compromises.
+query: |
+    // Name: NTDS.dit or SYSTEM Hive Compression using Makecab
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-03-16
+    // Description: This rule detects the use of the 'makecab.exe' utility to compress the Active Directory database (ntds.dit) or the SYSTEM registry hive. This is a technique used by attackers to prepare credentials and system secrets for exfiltration, as observed in intrusions following FortiGate compromises.
+    // Reference: https://www.sentinelone.com/blog/fortigate-edge-intrusions/
+    // Tactics: Credential Access, Collection
+    // Techniques: T1003.003, T1560.001
+    // False Positive Sensitivity: Medium
+    DeviceProcessEvents
+    // Look for process creation events within the last day
+    | where TimeGenerated > ago(1d)
+    // Filter for the execution of makecab.exe. Using 'has' on ProcessCommandLine is more robust against executable renaming than checking FileName.
+    | where ProcessCommandLine has "makecab.exe"
+    // Check for the presence of ntds.dit or the SYSTEM hive in the command line arguments, which are the primary targets for this type of credential theft.
+    | where ProcessCommandLine has "ntds.dit" or ProcessCommandLine has "SYSTEM"
+    // FP Tuning: Legitimate backup processes are unlikely to use makecab.exe for this purpose.
+    // If legitimate custom scripts exist, consider filtering by specific user accounts or hostnames.
+    // This activity is often preceded by the creation of a Volume Shadow Copy (e.g., via vssadmin or wmic). Correlating with VSS creation events can increase fidelity.
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        AccountDomain,
+        ProcessCommandLine,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        MD5,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1003.003
+    - T1560.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://www.sentinelone.com/blog/fortigate-edge-intrusions/
