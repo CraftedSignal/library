@@ -1,0 +1,55 @@
+id: 019cf2c2-e2e6-77ab-a686-4c9225a07e1c
+name: Interlock Ransomware Scheduled Task Creation
+description: Detects the creation of a specific scheduled task used by Interlock ransomware to execute its payload with SYSTEM privileges.
+query: |
+    title: Interlock Ransomware Scheduled Task Creation
+    id: b93e0f05-3300-4107-a69b-b39b6e332b85
+    status: experimental
+    description: Detects the creation of a specific scheduled task used by Interlock
+      ransomware to execute its payload with SYSTEM privileges.
+    author: detections.ai
+    references:
+      - https://www.ibm.com/think/x-force/slopoly-start-ai-enhanced-ransomware-attacks
+    date: 2026-03-15
+    tags:
+      - attack.execution
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          # Detects the creation of a scheduled task
+          - '/create'
+          # The task runs a command via cmd.exe
+          - '/tr'
+          - 'cmd /C'
+      condition: selection
+    falsepositives:
+      - This detection is highly specific to the Interlock ransomware's observed
+        procedure. False positives are unlikely.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.execution
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1053.005
+author: detections.ai
+version: "2"
+references:
+    - https://www.ibm.com/think/x-force/slopoly-start-ai-enhanced-ransomware-attacks
+data_sources:
+    - process_creation
+    - windows
