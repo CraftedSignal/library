@@ -1,0 +1,14 @@
+id: 019cf57c-fcd2-749b-975a-c4e045531dbc
+name: SSH Brute Force Attempts
+description: Detects multiple failed SSH login attempts from a single source IP address, indicating a potential brute force attack. The rule identifies 'Invalid user' or 'Failed password' messages in syslog from the 'sshd' process and groups them by source IP and time to count unique attempted users and total attempts. A threshold of more than 5 attempted users from a single source IP within a 10-minute window triggers an alert.
+query: "Syslog\r\n| where ProcessName == \"sshd\"\r\n| where SyslogMessage has_any (\"Invalid user\",\"Failed password\")\r\n| extend SrcIP = extract(@\"from ([0-9\\.]+)\", 1, SyslogMessage)\r\n| extend User = extract(@\"for ([^\\s]+)\", 1, SyslogMessage)\r\n| summarize AttemptedUsers=dcount(User), Attempts=count() by SrcIP, bin(TimeGenerated,10m)\r\n| where AttemptedUsers > 5\r\n| sort by Attempts desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - kql
+version: "1"

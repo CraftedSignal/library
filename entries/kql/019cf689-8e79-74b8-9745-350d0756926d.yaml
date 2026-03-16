@@ -1,0 +1,17 @@
+id: 019cf689-8e79-74b8-9745-350d0756926d
+name: '[IC] - Catching emojis on email Subjects'
+description: "Marketing emails use Emojis all the time… but attackers use them too because they catch attention and increase the chance someone clicks:\n- ⚠️ Urgent messages\n- \U0001F4E6 Delivery notifications\n- \U0001F4C4 Fake invoices\n- \U0001F510 Password resets\n\nIdentify and classify cases on Email Subjects can be converted in useful detections. It query identify:\n- Emails received with icons in the subject\n- Where the URL was clicked\n- Excluding cases where the sender is added as allowed either in the organization or user level\n- Summarise by number of Emails, number of distinct recipients and also identify if the messages were delivered into Inbox Folders"
+query: "// Sergio Albea 16-03-2026 ©️\nEmailEvents\n| where Timestamp > ago(7d)\n| where isnotempty(Subject)\n| extend Icons = extract_all(@\"([\\x{1F300}-\\x{1FAFF}\\x{2600}-\\x{27BF}])\", Subject)\n| where isnotempty(Icons)\n| join kind=inner UrlClickEvents on NetworkMessageId\n| where UserLevelPolicy !has 'Allow' \n| where OrgLevelPolicy !has 'Allow'\n| extend SenderIP = iff(isnotempty( SenderIPv4),SenderIPv4,SenderIPv6)\n| extend geo_ip = tostring(geo_info_from_ip_address(SenderIP).country)\n//| where Subject contains \"⚠️\" \n| summarize Distinct_Recipients=dcount(RecipientEmailAddress),make_set(RecipientEmailAddress),Emails=count() by Subject,SenderIP,geo_ip,ActionType, Workload, Url, ThreatTypes, LatestDeliveryLocation\n| order by Emails, Distinct_Recipients"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Sergio Albea
+version: "1"
+references:
+    - https://detect.fyi/threat-hunting-scenario-catching-emojis-on-files-and-email-subjects-kql-queries-5a92c92cdf84

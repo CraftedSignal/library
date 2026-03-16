@@ -1,0 +1,18 @@
+id: 019cf5fc-ee22-75cb-8323-3f91179284f2
+name: Windows - Accessibility Features Abuse Detection
+description: This rule detects the execution of common accessibility tools (osk.exe, powershell.exe, pwsh.exe, cmd.exe, reg.exe) with command-line arguments indicating an attempt to modify or leverage Windows accessibility features for persistence or privilege escalation. Specifically, it looks for command lines referencing 'Software\Microsoft\Windows NT\CurrentVersion\Accessibility' and 'ATConfig\osk' or 'Accessibility\Session'. This behavior is often associated with adversaries attempting to maintain access or elevate privileges by manipulating accessibility programs like the On-Screen Keyboard.
+query: "SentinelBB_Windows_SecurityEvents\r\n| where EventID == 4688\r\n| where NewProcessName in~ (\"osk.exe\", \"powershell.exe\", \"pwsh.exe\", \"cmd.exe\", \"reg.exe\") and (CommandLine has @\"Software\\Microsoft\\Windows NT\\CurrentVersion\\Accessibility\" and CommandLine has_any (\"ATConfig\\\\osk\", \"Accessibility\\\\Session\"))"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+techniques:
+    - T1546.008
+tags:
+    - kql
+author: Sotiris Mavrakis
+version: "1"
+references:
+    - https://www.mdsec.co.uk/2026/03/rip-regpwn/
+    - https://github.com/mdsecactivebreach/RegPwn

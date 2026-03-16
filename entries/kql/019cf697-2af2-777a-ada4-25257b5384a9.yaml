@@ -1,0 +1,18 @@
+id: 019cf697-2af2-777a-ada4-25257b5384a9
+name: A0Backdoor DLL Sideloading Detection
+description: Detects the loading of 'hostfxr.dll' from suspicious user-specific AppData folders by 'CrossDeviceService.exe' or 'Teams.exe'. This behavior can indicate an attempt to load a malicious .NET runtime, potentially for DLL hijacking or code injection, often associated with persistence or execution techniques.
+query: "DeviceImageLoadEvents\r\n| where FileName =~ \"hostfxr.dll\"\r\n| where FolderPath has_any (@\"\\AppData\\Local\\\", @\"\\AppData\\Roaming\\\")\r\n| where InitiatingProcessFileName in (\"CrossDeviceService.exe\", \"Teams.exe\")\r\n| project-reorder\r\n    TimeGenerated,\r\n    DeviceName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessFolderPath,\r\n    FileName,\r\n    FolderPath,\r\n    SHA1\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0003
+    - TA0005
+    - TA0002
+techniques:
+    - T1546.011
+    - T1574.001
+    - T1059
+tags:
+    - kql
+version: "1"

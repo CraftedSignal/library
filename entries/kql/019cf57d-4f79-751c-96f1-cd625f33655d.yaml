@@ -1,0 +1,13 @@
+id: 019cf57d-4f79-751c-96f1-cd625f33655d
+name: External SSH Login Attempt
+description: This rule detects successful SSH login attempts from external IP addresses (not within common private IP ranges). It specifically looks for 'Accepted' messages in syslog from the 'sshd' process and filters out internal source IPs.
+query: "Syslog\r\n| where ProcessName == \"sshd\"\r\n| where SyslogMessage has \"Accepted\"\r\n| extend SrcIP = extract(@\"from ([0-9\\.]+)\", 1, SyslogMessage)\r\n| where SrcIP !startswith \"10.\"\r\n    and SrcIP !startswith \"192.168.\"\r\n    and SrcIP !startswith \"172.\"\r\n| project TimeGenerated, Computer, HostIP, SrcIP, SyslogMessage\r\n| sort by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+techniques:
+    - T1021.004
+tags:
+    - kql
+version: "1"

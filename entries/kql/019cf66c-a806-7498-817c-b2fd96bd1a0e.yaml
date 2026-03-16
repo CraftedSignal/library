@@ -1,0 +1,20 @@
+id: 019cf66c-a806-7498-817c-b2fd96bd1a0e
+name: LLM-Generated Reconnaissance Command Chain (LAMEHUG)
+description: Detects the execution of multiple system reconnaissance commands concatenated into a single command line. This behavior is characteristic of the LAMEHUG malware, which uses LLMs to dynamically generate these command strings.
+query: "// Name: LLM-Generated Reconnaissance Command Chain\n// Author: detections.ai\n// Date: 2026-03-16\n// Description: Detects the execution of multiple system reconnaissance commands concatenated into a single command line. This behavior is characteristic of the LAMEHUG malware, which uses LLMs to dynamically generate these command strings.\n// Data Source: DeviceProcessEvents\n// MITRE ATT&CK: T1082, T1016, T1033, T1057, T1059.003\n// References: https://guardsix.com/blog/apt28s-new-arsenal-lamehug-the-first-ai-powered-malware\n// False Positives: Legitimate, complex administrative scripts may trigger this detection. Tuning may be required to exclude known administrative tools or specific user accounts.\n\nDeviceProcessEvents\n// The core logic looks for specific combinations of recon commands in a single command line, a TTP of the LAMEHUG malware.\n| where ProcessCommandLine has \"cmd.exe\" // The observed command was executed via cmd.exe\n    and \n    (\n        // First observed command combination\n        (\n            ProcessCommandLine has \"systeminfo\" and\n            ProcessCommandLine has \"wmic\" and\n            ProcessCommandLine has \"dsquery\"\n        )\n        or\n        // Second observed command combination\n        (\n            ProcessCommandLine has \"whoami\" and\n            ProcessCommandLine has \"net config workstation\" and\n            ProcessCommandLine has \"tasklist\"\n        )\n    )\n// Project relevant columns for analysis.\n| project\n    Timestamp,\n    DeviceName,\n    AccountName,\n    InitiatingProcessFileName,\n    FileName,\n    ProcessCommandLine,\n    MD5,\n    SHA1,\n    SHA256\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+    - TA0002
+techniques:
+    - T1082
+    - T1016
+    - T1033
+    - T1057
+    - T1059.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://guardsix.com/blog/apt28s-new-arsenal-lamehug-the-first-ai-powered-malware

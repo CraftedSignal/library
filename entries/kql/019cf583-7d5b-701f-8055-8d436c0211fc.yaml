@@ -1,0 +1,16 @@
+id: 019cf583-7d5b-701f-8055-8d436c0211fc
+name: Account Manipulation with Non-ASCII or Zero-Width Characters in SPN/UPN
+description: This rule detects attempts to manipulate user or service principal names (SPN/UPN) in Active Directory by adding non-ASCII or zero-width characters. Such modifications can be used by adversaries for obfuscation, to bypass detection mechanisms, or to create stealthy persistence. The rule specifically looks for Event IDs 4738 (User Account Changed) and 5136 (Directory Service Object Modified) where the 'servicePrincipalName' or 'userPrincipalName' attributes contain characters outside the standard ASCII range or zero-width characters like U+200B, U+200C, U+200D.
+query: "SecurityEvent\r\n| where EventID in (4738, 5136)\r\n| extend EventDataXml = parse_xml(EventData)\r\n| extend\r\n    Actor = tostring(EventDataXml.EventData.Data[0]['#text']), \r\n    Target = case(\r\n        EventID == 4738, tostring(EventDataXml.EventData.Data[2]['#text']), \r\n        EventID == 5136, tostring(EventDataXml.EventData.Data[1]['#text']), \r\n        \"N/A\"\r\n    ),\r\n    AttributeName = case(\r\n        EventID == 4738, \"servicePrincipalName\", \r\n        EventID == 5136, tostring(EventDataXml.EventData.Data[4]['#text']), \r\n        \"N/A\"\r\n    ),\r\n    AttributeValue = case(\r\n        EventID == 4738, tostring(EventDataXml.EventData.Data[6]['#text']), \r\n        EventID == 5136, tostring(EventDataXml.EventData.Data[5]['#text']), \r\n        \"N/A\"\r\n    )\r\n| where AttributeName has_any (\"servicePrincipalName\", \"userPrincipalName\")\r\n| where\r\n    AttributeValue matches regex @\"[^\\x00-\\x7F]\"\r\n    or AttributeValue has_any (\"\\u200B\", \"\\u200C\", \"\\u200D\") \r\n| project\r\n    TimeGenerated,\r\n    Computer,\r\n    EventID,\r\n    Actor,\r\n    Target,\r\n    AttributeName,\r\n    AttributeValue\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098
+    - T1098.001
+    - T1098.003
+tags:
+    - kql
+version: "1"

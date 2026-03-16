@@ -1,0 +1,24 @@
+id: 019cf68c-e773-77ec-b2b7-7265908fd26a
+name: '[IC] - Catching Emojis into File Names'
+description: "Attackers do not only use emojis in the subject. Sometimes they also use them in the file name itself to make the file look more attractive or legitimate. Based on my experience, I am not expecting legitimate files names with icons so it can be an interesting case to easily convert the hunting into a detection. For example:\n\n\U0001F4C4Invoice.pdf\n\U0001F510Reset_Password.html\n\U0001F4E6Delivery_Document.zip\n\nThis can help find:\n\n- Suspicious files dropped on disk\n- Files downloaded from phishing emails\n- User-downloaded scam files\n- Payloads with social engineering names"
+query: |-
+    // Sergio Albea 16-03-2026 ©️
+    DeviceFileEvents
+    | where Timestamp > ago(7d)
+    | where isnotempty(FileName)
+    | extend Icons = extract_all(@"([\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}])", FileName)
+    | where isnotempty(Icons)
+    | project InitiatingProcessRemoteSessionIP,MD5,DeviceName,FileName,FolderPath,InitiatingProcessFileName,Icons,ReportId,DeviceId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: Sergio_Albea
+version: "1"
+references:
+    - https://detect.fyi/threat-hunting-scenario-catching-emojis-on-files-and-email-subjects-kql-queries-5a92c92cdf84

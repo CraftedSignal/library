@@ -1,0 +1,15 @@
+id: 019cf59f-fefd-759c-a310-f9086e0b44c7
+name: Slopoly Backdoor Persistence via schtasks.exe
+description: Detects the creation of a scheduled task using 'schtasks.exe' with specific command-line arguments that indicate an attempt to establish persistence. The rule looks for 'schtasks.exe' creating a task named 'Runtime Broker' that executes a program from a suspicious path within 'C:\ProgramData\Microsoft\Windows\Runtime\'. This pattern is often used by adversaries to maintain access to a system.
+query: "DeviceEvents\r\n| where ActionType == \"ProcessCreated\" and FileName =~ \"schtasks.exe\"\r\n| where ProcessCommandLine has_all (\"create\", \"/tn\", \"Runtime Broker\", @\"C:\\ProgramData\\Microsoft\\Windows\\Runtime\\\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    SHA1,\r\n    ReportId\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - kql
+version: "1"

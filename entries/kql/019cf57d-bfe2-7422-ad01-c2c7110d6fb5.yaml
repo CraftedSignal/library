@@ -1,0 +1,15 @@
+id: 019cf57d-bfe2-7422-ad01-c2c7110d6fb5
+name: Detect SSH Exploitation / Scanning Behaviour
+description: This rule detects potential SSH brute force attacks by monitoring syslog for multiple failed SSH login attempts, connection closures, or invalid user attempts from a single source IP address within a short time frame. It specifically looks for keywords like 'error', 'Connection closed', 'authentication failure', and 'invalid user' in SSHD logs.
+query: "Syslog\r\n| where ProcessName == \"sshd\"\r\n| where SyslogMessage has_any (\"error\",\"Connection closed\",\"authentication failure\",\"invalid user\")\r\n| extend SrcIP = extract(@\"from ([0-9\\.]+)\", 1, SyslogMessage)\r\n| summarize EventCount=count() by SrcIP, Computer, bin(TimeGenerated,5m)\r\n| where EventCount > 30\r\n| sort by EventCount desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - kql
+version: "1"

@@ -1,0 +1,58 @@
+id: 019cf66b-e049-76f1-832e-3de9621f8f73
+name: Non-Browser LLM API Communication (LAMEHUG)
+description: Detects network connections to known LLM/AI API endpoints from processes that are not standard web browsers. This is indicative of the LAMEHUG malware used by APT28, which leverages these APIs to dynamically generate and execute commands.
+query: |-
+    let llm_domains = dynamic([
+        "inference.huggingface.co",
+        "api.openai.com",
+        "api.deepseek.com",
+        "api.anthropic.com",
+        "api.mistral.ai",
+        "generativelanguage.googleapis.com"
+    ]);
+    let lamehug_ips = dynamic([
+        "144.126.202.227",
+        "192.36.27.37"
+    ]);
+    let browser_processes = dynamic([
+        "chrome.exe",
+        "msedge.exe",
+        "firefox.exe",
+        "brave.exe",
+        "iexplore.exe",
+        "opera.exe",
+        "safari.exe"
+    ]);
+    // Name: Non-Browser LLM API Communication
+    // Author: detections.ai
+    // Date: 2026-03-16
+    // Description: Detects network connections to known LLM/AI API endpoints from processes that are not standard web browsers. This is indicative of the LAMEHUG malware used by APT28, which leverages these APIs to dynamically generate and execute commands.
+    // Data Source: DeviceNetworkEvents
+    // MITRE ATT&CK: T1071.001, T1105
+    // References: https://guardsix.com/blog/apt28s-new-arsenal-lamehug-the-first-ai-powered-malware
+    // False Positive Sensitivity: Medium. Legitimate command-line tools, scripts, or IDEs used by developers may connect to these APIs. Consider excluding known-good applications like 'code.exe', 'python.exe', or 'curl.exe' if they are common in your environment.
+    DeviceNetworkEvents
+    // Look for connections to known LLM API domains or IPs associated with the LAMEHUG campaign.
+    | where RemoteUrl has_any (llm_domains) or RemoteIP in (lamehug_ips)
+    // Filter out traffic from common web browsers to reduce noise.
+    | where not(InitiatingProcessFileName has_any (browser_processes))
+    | project
+        Timestamp,
+        DeviceName,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        RemoteUrl,
+        RemoteIP,
+        RemotePort
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1105
+tags:
+    - kql
+version: "2"
+references:
+    - https://guardsix.com/blog/apt28s-new-arsenal-lamehug-the-first-ai-powered-malware

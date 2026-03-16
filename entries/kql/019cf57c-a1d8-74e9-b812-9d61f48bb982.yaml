@@ -1,0 +1,15 @@
+id: 019cf57c-a1d8-74e9-b812-9d61f48bb982
+name: SSH Brute Force Detection
+description: This rule detects potential SSH brute force attacks by identifying multiple failed password attempts from a single source IP address to a specific computer within a 5-minute window. It specifically looks for 'Failed password' messages in syslog entries from the 'sshd' process.
+query: "Syslog\r\n| where ProcessName == \"sshd\"\r\n| where SyslogMessage has \"Failed password\"\r\n| extend SrcIP = extract(@\"from ([0-9\\.]+)\", 1, SyslogMessage)\r\n| summarize FailedAttempts=count() by SrcIP, Computer, bin(TimeGenerated,5m)\r\n| where FailedAttempts > 15\r\n| sort by FailedAttempts desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1110
+    - T1110.001
+tags:
+    - kql
+version: "1"

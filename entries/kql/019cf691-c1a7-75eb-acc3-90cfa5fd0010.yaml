@@ -1,0 +1,29 @@
+id: 019cf691-c1a7-75eb-acc3-90cfa5fd0010
+name: '[IC] - Catching Emojis into Email Attachment Files names'
+description: "Attackers take advantage of the emojis because they help the content stand out and gets more attention than plain text. It not apply just to Email Subject if not that it also applies to Attachment Files which based on my experience,  legitime file not use to have icons in their file names.For example:\n\n\U0001F4C4Invoice.pdf\n\U0001F510Reset_Password.html\n\U0001F4E6Delivery_Document.zip\n\nThis can help find:\n\n- Suspicious files dropped on emails\n- Files downloaded from phishing emails\n- User-downloaded /opening scam files\n- Payloads with social engineering names\n\n"
+query: |-
+    // Sergio Albea 16-03-2026 ©️
+    EmailAttachmentInfo
+    | where Timestamp > ago(7d) and isnotempty(FileExtension) and isnotempty(FileName)
+    | extend Icons = extract_all(@"([\x{1F300}-\x{1FAFF}\x{2600}-\x{27BF}])", FileName)
+    | where isnotempty(Icons)
+    | join kind=inner (EmailEvents) on NetworkMessageId
+    | extend SenderIP = iff(isnotempty(SenderIPv4),SenderIPv4,SenderIPv6)
+    | extend geo_ip = tostring(geo_info_from_ip_address(SenderIP).country)
+    | project Timestamp,SenderDisplayName,SenderFromAddress,SenderIP,geo_ip,FileName,FileExtension,RecipientEmailAddress,Icons
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.001
+    - T1204
+tags:
+    - kql
+author: Sergio_Albea
+version: "1"
+references:
+    - https://detect.fyi/threat-hunting-scenario-catching-emojis-on-files-and-email-subjects-kql-queries-5a92c92cdf84

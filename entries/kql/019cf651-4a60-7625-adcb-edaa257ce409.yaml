@@ -1,0 +1,9 @@
+id: 019cf651-4a60-7625-adcb-edaa257ce409
+name: Malicious AI Assistant Extensions Harvest LLM Chat Histories
+description: KQL Query
+query: "// https://www.microsoft.com/en-us/security/blog/2026/03/05/malicious-ai-assistant-extensions-harvest-llm-chat-histories/ \r\n//  MS provids it's own queries but to be honest they are trash\r\nlet ExtensionMapping = datatable(ExtensionID:string, ExtensionName:string) [\r\n    \"fnmihdojmnkclgjpcoonokmkhjpjechg\", \"Chat GPT for Chrome with GPT-5, Claude Sonnet & DeepSeek\",\r\n    \"inhcgfpbfdjbjogdfjbclgolkmhnooop\", \"AI Sidebar with Deepseek, ChatGPT, Claude and more\"\r\n];\r\nlet MaliciousExtensionIDs = ExtensionMapping | project ExtensionID;\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where FolderPath has_any (MaliciousExtensionIDs) or FileName has_any (MaliciousExtensionIDs)\r\n| extend ExtensionID = extract(@\"([a-z]{32})\", 1, tolower(strcat(FolderPath, FileName)))\r\n| lookup kind=leftouter ExtensionMapping on ExtensionID\r\n| project Timestamp, DeviceName, DeviceId, ExtensionID, ExtensionName, FolderPath, FileName, ActionType\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
