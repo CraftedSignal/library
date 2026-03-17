@@ -1,0 +1,17 @@
+id: 019cf872-0fa9-730b-aa6d-6b40e5339b49
+name: Coruna Exploit Kit JavaScript Obfuscation Patterns
+description: 'This rule detects specific JavaScript obfuscation patterns used by the Coruna exploit kit framework. The kit was observed being used by multiple threat actors, including UNC6353 and UNC6691. The rule looks for two distinct patterns in process command lines: a map/join/fromCharCode obfuscation pattern and an integer XOR obfuscation pattern, typically executed by JavaScript-enabled processes like web browsers or scripting hosts.'
+query: "// Name: Coruna Exploit Kit JS Obfuscation Pattern\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-16\r\n// Description: This rule detects specific JavaScript obfuscation patterns used by the Coruna exploit kit framework. The kit was observed being used by multiple threat actors, including UNC6353 and UNC6691.\r\n// False Positive Sensitivity: Medium\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit\r\n// Tags: T1204.001, T1027.013, T1497.001\r\n\r\n// Define a list of processes that commonly execute JavaScript. This can be tuned to your environment.\r\nlet js_processes = dynamic(['msedge.exe', 'chrome.exe', 'firefox.exe', 'iexplore.exe', 'wscript.exe', 'cscript.exe', 'mshta.exe']);\r\n// Search across process creation events for command lines containing the malicious patterns.\r\n// Note: This may also be found in script block logging (EventID 4104) or web proxy logs.\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName in~ (js_processes) or ProcessVersionInfoOriginalFileName in~ (js_processes)\r\n| where\r\n    (\r\n        // Detects the map/join/fromCharCode obfuscation pattern.\r\n        // Example: [16, 22, ...].map(x => {return String.fromCharCode(x ^ 101);}).join(\"\")\r\n        ProcessCommandLine has \".map\" and ProcessCommandLine has \"String.fromCharCode\" and ProcessCommandLine has \".join\" and\r\n        ProcessCommandLine matches regex @'\\[[^\\]]+\\]\\.map\\(\\w+\\s*=>\\s*.{0,20}String\\.fromCharCode\\(\\w+\\s*\\^\\s*\\d+\\).{0,20}\\)\\.join\\(\"\"\\)'\r\n    )\r\n    or\r\n    (\r\n        // Detects the integer XOR obfuscation pattern.\r\n        // Example: i.p1=(1111970405 ^ 1111966034);\r\n        ProcessCommandLine matches regex @'\\w+\\.\\w+\\s*=\\s*\\(\\d+\\s*\\^\\s*\\d+\\);'\r\n    )\r\n// FP Tuning: This detection looks for specific obfuscation patterns. While distinctive, other obfuscators could potentially use similar logic.\r\n// Consider excluding command lines from trusted developers or internal applications if false positives occur.\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    ProcessCommandLine,\r\n    ProcessVersionInfoOriginalFileName,\r\n    InitiatingProcessCommandLine\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0042
+techniques:
+    - T1027.013
+    - T1588.005
+tags:
+    - kql
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit

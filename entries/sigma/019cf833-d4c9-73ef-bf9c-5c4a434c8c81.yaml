@@ -1,0 +1,60 @@
+id: 019cf833-d4c9-73ef-bf9c-5c4a434c8c81
+name: Sednit COM Hijacking Persistence
+description: Detects potential COM hijacking used by Sednit (APT28) malware like BeardShell and SlimAgent for persistence. This involves modifying InprocServer32 registry keys to point to malicious DLLs.
+query: |
+    title: Sednit COM Hijacking Persistence
+    id: e22b435a-c6be-4ea6-9d90-c00c29dccdea
+    status: experimental
+    description: Detects potential COM hijacking used by Sednit (APT28) malware like
+      BeardShell and SlimAgent for persistence. This involves modifying
+      InprocServer32 registry keys to point to malicious DLLs.
+    author: detections.ai
+    references:
+      - https://www.welivesecurity.com/en/eset-research/sednit-reloaded-back-trenches/
+    date: 2026-03-16
+    tags:
+      - attack.persistence
+      - attack.privilege_escalation
+      - attack.t1546.015
+      - attack.g0049
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection:
+        # Detects modification of InprocServer32 keys, a common COM hijacking technique
+        TargetObject|contains: '\InprocServer32\(Default)' # Detects the specific DLL names used by Sednit's implants
+        Details|contains:
+          - 'eapphost.dll'
+          - 'tcpiphlpsvc.dll'
+      filter_legit_tcpiphlpsvc:
+        # Exclude modifications pointing to the legitimate tcpiphlpsvc.dll in system directories
+        Details|contains:
+          - 'C:\Windows\System32\tcpiphlpsvc.dll'
+          - 'C:\Windows\SysWOW64\tcpiphlpsvc.dll'
+      condition: selection and not filter_legit_tcpiphlpsvc
+    falsepositives:
+      - Legitimate software that uses DLLs with the same names ('eapphost.dll',
+        'tcpiphlpsvc.dll') and registers them for COM may cause false positives. The
+        filter for legitimate tcpiphlpsvc.dll paths helps reduce noise, but custom
+        software paths might need to be added.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.015
+tags:
+    - attack.persistence
+    - attack.privilege_escalation
+    - attack.t1546.015
+    - attack.g0049
+author: detections.ai
+version: "2"
+references:
+    - https://www.welivesecurity.com/en/eset-research/sednit-reloaded-back-trenches/
+data_sources:
+    - registry_set
+    - windows

@@ -1,0 +1,60 @@
+id: 019cf83a-b744-730b-ac22-551cdbb08a1b
+name: ClickFix Initial Access Attempt via PowerShell
+description: Detects suspicious PowerShell execution patterns commonly associated with the ClickFix initial access technique, where a user is tricked into pasting and executing a malicious script.
+query: |
+    title: ClickFix Initial Access Attempt via PowerShell
+    id: 7708953f-d069-480e-8c14-893c56be4c7f
+    status: experimental
+    description: Detects suspicious PowerShell execution patterns commonly
+      associated with the ClickFix initial access technique, where a user is tricked
+      into pasting and executing a malicious script.
+    author: detections.ai
+    references:
+      - https://www.ibm.com/think/x-force/slopoly-start-ai-enhanced-ransomware-attacks
+    date: 2026-03-16
+    tags:
+      - attack.t1566.001
+      - attack.t1059.001
+      - attack.t1204.002
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_img:
+        Image|endswith: '\powershell.exe'
+      selection_keywords:
+        CommandLine|contains:
+          - '-nop' # NoProfile - often used to ensure a clean execution environment
+          - '-w hidden' # WindowStyle Hidden - used to hide the PowerShell window from the user
+          - 'FromBase64String' # Indicates execution of a Base64 encoded command
+          - 'IEX' # Invoke-Expression - used to execute strings as commands, often for downloaded code
+          - 'New-Object System.Net.WebClient' # A common method for downloading payloads
+        # Condition looks for PowerShell execution with at least two of the suspicious keywords
+      condition: selection_img and 2 of selection_keywords
+    falsepositives:
+      - Legitimate administrative or automation scripts may use a combination of
+        these parameters and commands.
+      - Tuning may be required. Consider filtering by parent process (e.g.,
+        non-standard parents for PowerShell) or requiring more specific combinations
+        of keywords for higher fidelity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1059.001
+    - T1204.002
+    - T1566.001
+tags:
+    - attack.t1566.001
+    - attack.t1059.001
+    - attack.t1204.002
+author: detections.ai
+version: "2"
+references:
+    - https://www.ibm.com/think/x-force/slopoly-start-ai-enhanced-ransomware-attacks
+data_sources:
+    - process_creation
+    - windows

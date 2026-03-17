@@ -1,0 +1,58 @@
+id: 019cf834-f432-71e6-b8cf-157a54d34155
+name: Covenant C2 via Filen
+description: Detects outbound network traffic to Filen domains from non-browser and non-Filen client processes, which could indicate C2 communication by Sednit's modified Covenant implant.
+query: |
+    title: Covenant C2 via Filen
+    id: 2138bd02-a3fa-403f-885a-eca03d385161
+    status: experimental
+    description: Detects outbound network traffic to Filen domains from non-browser
+      and non-Filen client processes, which could indicate C2 communication by
+      Sednit's modified Covenant implant.
+    author: detections.ai
+    references:
+      - https://www.welivesecurity.com/en/eset-research/sednit-reloaded-back-trenches/
+    date: 2026-03-16
+    tags:
+      - attack.command_and_control
+      - attack.t1102
+      - attack.t1071.001
+      - attack.g0049
+    logsource:
+      category: network_connection
+      product: windows
+    detection:
+      selection:
+        # Detects connections to Filen domains, a known C2 channel for Sednit's Covenant implant
+        DestinationHostname|endswith: '.filen.io'
+      filter:
+        # Filters out legitimate processes known to connect to Filen
+        Image|endswith:
+          - '\filen.exe'
+          - '\chrome.exe'
+          - '\firefox.exe'
+          - '\msedge.exe'
+      condition: selection and not filter
+    falsepositives:
+      - Other legitimate applications or scripts that interact with Filen could
+        trigger this rule. Consider tuning the filter by adding other legitimate
+        processes specific to your environment.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1102
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.t1102
+    - attack.t1071.001
+    - attack.g0049
+author: detections.ai
+version: "2"
+references:
+    - https://www.welivesecurity.com/en/eset-research/sednit-reloaded-back-trenches/
+data_sources:
+    - network_connection
+    - windows

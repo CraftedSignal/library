@@ -1,0 +1,70 @@
+id: 019cf80e-104d-7078-b28d-dc2f071647c3
+name: Suspicious VPN Executable Persistence
+description: Detects the creation of registry Run or RunOnce keys that point to executables mimicking popular VPN clients. This technique is used by threat actors like Storm-2561 to establish persistence for their malicious payloads, which are often fake VPN clients designed for credential theft. The rule specifically looks for these executables being run from non-standard locations, such as user profiles, instead of the legitimate 'Program Files' directory.
+query: |
+    title: Suspicious VPN Executable Persistence
+    id: 4ea8b3b6-cea8-4e0f-9897-925eec0734ff
+    status: experimental
+    description: >-
+      Detects the creation of registry Run or RunOnce keys that point to executables
+      mimicking popular VPN clients. This technique is used by threat actors like
+      Storm-2561 to establish persistence for their malicious payloads, which are
+      often fake VPN clients designed for credential theft. The rule specifically
+      looks for these executables being run from non-standard locations, such as
+      user profiles, instead of the legitimate 'Program Files' directory.
+    author: detections.ai
+    references:
+      - https://www.microsoft.com/en-us/security/blog/2026/03/12/storm-2561-uses-seo-poisoning-to-distribute-fake-vpn-clients-for-credential-theft/
+    date: 2026-03-16
+    tags:
+      - attack.persistence
+      - attack.t1547.001
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection_key:
+        # Detects modification of common persistence registry keys
+        TargetObject|endswith:
+          - '\Software\Microsoft\Windows\CurrentVersion\Run'
+          - '\Software\Microsoft\Windows\CurrentVersion\RunOnce'
+      selection_value:
+        # Detects values containing names of trojanized VPN clients used by Storm-2561
+        Details|contains:
+          - 'Pulse.exe'
+          - 'GlobalProtect-VPN.exe'
+          - 'vpn.exe'
+          - 'Sophos-Connect-Client.exe'
+          - 'VPN-Client.exe'
+          - 'PulseSecureService.exe'
+      filter_legit_path:
+        # Filter out legitimate installations in standard Program Files directories
+        # This may need tuning if your organization uses different standard installation paths.
+        Details|startswith:
+          - 'C:\Program Files\'
+          - '"C:\Program Files\'
+          - 'C:\Program Files (x86)\'
+          - '"C:\Program Files (x86)\'
+      condition: selection_key and selection_value and not filter_legit_path
+    falsepositives:
+      - Legitimate but non-standard installations of VPN software (e.g., installed
+        to a user's profile or other custom locations).
+      - Portable versions of VPN clients that might be added to run keys by users.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - attack.persistence
+    - attack.t1547.001
+author: detections.ai
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/12/storm-2561-uses-seo-poisoning-to-distribute-fake-vpn-clients-for-credential-theft/
+data_sources:
+    - registry_set
+    - windows
