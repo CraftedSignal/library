@@ -1,0 +1,17 @@
+id: 019cfa0d-c45d-753a-9349-7fd1d09c0b6f
+name: Suspicious WebDAV Activity with RunMRU and Clipboard Access
+description: This rule detects suspicious activity involving the WebDAV client, specifically looking for scenarios where WebDAV connections to public IPs are initiated from a process that has recently modified the RunMRU registry key to include WebDAV parameters and executables like 'cmd' or 'net use', and has also accessed clipboard data. This combination of behaviors suggests potential credential theft or lateral movement attempts using WebDAV.
+query: "let Lookup = 1h;\r\nlet Parameters = dynamic(['http', 'https', 'webdav']);\r\nlet Executables = dynamic([\"cmd\", \"net use\"]);\r\nlet WinR =\r\nDeviceRegistryEvents\r\n| where Timestamp > ago(Lookup)\r\n| where ActionType == \"RegistryValueSet\"\r\n| where RegistryKey has \"RunMRU\"\r\n| where RegistryValueData has_any (Parameters) and RegistryValueData has_any (Executables)\r\n| distinct DeviceName;\r\nlet GetClipboard =\r\nDeviceEvents\r\n| where Timestamp > ago(Lookup)\r\n| where ActionType == \"GetClipboardData\"\r\n| distinct DeviceName;\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(Lookup)\r\n| where InitiatingProcessCommandLine has \"webdav\"\r\n| where RemoteIPType == \"Public\"\r\n| where DeviceName has_any(GetClipboard)\r\n| where DeviceName has_any(WinR)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0008
+    - TA0002
+techniques:
+    - T1570
+    - T1059
+    - T1021.002
+tags:
+    - kql
+author: Steven Lim
+version: "4"
