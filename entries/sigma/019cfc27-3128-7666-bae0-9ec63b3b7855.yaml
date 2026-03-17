@@ -1,0 +1,58 @@
+id: 019cfc27-3128-7666-bae0-9ec63b3b7855
+name: BlackBeard Data Exfiltration in HTTP Expires Header
+description: Detects potential data exfiltration by the BlackBeard backdoor, associated with Boggy Serpens (MuddyWater). The malware abuses the HTTP 'Expires' header in client requests to exfiltrate encrypted system data to its command and control server. The 'Expires' header is a standard response header, so its presence in a request is highly anomalous.
+query: |
+    title: BlackBeard Data Exfiltration in HTTP Expires Header
+    id: 0c9cd4b6-54c5-40a8-b276-7cde2a42f96e
+    status: experimental
+    description: >-
+      Detects potential data exfiltration by the BlackBeard backdoor, associated
+      with Boggy Serpens (MuddyWater). The malware abuses the HTTP 'Expires' header
+      in client requests to exfiltrate encrypted system data to its command and
+      control server. The 'Expires' header is a standard response header, so its
+      presence in a request is highly anomalous.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+    date: 2026-03-17
+    tags:
+      - attack.exfiltration
+      - attack.t1041
+      - attack.g0059
+    logsource:
+      category: web
+      product: any
+    detection:
+      # Known BlackBeard C2 domain from the report
+      selection_c2:
+        destination.domain: 'stratioai.org'
+      # The 'Expires' header is a response header. Its presence in a request is anomalous.
+      # The field name for request headers may vary by log source (e.g., http.request.headers, http.headers).
+      selection_header:
+        http.request.header.Expires: '*' # Checks for the existence of the Expires header in the request
+      # For higher fidelity, this detection can be enhanced in a SIEM to check the header's value for anomalies,
+      # such as non-standard date formats, large size, or high entropy, which suggest encrypted data.
+      condition: all of selection_*
+    falsepositives:
+      - The 'Expires' header is not a standard request header. False positives are
+        unlikely but could occur with non-standard client applications or network
+        appliances that inject headers. The risk is significantly reduced by scoping
+        the detection to known malicious infrastructure.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - attack.exfiltration
+    - attack.t1041
+    - attack.g0059
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+data_sources:
+    - web
+    - any

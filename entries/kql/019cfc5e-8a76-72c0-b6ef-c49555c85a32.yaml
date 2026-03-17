@@ -1,0 +1,10 @@
+id: 019cfc5e-8a76-72c0-b6ef-c49555c85a32
+name: Suspicious Activity by ClawAgents with 'clone' Keyword
+description: This rule detects suspicious network connections or process executions initiated by processes whose command line contains specific 'ClawAgents' keywords and, in the case of process execution, also contains the keyword 'clone'. It specifically excludes known browser processes from the network connection detection to reduce false positives. The 'ClawAgents' appear to be related to a specific threat or toolset, and the 'clone' keyword suggests activities like cloning repositories or creating copies, which could be indicative of malicious operations.
+query: "let BrowserList = dynamic([\"chrome.exe\",\"chromium.exe\",\"firefox.exe\",\"msedge.exe\",\"opera.exe\"]);\r\nlet ClawAgents = dynamic([\"OpenClaw\",\"Clawdbot\",\"Moltbot\",\"Molty\",\"Ironclaw\",\"NemoClaw\",\"VisionClaw\",\r\n\"MobileClaw\",\"MicroClaw\",\"NanoClaw\",\"EdgeClaw\",\"LiteClaw\",\"TinyClaw\",\"MiniClaw\",\"ChipClaw\",\"IoTClaw\",\r\n\"SensorClaw\",\"PocketClaw\",\"StreamClaw\",\"Moltbook\",\"CommunityClaw\",\"HubClaw\",\"ZeroClaw\",\"MaxClaw\",\"QClaw\",\r\n\"KimiClaw\",\"SwarmClaw\",\"SlackClaw\",\"PhoneClaw\",\"WebClaw\",\"MimiClaw\",\"JVSClaw\",\"MalClaw\"]);\r\nlet AIAgentProcess =\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessCommandLine has_any (ClawAgents) and InitiatingProcessCommandLine has \"clone\";\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where InitiatingProcessCommandLine has_any(ClawAgents)\r\n| where not (InitiatingProcessFileName has_any(BrowserList))\r\n| union AIAgentProcess"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Steven Lim
+version: "4"

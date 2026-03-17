@@ -1,0 +1,52 @@
+id: 019cfc7d-ed3f-7026-990e-ceb81324edd2
+name: User Clicked Through Email URL Warning
+description: This detection identifies instances where a user has clicked on a URL within an email and has actively bypassed a security warning page. This behavior is a strong indicator of a successful phishing lure or high-risk user action, as the user has ignored a direct warning about the potential danger of the destination link.
+query: |-
+    let sender_allowlist = dynamic([]);
+    let recipient_allowlist = dynamic([]);
+    let urls = dynamic([]);
+    let senders = dynamic([]);
+    UrlClickEvents
+    | where TimeGenerated > ago(1d)
+    | where ActionType == "ClickAllowed"
+    | where Url has_any(urls)
+    | where isnotempty(NetworkMessageId) and Workload == "Email"
+    | where AccountUpn !in (recipient_allowlist)
+    | join kind=inner (
+        EmailEvents
+        | where TimeGenerated > ago(1d)
+        | where DeliveryAction in ("Delivered", "Junked")
+        | where SenderFromAddress has_any(senders)
+        | where SenderFromAddress !in (sender_allowlist)
+        | project
+            NetworkMessageId,
+            EmailTime = TimeGenerated,
+            Subject,
+            SenderFromAddress,
+            SenderIPv4,
+            RecipientEmailAddress,
+            DeliveryAction
+    ) on NetworkMessageId
+    | where AccountUpn =~ RecipientEmailAddress
+    | project
+        Timestamp = TimeGenerated,
+        AccountUpn,
+        Url,
+        ActionType,
+        Subject,
+        SenderFromAddress,
+        SenderIPv4,
+        EmailTime,
+        DeliveryAction,
+        NetworkMessageId
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+author: B3llatrix lastra
+version: "4"

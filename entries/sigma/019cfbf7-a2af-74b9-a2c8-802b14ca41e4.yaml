@@ -1,0 +1,75 @@
+id: 019cfbf7-a2af-74b9-a2c8-802b14ca41e4
+name: Cursor IDE Suspicious Child Process
+description: |
+    Detects the Cursor IDE process spawning shell interpreters or
+    network utilities. This behavior is associated with the CursorJack technique,
+    where a malicious Model Context Protocol (MCP) server configuration executes
+    commands for initial access or payload staging.
+query: |
+    title: Cursor IDE Suspicious Child Process
+    id: a359f75b-d217-45c2-a1a2-c5f0a0f6d73d
+    status: experimental
+    description: |
+      Detects the Cursor IDE process spawning shell interpreters or
+      network utilities. This behavior is associated with the CursorJack technique,
+      where a malicious Model Context Protocol (MCP) server configuration executes
+      commands for initial access or payload staging.
+    author: tim@detections.ai
+    references:
+      - https://www.proofpoint.com/us/blog/threat-insight/cursorjack-weaponizing-deeplinks-exploit-cursor-ide
+    date: 2026-03-17
+    tags:
+      - attack.execution
+      - attack.t1204.001
+      - attack.t1059.001
+      - attack.t1059.003
+      - attack.t1105
+    logsource:
+      category: process_creation
+      product: all
+    detection:
+      selection_parent:
+        ParentImage|endswith:
+          - '\Cursor.exe'
+          - '/cursor'
+      selection_child:
+        Image|endswith:
+          # common shell interpreters and download utilities used for staging
+          # Windows
+          - '\cmd.exe'
+          - '\powershell.exe'
+          - '\curl.exe'
+          - '\wget.exe' # Linux/macOS
+          - '/bash'
+          - '/sh'
+          - '/zsh'
+          - '/curl'
+          - '/wget'
+      condition: all of selection_*
+    falsepositives:
+      - Legitimate MCP servers or developer scripts might execute these commands as
+        part of their normal function. Tuning may be required based on legitimate
+        development practices.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1105
+tags:
+    - attack.execution
+    - attack.t1204.001
+    - attack.t1059.001
+    - attack.t1059.003
+    - attack.t1105
+author: tim@detections.ai
+version: "4"
+references:
+    - https://www.proofpoint.com/us/blog/threat-insight/cursorjack-weaponizing-deeplinks-exploit-cursor-ide
+data_sources:
+    - process_creation
+    - all

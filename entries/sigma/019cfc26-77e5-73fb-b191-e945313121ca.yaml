@@ -1,0 +1,49 @@
+id: 019cfc26-77e5-73fb-b191-e945313121ca
+name: BlackBeard Persistence via File Association
+description: Detects the creation of a registry key used by the BlackBeard backdoor for persistence. The malware associates a custom file extension (.wdlp) with a malicious script (WebDeepPlayer.scr) to ensure it is executed on user logon.
+query: |
+    title: BlackBeard Persistence via File Association
+    id: 7f01568a-0235-4db4-9a9f-2f67038e3a3f
+    status: experimental
+    description: Detects the creation of a registry key used by the BlackBeard
+      backdoor for persistence. The malware associates a custom file extension
+      (.wdlp) with a malicious script (WebDeepPlayer.scr) to ensure it is executed
+      on user logon.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+    date: 2026-03-17
+    tags:
+      - attack.persistence
+      - attack.t1547.001
+    logsource:
+      category: registry_set
+      product: windows
+    detection:
+      selection:
+        # Detects the specific registry key for the .wdlp file association
+        TargetObject|endswith: '\Software\Classes\.wdlp\shell\open\command'
+        # Detects the command that executes the malicious script
+        Details|contains: 'WebDeepPlayer.scr'
+      condition: selection
+    falsepositives:
+      - This is a specific combination of a custom file extension and a malicious
+        script name. False positives are highly unlikely.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1546.001
+tags:
+    - attack.persistence
+    - attack.t1547.001
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+data_sources:
+    - registry_set
+    - windows

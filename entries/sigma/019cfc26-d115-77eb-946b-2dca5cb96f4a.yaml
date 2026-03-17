@@ -1,0 +1,60 @@
+id: 019cfc26-d115-77eb-946b-2dca5cb96f4a
+name: Boggy Serpens C2 Communication via HTTP Status Codes
+description: Detects C2 communication from Boggy Serpens (MuddyWater) backdoors like Nuso and BlackBeard, which use non-standard HTTP status codes (201, 202, 418) to receive commands from known C2 servers.
+query: |
+    title: Boggy Serpens C2 Communication via HTTP Status Codes
+    id: 2e9d5b18-3136-42fe-b8b1-575214e8c3fe
+    status: experimental
+    description: Detects C2 communication from Boggy Serpens (MuddyWater) backdoors
+      like Nuso and BlackBeard, which use non-standard HTTP status codes (201, 202,
+      418) to receive commands from known C2 servers.
+    author: detections.ai
+    references:
+      - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+    date: 2026-03-17
+    tags:
+      - attack.command_and_control
+      - attack.t1071.001
+      - attack.g0059
+    logsource:
+      category: web
+      product: any
+    detection:
+      # Known Boggy Serpens C2 Infrastructure IPs
+      selection_dest_ip:
+        destination.ip:
+          - '159.198.68.25'
+          - '159.198.66.153'
+        # Known Boggy Serpens C2 Infrastructure domain
+      selection_dest_domain:
+        destination.domain:
+          - 'stratioai.org'
+        # Unusual HTTP status codes used for C2 commands
+      selection_status:
+        http.response.status_code:
+          - 201 # Payload drop command
+          - 202 # Payload drop command
+          - 418 # Exit command
+      condition: (selection_dest_ip or selection_dest_domain) and selection_status
+    falsepositives:
+      - False positives are unlikely as this detection combines known C2
+        infrastructure with specific, unusual HTTP status codes used for C2.
+        However, C2 infrastructure can change, and IPs may be reallocated over time.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+tags:
+    - attack.command_and_control
+    - attack.t1071.001
+    - attack.g0059
+author: detections.ai
+version: "2"
+references:
+    - https://unit42.paloaltonetworks.com/boggy-serpens-threat-assessment/
+data_sources:
+    - web
+    - any
