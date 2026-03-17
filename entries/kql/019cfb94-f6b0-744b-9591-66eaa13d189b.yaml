@@ -1,0 +1,14 @@
+id: 019cfb94-f6b0-744b-9591-66eaa13d189b
+name: Multi-Vendor URL Rewrite Chaining
+description: Detects incoming emails where a single URL contains indicators of two or more distinct security vendor rewriting services. This technique is used by adversaries to create multi-layered redirect chains to bypass automated scanners and deliver malicious content, as seen in Tycoon2FA and Sneaky2FA campaigns.
+query: "\r\nlet start_time = 1d;\r\nlet trustedSenderDomains = dynamic([\"trustedpartner.com\", \"example.com\"]);\r\nlet vendorDomains = dynamic([\r\n    \"safelinks.protection.outlook.com\",\r\n    \"urlsand.esvalabs.com\",            \r\n    \"protection.sophos.com\",            \r\n    \"linkprotect.cudasvc.com\",       \r\n    \"urldefense.com\",                \r\n    \"secure-web.cisco.com\",         \r\n    \"mimecast.com\"                     \r\n    ]);\r\nEmailUrlInfo\r\n| where TimeGenerated > ago(start_time)\r\n| where isnotempty(Url)\r\n| join kind=inner (EmailEvents) on NetworkMessageId\r\n| extend SenderFromDomain = tostring(extract(\"@([^@]+)$\", 1, SenderFromAddress))\r\n| where SenderFromDomain !in (trustedSenderDomains)\r\n| where Url has_any (vendorDomains)\r\n| extend VendorCount = iif(Url has tostring(vendorDomains[0]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[1]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[2]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[3]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[4]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[5]), 1, 0) +\r\n                       iif(Url has tostring(vendorDomains[6]), 1, 0)\r\n| where VendorCount >= 2\r\n| project\r\n    TimeGenerated,\r\n    Subject,\r\n    SenderFromAddress,\r\n    RecipientEmailAddress,\r\n    Url,\r\n    VendorCount,\r\n    NetworkMessageId,\r\n    DetectionMethods\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"
