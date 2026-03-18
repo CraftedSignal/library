@@ -1,0 +1,28 @@
+id: 019d0073-a07c-725a-af61-2d5ea61d47f2
+name: Crimson Kingsnake – Phishing to Domain Correlation
+description: ' Correlates phishing email delivery with subsequent communication to attacker-controlled domains.'
+query: |-
+    let ck_domains = dynamic(["work-desk02.space"]);
+    let phishing =
+        EmailEvents
+        | where Subject has_any ("Invoice","Bill","Payment")
+        | project RecipientEmailAddress, PhishTime=TimeGenerated;
+    let network =
+        DeviceNetworkEvents
+        | where RemoteUrl has_any (ck_domains)
+        | project DeviceName, RemoteUrl, NetTime=TimeGenerated;
+    phishing
+    | join kind=inner network on $left.RecipientEmailAddress == $right.DeviceName
+    | extend PhishEndTime = PhishTime + 2d
+    | where NetTime between (PhishTime .. PhishEndTime)
+    | project RecipientEmailAddress, RemoteUrl, PhishTime, NetTime
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"

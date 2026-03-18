@@ -1,0 +1,23 @@
+id: 019d0079-63f5-76a8-9608-ef0dc11a3340
+name: Remcos RAT-like Multi-Stage Process Injection
+description: Detects suspicious process injection attempts where common scripting/proxy execution tools (wscript.exe, cscript.exe, mshta.exe, powershell.exe, msiexec.exe) are used to inject into other processes (RegAsm.exe, InstallUtil.exe, vbc.exe, svchost.exe, explorer.exe) using CreateRemoteThread. The detection is further refined by looking for command-line indicators often associated with malicious activity, such as downloading content or executing scripts.
+query: "let suspiciousInjectors = dynamic([\"wscript.exe\", \"cscript.exe\", \"mshta.exe\", \"powershell.exe\", \"msiexec.exe\"]);\r\nlet injectionTargets = dynamic([\"RegAsm.exe\", \"InstallUtil.exe\", \"vbc.exe\", \"svchost.exe\", \"explorer.exe\"]);\r\nDeviceEvents\r\n| where ActionType == \"CreateRemoteThread\"\r\n| where InitiatingProcessFileName in (suspiciousInjectors)\r\n| where FileName in (injectionTargets)\r\n| where InitiatingProcessCommandLine has_any (\"http\", \"https\", \".vbs\", \".js\", \"/i\", \"IEX\", \"DownloadString\", \"FromBase64String\")\r\n| where not (InitiatingProcessFileName == \"svchost.exe\" and FileName == \"svchost.exe\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    ActionType,\r\n    InjectorProcess = InitiatingProcessFileName,\r\n    InjectorCommandLine = InitiatingProcessCommandLine,\r\n    InjectedProcess = FileName,\r\n    InjectedProcessCommandLine = ProcessCommandLine,\r\n    InitiatingProcessId,\r\n    ProcessId,\r\n    ReportId,\r\n    AdditionalFields\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0004
+    - TA0002
+techniques:
+    - T1055
+    - T1055.001
+    - T1055.002
+    - T1218.005
+    - T1059.001
+    - T1218.007
+    - T1218.009
+    - T1218.004
+    - T1059.005
+tags:
+    - kql
+version: "1"
