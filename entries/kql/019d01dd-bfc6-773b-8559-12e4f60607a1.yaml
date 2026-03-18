@@ -1,0 +1,17 @@
+id: 019d01dd-bfc6-773b-8559-12e4f60607a1
+name: Coruna Exploit Kit Encrypted Payload Download
+description: This detection identifies network requests matching a URL pattern used by the Coruna iOS exploit kit to deliver encrypted binary payloads. The framework generates resource URLs using a 40-character hash and serves them as files ending in ".min.js".
+query: "// Name: Coruna Exploit Kit Encrypted Payload Download\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-18\r\n// Description: This detection identifies network requests matching a URL pattern used by the Coruna iOS exploit kit to deliver encrypted binary payloads. The framework generates resource URLs using a 40-character hash and serves them as files ending in \".min.js\".\r\n// False Positives: This pattern may overlap with legitimate web applications that use SHA-1 hashes for resource versioning or cache-busting. To improve fidelity, consider filtering for specific user agents (e.g., iOS devices) or correlating with visits to suspicious referrers.\r\n// References: https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit\r\n// MITRE ATT&CK: T1071.001 (Application Layer Protocol: Web Protocols), T1573.002 (Encrypted Channel: Asymmetric Cryptography)\r\nDeviceNetworkEvents\r\n// Focus on successful network connections where a URL is recorded.\r\n| where ActionType == \"NetworkConnectionSuccess\" and isnotempty(RemoteUrl)\r\n// The Coruna exploit kit serves its encrypted payloads from URLs ending in \".min.js\".\r\n| where RemoteUrl endswith \".min.js\"\r\n// The URL path for the payload is a 40-character hexadecimal string, which is a unique characteristic of this framework.\r\n// Example from report: .../89b6d4ac2308422090d99ba3eb187ebb4d750f4c.min.js\r\n| where RemoteUrl matches regex @\"/[a-f0-9]{40}\\\\.min\\\\.js$\"\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    RemoteUrl,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessParentFileName,\r\n    InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1573.002
+    - T1105
+tags:
+    - kql
+version: "3"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit

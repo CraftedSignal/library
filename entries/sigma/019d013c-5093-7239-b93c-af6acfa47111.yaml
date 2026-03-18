@@ -1,0 +1,29 @@
+id: 019d013c-5093-7239-b93c-af6acfa47111
+name: Sensitive Files or RPC Endpoints Access via Network Share
+description: "Detects access to sensitive files, credential data, or remote procedure call (RPC) endpoints related to credential dumping over a network share. \nThis could indicate lateral movement or remote credential harvesting techniques.\n"
+query: "title: Sensitive Files or RPC Endpoints Access via Network Share\nid: 4f2e98af-3c3d-4f5d-bb55-ec46ed20fa6b\nstatus: experimental\ndescription: |\n      Detects access to sensitive files, credential data, or remote procedure call (RPC) endpoints related to credential dumping over a network share. \n      This could indicate lateral movement or remote credential harvesting techniques.\nauthor: Luís Marques, SIBS Cyberwatch @remotecodeexecution\nreferences:\n  - https://www.slideshare.net/heirhabarov/hunting-for-credentials-dumping-in-windows-environment\ndate: 2026-03-18\ntags:\n  - attack.credential_access\n  - attack.t1003\n  - attack.t1003.002\n  - attack.t1003.003\n  - attack.t1021.002\nlogsource:\n  product: windows\n  service: security\n  definition: 'The \"Audit Detailed File Share\" audit policy must be configured for this rule to work. GPO: Computer Configuration > Policies > Windows Settings > Security Settings > Advanced Audit Policy Configuration > Audit Policies > Object Access > Audit Detailed File Share.'\ndetection:\n  common:\n    EventID: 5145\n  selection_contains:\n    RelativeTargetName|contains:\n      - 'lsass'        \n      - '\\windows\\minidump\\'        \n      - 'sqldmpr'        \n      - '\\WCEServicePipe' \n      - '\\cachedumppipe'        \n  selection_endswith:\n    RelativeTargetName|endswith:\n      - '\\hiberfil.sys'\n      - '\\ntds.dit'\n      - '\\SAM'\n      - '\\SECURITY'\n      - '\\SYSTEM'\n      - '\\winreg'\n      - '\\krb5cc'\n      - '.kirbi'\n      - 'SAM.out'\n      - 'NTDS.out'\n      - 'SYSTEM.out'\n      - '-PwHashes.txt'\n      - '.pwdump'\n      - '.fgdump-log'\n      - '\\test.pwd'\n      - '\\.hiv'\n      - '\\.hive'\n  selection_startswith:\n    RelativeTargetName|startswith:\n      - '\\lsadump'\n  condition: common and (1 of selection_*)\nfalsepositives:\n  - Legitimate administrative activities, such as remote server management, backups, or troubleshooting, might access these files or pipes.\n  - Security scanners or vulnerability management tools may also trigger this detection.\n  - It's recommended to baseline normal administrative behavior and filter out known sources or patterns.\nlevel: high\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+    - TA0008
+techniques:
+    - T1003
+    - T1003.002
+    - T1003.003
+    - T1021.002
+    - T1003.001
+    - T1003.006
+tags:
+    - attack.credential_access
+    - attack.t1003
+    - attack.t1003.002
+    - attack.t1003.003
+    - attack.t1021.002
+author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+version: "3"
+references:
+    - https://www.slideshare.net/heirhabarov/hunting-for-credentials-dumping-in-windows-environment
+data_sources:
+    - windows
+    - security

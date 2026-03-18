@@ -1,0 +1,39 @@
+id: 019d014b-2fe3-77bc-9d09-76d6e24514c7
+name: Coruna PLASMAGRID DGA Domain Query
+description: This rule detects DNS queries for domains matching the pattern used by the PLASMAGRID implant's Domain Generation Algorithm (DGA). The implant, associated with the Coruna exploit kit, generates 15-character domains with a .xyz TLD as a C2 fallback mechanism.
+query: |
+    // Name: Coruna PLASMAGRID DGA Domain Query
+    // Author: Brandon + detections.ai
+    // Date: 2026-03-18
+    // Description: This rule detects DNS queries for domains matching the pattern used by the PLASMAGRID implant's Domain Generation Algorithm (DGA). The implant, associated with the Coruna exploit kit, generates 15-character domains with a .xyz TLD as a C2 fallback mechanism.
+    // False Positive Sensitivity: Medium. This detection may trigger on legitimate, randomly generated domains that coincidentally match the length and TLD. Consider adding known good domains to an exclusion list.
+    // Tactic: Command and Control
+    // Technique: T1568.002, Domain Generation Algorithms
+    // References: https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit
+    let DnsEvents = union isfuzzy=true
+        (DeviceEvents | where ActionType == "DnsQuery" | extend ParsedFields = parse_json(AdditionalFields) | extend DomainName = todynamic(ParsedFields.QueryName)),
+        (imDns | extend DomainName = DnsQuery);
+    DnsEvents
+    // Search for DNS query events
+    | where isnotempty(DomainName)
+    // The DGA uses the .xyz TLD
+    | where DomainName endswith ".xyz"
+    // The DGA generates a 15-character domain name (excluding the TLD)
+    | where strlen(trim_end(".xyz", tostring(DomainName))) == 15
+    | summarize
+        StartTime = min(TimeGenerated),
+        EndTime = max(TimeGenerated),
+        make_set(DomainName),
+        make_set(AccountName)
+        by DeviceId, DeviceName
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1568.002
+tags:
+    - kql
+version: "2"
+references:
+    - https://cloud.google.com/blog/topics/threat-intelligence/coruna-powerful-ios-exploit-kit

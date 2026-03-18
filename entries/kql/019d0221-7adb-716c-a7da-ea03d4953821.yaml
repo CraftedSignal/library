@@ -1,0 +1,36 @@
+id: 019d0221-7adb-716c-a7da-ea03d4953821
+name: Potential AiTM Activity from Multiple User IP Addresses
+description: Detects when a single user account successfully signs in from two or more distinct IP addresses within a short timeframe. This can be an indicator of an adversary-in-the-middle (AiTM) attack where both the legitimate user and the attacker have active, authenticated sessions from different locations.
+query: |-
+    // title: Potential AiTM Activity from Multiple User IP Addresses
+    // description: Detects when a single user account successfully signs in from two or more distinct IP addresses within a short timeframe. This can be an indicator of an adversary-in-the-middle (AiTM) attack where both the legitimate user and the attacker have active, authenticated sessions from different locations.
+    // author: detections.ai
+    // references: https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+    // date: 2026-03-12
+    // tags: attack.credential_access, attack.t1539, attack.t1557
+    // level: high
+    // falsepositives: Legitimate user activity where a user rapidly switches networks (e.g., from office Wi-Fi to a mobile hotspot). Use of VPNs, proxies, or cloud services that may cause the source IP address to change during a session. Consider tuning the timeframe or adding filters for known corporate IP ranges to reduce noise.
+    SigninLogs
+    | where TimeGenerated > ago(1h)
+    | where ResultType == "0" and Status.errorCode == "0"
+    | summarize dcount(IPAddress) by UserPrincipalName
+    | where dcount_IPAddress > 1
+query_type: kql
+severity: high
+tactics:
+    - TA0006
+    - TA0009
+techniques:
+    - T1557
+    - T1539
+tags:
+    - attack.credential_access
+    - attack.t1539
+    - attack.t1557
+author: detections.ai
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/04/inside-tycoon2fa-how-a-leading-aitm-phishing-kit-operated-at-scale/
+data_sources:
+    - azure
+    - signinlogs
