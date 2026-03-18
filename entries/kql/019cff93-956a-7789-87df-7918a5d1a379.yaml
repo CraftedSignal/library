@@ -1,0 +1,9 @@
+id: 019cff93-956a-7789-87df-7918a5d1a379
+name: Blackbeard Malware Detection
+description: This rule detects the presence of Blackbeard malware by identifying known SHA256 hashes of its components or network connections to its known C2 infrastructure. It correlates file events with specific hashes and network events with specific remote IP addresses.
+query: "let blackbeard_hashes = dynamic([\r\n\"156b325231742a73ded4104fbde1c55ad3913d2eaf09b5194ef74c81ee3ba393\",\r\n\"cc2ec568f978f328b6de112670a1b35ca1f9db377ff32cb9d313a5b2ac3c127b\",\r\n\"7523e53c979692f9eecff6ec760ac3df5b47f172114286e570b6bba3b2133f58\",\r\n\"0be499354dc498248d27f6d186eb3bb75a607ae4a2c0a6734c76f1a1b7b1d316\",\r\n\"a2001892410e9f34ff0d02c8bc9e7c53b0bd10da58461e1e9eab26bdbf410c79\",\r\n\"1bcd8d7dc7bed5873bbdd2822e84e19773a33d659b16587ca9dc6db204447a86\"\r\n]);\r\nlet blackbeard_c2 = dynamic([\r\n\"159.198.68.25\",\"159.198.66.153\"\r\n]);\r\nDeviceFileEvents\r\n| where SHA256 in (blackbeard_hashes)\r\n| union (\r\n    DeviceNetworkEvents\r\n    | where RemoteIP in (blackbeard_c2)\r\n)\r\n| project TimeGenerated, DeviceName, SHA256, RemoteIP, InitiatingProcessFileName\r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"

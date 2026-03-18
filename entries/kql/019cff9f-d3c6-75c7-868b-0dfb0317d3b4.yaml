@@ -1,0 +1,16 @@
+id: 019cff9f-d3c6-75c7-868b-0dfb0317d3b4
+name: Cursor.exe Spawning Download Utility
+description: Detects when 'Cursor.exe' (a legitimate application) spawns common command-line utilities (cmd.exe, powershell.exe, pwsh.exe, curl.exe, wget.exe, certutil.exe, bitsadmin.exe) with command-line arguments indicative of downloading files from the internet (e.g., containing 'http://', 'https://', 'ftp://', '-o', '-OutFile', 'iwr', 'DownloadString', 'DownloadFile'). This could indicate malicious activity where 'Cursor.exe' is being abused to facilitate ingress tool transfer or execute malicious payloads.
+query: "DeviceProcessEvents\r\n| where ActionType == \"ProcessCreated\"\r\n| where InitiatingProcessFileName =~ \"Cursor.exe\"\r\n| where FileName has_any (\"cmd.exe\", \"powershell.exe\", \"pwsh.exe\", \"curl.exe\", \"wget.exe\", \"certutil.exe\", \"bitsadmin.exe\")\r\n| where ProcessCommandLine has_any (\"http://\", \"https://\", \"ftp://\", \"-o \", \"-OutFile\", \"iwr \", \"DownloadString\", \"DownloadFile\")\r\n| project\r\n    TimeGenerated,\r\n    DeviceName,\r\n    AccountName,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    FileName,\r\n    ProcessCommandLine\r\n\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0002
+techniques:
+    - T1105
+    - T1059
+    - T1071
+tags:
+    - kql
+version: "1"

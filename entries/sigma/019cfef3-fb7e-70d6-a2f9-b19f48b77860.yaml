@@ -1,0 +1,67 @@
+id: 019cfef3-fb7e-70d6-a2f9-b19f48b77860
+name: Living Off The Land Binary (LOLBAS) Abuse
+description: Detects abuse of legitimate Windows binaries (LOLBAS) interacting with many others for malicious purposes. Correlation rule
+query: |
+    title: Living Off The Land Binary (LOLBAS) Abuse
+    id: 480e8cd6-5cae-4a0a-bbbb-2e22d6e124e4
+    status: test
+    description: >-
+      Detects abuse of legitimate Windows binaries (LOLBAS) interacting with many
+      others for malicious purposes. Correlation rule
+    references:
+      - https://attack.mitre.org/techniques/T1218/011/
+      - https://lolbas-project.github.io/
+    author: zendannyy
+    date: 2026/03/16
+    tags:
+      - attack.defense-evasion
+      - attack.execution
+      - attack.t1218.011
+    logsource:
+      category: process_creation
+      product: windows
+      service: security
+    detection:
+      selection_rundll32_suspicious:
+        Image|endswith: \rundll32.exe
+        CommandLine|contains:
+          - 'javascript:'
+          - 'vbscript:'
+          - mshtml,RunHTMLApplication
+          - shell32.dll,Control_RunDLL
+          - url.dll,OpenURL
+      selection_wmic_xsl:
+        Image|endswith: \wmic.exe
+        CommandLine|contains|all:
+          - '/format:'
+          - .xsl
+      filter_legitimate_sources:
+        CommandLine|contains:
+          - microsoft.com
+          - windowsupdate.com
+          - download.windowsupdate.com
+      condition: any of selection* and not filter_legitimate_sources
+    falsepositives:
+      - Administrative scripts interacting with these binaries
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.011
+    - T1218
+    - T1047
+tags:
+    - attack.defense-evasion
+    - attack.execution
+    - attack.t1218.011
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1218/011/
+    - https://lolbas-project.github.io/
+data_sources:
+    - process_creation
+    - windows
+    - security

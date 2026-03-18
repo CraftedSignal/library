@@ -1,0 +1,15 @@
+id: 019cff96-17f8-729e-b84d-8aeff9f1e244
+name: Phoenix Malware Detection
+description: This rule detects the presence of Phoenix malware by identifying known SHA256 hashes of its components or network connections to its command and control (C2) infrastructure. It correlates file events with known malware hashes and network events with known C2 IP addresses.
+query: "let phoenix_hashes = dynamic([\r\n\"668dd5b6fb06fe30a98dd59dd802258b45394ccd7cd610f0aaab43d801bf1a1e\",\r\n\"5ec5a2adaa82a983fcc42ed9f720f4e894652bd7bd1f366826a16ac98bb91839\"\r\n]);\r\nlet phoenix_c2 = dynamic([\"46.101.36.39\"]);\r\nDeviceFileEvents\r\n| where SHA256 in (phoenix_hashes)\r\n| union (\r\n    DeviceNetworkEvents\r\n    | where RemoteIP in (phoenix_c2)\r\n)\r\n| project TimeGenerated, DeviceName, SHA256, RemoteIP\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1041
+tags:
+    - kql
+version: "1"

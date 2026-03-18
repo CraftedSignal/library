@@ -1,0 +1,73 @@
+id: 019cff4d-2d0b-76e8-b1dd-d106928aca36
+name: Suspicious Commands executed via Run dialog
+description: Detects suspicious command interpreters and LOLBins written into the Explorer RunMRU registry key (commonly used for Run dialog history), with explorer.exe as the initiating process.
+query: |
+    title: Suspicious Commands executed via Run dialog
+    id: 20891a30-032e-4f15-a282-fa4a8b0d8aae
+    status: experimental
+    description: Detects suspicious command interpreters and LOLBins written into
+      the Explorer RunMRU registry key (commonly used for Run dialog history), with
+      explorer.exe as the initiating process.
+    author: TRC
+    date: 2026-03-05
+    tags:
+      - attack.execution
+      - attack.t1059
+      - attack.defense_evasion
+    logsource:
+      category: registry_set
+      product: windows
+      definition: "Sysmon Event ID 13 (Registry value set) or equivalent EDR registry telemetry"
+    detection:
+      selection_key:
+        TargetObject|contains: '\SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\RunMRU'
+      selection_proc:
+        Image|endswith: '\explorer.exe'
+      selection_data:
+        Details|contains:
+          - 'cmd'
+          - 'powershell'
+          - 'cmd.exe'
+          - 'powershell.exe'
+          - 'wscript.exe'
+          - 'cscript.exe'
+          - 'net.exe'
+          - 'net1.exe'
+          - 'sh.exe'
+          - 'bash.exe'
+          - 'schtasks.exe'
+          - 'regsvr32.exe'
+          - 'hh.exe'
+          - 'wmic.exe'
+          - 'mshta.exe'
+          - 'rundll32.exe'
+          - 'msiexec.exe'
+          - 'forfiles.exe'
+          - 'scriptrunner.exe'
+          - 'mftrace.exe'
+          - 'AppVLP.exe'
+          - 'svchost.exe'
+          - 'msbuild.exe'
+      condition: selection_key and selection_proc and selection_data
+    falsepositives:
+      - Legitimate administrative activity using Run dialog (Win+R) to execute
+        built-in tools.
+      - IT scripts or troubleshooting steps executed interactively by a user.
+    level: medium
+    references:
+      - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+query_type: sigma
+severity: medium
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.defense_evasion
+author: TRC
+version: "1"
+references:
+    - https://atos.net/en/lp/cybershield/investigating-a-new-click-fix-variant
+data_sources:
+    - registry_set
+    - windows

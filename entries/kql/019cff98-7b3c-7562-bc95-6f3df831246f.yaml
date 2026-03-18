@@ -1,0 +1,15 @@
+id: 019cff98-7b3c-7562-bc95-6f3df831246f
+name: Possible UDP C2 or Data Exfiltration
+description: This rule detects network connections to specific IP addresses and ports (1259, 1269) via UDP, or the presence of a file with a specific SHA256 hash. This combination could indicate command and control (C2) communication or data exfiltration using a custom UDP protocol.
+query: "let udp_hash = \"fc4a7eed5cb18c52265622ac39a5cef31eec101c898b4016874458d2722ec430\";\r\nlet udp_ips = dynamic([\"64.7.198.12\",\"157.20.182.75\"]);\r\nDeviceFileEvents\r\n| where SHA256 == udp_hash\r\n| union (\r\n    DeviceNetworkEvents\r\n    | where RemoteIP in (udp_ips)\r\n    | where RemotePort in (1259,1269)\r\n)\r\n| project TimeGenerated, DeviceName, RemoteIP, RemotePort, SHA256\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1071.001
+    - T1048.003
+tags:
+    - kql
+version: "1"
