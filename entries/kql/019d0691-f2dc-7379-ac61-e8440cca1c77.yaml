@@ -1,0 +1,16 @@
+id: 019d0691-f2dc-7379-ac61-e8440cca1c77
+name: VOID#GEIST C2 TryCloudflare Beaconing Detection
+description: Detects network traffic to known VOID#GEIST C2 domains hosted on TryCloudflare, or the specific command-line execution of `curl.exe` used to send a 'status=success' beacon. This activity confirms a successful compromise by the malware.
+query: "// Name: VOID#GEIST C2 TryCloudflare Beaconing\r\n// Author: Brandon + detections.ai\r\n// Date: 2026-03-19\r\n// Description: Detects network traffic to known VOID#GEIST C2 domains hosted on TryCloudflare, or the specific command-line execution of `curl.exe` used to send a 'status=success' beacon. This activity confirms a successful compromise by the malware.\r\n// False Positive Sensitivity: Medium\r\n// Tactics: Command and Control\r\n// Techniques: T1071.001, T1102.003\r\n// References: https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader\r\n\r\nDeviceEvents\r\n| where \r\n    // Condition 1: Detects network connections to known VOID#GEIST C2 domains.\r\n    (ActionType in (\"NetworkConnectionSuccess\", \"ConnectionSuccess\") and RemoteUrl has_any(\"staying-heavily-meaning-blowing.trycloudflare.com\", \"servers-johnson-rebate-recipes.trycloudflare.com\"))\r\n    or\r\n    // Condition 2: Detects the specific command used by VOID#GEIST to send a success beacon via curl.\r\n    (ActionType == \"ProcessCreated\" and FileName =~ \"curl.exe\" and ProcessCommandLine has_all(\"-X\", \"POST\", \"status=success\") and ProcessCommandLine has \".trycloudflare.com\")\r\n// Potential for False Positives: Legitimate developer or automation activity might use curl to post data to a trycloudflare.com tunnel.\r\n// This is generally rare in typical user environments. Exclude known developer machines or specific legitimate scripts if necessary.\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    ActionType,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    RemoteUrl,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    AccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.001
+    - T1102.003
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader

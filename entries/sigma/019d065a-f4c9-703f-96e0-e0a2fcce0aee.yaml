@@ -1,0 +1,63 @@
+id: 019d065a-f4c9-703f-96e0-e0a2fcce0aee
+name: Suspicious iOS Process Crash Pattern
+description: Detects multiple crashes from key iOS system processes within a short time window. This pattern is indicative of a failed memory corruption attempt, consistent with the sandbox escape and privilege escalation techniques used by the DarkSword exploit kit.
+query: |
+    title: Suspicious iOS Process Crash Pattern
+    id: 43bcde3a-77c1-47e0-93df-09e3149db86c
+    status: experimental
+    description: >-
+      Detects multiple crashes from key iOS system processes within a short time
+      window. This pattern is indicative of a failed memory corruption attempt,
+      consistent with the sandbox escape and privilege escalation techniques used by
+      the DarkSword exploit kit.
+    author: detections.ai
+    references:
+      - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+      - https://www.lookout.com/threat-intelligence/article/darksword
+      - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+    date: 2026-03-19
+    tags:
+      - attack.endpoint_denial_of_service
+      - attack.t1499.002
+    logsource:
+      product: ios
+      category: crash_report
+    detection:
+      selection:
+        # These processes are targeted by DarkSword for sandbox escape and privilege escalation
+        process.name:
+          - 'securityd'
+          - 'UserEventAgent'
+          - 'wifid'
+        # Bug Type 309 with this exception indicates a memory alignment fault, a common result of failed memory corruption exploits
+        BugType: '309'
+        ExceptionType: 'EXC_ARM_DA_ALIGN'
+      # Correlate multiple crashes within a 5 minute window to increase confidence and detect repeated exploit attempts
+      timeframe: 5m
+      condition: selection | count() > 2
+    falsepositives:
+      - A single, isolated crash of this type could be due to a legitimate software
+        bug. The detection's fidelity relies on observing multiple crashes across
+        these specific processes in a short period.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0004
+    - TA0040
+techniques:
+    - T1068
+    - T1611
+    - T1499.004
+tags:
+    - attack.endpoint_denial_of_service
+    - attack.t1499.002
+author: detections.ai
+version: "2"
+references:
+    - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+    - https://www.lookout.com/threat-intelligence/article/darksword
+    - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+data_sources:
+    - crash_report
+    - ios

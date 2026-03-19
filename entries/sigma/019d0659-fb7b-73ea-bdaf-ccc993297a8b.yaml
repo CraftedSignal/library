@@ -1,0 +1,64 @@
+id: 019d0659-fb7b-73ea-bdaf-ccc993297a8b
+name: DarkSword Implant Log Messages
+description: Detects specific log messages written to the iOS Unified Log by the DarkSword implant (GHOSTBLADE). These messages, which include tags like '[DarkSword-WIFI-DUMP]' and '[MAIN]', are unique to the malware and indicate that the data exfiltration modules are running. The GHOSTBLADE implant, used by UNC6353 in the DarkSword campaign, leaves distinct and high-confidence log messages in iOS Unified Logs during its operation. These logs are a clear indicator of a successful compromise.
+query: |
+    title: DarkSword Implant Log Messages
+    id: 30585ebb-08fd-4575-a424-a5434d6326f8
+    status: experimental
+    description: Detects specific log messages written to the iOS Unified Log by the
+      DarkSword implant (GHOSTBLADE). These messages, which include tags like
+      '[DarkSword-WIFI-DUMP]' and '[MAIN]', are unique to the malware and indicate
+      that the data exfiltration modules are running. The GHOSTBLADE implant, used
+      by UNC6353 in the DarkSword campaign, leaves distinct and high-confidence log
+      messages in iOS Unified Logs during its operation. These logs are a clear
+      indicator of a successful compromise.
+    author: detections.ai
+    references:
+      - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+      - https://www.lookout.com/threat-intelligence/article/darksword
+      - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+    date: 2026-03-19
+    tags:
+      - attack.t1537
+    logsource:
+      product: ios
+      service: unified_log
+    detection:
+      selection:
+        # The exploit chain injects into mediaplaybackd to perform privilege escalation and run the implant
+        process.name: 'mediaplaybackd'
+        message|contains|all:
+          - '[' # Generic filter to reduce false positives by ensuring the log format is met
+          - ']' # Specific tags logged by the implant modules
+        message|contains:
+          - '[CHAIN]'
+          - '[MAIN]'
+          - '[DRIVER-NEWTHREAD]'
+          - '[MIG_FILTER_BYPASS]'
+          - '[OFFSETS]'
+          - '[TASKROP]'
+          - '[TASK]'
+          - '[DarkSword-WIFI-DUMP]'
+          - '[DarkSword-WIFI-DUMP-SECURITYD]'
+      condition: selection
+    falsepositives:
+      - Highly unlikely, as these log messages are specific to the DarkSword
+        implant's modules.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+techniques:
+    - T1537
+tags:
+    - attack.t1537
+author: detections.ai
+version: "2"
+references:
+    - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+    - https://www.lookout.com/threat-intelligence/article/darksword
+    - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+data_sources:
+    - ios
+    - unified_log

@@ -1,0 +1,16 @@
+id: 019d0693-c7a7-75ee-a012-29fc5b854f83
+name: Suspicious Script Creation in Windows Startup Folder
+description: Detects the creation of batch or command scripts in the Windows Startup folder. This is a common persistence technique used by malware like VOID#GEIST (spol.bat) to ensure execution on user logon. The rule specifically looks for file creation events of .bat or .cmd files in the Startup folder, initiated by processes commonly associated with malicious downloads or script execution such as cmd.exe, powershell.exe, curl.exe, cscript.exe, and wscript.exe.
+query: "// Name: VOID#GEIST: Suspicious Script Creation in Startup Folder\r\n// Author: Brandon +  detections.ai\r\n// Date: 2026-03-19\r\n// Description: Detects the creation of batch or command scripts in the Windows Startup folder. This is a common persistence technique used by malware like VOID#GEIST (spol.bat) to ensure execution on user logon.\r\n// False Positive Sensitivity: Medium\r\n// Tactics: Persistence\r\n// Techniques: T1547.001\r\n// References: https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader\r\n\r\nDeviceFileEvents\r\n// Look for file creation events\r\n| where ActionType == \"FileCreated\"\r\n// Filter for files created in any user's Startup folder, a common persistence location\r\n| where FolderPath has @\"\\Microsoft\\Windows\\Start Menu\\Programs\\Startup\\\"\r\n// Focus on executable script files like batch or command scripts\r\n| where FileName endswith \".bat\" or FileName endswith \".cmd\"\r\n// The script was created by a process often used for malicious downloads or script execution.\r\n// VOID#GEIST uses curl and batch files to place the persistence script.\r\n| where InitiatingProcessFileName in~ (\"cmd.exe\", \"powershell.exe\", \"curl.exe\", \"cscript.exe\", \"wscript.exe\")\r\n// Potential for False Positives: Some legitimate software installers or logon scripts might create files here.\r\n// Consider excluding known good installer processes or scripts if noise is observed.\r\n// For example: | where not (InitiatingProcessFolderPath contains @\"\\SCCM\\\" and InitiatingProcessFileName == \"setup.exe\")\r\n| project\r\n    Timestamp,\r\n    DeviceName,\r\n    InitiatingProcessAccountName,\r\n    FileName,\r\n    FolderPath,\r\n    SHA256,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine,\r\n    InitiatingProcessId,\r\n    InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1547.001
+tags:
+    - kql
+version: "3"
+references:
+    - https://www.securonix.com/blog/voidgeist-stealthy-multi-stage-python-loader

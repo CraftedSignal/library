@@ -1,0 +1,15 @@
+id: 019d06b4-050a-707f-952d-dbe75d5e2536
+name: Inbound Email with Malicious SVG Attachment Disguised as HTML
+description: This rule detects inbound emails with an SVG attachment that is disguised as an HTML file and contains a long, base64-like string in its filename. This pattern is often used in phishing campaigns to bypass traditional email filters and deliver malicious content, potentially leading to credential harvesting or malware delivery. The rule specifically looks for files with a '.svg' extension but a 'html' file type, combined with a filename containing a string of at least 20 alphanumeric characters, plus or minus, equal signs, which is characteristic of base64 encoding.
+query: "EmailAttachmentInfo\r\n| where Timestamp > ago(30d)\r\n| where FileExtension has \".svg\" and FileType == \"html\"\r\n| where FileName matches regex @\"[A-Za-z0-9+/=]{20,}\"\r\n| join EmailEvents on NetworkMessageId\r\n| where EmailDirection == \"Inbound\"\r\n| where DeliveryAction == \"Delivered\" and isempty(EmailAction)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.001
+tags:
+    - kql
+author: Steven Lim
+version: "4"

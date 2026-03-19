@@ -1,0 +1,64 @@
+id: 019d065a-57a7-7163-acc3-9f05ece59de8
+name: DarkSword Staging File Creation
+description: Detects the creation of temporary files used by the DarkSword implant to stage stolen data before exfiltration. After exploiting the device, the DarkSword implants copy sensitive user data to temporary files. Detecting the creation of these specific staging files is a strong indicator of compromise.
+query: |
+    title: DarkSword Staging File Creation
+    id: b2ef1a00-9b31-463a-bd2f-1b7a9b1f6821
+    status: experimental
+    description: Detects the creation of temporary files used by the DarkSword
+      implant to stage stolen data before exfiltration. After exploiting the device,
+      the DarkSword implants copy sensitive user data to temporary files. Detecting
+      the creation of these specific staging files is a strong indicator of
+      compromise.
+    author: detections.ai
+    references:
+      - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+      - https://www.lookout.com/threat-intelligence/article/darksword
+      - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+    date: 2026-03-19
+    tags:
+      - attack.collection
+      - attack.t1005
+      - attack.archive_collected_data
+      - attack.t1560.001
+    logsource:
+      category: file_event
+      product:
+      service:
+    detection:
+      selection:
+        # Detects creation of specific files used by DarkSword to stage stolen data
+        TargetFilename|contains:
+          - '/tmp/keychain-2.db'
+          - '/tmp/persona.kb'
+          - '/tmp/usersession.kb'
+          - '/var/wireless/wifi_passwords.txt'
+          - '/tmp/wifi_passwords.txt'
+          - '/private/var/tmp/wifi_passwords.txt'
+          - '/private/var/tmp/keychain_dump.txt'
+          - '/tmp/keychain_dump.txt'
+      condition: selection
+    falsepositives:
+      - It is highly unlikely that legitimate applications would create files with
+        these specific names in these temporary locations.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0009
+techniques:
+    - T1005
+    - T1560.001
+tags:
+    - attack.collection
+    - attack.t1005
+    - attack.archive_collected_data
+    - attack.t1560.001
+author: detections.ai
+version: "2"
+references:
+    - https://iverify.io/blog/darksword-ios-exploit-kit-explained
+    - https://www.lookout.com/threat-intelligence/article/darksword
+    - https://cloud.google.com/blog/topics/threat-intelligence/darksword-ios-exploit-chain
+data_sources:
+    - file_event
