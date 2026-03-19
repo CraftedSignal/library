@@ -1,0 +1,19 @@
+id: 019d05a6-a191-73f2-81b3-441931e134cb
+name: Multiple VPN Client MSI Installations on a Single Device
+description: This rule detects when two different MSI installations, both related to known VPN clients (Pulse Secure, Fortinet, Ivanti, GlobalProtect), occur on the same device within a short timeframe. This could indicate an attempt to establish redundant access, bypass security controls, or an unusual administrative activity.
+query: "DeviceProcessEvents\r\n//| where Timestamp > ago(2h)\r\n| where FileName endswith \".msi\"\r\n| extend IsLegitimateVPN = ProcessCommandLine has_any (\"Pulse Secure\", \"Fortinet\", \"Ivanti\", \"GlobalProtect\")\r\n| join kind=inner (\r\n    DeviceProcessEvents\r\n    | where FileName endswith \".msi\"\r\n    | where ProcessCommandLine has_any (\"Pulse Secure\", \"Fortinet\", \"Ivanti\", \"GlobalProtect\")\r\n) on DeviceName\r\n| where tostring(ProcessId) != tostring(ProcessId1)\r\n| project Timestamp, DeviceName, ProcessCommandLine, ProcessCommandLine1"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0005
+    - TA0002
+    - TA0008
+techniques:
+    - T1218.007
+    - T1072
+tags:
+    - kql
+version: "1"
+references:
+    - https://cybersecuritynews.com/attackers-use-seo-poisoning-and-signed-trojans/
