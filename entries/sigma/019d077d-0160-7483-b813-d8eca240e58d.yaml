@@ -1,0 +1,55 @@
+id: 019d077d-0160-7483-b813-d8eca240e58d
+name: UAC Bypass via CMSTPLUA COM Interface
+description: Detects a User Account Control (UAC) bypass attempt by abusing the CMSTPLUA COM interface. Adversaries can leverage this legitimate Windows binary to execute code with elevated privileges without prompting the user. This technique is used by malware such as SILENTCONNECT.
+query: |
+    title: UAC Bypass via CMSTPLUA COM Interface
+    id: 6b11a3ba-2b1f-4633-9749-0e93d555e679
+    status: experimental
+    description: >-
+      Detects a User Account Control (UAC) bypass attempt by abusing the CMSTPLUA
+      COM interface. Adversaries can leverage this legitimate Windows binary to
+      execute code with elevated privileges without prompting the user. This
+      technique is used by malware such as SILENTCONNECT.
+    author: detections.ai
+    references:
+      - https://www.elastic.co/security-labs/silentconnect-delivers-screenconnect
+    date: 2026-03-19
+    tags:
+      - attack.privilege_escalation
+      - attack.defense_evasion
+      - attack.t1548.002
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects a child process spawned by cmstplua.exe, which is indicative of this UAC bypass technique
+        ParentImage|endswith: '\cmstplua.exe'
+      filter_legit:
+        # Filter out legitimate activity related to Connection Manager Profile installation
+        Image|endswith: '\rundll32.exe'
+        CommandLine|contains: 'cmstplua.dll,CmstpluaInstallStub'
+      condition: selection and not filter_legit
+    falsepositives:
+      - While rare, other legitimate software that interacts with the Connection
+        Manager might spawn child processes from cmstplua.exe. Thoroughly
+        investigate any hits.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1548.002
+tags:
+    - attack.privilege_escalation
+    - attack.defense_evasion
+    - attack.t1548.002
+author: detections.ai
+version: "2"
+references:
+    - https://www.elastic.co/security-labs/silentconnect-delivers-screenconnect
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,18 @@
+id: 019d0768-ad1c-7009-ada7-cc3750c471c2
+name: Suspicious Rundll32 WebDAV Execution (ClickFix Variant)
+description: Identifies execution of rundll32.exe with WebDAV functionality (davclnt.dll, DavSetCookie) and UNC paths using @port syntax. This behavior is indicative of remote DLL retrieval over HTTP and may be associated with ClickFix variants abusing LOLBins for payload delivery and execution.
+query: "DeviceProcessEvents\r\n| where Timestamp >= ago(30d)\r\n| where FileName =~ \"rundll32.exe\"\r\n| where ProcessCommandLine has_all (\"davclnt.dll\", \"DavSetCookie\")\r\n| where ProcessCommandLine has \"@80\"\r\n     and ProcessCommandLine has \"verification.google\"\r\n| project Timestamp, DeviceName, AccountName,\r\n        ProcessCommandLine,\r\n        InitiatingProcessFileName, InitiatingProcessCommandLine,\r\n        SHA1, MD5, ReportId\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+techniques:
+    - T1218.011
+    - T1105
+    - T1204
+    - T1027
+    - T1059.001
+tags:
+    - kql
+author: Kithu Shajil
+version: "2"
+references:
+    - https://www.cyberproof.com/blog/the-clickfix-evolution-new-variant-replaces-powershell-with-rundll32-and-webdav/

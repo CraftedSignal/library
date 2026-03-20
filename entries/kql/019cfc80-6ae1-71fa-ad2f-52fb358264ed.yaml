@@ -1,0 +1,67 @@
+id: 019cfc80-6ae1-71fa-ad2f-52fb358264ed
+name: Browser Information Discovery via Command Line
+description: This rule detects attempts to discover sensitive browser information by monitoring command-line executions. It specifically looks for processes that are not legitimate browser applications or security tools, attempting to access common browser profile paths and sensitive database files (e.g., Login Data, Cookies, History, places.sqlite, logins.json, key4.db, key3.db). This activity could indicate an adversary attempting to exfiltrate user credentials, browsing history, or other personal data stored by web browsers.
+query: |
+    // Name: Browser Information Discovery via Command Line
+    // Author: Ethan Andrews + detections.ai
+    // Date: 2026-03-17
+    // Tactic: Collection
+    // Technique: T1217 (Browser Information Discovery)
+    // MDE: DeviceProcessEvents
+    // References: https://attack.mitre.org/techniques/T1217/
+
+    // Define a list of legitimate processes that are expected to access browser data.
+    let legitimateProcesses = dynamic([
+        "chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "opera.exe", "vivaldi.exe",
+        "msedgewebview2.exe", "MicrosoftEdgeUpdate.exe", "GoogleUpdate.exe",
+        "MsMpEng.exe", "sense.exe" // Common security tools
+    ]);
+
+    // Define a list of common browser profile paths.
+    let browserProfilePaths = dynamic([
+        @"\Google\Chrome\User Data\",
+        @"\Microsoft\Edge\User Data\",
+        @"\BraveSoftware\Brave-Browser\User Data\",
+        @"\Vivaldi\User Data\",
+        @"\Mozilla\Firefox\Profiles\",
+        @"\Opera Software\Opera Stable\"
+    ]);
+
+    // Define a list of sensitive browser database file names.
+    let sensitiveFiles = dynamic([
+        "Login Data", "Cookies", "History", "Bookmarks", "Web Data", // Chromium
+        "places.sqlite", "logins.json", "key4.db", "key3.db" // Firefox
+    ]);
+
+    DeviceProcessEvents
+    // Look for command lines referencing specific sensitive files within browser profile paths.
+    | where ProcessCommandLine has_any (browserProfilePaths) and ProcessCommandLine has_any (sensitiveFiles)
+    // Exclude known legitimate processes that normally perform these actions.
+    | where FileName !in~ (legitimateProcesses)
+    // FP SENSITIVITY: Medium. Legitimate backup software or user synchronization tools (e.g., OneDrive, Google Drive) might be flagged.
+    // TUNING: Add any such legitimate processes to the 'legitimateProcesses' list above to reduce noise.
+    | project
+        Timestamp,
+        DeviceName,
+        AccountName,
+        FileName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        ProcessId,
+        InitiatingProcessId,
+        ReportId,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1217
+tags:
+    - kql
+author: Ethan Andrews
+version: "2"
+references:
+    - https://attack.mitre.org/techniques/T1217/

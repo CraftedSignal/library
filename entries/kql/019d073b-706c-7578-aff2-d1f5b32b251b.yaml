@@ -1,0 +1,30 @@
+id: 019d073b-706c-7578-aff2-d1f5b32b251b
+name: Potential APT10 (Stone Panda) Malware Execution and Suspicious Process Activity
+description: Detects potential APT10 (Stone Panda) activity by identifying the execution of known remote access tools (RATs) and suspicious use of utilities like WinRAR for password-protected archiving. The rule focuses on processes launched from non-standard directories and unusual parent processes, which may indicate malware execution, lateral movement, or data exfiltration.
+query: |-
+    DeviceProcessEvents
+    | where Timestamp > ago(30d)
+    | where (
+        FileName in~ ("plugx.exe","gh0st.exe","trochilus.exe","poisonivy.exe",
+                      "quasarrat.exe","redleaves.exe","derusbi.exe",
+                      "chches.exe","emdivi.exe","snugride.exe")
+        or (FileName =~ "winrar.exe" and ProcessCommandLine has "-hp")
+    )
+    | where not(FolderPath startswith @"C:\Program Files")
+    | where not(FolderPath startswith @"C:\Windows")
+    | where InitiatingProcessFileName !in~ ("explorer.exe","chrome.exe","msedge.exe","outlook.exe")
+    | project Timestamp, DeviceName, FileName, FolderPath,
+              ProcessCommandLine, InitiatingProcessFileName
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+    - TA0005
+    - TA0008
+    - TA0010
+tags:
+    - kql
+version: "2"
