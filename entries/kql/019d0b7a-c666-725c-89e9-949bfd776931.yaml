@@ -1,0 +1,13 @@
+id: 019d0b7a-c666-725c-89e9-949bfd776931
+name: MMC Child Process Anomaly Detection
+description: This rule detects anomalous child processes spawned by mmc.exe. It specifically looks for processes initiated by mmc.exe that are not located in expected system directories or common program file paths, indicating potential abuse of the Microsoft Management Console for malicious execution.
+query: "// MMC child process anomaly detection\r\nDeviceProcessEvents\r\n| where InitiatingProcessFolderPath endswith \"\\\\mmc.exe\"\r\n| where not (FolderPath has_any (\r\n  \"\\\\System32\\\\mmc.exe\",\r\n  \"\\\\System32\\\\wermgr.exe\",\r\n  \"\\\\System32\\\\WerFault.exe\",\r\n  \"\\\\SysWOW64\\\\mmc.exe\"\r\n))\r\n| where not (FolderPath has_any (\r\n  \"\\\\Program Files\",\r\n  \"\\\\Program Files (x86)\",\r\n  \"\\\\System32\\\\spool\\\\drivers\"\r\n))\r\n| order by Timestamp"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1218.014
+tags:
+    - kql
+version: "1"

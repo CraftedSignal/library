@@ -1,0 +1,19 @@
+id: 019d0b66-1317-7008-993e-22925a37024b
+name: Email Click-Through to Cloudflare Workers Phishing Site
+description: This rule detects instances where a user clicks on a URL in an email, and the final redirected URL is hosted on 'workers.dev', which is often abused for phishing campaigns, particularly OAuth device code phishing. It correlates email delivery events with URL click events and analyzes the full redirect chain to identify the final destination.
+query: "// Use case: https://any.run/cybersecurity-blog/oauth-device-code-phishing/\r\n\r\n\r\nlet lookback = 1d;\r\nEmailUrlInfo\r\n| where Timestamp > ago(lookback)\r\n| join kind=inner (\r\n    EmailEvents\r\n    | where Timestamp > ago(lookback)\r\n    | where DeliveryAction == \"Delivered\"\r\n) on NetworkMessageId\r\n| join kind=inner (\r\n    UrlClickEvents\r\n    | where Timestamp > ago(lookback)\r\n) on Url\r\n| extend UrlChainDynamic = parse_json(UrlChain)\r\n| extend FinalUrl = tostring(UrlChainDynamic[-1])\r\n| where FinalUrl != Url\r\n| where FinalUrl has \"workers.dev\"\r\n| project\r\n    Timestamp,\r\n    RecipientEmailAddress,\r\n    SenderFromAddress,\r\n    Subject,\r\n    OriginalUrl = Url,\r\n    FinalUrl,\r\n    FullRedirectChain = UrlChainDynamic,\r\n    ActionType,\r\n    IsClickedThrough\r\n| order by Timestamp desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566
+    - T1566.002
+    - T1584.007
+    - T1583.007
+tags:
+    - kql
+version: "2"
+references:
+    - https://any.run/cybersecurity-blog/oauth-device-code-phishing/

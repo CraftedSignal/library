@@ -1,0 +1,13 @@
+id: 019d0ba6-d975-7331-b8d7-0300c1a28dec
+name: SecurityHealthSetup.exe from Non-Standard Paths
+description: Detects the execution of 'SecurityHealthSetup.exe' from non-standard or suspicious directories such as 'Intel', 'Downloads', or 'Temp'. This executable is typically associated with Windows Security Health and should reside in system directories. Execution from other locations may indicate an attempt to masquerade malicious activity or defense evasion.
+query: "//  SecurityHealthSetup.exe from non-standard paths\r\nDeviceProcessEvents\r\n| where Timestamp > ago(30d)\r\n| where FileName == \"SecurityHealthSetup.exe\"\r\n| where FolderPath has_any (@\"\\Intel\\\", @\"\\Downloads\\\", @\"\\Temp\\\")\r\n| project Timestamp, DeviceName, AccountName, AccountDomain,\r\n    FileName, FolderPath, ProcessId, ProcessCommandLine, SHA1, SHA256,\r\n    InitiatingProcessFileName, InitiatingProcessId, \r\n    InitiatingProcessCommandLine, InitiatingProcessFolderPath,\r\n    InitiatingProcessParentFileName,\r\n    ProcessVersionInfoCompanyName, ProcessVersionInfoProductName,\r\n    ProcessVersionInfoOriginalFileName\r\n| order by DeviceName, Timestamp"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.003
+tags:
+    - kql
+version: "1"
