@@ -1,0 +1,64 @@
+id: 019d095f-8272-740a-8285-f11f24700d6d
+name: Shell Exec via Cat Redirection
+description: Detects the execution of cat, followed by network connections. Specifically /dev/tcp/ redirection
+query: |
+    title: Shell Exec via Cat Redirection
+    id: 77157999-2815-4b56-a54f-d63a2c1ca4e8
+    status: experimental
+    description: >-
+      Detects the execution of cat, followed by network connections. Specifically
+      /dev/tcp/ redirection
+    author: zendanyy
+    references:
+      - https://medium.com/@stefanos.kalandaridis/bash-ing-your-network-f7069ab7c5f4
+    date: 2026-03-18T00:00:00.000Z
+    tags:
+      - attack.defense-evasion
+      - attack.execution
+      - attack.t1059.004
+    logsource:
+      category: process_creation
+      product: linux
+      service: audit
+    detection:
+      selection_shell:
+        Image|endswith:
+          - /bash
+          - /dash
+          - /sh
+          - /tcsh
+          - /csh
+          - /zsh
+          - /ksh
+          - /fish
+        CommandLine|contains: 'cat '
+      selection_indicator:
+        CommandLine|contains:
+          - /dev/tcp/
+          - /dev/udp/
+          - '<'
+          - '>'
+          - '&'
+      condition: selection_shell and selection_indicator
+    falsepositives:
+      - Legit administration or network diagnostic scripts may use this technique,
+        although it is uncommon.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.004
+tags:
+    - attack.defense-evasion
+    - attack.execution
+    - attack.t1059.004
+author: zendanyy
+version: "1"
+references:
+    - https://medium.com/@stefanos.kalandaridis/bash-ing-your-network-f7069ab7c5f4
+data_sources:
+    - process_creation
+    - linux
+    - audit

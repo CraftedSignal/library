@@ -1,0 +1,69 @@
+id: 019d0960-75cd-746e-b1b1-3dccc2a3a311
+name: K8s Shell Executionvia Cat Redirection
+description: |
+    Detects interactive shell execution within a container in a production, using 'exec'. The execution of `cat`, followed by network connections. This would be communicating with a service that runs arbitrary commands.
+query: |
+    title: K8s Shell Executionvia Cat Redirection
+    id: 12345678-1234-1234-1234-123456789012
+    status: experimental
+    description: >
+      Detects interactive shell execution within a container in a production, using
+      'exec'. The execution of `cat`, followed by network connections. This would be
+      communicating with a service that runs arbitrary commands.
+    tags:
+      - attack.t1609
+      - attack.execution
+      - attack.resource.container
+      - container.kubernetes
+    author: zendannyy
+    references:
+      - https://attack.mitre.org/techniques/T1609
+    logsource:
+      product: kubernetes
+      service: audit
+    detection:
+      selection_verb_resource_subresource:
+        verb:
+          - create
+          - bash -c
+        objectRef.resource: pods
+        objectRef.subresource: exec
+      selection_session_status:
+        stage: ResponseComplete
+      selection_sub_commmand:
+        verb:
+          - /dev/tcp/
+          - /dev/udp/
+          - <
+          - '>'
+          - '&'
+      filter_authorized_users:
+        user.username|startswith:
+          - ci-admin
+          - 'system:'
+      condition: >-
+        selection_verb_resource_subresource and selection_session_status and
+        selection_sub_command and not filter_authorized_users
+    falsepositives:
+      - Edge cases, legitimate administrative debugging by authorized users (SRE, etc).
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1609
+    - T1572
+tags:
+    - attack.t1609
+    - attack.execution
+    - attack.resource.container
+    - container.kubernetes
+author: zendannyy
+version: "1"
+references:
+    - https://attack.mitre.org/techniques/T1609
+data_sources:
+    - kubernetes
+    - audit
