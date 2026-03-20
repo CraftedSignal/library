@@ -1,0 +1,69 @@
+id: 019d0a49-2d79-7310-b035-01575c223bae
+name: Suspicious Service Hijacking Sequence
+description: Detects the execution of sc.exe or reg.exe to create or modify specific Windows services to point to a malicious DLL. This technique is used by the Silver Dragon APT group to hijack legitimate services like 'bthsrv' and 'wuausrv' for persistence.
+query: |
+    title: Suspicious Service Hijacking Sequence
+    id: 61b19ea2-8f42-4a07-8780-c24fec2f1132
+    status: experimental
+    description: Detects the execution of sc.exe or reg.exe to create or modify
+      specific Windows services to point to a malicious DLL. This technique is used
+      by the Silver Dragon APT group to hijack legitimate services like 'bthsrv' and
+      'wuausrv' for persistence.
+    author: wakasa
+    references:
+      - https://research.checkpoint.com/2026/silver-dragon-targets-organizations-in-southeast-asia-and-europe/
+    date: 2026-03-20
+    tags:
+      - attack.t1543.003
+      - attack.persistence
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_sc:
+        Image|endswith: '\sc.exe'
+        CommandLine|contains|all:
+          - 'create'
+          - 'binPath='
+          - 'svchost.exe -k'
+      selection_reg:
+        Image|endswith: '\reg.exe'
+        CommandLine|contains|all:
+          - 'add'
+          - '\Services\'
+          - '\Parameters'
+          - '/v'
+          - 'ServiceDll'
+      selection_services:
+        # Services known to be hijacked by Silver Dragon
+        CommandLine|contains:
+          - 'bthsrv'
+          - 'wuausrv'
+          - 'COMSysAppSrv'
+          - 'DfSvc'
+          - 'tzsync'
+      condition: (selection_sc or selection_reg) and selection_services
+    falsepositives:
+      - Legitimate administrative scripts or software installers might modify these
+        services, but doing so via command line is less common and warrants
+        investigation.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1543.003
+    - T1574.011
+tags:
+    - attack.t1543.003
+    - attack.persistence
+author: wakasa
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/silver-dragon-targets-organizations-in-southeast-asia-and-europe/
+data_sources:
+    - process_creation
+    - windows

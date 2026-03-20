@@ -1,0 +1,54 @@
+id: 019d0a3e-1f42-76da-9b8d-beba6eaff13d
+name: AppDomain Hijacking Config Modification
+description: Detects the creation or modification of .NET application configuration files (`.exe.config`) in sensitive framework directories. This is a technique known as AppDomain Hijacking, used by the Silver Dragon APT group to hijack legitimate Windows services like `dfsvc.exe` and `tzsync.exe` for persistence and to load their malware (MonikerLoader).
+query: |
+    title: AppDomain Hijacking Config Modification
+    id: 5b34fe94-7311-4c9d-9b10-33a21b3c20d4
+    status: experimental
+    description: Detects the creation or modification of .NET application
+      configuration files (`.exe.config`) in sensitive framework directories. This
+      is a technique known as AppDomain Hijacking, used by the Silver Dragon APT
+      group to hijack legitimate Windows services like `dfsvc.exe` and `tzsync.exe`
+      for persistence and to load their malware (MonikerLoader).
+    author: wakasa
+    references:
+      - https://research.checkpoint.com/2026/silver-dragon-targets-organizations-in-southeast-asia-and-europe/
+    date: 2026-03-20
+    tags:
+      - attack.t1574.014
+      - attack.persistence
+    logsource:
+      category: file_event
+      product: windows
+    detection:
+      selection:
+        # Detects .exe.config files in specific .NET framework paths targeted by Silver Dragon
+        TargetFilename|startswith:
+          - 'C:\Windows\Microsoft.NET\'
+          - 'C:\Windows\Microsoft.NET\'
+        TargetFilename|endswith: '.exe.config'
+      condition: selection
+    falsepositives:
+      - Legitimate software installation or updates related to the .NET framework
+        might create or modify these files. The Silver Dragon group was specifically
+        observed modifying 'dfsvc.exe.config' and 'tzsync.exe.config'. Consider
+        scoping the rule to these specific filenames for higher fidelity.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1574.014
+tags:
+    - attack.t1574.014
+    - attack.persistence
+author: wakasa
+version: "2"
+references:
+    - https://research.checkpoint.com/2026/silver-dragon-targets-organizations-in-southeast-asia-and-europe/
+data_sources:
+    - file_event
+    - windows

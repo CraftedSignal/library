@@ -1,0 +1,45 @@
+id: 019d0b21-b50a-70bd-b670-a383be9b5f9c
+name: Browser-Spawned Msiexec with Suspicious Arguments (ClickFix)
+description: Detects 'msiexec.exe' being launched from a web browser with a command line containing indicators of remote package download or path traversal. This is a primary indicator of the 'ClickFix' social engineering technique used by LeakNet and other threat actors.
+query: |
+    // Name: Browser-Spawned ClickFix MSI Execution
+    // Author: detections.ai
+    // Date: 2026-03-20
+    // Tactic: Defense Evasion, Execution
+    // Technique: T1218.007, T1204.004
+    // Description: Detects 'msiexec.exe' being launched from a web browser with a command line containing indicators of remote package download or path traversal. This is a primary indicator of the 'ClickFix' social engineering technique used by LeakNet and other threat actors.
+    // False Positives: Legitimate software installations initiated from a browser may trigger this rule. Tuning may be required to exclude known software distribution sites or internal network shares.
+    // References: https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+
+    DeviceProcessEvents
+    // Look for msiexec.exe process creation events
+    | where ProcessName =~ "msiexec.exe"
+    // Filter for parent processes that are common web browsers
+    | where InitiatingProcessFileName in~ ("chrome.exe", "msedge.exe", "firefox.exe", "brave.exe", "iexplore.exe")
+    // Check for suspicious arguments like remote paths (http, unc) or path traversal, which are common in ClickFix attacks
+    | where ProcessCommandLine has_any ("http", "..\\", "\\\\")
+    | project
+        TimeGenerated,
+        DeviceName,
+        AccountName,
+        ProcessName,
+        ProcessCommandLine,
+        InitiatingProcessFileName,
+        InitiatingProcessCommandLine,
+        InitiatingProcessParentFileName,
+        MD5,
+        SHA1,
+        SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218.007
+    - T1204.004
+tags:
+    - kql
+version: "2"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
