@@ -1,0 +1,60 @@
+id: 019d1072-99f7-70c9-9165-5442d03522c6
+name: Windows Security Disabled
+description: Detects attempts to disable Windows Defender/Security features via command line arguments targeting antivirus, behavior monitoring, real-time protection, and WMI autologger defender components.
+query: |
+    title: Windows Security Disabled
+    id: 06a3d058-c27c-4d39-b189-d5532e69fe69
+    status: experimental
+    description: Detects attempts to disable Windows Defender/Security features via
+      command line arguments targeting antivirus, behavior monitoring, real-time
+      protection, and WMI autologger defender components.
+    author: Converted from Sagan Cloud rule 6000161
+    references:
+      - https://thedfirreport.com/2024/08/12/threat-actors-toolkit-leveraging-sliver-poshc2-batch-scripts/#c05
+    date: 2025-01-27
+    tags:
+      - attack.defense-evasion
+      - attack.t1562
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects common Set-MpPreference flags or registry/WMI modifications targeting Defender
+      selection_flags:
+        CommandLine|contains:
+          - 'DisableAntiVirus'
+          - 'DisableAntiSpyware'
+          - 'DisableBehaviorMonitoring'
+          - 'DisableIOAVProtection'
+          - 'DisableRealtimeMonitoring'
+          - 'DisableScanOnRealtimeEnable'
+          - '\Control\WMI\Autologger\DefenderApiLogger'
+          - '\Control\WMI\Autologger\DefenderAuditLogger'
+
+      # Detects uninstallation of the Windows Defender feature
+      selection_uninstall:
+        CommandLine|contains|all:
+          - 'Uninstall-WindowsFeature'
+          - 'Windows-Defender'
+      condition: 1 of selection_*
+    falsepositives:
+      - Legitimate administrative scripts or security tooling.
+      - Initial provisioning or specialized environments where Defender is
+        explicitly disabled in favor of third-party EDRs.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562
+tags:
+    - attack.defense-evasion
+    - attack.t1562
+author: Converted from Sagan Cloud rule 6000161
+version: "1"
+references:
+    - https://thedfirreport.com/2024/08/12/threat-actors-toolkit-leveraging-sliver-poshc2-batch-scripts/#c05
+data_sources:
+    - process_creation
+    - windows

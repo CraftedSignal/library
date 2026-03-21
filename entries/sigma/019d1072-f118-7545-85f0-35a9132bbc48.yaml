@@ -1,0 +1,56 @@
+id: 019d1072-f118-7545-85f0-35a9132bbc48
+name: Suspicious 'Recovery Diagnostics' Scheduled Task Creation
+description: Detects the creation of a scheduled task named "Recovery Diagnostics" that executes PowerShell scripts from the C:\Users\Public directory. This specific technique has been observed being used by threat actors as a persistence and execution mechanism during INC ransomware staging to trigger base64-encoded PowerShell payloads for data exfiltration.
+query: |
+    title: Suspicious 'Recovery Diagnostics' Scheduled Task Creation
+    id: f442be47-3100-4246-838a-2a9d42e28339
+    status: experimental
+    description: Detects the creation of a scheduled task named "Recovery
+      Diagnostics" that executes PowerShell scripts from the C:\Users\Public
+      directory. This specific technique has been observed being used by threat
+      actors as a persistence and execution mechanism during INC ransomware staging
+      to trigger base64-encoded PowerShell payloads for data exfiltration.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+    date: 2026-03-21
+    tags:
+      - attack.persistence
+      - attack.execution
+      - attack.t1053.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Detects the creation of the specific scheduled task using schtasks.exe
+      selection:
+        Image|endswith: '\schtasks.exe'
+        CommandLine|contains|all:
+          - '/create'
+          - 'Recovery Diagnostics'
+          - 'powershell.exe'
+          - 'C:\Users\Public\'
+      condition: selection
+    falsepositives:
+      - Unlikely, but potentially legitimate custom administrative scripts using
+        this exact task naming convention.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0002
+    - TA0004
+techniques:
+    - T1053.005
+tags:
+    - attack.persistence
+    - attack.execution
+    - attack.t1053.005
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,51 @@
+id: 019d1073-407d-761f-9eaa-80824197ade7
+name: INC Ransomware Command Execution
+description: Detects the execution of INC ransomware utilizing specific command-line arguments (--sup, --hide, --mode medium) typically staged from the C:\perflogs\ directory. This pattern indicates active ransomware execution during the impact phase of an attack.
+query: |
+    title: INC Ransomware Command Execution
+    id: 631a4e76-95c9-422f-ab1f-4bcc9aec74b3
+    status: experimental
+    description: Detects the execution of INC ransomware utilizing specific
+      command-line arguments (--sup, --hide, --mode medium) typically staged from
+      the C:\perflogs\ directory. This pattern indicates active ransomware execution
+      during the impact phase of an attack.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+    date: 2026-03-21
+    tags:
+      - attack.impact
+      - attack.t1486
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Targets the specific staging directory observed in the attack
+        Image|startswith: 'C:\perflogs\'
+        # Identifies the specific command-line arguments used to hide operations and set the encryption mode
+        CommandLine|contains|all:
+          - '--sup'
+          - '--hide'
+          - '--mode medium'
+      condition: selection
+    falsepositives:
+      - Unlikely, as the combination of this specific staging directory and these
+        exact arguments is highly specific to malicious activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - attack.impact
+    - attack.t1486
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+data_sources:
+    - process_creation
+    - windows

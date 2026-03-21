@@ -1,0 +1,54 @@
+id: 019d1072-3f64-7191-85f9-8aa1003070ac
+name: Security Product Disabled via SecurityCenter
+description: Detects Windows Security Center Event ID 15 indicating that a registered security product, such as Windows Defender or VIPRE, has been turned off or snoozed. Attackers actively uninstall or disable endpoint security agents immediately prior to deploying ransomware to ensure successful encryption without interference.
+query: |
+    title: Security Product Disabled via SecurityCenter
+    id: 82fb43be-dbde-4c8f-b70b-27841a7ba8c0
+    status: experimental
+    description: Detects Windows Security Center Event ID 15 indicating that a
+      registered security product, such as Windows Defender or VIPRE, has been
+      turned off or snoozed. Attackers actively uninstall or disable endpoint
+      security agents immediately prior to deploying ransomware to ensure successful
+      encryption without interference.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+    date: 2026-03-21
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      product: windows
+      service: system
+    detection:
+      selection:
+        # Target the Windows Security Center provider and specific state change event
+        Provider_Name: 'Microsoft-Windows-Security-Center'
+        EventID: 15
+        # Look for indications that the security product has been disabled or put into a snoozed state
+        # Tuning Suggestion: If legitimate software upgrades (e.g., EDR updates) frequently trigger this, consider allowlisting specific known update windows or correlation with approved software deployment processes.
+        Message|contains:
+          - 'SECURITY_PRODUCT_STATE_OFF'
+          - 'SECURITY_PRODUCT_STATE_SNOOZED'
+      condition: selection
+    falsepositives:
+      - Legitimate uninstallation or upgrading of endpoint security software.
+      - Temporary disabling of security tools by IT administrators for
+        troubleshooting purposes.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1562.001
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+data_sources:
+    - windows
+    - system

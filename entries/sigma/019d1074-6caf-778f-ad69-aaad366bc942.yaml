@@ -1,0 +1,49 @@
+id: 019d1074-6caf-778f-ad69-aaad366bc942
+name: RestartManager Ransomware File Unlocking
+description: Detects a sudden spike in Windows RestartManager Event ID 10000. A proliferation of RestartManager events is a strong indicator of active file encryption by ransomware (like INC or Akira) attempting to kill processes that are locking target files.
+query: |
+    title: RestartManager Ransomware File Unlocking
+    id: e0a79e77-585b-4a67-9471-e2e2c4f03645
+    status: experimental
+    description: Detects a sudden spike in Windows RestartManager Event ID 10000. A
+      proliferation of RestartManager events is a strong indicator of active file
+      encryption by ransomware (like INC or Akira) attempting to kill processes that
+      are locking target files.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+    date: 2026-03-21
+    tags:
+      - attack.impact
+      - attack.t1486
+    logsource:
+      product: windows
+      service: application
+    detection:
+      selection:
+        # Matches the Windows RestartManager event created when a process is killed or a file is unlocked
+        Provider_Name: 'Microsoft-Windows-RestartManager'
+        EventID: 10000
+      # Aggregation to detect an anomalous spike (e.g., >50 events in 5 minutes) typically seen during rapid encryption
+      timeframe: 5m
+      condition: selection | count() > 50
+    falsepositives:
+      - Legitimate extensive software installations or system updates that utilize
+        the Restart Manager to free up locked files en masse.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0040
+techniques:
+    - T1486
+tags:
+    - attack.impact
+    - attack.t1486
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+data_sources:
+    - windows
+    - application
