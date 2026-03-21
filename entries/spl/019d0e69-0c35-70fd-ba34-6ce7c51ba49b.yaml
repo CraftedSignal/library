@@ -1,0 +1,38 @@
+id: 019d0e69-0c35-70fd-ba34-6ce7c51ba49b
+name: Suspicious Edge Headless PDF Generation
+description: Detects Microsoft Edge being utilized in headless mode to generate PDF files in the Public directory, a technique the Horabot spreader uses to create malicious attachments for phishing.
+query: |
+    /*
+    Title: Suspicious Edge Headless PDF Generation
+    Description: Detects Microsoft Edge being utilized in headless mode to generate PDF files in the Public directory, a technique the Horabot spreader uses to create malicious attachments for phishing.
+    Specifically called out in Stage 4: The spreader
+    Author: zendannyy
+    References:
+      - https://securelist.com/horabot-campaign/119033/
+      */
+
+
+    // Query process creation events from Windows Security Event Log and Sysmon
+    (index=* sourcetype="WinEventLog:Security" EventCode=4688) OR (index=sysmon sourcetype="XmlWinEventLog:Microsoft-Windows-Sysmon/Operational" EventCode=1)
+    | search (New_Process_Name="*\\msedge.exe" OR Image="*\\msedge.exe")
+
+    // Look for command line arguments indicating headless execution, PDF generation, and the Public directory path
+    | search CommandLine="*--headless*" CommandLine="*--print-to-pdf*" CommandLine="C:\\Users\\Public\\*"
+
+    // Placeholder for false positive tuning
+    // Excluding known automated reporting or documentation tools that may use headless Edge legitimately.
+    // | search NOT (ParentImage="*\\path\\to\\legitimate_tool.exe")
+    | table _time, host, user, Image, ParentProcessName, New_Process_Name, CommandLine
+query_type: spl
+severity: medium
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://securelist.com/horabot-campaign/119033/

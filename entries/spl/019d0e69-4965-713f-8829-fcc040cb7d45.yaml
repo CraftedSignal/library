@@ -1,0 +1,37 @@
+id: 019d0e69-4965-713f-8829-fcc040cb7d45
+name: PowerShell Outlook COM Object for Email Harvesting
+description: Detects PowerShell script block logging events (Event Code 4104) that indicate the instantiation of the Outlook COM object via the MAPI namespace. This behavior is associated with malware like Horabot for email harvesting and spreading.
+query: |-
+    /*
+    Title: PowerShell Outlook Email Harvesting
+    Description: Detects PowerShell script block logging events indicating the instantiation of the Outlook COM object via the MAPI namespace, which Horabot uses for email harvesting in its spreader.
+    Date: 2026-03-20
+    References:
+      - https://securelist.com/horabot-campaign/119033/
+    Tags: TA0009, T1114.003
+    */
+
+    // Query PowerShell Script Block Logging (Event Code 4104)
+    (index=* sourcetype="*PowerShell/Operational" EventCode=4104)
+    // Identify script blocks attempting to instantiate the Outlook COM object and access the MAPI namespace
+    | search ScriptBlockText="*New-Object -ComObject*" ScriptBlockText="*-comobject*" ScriptBlockText="*Outlook.Application*" ScriptBlockText="*MAPI*"
+
+    // Placeholder for false positive tuning
+    // Exclude known admin scripts or specific svc accounts in a lookup table.
+    | lookup approved_exclusions.csv ScriptBlockText AS ScriptBlock OUTPUT block
+    | where isnull(block)
+    | table _time, host, user, EventCode, ScriptBlockText
+query_type: spl
+severity: medium
+tactics:
+    - TA0009
+    - TA0002
+techniques:
+    - T1114.003
+    - T1059.001
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://securelist.com/horabot-campaign/119033/
