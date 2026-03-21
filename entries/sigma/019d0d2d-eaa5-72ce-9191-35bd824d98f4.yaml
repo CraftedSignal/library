@@ -1,0 +1,55 @@
+id: 019d0d2d-eaa5-72ce-9191-35bd824d98f4
+name: Zimbra IMAP Enabled via API
+description: Detects Zimbra SOAP API requests attempting to enable IMAP access by setting zimbraPrefImapEnabled. This is a known persistence technique used by threat actors (such as in Operation GhostMail) to silently enable mail protocols, bypassing the web UI to maintain access using stolen app-specific passwords.
+query: |
+    title: Zimbra IMAP Enabled via API
+    id: 3e3ec4c1-9a02-4549-a94f-9da3f61f23fb
+    status: experimental
+    description: Detects Zimbra SOAP API requests attempting to enable IMAP access
+      by setting zimbraPrefImapEnabled. This is a known persistence technique used
+      by threat actors (such as in Operation GhostMail) to silently enable mail
+      protocols, bypassing the web UI to maintain access using stolen app-specific
+      passwords.
+    author: detections.ai
+    references:
+      - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+    date: 2026-03-20
+    tags:
+      - attack.persistence
+      - attack.t1098.002
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        # Detects the SOAP API endpoint and the specific request to modify IMAP preferences.
+        # Note: Because SOAP requests send data in the POST body, standard web logs might not capture 'ModifyPrefsRequest' in the c-uri field.
+        # If your SIEM uses a different field for HTTP payloads or WAF logs (e.g., 'request_body', 'payload', 'cs-uri-query'), please adjust the field name accordingly.
+        c-uri|contains|all:
+          - '/service/soap'
+          - 'ModifyPrefsRequest'
+          - 'zimbraPrefImapEnabled'
+      condition: selection
+    falsepositives:
+      - Legitimate user or administrator configuration changes enabling IMAP for
+        business needs.
+      - To tune false positives, consider filtering out known administrative IP
+        ranges. You can also baseline normal IMAP enablement behavior or correlate
+        this alert with suspicious app-password creation (e.g., 'ZimbraWeb') and
+        unusual login locations.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1098.002
+tags:
+    - attack.persistence
+    - attack.t1098.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+data_sources:
+    - webserver

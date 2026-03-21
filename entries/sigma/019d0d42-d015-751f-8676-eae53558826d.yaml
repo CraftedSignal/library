@@ -1,0 +1,67 @@
+id: 019d0d42-d015-751f-8676-eae53558826d
+name: Invisible HTML Prompt Injection in Claude.ai
+description: Detects the presence of HTML tags within the URL query parameters of Claude chat application pre-fill URLs. Attackers can use this to embed invisible instructions (prompt injection) that the AI processes but the user does not see in the chat interface.
+query: |
+    title: Invisible HTML Prompt Injection in Claude.ai
+    id: 421e07ae-2cf2-4d76-97a5-b74609163600
+    status: experimental
+    description: Detects the presence of HTML tags within the URL query parameters
+      of Claude chat application pre-fill URLs. Attackers can use this to embed
+      invisible instructions (prompt injection) that the AI processes but the user
+      does not see in the chat interface.
+    author: detections.ai
+    references:
+      - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+    date: 2026-03-20
+    tags:
+      - attack.defense-evasion
+      - attack.t1036
+    logsource:
+      category: proxy
+    detection:
+      # Matches the Claude chat initialization endpoint
+      selection_endpoint:
+        cs-host: 'claude.ai'
+        cs-uri-stem|startswith: '/new'
+
+      # Identifies URL-encoded or raw HTML opening tags in the query string
+      selection_tag_open:
+        cs-uri-query|contains:
+          - '<'
+          - '%3C'
+
+      # Identifies URL-encoded or raw HTML closing tags in the query string
+      selection_tag_close:
+        cs-uri-query|contains:
+          - '>'
+          - '%3E'
+
+      # Placeholder for tuning: Exclude legitimate queries where users intentionally pass code snippets via the q parameter.
+      filter_code_snippets:
+        cs-uri-query|contains:
+          - 'placeholder_for_known_safe_snippets'
+
+      condition: selection_endpoint and selection_tag_open and selection_tag_close and
+        not 1 of filter_*
+    falsepositives:
+      - Users legitimately pre-filling chats with code snippets or text containing
+        HTML brackets.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0001
+    - TA0011
+techniques:
+    - T1036
+    - T1659
+tags:
+    - attack.defense-evasion
+    - attack.t1036
+author: detections.ai
+version: "1"
+references:
+    - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+data_sources:
+    - proxy

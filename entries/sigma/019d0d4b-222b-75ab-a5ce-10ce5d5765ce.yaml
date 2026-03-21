@@ -1,0 +1,76 @@
+id: 019d0d4b-222b-75ab-a5ce-10ce5d5765ce
+name: Suspicious Romeo or Juliet Scripts Execution
+description: Detects the execution of PowerShell or VBScript scripts matching the naming conventions "Romeo*.ps1" or "Juliet*.vbs". These scripts are utilized as initial triggers for a stealthy Deno-based in-memory loader, a technique recently observed in LeakNet ransomware campaigns following initial access.
+query: |
+    title: Suspicious Romeo or Juliet Scripts Execution
+    id: 340e3769-f83d-43ca-8c6f-bd12b1c26d58
+    status: experimental
+    description: Detects the execution of PowerShell or VBScript scripts matching
+      the naming conventions "Romeo*.ps1" or "Juliet*.vbs". These scripts are
+      utilized as initial triggers for a stealthy Deno-based in-memory loader, a
+      technique recently observed in LeakNet ransomware campaigns following initial
+      access.
+    author: detections.ai
+    references:
+      - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+    date: 2026-03-20
+    tags:
+      - attack.ta0002
+      - attack.t1059.001
+      - attack.t1059.005
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Identifies PowerShell processes executing scripts with "Romeo" in the name
+      selection_ps_img:
+        - Image|endswith:
+            - '\powershell.exe'
+            - '\pwsh.exe'
+        - OriginalFileName:
+            - 'PowerShell.EXE'
+            - 'pwsh.dll'
+      selection_ps_cmd:
+        CommandLine|contains|all:
+          - 'Romeo'
+          - '.ps1'
+
+      # Identifies Windows Script Host processes executing scripts with "Juliet" in the name
+      selection_vbs_img:
+        - Image|endswith:
+            - '\wscript.exe'
+            - '\cscript.exe'
+        - OriginalFileName:
+            - 'wscript.exe'
+            - 'cscript.exe'
+      selection_vbs_cmd:
+        CommandLine|contains|all:
+          - 'Juliet'
+          - '.vbs'
+
+      condition: (selection_ps_img and selection_ps_cmd) or (selection_vbs_img and
+        selection_vbs_cmd)
+    falsepositives:
+      - Scripts coincidentally named "Romeo" or "Juliet" within the environment. If
+        false positives occur, consider filtering out specific expected
+        administrative paths or user directories where these files might
+        legitimately reside.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+techniques:
+    - T1059.001
+    - T1059.005
+tags:
+    - attack.ta0002
+    - attack.t1059.001
+    - attack.t1059.005
+author: detections.ai
+version: "1"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+data_sources:
+    - process_creation
+    - windows

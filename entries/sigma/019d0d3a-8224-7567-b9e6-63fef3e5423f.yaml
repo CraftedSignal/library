@@ -1,0 +1,59 @@
+id: 019d0d3a-8224-7567-b9e6-63fef3e5423f
+name: Warlock Ransomware RunCryptor Execution
+description: Detects the execution of the Warlock ransomware payload using rundll32.exe to call the specific 'RunCryptor' export function from 'run.dll'. This activity represents the final stage of the attack chain, immediately preceding enterprise-wide file encryption.
+query: |
+    title: Warlock Ransomware RunCryptor Execution
+    id: 9aa8acd6-a3f5-4c73-9c7b-5a188ac81abe
+    status: experimental
+    description: Detects the execution of the Warlock ransomware payload using
+      rundll32.exe to call the specific 'RunCryptor' export function from 'run.dll'.
+      This activity represents the final stage of the attack chain, immediately
+      preceding enterprise-wide file encryption.
+    author: detections.ai
+    references:
+      - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+    date: 2026-03-20
+    tags:
+      - attack.impact
+      - attack.t1486
+      - attack.execution
+      - attack.t1218.011
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Target the execution of the built-in rundll32 process
+      selection_img:
+        - Image|endswith: '\rundll32.exe'
+        - OriginalFileName: 'RUNDLL32.EXE'
+      # Look for the specific Warlock ransomware DLL name and export function
+      selection_cmd:
+        CommandLine|contains|all:
+          - 'run.dll'
+          - 'RunCryptor'
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Highly unlikely due to the specific 'RunCryptor' export name. If false
+        positives occur with a benign tool sharing this name, consider tuning by
+        excluding specific known parent processes.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0040
+    - TA0005
+techniques:
+    - T1486
+    - T1218.011
+tags:
+    - attack.impact
+    - attack.t1486
+    - attack.execution
+    - attack.t1218.011
+author: detections.ai
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+data_sources:
+    - process_creation
+    - windows

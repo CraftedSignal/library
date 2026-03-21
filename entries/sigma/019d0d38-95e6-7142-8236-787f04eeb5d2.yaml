@@ -1,0 +1,59 @@
+id: 019d0d38-95e6-7142-8236-787f04eeb5d2
+name: VS Code CLI Tunnel Execution
+description: Detects the execution of VS Code CLI running in tunnel service mode, indicating potential C&C tunneling. Threat actors increasingly abuse VS Code's native tunneling capabilities to establish covert C&C channels that blend with developer traffic.
+query: |
+    title: VS Code CLI Tunnel Execution
+    id: 7a3b1b46-203f-4a11-a833-be322faed3fb
+    status: experimental
+    description: Detects the execution of VS Code CLI running in tunnel service
+      mode, indicating potential C&C tunneling. Threat actors increasingly abuse VS
+      Code's native tunneling capabilities to establish covert C&C channels that
+      blend with developer traffic.
+    author: detections.ai
+    references:
+      - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+    date: 2026-03-20
+    tags:
+      - attack.command-and-control
+      - attack.t1572
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Matches the specific command line arguments used to initiate an internal VS Code tunnel service
+      selection:
+        CommandLine|contains|all:
+          - 'cli'
+          - 'tunnel'
+          - 'service'
+          - 'internal-run'
+      # Placeholder to filter out legitimate developer activity if false positives occur in dev environments
+      # filter_legitimate_devs:
+      #   User|contains:
+      #     - 'developer_group'
+      #   ParentImage|endswith:
+      #     - '\Code.exe'
+      #     - '\Code - Insiders.exe'
+      condition: selection # and not filter_legitimate_devs
+    falsepositives:
+      - Legitimate developer use of remote VS Code tunnels. This activity may
+        require tuning by filtering out specific parent processes, user accounts, or
+        known developer endpoint subnets.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1572
+    - T1219.001
+tags:
+    - attack.command-and-control
+    - attack.t1572
+author: detections.ai
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+data_sources:
+    - process_creation
+    - windows

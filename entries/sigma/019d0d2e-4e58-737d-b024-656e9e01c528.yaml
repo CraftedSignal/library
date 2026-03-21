@@ -1,0 +1,49 @@
+id: 019d0d2e-4e58-737d-b024-656e9e01c528
+name: Zimbra Mailbox Archive Export
+description: Detects access to the Zimbra mailbox export endpoint (/home/~/?fmt=tgz). This native Zimbra feature is actively abused by APT actors (such as in Operation GhostMail) to silently export emails without deploying custom collection tools.
+query: |
+    title: Zimbra Mailbox Archive Export
+    id: 3f0e0575-d3ab-48c8-a4bc-744e788326c4
+    status: experimental
+    description: Detects access to the Zimbra mailbox export endpoint
+      (/home/~/?fmt=tgz). This native Zimbra feature is actively abused by APT
+      actors (such as in Operation GhostMail) to silently export emails without
+      deploying custom collection tools.
+    author: detections.ai
+    references:
+      - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+    date: 2026-03-20
+    tags:
+      - attack.collection
+      - attack.t1114.002
+    logsource:
+      category: webserver
+    detection:
+      selection:
+        # Detects access to the native Zimbra mailbox export functionality often abused for automated exfiltration
+        c-uri|contains|all:
+          - '/home/~/'
+          - 'fmt=tgz'
+      condition: selection
+    falsepositives:
+      - Legitimate mailbox backups initiated by regular users or administrators.
+      - To tune false positives, consider filtering out known administrative IP
+        ranges or baseline expected backup schedules. Monitoring for rapid
+        successive hits (e.g., 90 requests in a row for 90 days of archives) can
+        also help distinguish automated script exfiltration from manual exports.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0009
+techniques:
+    - T1114.002
+tags:
+    - attack.collection
+    - attack.t1114.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+data_sources:
+    - webserver

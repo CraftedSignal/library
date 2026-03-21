@@ -1,0 +1,59 @@
+id: 019d0d4b-c0f9-77d4-8be0-5afbfc6f40fa
+name: Discovery Activity via Klist
+description: Detects the use of the klist utility via cmd.exe to enumerate active authentication credentials (Kerberos tickets) on a host. This discovery step is consistently used by threat actors, such as LeakNet, to map out accessible credentials before attempting lateral movement with tools like PsExec.
+query: |
+    title: Discovery Activity via Klist
+    id: 7b2d2405-80bf-412e-b8ed-06bb4a06b4a5
+    status: experimental
+    description: Detects the use of the klist utility via cmd.exe to enumerate
+      active authentication credentials (Kerberos tickets) on a host. This discovery
+      step is consistently used by threat actors, such as LeakNet, to map out
+      accessible credentials before attempting lateral movement with tools like
+      PsExec.
+    author: detections.ai
+    references:
+      - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+    date: 2026-03-20
+    tags:
+      - attack.ta0007
+      - attack.t1087
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Identifies the execution of the command prompt
+      selection_img:
+        - Image|endswith: '\cmd.exe'
+        - OriginalFileName: 'Cmd.Exe'
+
+      # Detects the execution of klist passed as a command string
+      # Note: If false positives occur from legitimate admin scripts, consider adding a filter for specific ParentImages or authorized service accounts.
+      selection_cli:
+        CommandLine|contains|all:
+          - '/c'
+          - 'klist'
+
+      condition: selection_img and selection_cli
+    falsepositives:
+      - Legitimate administrative troubleshooting by IT personnel.
+      - Automated logon scripts or configuration management tools querying Kerberos
+        tickets.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0007
+    - TA0006
+techniques:
+    - T1087
+    - T1558
+tags:
+    - attack.ta0007
+    - attack.t1087
+author: detections.ai
+version: "1"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+data_sources:
+    - process_creation
+    - windows

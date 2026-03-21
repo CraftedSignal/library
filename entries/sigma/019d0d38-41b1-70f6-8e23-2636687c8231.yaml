@@ -1,0 +1,21 @@
+id: 019d0d38-41b1-70f6-8e23-2636687c8231
+name: Rundll32 Keymgr Credential Access
+description: Detects the invocation of the Windows Credential Manager interface via rundll32.exe loading keymgr.dll with the KRShowKeyMgr export. This technique is used to view or dump stored credentials and is known to be employed by the Warlock ransomware group during post-exploitation lateral movement.
+query: "title: Rundll32 Keymgr Credential Access\nid: 1f72f293-ff02-43a7-8816-3c2adb4b9eb1\nstatus: experimental\ndescription: Detects the invocation of the Windows Credential Manager interface\n  via rundll32.exe loading keymgr.dll with the KRShowKeyMgr export. This\n  technique is used to view or dump stored credentials and is known to be\n  employed by the Warlock ransomware group during post-exploitation lateral\n  movement.\nauthor: detections.ai\nreferences:\n  - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html\ndate: 2026-03-20\ntags:\n  - attack.credential-access\n  - attack.t1003\nlogsource:\n  category: process_creation\n  product: windows\ndetection:\n  # Matches the execution of the rundll32 process\n  selection_img:\n    - Image|endswith: '\\rundll32.exe'\n    - OriginalFileName: 'RUNDLL32.EXE'\n  # Looks for the specific DLL and export function used to show the Credential Manager\n  selection_cmd:\n    CommandLine|contains|all:\n      - 'keymgr.dll'\n      - 'KRShowKeyMgr'\n  # Placeholder for filtering legitimate administrative usage if false positives occur\n  # filter_admin:\n  #   ParentImage|endswith: \n  #     - '\\explorer.exe'\n  #     - '\\mmc.exe'\n  condition: selection_img and selection_cmd # and not filter_admin\nfalsepositives:\n  - System administrators troubleshooting credential issues manually. May\n    require filtering by specific user accounts, parent processes, or management\n    subnets if alerts are noisy.\nlevel: medium\n"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1003
+    - T1555.004
+tags:
+    - attack.credential-access
+    - attack.t1003
+author: detections.ai
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+data_sources:
+    - process_creation
+    - windows

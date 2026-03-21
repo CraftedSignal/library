@@ -1,0 +1,58 @@
+id: 019d0d39-539c-77a7-845e-729f2189556c
+name: NSecKrnl BYOVD Service Creation
+description: Detects the creation of a system service for NSecKrnl using sc.exe, indicating a potential Bring Your Own Vulnerable Driver (BYOVD) attack. Warlock has been observed utilizing the vulnerable NSecKrnl.sys driver to terminate kernel-level security products before deploying ransomware.
+query: |
+    title: NSecKrnl BYOVD Service Creation
+    id: 841c228d-f004-47d9-9ea4-8be58e1ccd77
+    status: experimental
+    description: >-
+      Detects the creation of a system service for NSecKrnl using sc.exe, indicating
+      a potential Bring Your Own Vulnerable Driver (BYOVD) attack. Warlock has been
+      observed utilizing the vulnerable NSecKrnl.sys driver to terminate
+      kernel-level security products before deploying ransomware.
+    author: detections.ai
+    references:
+      - >-
+        https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+    date: 2026-03-20T00:00:00.000Z
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_img:
+        - Image|endswith: \sc.exe
+        - OriginalFileName: sc.exe
+      selection_cmd:
+        CommandLine|contains|all:
+          - create
+          - NSecKrnl
+          - binPath=
+          - NSecKrnl.sys
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Highly unlikely, indicative of malicious BYOVD deployment. Legitimate usage
+        of this specific driver service creation is rare.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0003
+    - TA0004
+    - TA0005
+techniques:
+    - T1543.003
+    - T1562.001
+    - T1068
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+data_sources:
+    - process_creation
+    - windows

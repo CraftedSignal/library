@@ -1,0 +1,51 @@
+id: 019d0d43-17da-74e9-8e29-a87a05f719ab
+name: Anthropic Files API Exfiltration via Beta Header
+description: Detects outbound web requests to the Anthropic API containing the specific beta header required to upload files. This can be abused by attackers to exfiltrate sensitive data from the Claude sandbox to an attacker-controlled Anthropic account.
+query: |
+    title: Anthropic Files API Exfiltration via Beta Header
+    id: f823119a-f28f-4b8c-b70a-91fd3c75597c
+    status: experimental
+    description: Detects outbound web requests to the Anthropic API containing the
+      specific beta header required to upload files. This can be abused by attackers
+      to exfiltrate sensitive data from the Claude sandbox to an attacker-controlled
+      Anthropic account.
+    author: detections.ai
+    references:
+      - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+    date: 2026-03-20
+    tags:
+      - attack.exfiltration
+      - attack.t1567.002
+    logsource:
+      category: proxy
+    detection:
+      # Matches traffic to the Anthropic API using the specific Files API beta header
+      selection:
+        cs-host: 'api.anthropic.com'
+        cs-headers|contains: 'anthropic-beta: files-api-2025-04-14'
+
+      # Placeholder for tuning: exclude known legitimate developer subnets or IPs
+      filter_legitimate_devs:
+        c-ip:
+          - 'placeholder_for_known_dev_ips'
+
+      condition: selection and not 1 of filter_*
+    falsepositives:
+      - Legitimate development or sandbox usage of the beta Files API by internal
+        developers.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1567.002
+tags:
+    - attack.exfiltration
+    - attack.t1567.002
+author: detections.ai
+version: "1"
+references:
+    - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+data_sources:
+    - proxy

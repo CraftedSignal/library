@@ -1,0 +1,59 @@
+id: 019d0d4c-32ec-754f-b118-30e481ce317a
+name: Deno Execution via Data URI
+description: Detects the Deno runtime executing base64-encoded payloads via data URIs. This technique is used by threat actors, such as LeakNet, to run JavaScript payloads directly in memory, evading traditional file-based detection.
+query: |
+    title: Deno Execution via Data URI
+    id: f119b472-04af-4349-81b1-630af71c8da1
+    status: experimental
+    description: Detects the Deno runtime executing base64-encoded payloads via data
+      URIs. This technique is used by threat actors, such as LeakNet, to run
+      JavaScript payloads directly in memory, evading traditional file-based
+      detection.
+    author: detections.ai
+    references:
+      - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+    date: 2026-03-20
+    tags:
+      - attack.ta0005
+      - attack.t1620
+      - attack.t1059.007
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Identifies the execution of the Deno runtime
+      selection_img:
+        - Image|endswith: '\deno.exe'
+        - OriginalFileName: 'deno.exe'
+
+      # Looks for inline execution of base64 encoded JavaScript via Data URIs
+      selection_cmd:
+        CommandLine|contains|all:
+          - 'data:application/javascript:'
+          - 'base64'
+      condition: selection_img and selection_cmd
+    falsepositives:
+      - Unlikely, developers rarely run Deno using inline base64 data URIs. If false
+        positives occur in legitimate CI/CD pipelines or specific developer
+        environments, consider tuning by filtering known ParentImages or specific
+        user accounts.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1620
+    - T1059.007
+tags:
+    - attack.ta0005
+    - attack.t1620
+    - attack.t1059.007
+author: detections.ai
+version: "1"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+data_sources:
+    - process_creation
+    - windows

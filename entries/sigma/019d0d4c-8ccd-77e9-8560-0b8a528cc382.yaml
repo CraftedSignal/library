@@ -1,0 +1,67 @@
+id: 019d0d4c-8ccd-77e9-8560-0b8a528cc382
+name: Suspicious Msiexec Remote Installation
+description: Detects the execution of msiexec.exe to download and install packages from remote locations. This activity is frequently observed in LeakNet ClickFix campaigns where users are tricked into copying and pasting malicious commands via fake verification prompts.
+query: |
+    title: Suspicious Msiexec Remote Installation
+    id: 4208606a-162b-4f73-9c9b-f51e4ad0017d
+    status: experimental
+    description: >-
+      Detects the execution of msiexec.exe to download and install packages from
+      remote locations. This activity is frequently observed in LeakNet ClickFix
+      campaigns where users are tricked into copying and pasting malicious commands
+      via fake verification prompts.
+    author: detections.ai
+    references:
+      - >-
+        https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+    date: 2026-03-20T00:00:00.000Z
+    tags:
+      - attack.ta0005
+      - attack.t1218.007
+      - attack.t1204.004
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_img:
+        - Image|endswith: \msiexec.exe
+        - OriginalFileName: msiexec.exe
+      selection_flags:
+        CommandLine|contains:
+          - '-package'
+          - /package
+          - '-i '
+          - '/i '
+      selection_url:
+        CommandLine|contains:
+          - http://
+          - https://
+          - http:\
+          - https:\
+      condition: selection_img and selection_flags and selection_url
+    falsepositives:
+      - >-
+        Legitimate remote package installations via msiexec originating from
+        authorized internal infrastructure (e.g., SCCM, Intune, or other endpoint
+        management solutions).
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0002
+techniques:
+    - T1218.007
+    - T1204.004
+tags:
+    - attack.ta0005
+    - attack.t1218.007
+    - attack.t1204.004
+author: detections.ai
+version: "1"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+data_sources:
+    - process_creation
+    - windows

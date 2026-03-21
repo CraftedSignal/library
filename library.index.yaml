@@ -47025,6 +47025,495 @@ entries:
       references:
         - https://blog.talosintelligence.com/uat-9244/
       file: entries/kql/019d0c27-6e44-729b-8432-a7bd15447085.yaml
+    - id: 019d0ccd-1297-72c9-bd11-ed83127aadf3
+      name: GitHub Force Push Detected
+      description: |
+        Detects a 'git push --force' event in GitHub audit logs. A force push overwrites the remote repository's history with the local history, which is a potentially destructive action.
+        This technique was notably used in the supply chain attack against the 'aquasecurity/trivy-action' repository, where attackers force-pushed malicious versions to existing version tags.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0001
+        - TA0005
+        - TA0003
+        - TA0004
+      techniques:
+        - T1195.002
+        - T1078
+        - T1078.004
+        - T1554
+      tags:
+        - attack.defense_evasion
+        - attack.t1554
+        - attack.t1078
+      author: detections.ai
+      version: "1"
+      references:
+        - https://thehackernews.com/2026/03/trivy-security-scanner-github-actions.html
+      data_sources:
+        - audit
+        - github
+      file: entries/sigma/019d0ccd-1297-72c9-bd11-ed83127aadf3.yaml
+    - id: 019d0ccd-b135-736b-bd1d-a4f79eff6cf9
+      name: Multiple GitHub Force Pushes to Tags Detected
+      description: |
+        Detects a high volume of 'git push --force' events specifically targeting tags from a single user or to a single repository within a short timeframe.
+        This is a strong indicator of a tag poisoning campaign, similar to the one used in the supply chain attack against the 'aquasecurity/trivy-action' repository where 75 tags were force-pushed to point to malicious code.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0001
+        - TA0005
+        - TA0003
+        - TA0004
+      techniques:
+        - T1195.002
+        - T1195
+        - T1078
+      tags:
+        - attack.defense_evasion
+        - attack.t1554
+        - attack.t1078
+      author: detections.ai
+      version: "1"
+      references:
+        - https://thehackernews.com/2026/03/trivy-security-scanner-github-actions.html
+      data_sources:
+        - audit
+        - github
+      file: entries/sigma/019d0ccd-b135-736b-bd1d-a4f79eff6cf9.yaml
+    - id: 019d0cd0-9f2d-776c-9419-598c1ad8df63
+      name: Suspicious Execution from /tmp/pglog
+      description: |
+        Detects the execution of a binary from the path /tmp/pglog, which is used as a
+        dropper location by the malicious sysmon.py script associated with the TeamPCP
+        Trivy supply chain malware.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+        - TA0011
+      techniques:
+        - T1059
+        - T1105
+      tags:
+        - attack.execution
+        - attack.t1059
+        - attack.t1105
+      author: tim@detections.ai
+      version: "1"
+      references:
+        - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019d0cd0-9f2d-776c-9419-598c1ad8df63.yaml
+    - id: 019d0d2d-eaa5-72ce-9191-35bd824d98f4
+      name: Zimbra IMAP Enabled via API
+      description: Detects Zimbra SOAP API requests attempting to enable IMAP access by setting zimbraPrefImapEnabled. This is a known persistence technique used by threat actors (such as in Operation GhostMail) to silently enable mail protocols, bypassing the web UI to maintain access using stolen app-specific passwords.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1098.002
+      tags:
+        - attack.persistence
+        - attack.t1098.002
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+      data_sources:
+        - webserver
+      file: entries/sigma/019d0d2d-eaa5-72ce-9191-35bd824d98f4.yaml
+    - id: 019d0d2e-4e58-737d-b024-656e9e01c528
+      name: Zimbra Mailbox Archive Export
+      description: Detects access to the Zimbra mailbox export endpoint (/home/~/?fmt=tgz). This native Zimbra feature is actively abused by APT actors (such as in Operation GhostMail) to silently export emails without deploying custom collection tools.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0009
+      techniques:
+        - T1114.002
+      tags:
+        - attack.collection
+        - attack.t1114.002
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+      data_sources:
+        - webserver
+      file: entries/sigma/019d0d2e-4e58-737d-b024-656e9e01c528.yaml
+    - id: 019d0d2e-ccda-767b-b988-3811da240fa1
+      name: Operation GhostMail DNS Exfiltration
+      description: Detects DNS resolution requests to the Operation GhostMail exfiltration subdomains (*.i.zimbrasoft.com.ua) and main domain. DNS exfiltration is the primary channel used by this APT to steal credentials and 2FA codes even when HTTPS is blocked.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0010
+        - TA0011
+      techniques:
+        - T1071.004
+      tags:
+        - attack.exfiltration
+        - attack.t1071.004
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+      data_sources:
+        - dns
+      file: entries/sigma/019d0d2e-ccda-767b-b988-3811da240fa1.yaml
+    - id: 019d0d2f-35c5-710b-925f-ca3abee177b0
+      name: Suspicious ZimbraWeb App Password Creation
+      description: Detects the creation of an app-specific password named 'ZimbraWeb' via Zimbra SOAP API. This specific persistent credential name is a known mechanism utilized in the Operation GhostMail campaign by a Russian APT.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1098.001
+      tags:
+        - attack.persistence
+        - attack.t1098.001
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.seqrite.com/blog/operation-ghostmail-zimbra-xss-russian-apt-ukraine/
+      data_sources:
+        - webserver
+      file: entries/sigma/019d0d2f-35c5-710b-925f-ca3abee177b0.yaml
+    - id: 019d0d37-f911-7795-9b9b-809a95dc10b6
+      name: Msiexec Remote Supabase Download
+      description: Detects the execution of msiexec.exe to download and install a remote MSI payload from Supabase cloud storage. This technique is known to be used by the Warlock ransomware group to silently deploy the Velociraptor C&C framework while evading network detections.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+      techniques:
+        - T1218.007
+      tags:
+        - attack.execution
+        - attack.defense-evasion
+        - attack.t1218.007
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d37-f911-7795-9b9b-809a95dc10b6.yaml
+    - id: 019d0d38-41b1-70f6-8e23-2636687c8231
+      name: Rundll32 Keymgr Credential Access
+      description: Detects the invocation of the Windows Credential Manager interface via rundll32.exe loading keymgr.dll with the KRShowKeyMgr export. This technique is used to view or dump stored credentials and is known to be employed by the Warlock ransomware group during post-exploitation lateral movement.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0006
+      techniques:
+        - T1003
+        - T1555.004
+      tags:
+        - attack.credential-access
+        - attack.t1003
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d38-41b1-70f6-8e23-2636687c8231.yaml
+    - id: 019d0d38-95e6-7142-8236-787f04eeb5d2
+      name: VS Code CLI Tunnel Execution
+      description: Detects the execution of VS Code CLI running in tunnel service mode, indicating potential C&C tunneling. Threat actors increasingly abuse VS Code's native tunneling capabilities to establish covert C&C channels that blend with developer traffic.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0011
+      techniques:
+        - T1572
+        - T1219.001
+      tags:
+        - attack.command-and-control
+        - attack.t1572
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d38-95e6-7142-8236-787f04eeb5d2.yaml
+    - id: 019d0d38-f39b-761d-b62e-7b4d576dc139
+      name: Yuze Reverse Proxy Execution
+      description: Detects the execution of the open-source Yuze tool via rundll32 to establish a reverse SOCKS5 proxy tunnel. The Warlock ransomware group has been observed using this lightweight C-based tunneling tool to maintain persistent C&C access across multiple ports.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0011
+      techniques:
+        - T1218.011
+        - T1095
+        - T1090
+      tags:
+        - attack.command-and-control
+        - attack.t1095
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d38-f39b-761d-b62e-7b4d576dc139.yaml
+    - id: 019d0d39-539c-77a7-845e-729f2189556c
+      name: NSecKrnl BYOVD Service Creation
+      description: Detects the creation of a system service for NSecKrnl using sc.exe, indicating a potential Bring Your Own Vulnerable Driver (BYOVD) attack. Warlock has been observed utilizing the vulnerable NSecKrnl.sys driver to terminate kernel-level security products before deploying ransomware.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1543.003
+        - T1562.001
+        - T1068
+      tags:
+        - attack.defense-evasion
+        - attack.t1562.001
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d39-539c-77a7-845e-729f2189556c.yaml
+    - id: 019d0d3a-8224-7567-b9e6-63fef3e5423f
+      name: Warlock Ransomware RunCryptor Execution
+      description: Detects the execution of the Warlock ransomware payload using rundll32.exe to call the specific 'RunCryptor' export function from 'run.dll'. This activity represents the final stage of the attack chain, immediately preceding enterprise-wide file encryption.
+      query_type: sigma
+      severity: critical
+      tactics:
+        - TA0040
+        - TA0005
+      techniques:
+        - T1486
+        - T1218.011
+      tags:
+        - attack.impact
+        - attack.t1486
+        - attack.execution
+        - attack.t1218.011
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_us/research/26/c/dissecting-a-warlock-attack.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d3a-8224-7567-b9e6-63fef3e5423f.yaml
+    - id: 019d0d42-7655-732f-98ec-fe1b79d3b304
+      name: Claude.com Open Redirect Abuse
+      description: Detects access to the claude.com open redirect endpoint pointing to external domains. Attackers can abuse this trusted domain to bypass ad validation and email filters to deliver malicious payloads, such as prompt injections.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0001
+      techniques:
+        - T1566.002
+        - T1190
+      tags:
+        - attack.initial-access
+        - attack.t1566.002
+        - attack.t1190
+      author: detections.ai
+      version: "1"
+      references:
+        - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf
+      data_sources:
+        - proxy
+      file: entries/sigma/019d0d42-7655-732f-98ec-fe1b79d3b304.yaml
+    - id: 019d0d42-d015-751f-8676-eae53558826d
+      name: Invisible HTML Prompt Injection in Claude.ai
+      description: Detects the presence of HTML tags within the URL query parameters of Claude chat application pre-fill URLs. Attackers can use this to embed invisible instructions (prompt injection) that the AI processes but the user does not see in the chat interface.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0001
+        - TA0011
+      techniques:
+        - T1036
+        - T1659
+      tags:
+        - attack.defense-evasion
+        - attack.t1036
+      author: detections.ai
+      version: "1"
+      references:
+        - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+      data_sources:
+        - proxy
+      file: entries/sigma/019d0d42-d015-751f-8676-eae53558826d.yaml
+    - id: 019d0d43-17da-74e9-8e29-a87a05f719ab
+      name: Anthropic Files API Exfiltration via Beta Header
+      description: Detects outbound web requests to the Anthropic API containing the specific beta header required to upload files. This can be abused by attackers to exfiltrate sensitive data from the Claude sandbox to an attacker-controlled Anthropic account.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0010
+      techniques:
+        - T1567.002
+      tags:
+        - attack.exfiltration
+        - attack.t1567.002
+      author: detections.ai
+      version: "1"
+      references:
+        - https://pages.oasis.security/rs/106-PZV-596/images/claudyday-vulnerability.pdf?version=0
+      data_sources:
+        - proxy
+      file: entries/sigma/019d0d43-17da-74e9-8e29-a87a05f719ab.yaml
+    - id: 019d0d4a-d7d3-741f-b710-23487011ebe8
+      name: LeakNet C2 Beaconing Pattern
+      description: Detects network traffic matching the specific URI structure used by LeakNet for command-and-control beaconing. This behavior has been consistently observed across multiple LeakNet incidents following initial access.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0011
+      techniques:
+        - T1071.001
+      tags:
+        - attack.ta0011
+        - attack.t1071.001
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - proxy
+      file: entries/sigma/019d0d4a-d7d3-741f-b710-23487011ebe8.yaml
+    - id: 019d0d4b-222b-75ab-a5ce-10ce5d5765ce
+      name: Suspicious Romeo or Juliet Scripts Execution
+      description: Detects the execution of PowerShell or VBScript scripts matching the naming conventions "Romeo*.ps1" or "Juliet*.vbs". These scripts are utilized as initial triggers for a stealthy Deno-based in-memory loader, a technique recently observed in LeakNet ransomware campaigns following initial access.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0002
+      techniques:
+        - T1059.001
+        - T1059.005
+      tags:
+        - attack.ta0002
+        - attack.t1059.001
+        - attack.t1059.005
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d4b-222b-75ab-a5ce-10ce5d5765ce.yaml
+    - id: 019d0d4b-70a9-7299-8225-ff4cd81b0dd4
+      name: Sideloading of jli.dll in USOShared Directory
+      description: Detects the loading of jli.dll from the C:\ProgramData\USOShared directory. This behavior is indicative of DLL sideloading via a legitimate Java process, a consistent post-exploitation tactic used by the LeakNet ransomware group.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1574.001
+      tags:
+        - attack.ta0005
+        - attack.t1574.001
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - image_load
+        - windows
+      file: entries/sigma/019d0d4b-70a9-7299-8225-ff4cd81b0dd4.yaml
+    - id: 019d0d4b-c0f9-77d4-8be0-5afbfc6f40fa
+      name: Discovery Activity via Klist
+      description: Detects the use of the klist utility via cmd.exe to enumerate active authentication credentials (Kerberos tickets) on a host. This discovery step is consistently used by threat actors, such as LeakNet, to map out accessible credentials before attempting lateral movement with tools like PsExec.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0007
+        - TA0006
+      techniques:
+        - T1087
+        - T1558
+      tags:
+        - attack.ta0007
+        - attack.t1087
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d4b-c0f9-77d4-8be0-5afbfc6f40fa.yaml
+    - id: 019d0d4c-32ec-754f-b118-30e481ce317a
+      name: Deno Execution via Data URI
+      description: Detects the Deno runtime executing base64-encoded payloads via data URIs. This technique is used by threat actors, such as LeakNet, to run JavaScript payloads directly in memory, evading traditional file-based detection.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0002
+      techniques:
+        - T1620
+        - T1059.007
+      tags:
+        - attack.ta0005
+        - attack.t1620
+        - attack.t1059.007
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d4c-32ec-754f-b118-30e481ce317a.yaml
+    - id: 019d0d4c-8ccd-77e9-8560-0b8a528cc382
+      name: Suspicious Msiexec Remote Installation
+      description: Detects the execution of msiexec.exe to download and install packages from remote locations. This activity is frequently observed in LeakNet ClickFix campaigns where users are tricked into copying and pasting malicious commands via fake verification prompts.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+        - TA0002
+      techniques:
+        - T1218.007
+        - T1204.004
+      tags:
+        - attack.ta0005
+        - attack.t1218.007
+        - attack.t1204.004
+      author: detections.ai
+      version: "1"
+      references:
+        - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d0d4c-8ccd-77e9-8560-0b8a528cc382.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'
