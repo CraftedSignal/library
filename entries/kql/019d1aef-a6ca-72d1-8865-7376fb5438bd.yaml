@@ -1,0 +1,33 @@
+id: 019d1aef-a6ca-72d1-8865-7376fb5438bd
+name: Windows Security Product Disabled or Snoozed
+description: Detects when a registered security product on a Windows system has been turned off or snoozed, indicated by Windows Security Center Event ID 15 with specific states.
+query: |
+    // Author: detections.ai
+    // Date: 2026-03-23
+    // References:
+    // - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed
+    //
+    // Description: Detects Windows Security Center Event ID 15 indicating that a registered security product has been turned off or snoozed.
+
+    Event
+    // Filter for Windows Security Center events in the System log
+    | where EventLog =~ "System" and Source =~ "Microsoft-Windows-Security-Center"
+    | where EventID == 15
+    // Look for states indicating the security product is disabled or snoozed
+    | where RenderedDescription has_any ("SECURITY_PRODUCT_STATE_OFF", "SECURITY_PRODUCT_STATE_SNOOZED")
+    // Note: Legitimate administrative actions (e.g., troubleshooting, AV migration) may trigger these events.
+    // Consider tuning by excluding known admin workstations or correlating with other suspicious host activity.
+    | project TimeGenerated, Computer, EventID, RenderedDescription, Source, EventLog
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0007
+techniques:
+    - T1562
+    - T1518.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.huntress.com/blog/data-exfiltration-threat-actor-infrastructure-exposed

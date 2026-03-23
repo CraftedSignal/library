@@ -1,0 +1,23 @@
+id: 019d1b87-1e70-7029-82f9-abec6245e6f8
+name: User-Agent Rotation - Possible Nuclei Random-Agent
+description: "Detects User-Agent rotation behavior from a single Source IP (c-ip) associated with more than 3 distinct \nUser-Agent (c-useragent) values within a 5-minute window. This behavior is characteristic of the Nuclei \n'-random-agent' flag, which allows the scanner to bypass WAF (Web Application Firewall) detections by \nusing a different, valid browser User-Agent string for each request.\n"
+query: "title: User-Agent Rotation - Possible Nuclei Random-Agent\nid: 27cafbd7-63a7-4db4-a3dd-824babb810cc\nstatus: experimental\ndescription: |\n  Detects User-Agent rotation behavior from a single Source IP (c-ip) associated with more than 3 distinct \n  User-Agent (c-useragent) values within a 5-minute window. This behavior is characteristic of the Nuclei \n  '-random-agent' flag, which allows the scanner to bypass WAF (Web Application Firewall) detections by \n  using a different, valid browser User-Agent string for each request.\nauthor: detections.ai\nreferences:\n  - https://www.sysdig.com/blog/cve-2026-33017-how-attackers-compromised-langflow-ai-pipelines-in-20-hours\ndate: 2026-03-23\ntags:\n  - attack.initial-access\n  - attack.t1190\n  - attack.t1595.002\n  - cve.2026-33017\nlogsource:\n  category: webserver\ndetection:\n  # Broad selection of standard HTTP methods to capture all web traffic\n  selection:\n    cs-method:\n      - 'GET'\n      - 'POST'\n      - 'PUT'\n      - 'DELETE'\n      - 'HEAD'\n      - 'OPTIONS'\n      - 'PATCH'\n\n  # Tuning Placeholder: Exclude known authorized scanners or shared NAT gateways.\n  # Note: Shared corporate proxies or NAT gateways can trigger false positives if multiple users behind them generate requests simultaneously.\n  # filter_approved_infrastructure:\n  #   c-ip:\n  #     - '10.0.0.50'\n  #     - '192.168.1.100'\n\n  condition: selection # and not filter_approved_infrastructure\nfalsepositives:\n  - Shared IP environments (e.g., NAT, corporate proxies) where multiple\n    legitimate users access the server concurrently.\n  - Authorized automated vulnerability scanners (e.g., internal Nuclei\n    deployments) that dynamically rotate User-Agents.\nlevel: high\ncorrelation:\n  type: temporal\n  group-by:\n    - c-ip\n  timespan: 5m\n  condition: count(c-useragent) > 3\n"
+query_type: sigma
+severity: high
+tactics:
+    - TA0001
+    - TA0043
+techniques:
+    - T1190
+    - T1595.002
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - attack.t1595.002
+    - cve.2026-33017
+author: detections.ai
+version: "1"
+references:
+    - https://www.sysdig.com/blog/cve-2026-33017-how-attackers-compromised-langflow-ai-pipelines-in-20-hours
+data_sources:
+    - webserver

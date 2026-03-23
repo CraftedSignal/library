@@ -1,0 +1,18 @@
+id: 019d1b34-a852-75ad-b246-cd0fb0a38ecf
+name: Intune Based Wiper Attacks
+description: This detection will help to detect on mass device wipe events within Intune. This is based on the previous breach of Stryker. This will help to determine if a device wipe attack is taking place within your environment.
+query: "## This detection will help to detect on mass device wipe events within Intune, a pre-requisite for this to work is that you must onboard Intune Diagnostic Logs\r\n\r\nIntuneAuditLogs\r\n| where TimeGenerated >= ago(5m)\r\n| where OperationName == \"Wipe ManagedDevice\"\r\n| extend deviceId1_ = tostring(parse_json(tostring(parse_json(Properties).TargetObjectIds))[0])\r\n| join kind=leftouter (\r\n    AuditLogs\r\n    | extend deviceId_2 = tostring(TargetResources[0].id)\r\n    | extend DeviceName_ = tostring(TargetResources[0].displayName)\r\n    | project deviceId_2, DeviceName_\r\n) on $left.deviceId1_ == $right.deviceId_2\r\n| extend TargetDevice_ = tostring(parse_json(tostring(parse_json(Properties).TargetDisplayNames))[0])\r\n| extend ActivityDate_ = tostring(parse_json(Properties).ActivityDate)\r\n| summarize WipeCount = count(), arg_max(TimeGenerated, *) by bin(TimeGenerated, 5m)\r\n| where WipeCount >= 50\r\n| project TimeGenerated, Identity, OperationName, TargetDevice_"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0003
+    - TA0008
+    - TA0040
+tags:
+    - kql
+author: Jack Buttle
+version: "1"
+references:
+    - https://unit42.paloaltonetworks.com/handala-hack-wiper-attacks/
+    - https://www.cybersecuritydive.com/news/stryker-attack-device-management-microsoft-iran/814816/

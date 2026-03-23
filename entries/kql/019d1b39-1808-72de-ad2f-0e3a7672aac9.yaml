@@ -1,0 +1,20 @@
+id: 019d1b39-1808-72de-ad2f-0e3a7672aac9
+name: Azure Arc Agent Spawning Suspicious Account Manipulation Commands
+description: This rule detects when an Azure Arc agent component (himds.exe, azcmagent.exe, gc_service.exe, extensionservice.exe) spawns command interpreters (net.exe, net1.exe, cmd.exe) with command-line arguments indicative of local user or group creation/modification. This behavior could indicate a compromise of the Azure Arc agent being used to establish persistence or escalate privileges on the host.
+query: "// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-23\r\n// Threat: Azure Arc Child Process Spawning Net (CVE-2026-26117)\r\n// References:\r\n// - https://cymulate.com/blog/cve-2026-26117-azure-arc-windows-lpe-cloud-identity-takeover/\r\n// Target Azure Arc agent components known to execute commands or extensions\r\nlet ArcParents = dynamic([\r\n    \"himds.exe\",\r\n    \"azcmagent.exe\",\r\n    \"gc_service.exe\",\r\n    \"extensionservice.exe\"\r\n]);\r\n// Target command interpreters and net utilities used for local account manipulation\r\nlet SuspiciousCmds = dynamic([\r\n    \"net.exe\",\r\n    \"net1.exe\",\r\n    \"cmd.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName in~ (ArcParents)\r\n| where FileName in~ (SuspiciousCmds)\r\n// Look for command lines indicative of account creation or group modification\r\n| where ProcessCommandLine has \"/add\" \r\n| where ProcessCommandLine has \"user\" or ProcessCommandLine has \"localgroup\"\r\n// Tuning Note: Legitimate deployment of administrative users or groups via Azure Arc \r\n// RunCommand or Custom Script Extensions will trigger this detection. Ensure baseline \r\n// expected administrative automation scripts are added to exclusions if necessary.\r\n| project TimeGenerated, DeviceName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, AccountName, InitiatingProcessAccountName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0003
+    - TA0004
+techniques:
+    - T1059
+    - T1098
+    - T1136
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://cymulate.com/blog/cve-2026-26117-azure-arc-windows-lpe-cloud-identity-takeover/

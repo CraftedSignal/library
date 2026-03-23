@@ -1,0 +1,15 @@
+id: 019d1be6-0a8c-71cb-8ba4-20692f7a6c90
+name: Telegram C2 with Process Masquerading or Known Malware Hash
+description: This rule detects suspicious network connections to api.telegram.org from processes masquerading as legitimate Windows executables (MicDriver.exe, Winappx.exe, MsCache.exe, RuntimeSSH.exe, smqdservice.exe). It also identifies files with MD5 hashes matching known Indicators of Compromise (IOCs) from an external list. This combination suggests potential malware activity, possibly involving Telegram for command and control or data exfiltration, combined with process masquerading for evasion.
+query: "let MasqueradeExes = dynamic([\"MicDriver.exe\", \"Winappx.exe\", \"MsCache.exe\", \"RuntimeSSH.exe\", \"smqdservice.exe\"]);\r\nlet MOIS=externaldata(FileName:string,MD5:string)\r\n[h'https://raw.githubusercontent.com/SlimKQL/Hunting-Queries-Detection-Rules/refs/heads/main/IOC/MOISIOC.csv']\r\nwith (format='csv', ignoreFirstRecord=true)\r\n| project MD5;\r\nlet FileHash =\r\nDeviceFileEvents\r\n| where Timestamp > ago(30d)\r\n| where MD5 has_any(MOIS);\r\nDeviceNetworkEvents\r\n| where Timestamp > ago(30d)\r\n| where RemoteUrl has \"api.telegram.org\"\r\n| where InitiatingProcessFileName has_any(MasqueradeExes)\r\n| union FileHash"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036
+    - T1036.003
+tags:
+    - kql
+author: Steven Lim
+version: "4"

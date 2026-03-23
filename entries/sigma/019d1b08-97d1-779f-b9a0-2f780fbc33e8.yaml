@@ -1,0 +1,50 @@
+id: 019d1b08-97d1-779f-b9a0-2f780fbc33e8
+name: TeamPCP Fallback Exfiltration GitHub Repository Creation
+description: Detects the creation of a GitHub repository named `tpcp-docs`. This specific repository name is utilized as a fallback exfiltration channel by the TeamPCP threat actor. During the Trivy supply chain attack, the malware abused stolen GitHub tokens to create this public repository on the victim's account to host stolen data as release assets when the primary exfiltration method failed.
+query: |
+    title: TeamPCP Fallback Exfiltration GitHub Repository Creation
+    description: Detects the creation of a GitHub repository named `tpcp-docs`. This
+      specific repository name is utilized as a fallback exfiltration channel by the
+      TeamPCP threat actor. During the Trivy supply chain attack, the malware abused
+      stolen GitHub tokens to create this public repository on the victim's account
+      to host stolen data as release assets when the primary exfiltration method
+      failed.
+    references:
+      - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+    author: detections.ai
+    date: 2026-03-23
+    tags:
+      - attack.exfiltration
+      - attack.t1567
+    logsource:
+      product: github
+      service: audit
+    detection:
+      selection:
+        # Matches GitHub repository creation audit events
+        action: 'repo.create'
+        # Matches the specific repository name IOC used by TeamPCP
+        repository|endswith: 'tpcp-docs'
+      condition: selection
+    falsepositives:
+      - "Security researchers, threat hunters, or internal red teams intentionally
+        creating a repository with this known IOC name for testing purposes. Tune by
+        excluding known testing user accounts (e.g., adding `user:
+        '<Testing_Account>'` to an exclusion filter) if noise occurs."
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+techniques:
+    - T1567
+tags:
+    - attack.exfiltration
+    - attack.t1567
+author: detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+data_sources:
+    - github
+    - audit

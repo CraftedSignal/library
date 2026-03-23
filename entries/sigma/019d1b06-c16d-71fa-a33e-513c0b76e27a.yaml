@@ -1,0 +1,59 @@
+id: 019d1b06-c16d-71fa-a33e-513c0b76e27a
+name: TeamPCP Runner.Worker Process Memory Dump
+description: Detects a Python process attempting to read the memory (`/proc/<pid>/mem` or `/maps`) of a GitHub Actions `Runner.Worker` process. This is indicative of the credential dumping technique used by the TeamPCP threat actor during the Trivy supply chain compromise to extract highly privileged injected secrets.
+query: |
+    title: TeamPCP Runner.Worker Process Memory Dump
+    id: 8a8b8c22-2f06-4ac3-8417-d2c42d49dd65
+    status: experimental
+    description: Detects a Python process attempting to read the memory
+      (`/proc/<pid>/mem` or `/maps`) of a GitHub Actions `Runner.Worker` process.
+      This is indicative of the credential dumping technique used by the TeamPCP
+      threat actor during the Trivy supply chain compromise to extract highly
+      privileged injected secrets.
+    author: detections.ai
+    references:
+      - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+    date: 2026-03-23
+    tags:
+      - attack.credential-access
+      - attack.t1003
+    logsource:
+      product: linux
+      category: process_creation
+    detection:
+      selection_image:
+        # Matches Python executions as utilized by the threat actor's payloads
+        Image|contains: 'python'
+      selection_cmd_base:
+        # Ensures both the /proc path and the target process name are referenced in the command line
+        CommandLine|contains|all:
+          - '/proc/'
+          - 'Runner.Worker'
+      selection_cmd_mem:
+        # Identifies specific targeting of memory or memory map files
+        CommandLine|contains:
+          - '/mem'
+          - '/maps'
+      condition: selection_image and selection_cmd_base and selection_cmd_mem
+    falsepositives:
+      - Potential false positives may arise from legitimate APM (Application
+        Performance Monitoring) tools, debugging utilities, or diagnostic scripts
+        executing in the CI/CD environment that profile the Runner.Worker process.
+        Filter by known good script paths or parent processes if noise occurs.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0006
+techniques:
+    - T1003
+tags:
+    - attack.credential-access
+    - attack.t1003
+author: detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+data_sources:
+    - process_creation
+    - linux

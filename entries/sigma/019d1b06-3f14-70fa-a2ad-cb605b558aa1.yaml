@@ -1,0 +1,53 @@
+id: 019d1b06-3f14-70fa-a2ad-cb605b558aa1
+name: TeamPCP Malicious Trivy sysmon.py Systemd Persistence
+description: Detects the creation of a malicious Python script (`sysmon.py`) within the user's systemd directory. This specific file and path are utilized by the TeamPCP compromised Trivy binary to establish persistence on developer machines when the GITHUB_ACTIONS environment variable is not set to "true".
+query: |
+    title: TeamPCP Malicious Trivy sysmon.py Systemd Persistence
+    id: 7244148f-a091-4ec7-b4d0-6966006b2cbb
+    status: experimental
+    description: Detects the creation of a malicious Python script (`sysmon.py`)
+      within the user's systemd directory. This specific file and path are utilized
+      by the TeamPCP compromised Trivy binary to establish persistence on developer
+      machines when the GITHUB_ACTIONS environment variable is not set to "true".
+    author: detections.ai
+    references:
+      - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+    date: 2026-03-23
+    tags:
+      - attack.persistence
+      - attack.t1543.002
+      - attack.t1037
+    logsource:
+      product: linux
+      category: file_create
+    detection:
+      selection:
+        # Detects the specific sysmon.py script creation in the user's systemd configuration directory
+        TargetFilename|endswith: '/.config/systemd/user/sysmon.py'
+      condition: selection
+    falsepositives:
+      - Very low. False positives might theoretically occur if an administrator
+        legitimately creates a script named 'sysmon.py' in this exact user systemd
+        path for monitoring purposes. If this occurs, consider filtering by known
+        good Image (parent process) such as legitimate configuration management
+        tools.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.002
+    - T1037
+tags:
+    - attack.persistence
+    - attack.t1543.002
+    - attack.t1037
+author: detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+data_sources:
+    - file_create
+    - linux

@@ -1,0 +1,51 @@
+id: 019d1b07-41ab-7089-8583-9a1e617573c5
+name: TeamPCP Typosquat C2 Exfiltration Network Connection
+description: Detects outbound network connections to the known typosquatted C2 domain (`scan.aquasecurtiy.org`) or associated IP address (`45.148.10.212`) used by the TeamPCP threat actor. This infrastructure was utilized during the Trivy supply chain attack for exfiltrating stolen SSH keys, cloud credentials, and CI/CD secrets.
+query: |
+    title: TeamPCP Typosquat C2 Exfiltration Network Connection
+    id: ed9c0023-fb6b-4d68-8ab6-9e9b2f58bcf4
+    status: experimental
+    description: Detects outbound network connections to the known typosquatted C2
+      domain (`scan.aquasecurtiy.org`) or associated IP address (`45.148.10.212`)
+      used by the TeamPCP threat actor. This infrastructure was utilized during the
+      Trivy supply chain attack for exfiltrating stolen SSH keys, cloud credentials,
+      and CI/CD secrets.
+    author: detections.ai
+    references:
+      - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+    date: 2026-03-23
+    tags:
+      - attack.exfiltration
+      - attack.t1048
+      - attack.t1071.001
+    logsource:
+      category: network_connection
+    detection:
+      selection_domain:
+        # Matches the typosquatted C2 domain used for data exfiltration
+        DestinationHostname|endswith: 'scan.aquasecurtiy.org'
+      selection_ip:
+        # Matches the known malicious IP address resolving to the C2
+        DestinationIp: '45.148.10.212'
+      condition: selection_domain or selection_ip
+    falsepositives:
+      - "[object Object]"
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+    - TA0011
+techniques:
+    - T1048
+    - T1071.001
+tags:
+    - attack.exfiltration
+    - attack.t1048
+    - attack.t1071.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.wiz.io/blog/trivy-compromised-teampcp-supply-chain-attack
+data_sources:
+    - network_connection
