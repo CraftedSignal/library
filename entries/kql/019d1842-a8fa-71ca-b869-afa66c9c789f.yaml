@@ -1,0 +1,12 @@
+id: 019d1842-a8fa-71ca-b869-afa66c9c789f
+name: Compromised Trivy Communicating to Attacker Controlled Server
+description: This searches for instances of Trivy, and communicates to the attacker controller server using the domain name and IP address.
+query: "in(field=\"#event_simpleName\", values=[\"ProcessRollup2\", \"FileCreate\"])\r\n| ImageFileName=/trivy(\\.exe)?/i OR FileName=/trivy(\\.exe)?/i OR CommandLine=/trivy/i\r\n| join(query={#event_simpleName=NetworkConnectIP4 IP4Records=45.148.10.212 OR DomainName=/scan\\.aquasecurity\\.org/i}, key=TargetProcessId, field=ContextProcessId, include=[IP4Records, RemotePort] )\r\n| table([@timestamp, ComputerName, event_platform, UserName, ImageFileName, FileName, CommandLine, FilePath], limit=1000)"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: Lightkun Yagami
+version: "1"
+references:
+    - https://thehackernews.com/2026/03/trivy-security-scanner-github-actions.html

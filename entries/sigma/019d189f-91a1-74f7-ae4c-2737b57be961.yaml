@@ -1,0 +1,51 @@
+id: 019d189f-91a1-74f7-ae4c-2737b57be961
+name: Windows SimpleHelp Permissions Tampering
+description: Detects the execution of icacls.exe to grant 'Full Control' permissions to the 'Everyone' group for SimpleHelp RMM
+query: |
+    title: Windows SimpleHelp Permissions Tampering
+    id: d89cfa69-5430-4635-abaa-c6c5e3ac822a
+    status: experimental
+    description: "Detects the execution of icacls.exe to grant 'Full Control'
+      permissions to the 'Everyone' group for SimpleHelp RMM"
+    author: zendannyy
+    references:
+      - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware
+      - https://www.huntress.com/blog/employee-monitoring-simplehelp-abused-in-ransomware-operations
+      - https://attack.mitre.org/techniques/T1222/001/
+    tags:
+      - attack.t1222.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection_execution:
+        Image|endswith: '\msiexec.exe'
+        CommandLine|contains:
+          - "/qn"
+      selection_permissions:
+        Image|endswith: '\icacls.exe'
+        CommandLine|contains|all:
+          - 'C:\ProgramData\SimpleHelp'
+          - '/grant'
+      condition: selection_execution and selection_permissions
+    falsepositives:
+      - Legitimate admin actions for troubleshooting using msiexec or icalcs
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1222.001
+    - T1222
+tags:
+    - attack.t1222.001
+author: zendannyy
+version: "1"
+references:
+    - https://cofense.com/blog/brand-trust-as-a-weapon-multi-brand-impersonation-campaigns-deliver-jwrapper-malware
+    - https://www.huntress.com/blog/employee-monitoring-simplehelp-abused-in-ransomware-operations
+    - https://attack.mitre.org/techniques/T1222/001/
+data_sources:
+    - process_creation
+    - windows
