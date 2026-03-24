@@ -1,0 +1,13 @@
+id: 019d1edf-d303-7598-bfbc-300e2d1306c0
+name: TeamPCP ICP Canister C2
+description: This rule detects network connections or DNS queries to a specific Internet Computer Protocol (ICP) domain and canister ID (tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0.io or tdtqy-oyaaa-aaaae-af2dq-cai). This pattern is associated with command and control (C2) activity, where compromised systems communicate with an adversary-controlled server.
+query: "let c2_domain = \"tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0.io\";\r\nlet c2_canister_id = \"tdtqy-oyaaa-aaaae-af2dq-cai\";\r\nunion isfuzzy=true\r\n(\r\n    DeviceNetworkEvents\r\n    | where RemoteUrl contains c2_domain or RemoteUrl contains c2_canister_id\r\n    | project TimeGenerated, DeviceName, LocalIP, RemoteIP, RemoteUrl, ActionType, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n),\r\n(\r\n    DeviceEvents\r\n    | where ActionType in~ (\"DnsQueryResponse\", \"DnsQuery\")\r\n    | extend DnsQueryString = tostring(parse_json(AdditionalFields).DnsQueryString)\r\n    | where DnsQueryString contains c2_domain or DnsQueryString contains c2_canister_id\r\n    | project TimeGenerated, DeviceName, ActionType, DnsQueryString, InitiatingProcessFileName, InitiatingProcessCommandLine\r\n),\r\n(\r\n    CommonSecurityLog\r\n    | where RequestURL contains c2_domain or RequestURL contains c2_canister_id\r\n       or DestinationHostName contains c2_domain or DestinationHostName contains c2_canister_id\r\n    | project TimeGenerated, DeviceVendor, DeviceProduct, SourceIP, DestinationIP, DestinationHostName, RequestURL\r\n)\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+techniques:
+    - T1071.004
+tags:
+    - kql
+version: "1"

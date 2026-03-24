@@ -1,0 +1,19 @@
+id: 019d1ef0-b3bc-75af-a12d-31681c20d10c
+name: Suspicious IIS Worker Child Process
+description: |
+    Detects suspicious payload execution or unexpected child processes spawning directly from the IIS worker process (w3wp.exe), which is a common indicator of web shell activity or exploit payload execution on vulnerable IIS instances.
+query: "let SuspiciousProcesses = dynamic([\r\n    \"cmd.exe\", \"powershell.exe\", \"pwsh.exe\", \"certutil.exe\", \r\n    \"whoami.exe\", \"net.exe\", \"net1.exe\", \"rundll32.exe\", \r\n    \"regsvr32.exe\", \"cscript.exe\", \"wscript.exe\", \"bitsadmin.exe\", \r\n    \"vssadmin.exe\", \"ping.exe\", \"nltest.exe\", \"ipconfig.exe\", \r\n    \"systeminfo.exe\", \"bash.exe\", \"sh.exe\"\r\n]);\r\nDeviceProcessEvents\r\n| where InitiatingProcessFileName =~ \"w3wp.exe\"\r\n| where FileName in~ (SuspiciousProcesses)\r\n| project TimeGenerated, DeviceId, DeviceName, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath, SHA256\r\n| order by TimeGenerated desc\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+    - TA0040
+techniques:
+    - T1059.001
+    - T1218.011
+    - T1218.010
+    - T1490
+tags:
+    - kql
+version: "1"

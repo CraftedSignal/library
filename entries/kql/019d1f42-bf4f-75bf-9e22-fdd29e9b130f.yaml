@@ -1,0 +1,15 @@
+id: 019d1f42-bf4f-75bf-9e22-fdd29e9b130f
+name: Local User Creation and Addition to Administrators Group
+description: This rule detects the creation of a new local user account followed by its addition to the local administrators group within a 10-minute timeframe. It monitors process command lines for 'net.exe' or 'powershell.exe' creating users and then adding them to the 'administrators' group, excluding domain operations.
+query: "let timeframe = 1d;\r\nlet created =\r\nDeviceProcessEvents\r\n| where TimeGenerated >= ago(timeframe)\r\n| where FileName in~ (\"net.exe\",\"net1.exe\",\"powershell.exe\")\r\n| where ProcessCommandLine has_any (\"user\",\"New-LocalUser\")\r\n| where ProcessCommandLine !has \"/domain\"\r\n| extend AccountName = extract(@\"user\\s+([^\\s]+)\", 1, ProcessCommandLine)\r\n| extend AccountName = iff(isempty(AccountName), extract(@\"-Name\\s+([^\\s]+)\", 1, ProcessCommandLine), AccountName)\r\n| where isnotempty(AccountName)\r\n| project DeviceName, AccountName, CreationTime=TimeGenerated, CreationCmd=ProcessCommandLine;\r\nlet added =\r\nDeviceProcessEvents\r\n| where TimeGenerated >= ago(timeframe)\r\n| where ProcessCommandLine has_all (\"administrators\") and ProcessCommandLine has_any (\"add\",\"Add-LocalGroupMember\")\r\n| extend AccountName = extract(@\"administrators\\s+([^\\s]+)\", 1, ProcessCommandLine)\r\n| where isnotempty(AccountName)\r\n| project DeviceName, AccountName, AddTime=TimeGenerated, AddCmd=ProcessCommandLine;\r\ncreated\r\n| join kind=inner added on DeviceName, AccountName\r\n| where abs(datetime_diff(\"minute\", CreationTime, AddTime)) <= 10\r\n| project DeviceName, AccountName, CreationTime, AddTime, CreationCmd, AddCmd\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1136.001
+    - T1098
+tags:
+    - kql
+version: "1"
