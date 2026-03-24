@@ -1,0 +1,30 @@
+id: 019d20cf-478c-748a-b7d4-e7865e1f7d61
+name: Device Code Phishing Attempt via PaaS Lures
+description: This rule detects potential device code phishing attempts where a user accesses a commonly abused Platform-as-a-Service (PaaS) platform (Cloudflare Workers, Vercel, Amplify) and subsequently attempts to log in via the Microsoft device login endpoint within a 5-minute window. This sequence of events is indicative of an adversary luring a user to a malicious site hosted on a PaaS platform to capture a device code, which is then used to authenticate to Microsoft services.
+query: |
+    // Identify access to commonly abused PaaS platforms or the Microsoft device login endpoint
+    index=* sourcetype=*proxy* (url="*.workers.dev*" OR url="*.vercel.app*" OR url="*.amplifyapp.com*" OR url="*microsoft.com/devicelogin*")
+    | eval is_paas=if(match(url, "(?i)\.workers\.dev|\.vercel\.app|\.amplifyapp\.com"), 1, 0)
+    | eval is_login=if(match(url, "(?i)microsoft\.com/devicelogin"), 1, 0)
+    // Group events by source IP to track the user sequence and find the latest timestamps
+    | stats max(eval(if(is_paas==1, _time, null()))) as last_paas_time, max(eval(if(is_login==1, _time, null()))) as last_login_time, values(url) as urls by src_ip
+    // Calculate the time difference between the PaaS lure access and the device login
+    | eval time_diff = last_login_time - last_paas_time
+    // Condition: The device login must occur after the PaaS access and within a 5-minute (300 seconds) window
+    | where isnotnull(last_paas_time) AND isnotnull(last_login_time) AND time_diff >= 0 AND time_diff <= 300
+    // Potential False Positives: Legitimate enterprise applications hosted on these PaaS platforms that require device code authentication.
+    // Tuning suggestion: Exclude known-good PaaS subdomains utilized by your organization.
+    // | search NOT urls="*known-good-app.workers.dev*"
+    | convert ctime(last_paas_time) ctime(last_login_time)
+    | table src_ip, last_paas_time, last_login_time, time_diff, urls
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0006
+techniques:
+    - T1566.002
+    - T1621
+tags:
+    - spl
+version: "1"

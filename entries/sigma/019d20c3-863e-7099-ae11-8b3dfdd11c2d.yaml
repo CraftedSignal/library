@@ -1,0 +1,61 @@
+id: 019d20c3-863e-7099-ae11-8b3dfdd11c2d
+name: EvilTokens Campaign BAV2ROPC Token Refresh Auth via Railway PaaS
+description: Detects programmatic token refresh activity using the BAV2ROPC user agent originating from Railway IP space. This indicates automated persistent token cycling mechanisms used by the EvilTokens Phishing-as-a-Service (PhaaS) campaign to maintain access to compromised Microsoft 365 accounts.
+query: |
+    title: EvilTokens Campaign BAV2ROPC Token Refresh Auth via Railway PaaS
+    id: 8ea22a97-7967-4565-a658-e09b3a864324
+    status: experimental
+    description: Detects programmatic token refresh activity using the BAV2ROPC user
+      agent originating from Railway IP space. This indicates automated persistent
+      token cycling mechanisms used by the EvilTokens Phishing-as-a-Service (PhaaS)
+      campaign to maintain access to compromised Microsoft 365 accounts.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
+    date: 2026-03-24
+    tags:
+      - attack.defense-evasion
+      - attack.t1078.004
+      - attack.t1550.001
+    logsource:
+      product: azure
+      service: signinlogs
+    detection:
+      selection_ip:
+        # EvilTokens token replay engine hosted on Railway PaaS IP space (162.220.232.0/22 and 162.220.234.0/22)
+        IPAddress|startswith:
+          - '162.220.232.'
+          - '162.220.234.'
+      selection_ua:
+        # Programmatic agent used for automated, scheduled token refresh activity
+        UserAgent|contains: 'BAV2ROPC'
+      condition: selection_ip and selection_ua
+    falsepositives:
+      - Legitimate BAV2ROPC activity from specific Microsoft integrations, though it
+        is highly unlikely to originate from Railway PaaS cloud hosting IPs. Tune by
+        excluding known legitimate IP ranges if this intersects with approved custom
+        enterprise applications.
+    level: critical
+query_type: sigma
+severity: critical
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0008
+techniques:
+    - T1078.004
+    - T1550.001
+    - T1566
+tags:
+    - attack.defense-evasion
+    - attack.t1078.004
+    - attack.t1550.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
+data_sources:
+    - azure
+    - signinlogs

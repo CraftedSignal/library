@@ -1,0 +1,58 @@
+id: 019d2026-cf9c-76ee-8385-75baf2ca9be9
+name: Silver Fox RMM Tool IPv4 Filename Abuse
+description: Detects the execution of an RMM tool where the filename is prepended with an IPv4 address (e.g., '45.119.55.66ClientSetup.exe'). This technique is actively used by the Silver Fox (Void Arachne) intrusion set to pass Command and Control (C2) IP addresses directly to the legitimate SyncFutureTec RMM tool, evading signature-based detection while maintaining the binary's valid digital signature.
+query: |
+    title: Silver Fox RMM Tool IPv4 Filename Abuse
+    id: 73ef9f13-747d-40fe-9451-73f504d3377a
+    status: experimental
+    description: Detects the execution of an RMM tool where the filename is
+      prepended with an IPv4 address (e.g., '45.119.55.66ClientSetup.exe'). This
+      technique is actively used by the Silver Fox (Void Arachne) intrusion set to
+      pass Command and Control (C2) IP addresses directly to the legitimate
+      SyncFutureTec RMM tool, evading signature-based detection while maintaining
+      the binary's valid digital signature.
+    author: detections.ai
+    references:
+      - https://blog.sekoia.io/silver-fox-the-only-tax-audit-where-the-fine-print-installs-malware/
+    date: 2026-03-24
+    tags:
+      - attack.defense-evasion
+      - attack.t1036
+      - attack.command-and-control
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Matches the structural pattern of an IPv4 address (3 dots) prepended to the 'ClientSetup.exe' filename
+      selection:
+        Image: '*\*.*.*.*ClientSetup.exe'
+
+      # Filters out unmodified filenames to prevent alerts on legitimate executions that happen to be executed from a directory path containing dots
+      filter_legit:
+        Image|endswith: '\ClientSetup.exe'
+      condition: selection and not filter_legit
+    falsepositives:
+      - False positives are highly unlikely due to the specific IPv4 filename
+        pattern requirement. However, if legitimate internal software dynamically
+        prepends version numbers with multiple dots (e.g.,
+        '1.0.4.5ClientSetup.exe'), consider tuning by filtering out trusted parent
+        directories or verifying the binary's OriginalFileName.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0011
+techniques:
+    - T1036
+tags:
+    - attack.defense-evasion
+    - attack.t1036
+    - attack.command-and-control
+author: detections.ai
+version: "1"
+references:
+    - https://blog.sekoia.io/silver-fox-the-only-tax-audit-where-the-fine-print-installs-malware/
+data_sources:
+    - process_creation
+    - windows

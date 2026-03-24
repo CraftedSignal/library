@@ -1,0 +1,56 @@
+id: 019d20c4-b923-775b-a5ce-d385db966b15
+name: EvilTokens PhaaS Workers.dev Lure Subdomains
+description: Detects web requests to Cloudflare workers.dev subdomains containing specific keywords commonly used in the EvilTokens phishing campaign lures. Attackers rely on this PaaS platform to host device code phishing pages and bypass domain reputation checks.
+query: |
+    title: EvilTokens PhaaS Workers.dev Lure Subdomains
+    id: 677687f5-8fcd-4cd5-9c6d-ab21b51bf700
+    status: experimental
+    description: Detects web requests to Cloudflare workers.dev subdomains
+      containing specific keywords commonly used in the EvilTokens phishing campaign
+      lures. Attackers rely on this PaaS platform to host device code phishing pages
+      and bypass domain reputation checks.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
+    date: 2026-03-24
+    tags:
+      - attack.initial-access
+      - attack.t1566.002
+    logsource:
+      category: proxy
+    detection:
+      selection_domain:
+        # Matches the static portion of the generated EvilTokens subdomain
+        url|contains: '-s-account.workers.dev'
+      selection_keywords:
+        # Specific lure themes prepended to the generated domains
+        url|contains:
+          - 'adobe-'
+          - 'docusign-'
+          - 'index-'
+          - 'onedrive-'
+          - 'page-'
+          - 'voicemail-'
+      condition: selection_domain and selection_keywords
+    falsepositives:
+      - Legitimate use of Cloudflare workers that happen to use these keywords and
+        the '-s-account' suffix in the subdomain. Tune by explicitly excluding known
+        legitimate enterprise worker domains if they intersect with this pattern.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566.002
+    - T1583.007
+tags:
+    - attack.initial-access
+    - attack.t1566.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
+data_sources:
+    - proxy

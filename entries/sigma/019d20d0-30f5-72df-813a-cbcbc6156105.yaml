@@ -1,0 +1,20 @@
+id: 019d20d0-30f5-72df-813a-cbcbc6156105
+name: Device Code Phishing - PaaS and Login Correlation Base
+description: "Identifies web requests to commonly abused PaaS platforms (Cloudflare Workers, Vercel, AWS Amplify) or the Microsoft device login endpoint. \nThis rule acts as a base to identify specific events for downstream correlation. To properly detect a device code phishing sequence (such as EvilTokens), correlate a PaaS access event followed by a device login event from the same Source IP within a 5-minute window.\n"
+query: "title: Device Code Phishing - PaaS and Login Correlation Base\nid: f763d64b-b639-4260-a376-e52b4c51fa85\nstatus: experimental\ndescription: |\n  Identifies web requests to commonly abused PaaS platforms (Cloudflare Workers, Vercel, AWS Amplify) or the Microsoft device login endpoint. \n  This rule acts as a base to identify specific events for downstream correlation. To properly detect a device code phishing sequence (such as EvilTokens), correlate a PaaS access event followed by a device login event from the same Source IP within a 5-minute window.\nauthor: detections.ai\nreferences:\n  - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign\ndate: 2026-03-24\ntags:\n  - attack.initial-access\n  - attack.t1566.002\nlogsource:\n  category: proxy\ndetection:\n  selection_paas:\n    # Identifies proxy events directed to PaaS domains frequently abused to host device code phishing lures\n    url|contains:\n      - '.workers.dev'\n      - '.vercel.app'\n      - '.amplifyapp.com'\n  selection_login:\n    # Identifies access to the Microsoft device authentication endpoint\n    url|contains: 'microsoft.com/devicelogin'\n\n  # Note: Sigma handles sequence correlation via separate correlation rules (action: correlation). \n  # For SIEMs supporting sequential logic in a single query, correlate these events as follows:\n  # Sequence: selection_paas followed by selection_login\n  # Grouping: Source IP\n  # Timespan: 5 minutes\n  condition: selection_paas or selection_login\nfalsepositives:\n  - Legitimate enterprise use of PaaS platforms and legitimate device code\n    authentications. This standalone rule will generate high volumes of events\n    and should be set to informational. It must be correlated temporally to\n    produce high-fidelity alerts and minimize false positives.\nlevel: informational\n"
+query_type: sigma
+severity: informational
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - attack.initial-access
+    - attack.t1566.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
+data_sources:
+    - proxy

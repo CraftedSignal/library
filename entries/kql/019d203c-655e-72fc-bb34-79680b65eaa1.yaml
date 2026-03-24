@@ -1,0 +1,19 @@
+id: 019d203c-655e-72fc-bb34-79680b65eaa1
+name: Cloudflare Workers EvilTokens Phishing Campaign Detection
+description: Detects web requests to Cloudflare workers.dev subdomains containing specific keywords commonly used in the EvilTokens device code phishing campaign. The rule specifically looks for a pattern like '[lure-type]-[3char-id].[username]-[domain]...workers.dev' to identify malicious URLs.
+query: "// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-24\r\n// Description: Detects web requests to Cloudflare workers.dev subdomains containing specific keywords commonly used in the EvilTokens device code phishing campaign.\r\n// Reference: https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign\r\n// Tags: TA0001, T1566.002\r\nlet phishing_lures = dynamic([\"adobe-\", \"docusign-\", \"index-\", \"onedrive-\", \"page-\", \"voicemail-\"]);\r\nDeviceNetworkEvents\r\n// Search network events for connections out to Cloudflare workers domains\r\n| where RemoteUrl has \".workers.dev\"\r\n| where RemoteUrl has_any (phishing_lures)\r\n// Regex enforces the specific EvilTokens domain format: [lure-type]-[3char-id].[username]-[domain]...workers.dev\r\n// This acts as a primary tuning mechanism. If legitimate workers are flagged, adjust the regex or add an exclusion list.\r\n| where RemoteUrl matches regex @\"(?i)^(?:https?://)?(adobe|docusign|index|onedrive|page|voicemail)-[a-z0-9]{3}\\.[a-z0-9\\-]+\\.workers\\.dev\"\r\n| project TimeGenerated, DeviceName, InitiatingProcessAccountUpn, InitiatingProcessCommandLine, RemoteUrl, RemoteIP, RemotePort\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566
+    - T1566.002
+    - T1583.007
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://www.huntress.com/blog/railway-paas-m365-token-replay-campaign
