@@ -1,0 +1,16 @@
+id: 019d1c56-2fe6-752c-be81-ff3a65153e44
+name: Azure Arc Token Key File Access by Non-Arc Process
+description: Detects attempts by non-Azure Arc agent processes to access '.key' files within the Azure Arc Tokens directory. This activity could indicate an attempt to exploit CVE-2026-26117 or other credential access techniques targeting Azure Arc service principal tokens.
+query: "// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-23\r\n// Threat: Azure Arc Token Key File Access (CVE-2026-26117)\r\n// References:\r\n// - https://cymulate.com/blog/cve-2026-26117-azure-arc-windows-lpe-cloud-identity-takeover/\r\n// Define legitimate Azure Arc agent processes expected to interact with .key files\r\nlet AllowedProcesses = dynamic([\r\n    \"himds.exe\", \r\n    \"gc_service.exe\", \r\n    \"azcmagent.exe\"\r\n]);\r\nDeviceFileEvents\r\n// Target the specific Azure Arc tokens directory and .key file extension\r\n| where FolderPath has @\"\\ProgramData\\AzureConnectedMachineAgent\\Tokens\\\"\r\n| where FileName endswith \".key\"\r\n// Filter out legitimate Arc services accessing the token files\r\n| where InitiatingProcessFileName !in~ (AllowedProcesses)\r\n// Tuning Note: Security products, backup agents, or monitoring tools (e.g., msmpeng.exe) \r\n// may legitimately scan or access these files. If false positives occur, add their \r\n// specific process names to the exclusion list above or filter them below.\r\n| where InitiatingProcessFileName !in~ (\"msmpeng.exe\", \"senseir.exe\")\r\n| project TimeGenerated, DeviceName, ActionType, FolderPath, FileName, InitiatingProcessAccountDomain, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessParentFileName\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1552.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://cymulate.com/blog/cve-2026-26117-azure-arc-windows-lpe-cloud-identity-takeover/

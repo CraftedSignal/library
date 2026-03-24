@@ -1,0 +1,12 @@
+id: 019d1bfe-17db-76aa-84c0-3ba75d29e7e7
+name: Keeper BreachWatch Credential Compromise Event
+description: This rule identifies events from Keeper BreachWatch indicating potential credential compromise. It specifically looks for logs categorized as 'breachwatch' and extracts details about the breach, including compromised domains and risk severity, along with the affected username and remote IP address.
+query: "// Identify Keeper BreachWatch events indicating potential credential compromise\nKeeperSecurityEventNewLogs_CL \n| where Category =~ \"breachwatch\"\n// Tuning placeholder: Filter out known test accounts or acknowledged risks to reduce false positives\n// | where Username !in~ (\"test_account@example.com\")\n| extend \n    // Parse the Data payload to surface specific breach details (e.g., compromised domains, risk severity)\n    BreachDetails = parse_json(Data),\n    AccountCustomEntity = Username,\n    IPCustomEntity = RemoteAddress\n| project TimeGenerated, AuditEvent, Category, RemoteAddress, ClientVersion, Username, BreachDetails, Data, AccountCustomEntity, IPCustomEntity\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+tags:
+    - kql
+author: Rica Grande
+version: "1"

@@ -1,0 +1,16 @@
+id: 019d1c67-b6c9-743b-8b12-c6520afb0d8c
+name: Deno Execution of JavaScript via Data URIs
+description: Detects the execution of JavaScript code within the Deno runtime via data URIs. This technique can be used by adversaries to execute in-memory payloads, bypassing traditional file-based detection mechanisms. The rule specifically looks for 'deno.exe' in the process filename or original filename and the presence of 'data:application/javascript' in the process command line.
+query: "// Author: Ethan Andrews + detections.ai\r\n// Date: 2026-03-23\r\n// References: https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat\r\nDeviceProcessEvents\r\n// Target the Deno runtime executable\r\n| where FileName =~ \"deno.exe\" or ProcessVersionInfoOriginalFileName =~ \"deno.exe\"\r\n// Detect execution of JavaScript via Data URIs, allowing base64 payloads to run in memory\r\n| where ProcessCommandLine has \"data:application/javascript\" \r\n// TUNING: Legitimate developers may rarely use inline data URIs with Deno for testing. \r\n// If false positives occur, consider filtering by known developer workstations or IDE parent processes.\r\n// | where InitiatingProcessFileName !in~ (\"code.exe\", \"webstorm.exe\")\r\n// | where DeviceName !in~ (\"known-dev-machine1\")\r\n| project TimeGenerated, DeviceName, AccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059.007
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://reliaquest.com/blog/threat-spotlight-casting-a-wider-net-clickfix-deno-and-leaknets-scaling-threat
