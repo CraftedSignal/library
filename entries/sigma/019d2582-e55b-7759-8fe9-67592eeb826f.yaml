@@ -1,0 +1,65 @@
+id: 019d2582-e55b-7759-8fe9-67592eeb826f
+name: Unusual Toast Notification DLL Load
+description: Detects non-standard processes (e.g., command shells, script hosts) loading WinRT notification and push app libraries (wpnapps.dll, notificationcontroller.dll), which may indicate an implant or script attempting to send spoofed toast notifications for social engineering.
+query: |
+    title: Unusual Toast Notification DLL Load
+    id: 4cd0d506-fb5a-4212-8e48-efbb27484018
+    status: experimental
+    description: Detects non-standard processes (e.g., command shells, script hosts)
+      loading WinRT notification and push app libraries (wpnapps.dll,
+      notificationcontroller.dll), which may indicate an implant or script
+      attempting to send spoofed toast notifications for social engineering.
+    author: tim@detections.ai
+    references:
+      - https://ipurple.team/2026/03/25/toast-notifications/
+    date: 2026-03-25
+    tags:
+      - attack.execution
+      - attack.t1204.001
+      - attack.t1059
+    logsource:
+      product: windows
+      category: image_load
+    detection:
+      selection_dll:
+        ImageLoaded|endswith:
+          - '\wpnapps.dll'
+          - '\notificationcontroller.dll'
+          - '\twinapi.appcore.dll'
+      selection_staging:
+        # common malware staging directories
+        Image|contains:
+          - '\Temp\'
+          - '\AppData\Local\'
+          - '\Users\Public\'
+          - '\ProgramData\'
+          - '\PerfLogs\'
+      filter_paths:
+        Image|startswith:
+          - 'C:\Windows\'
+          - 'C:\Program Files\'
+          - 'C:\Program Files (x86)\'
+      condition: selection_dll and selection_staging and not filter_paths
+    falsepositives:
+      - Legitimate custom UWP or WinRT applications loading notification libraries.
+      - Third-party software (e.g., chat apps like Teams or Slack) that natively
+        generate toast notifications and install into AppData\Local.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+techniques:
+    - T1059
+    - T1204.001
+tags:
+    - attack.execution
+    - attack.t1204.001
+    - attack.t1059
+author: tim@detections.ai
+version: "1"
+references:
+    - https://ipurple.team/2026/03/25/toast-notifications/
+data_sources:
+    - image_load
+    - windows

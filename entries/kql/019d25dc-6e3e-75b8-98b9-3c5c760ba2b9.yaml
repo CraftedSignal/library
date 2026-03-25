@@ -1,0 +1,20 @@
+id: 019d25dc-6e3e-75b8-98b9-3c5c760ba2b9
+name: Azure Arc Machine Identity/RBAC Change after Local Activity
+description: This rule detects unusual modifications to Azure Arc machine identities or Role-Based Access Control (RBAC) assignments following local activity. It specifically looks for 'Write', 'Update', or 'Assign' operations on resources within the 'Microsoft.HybridCompute' resource provider where the properties include 'identity' or 'roleAssignment'. This could indicate an attempt to establish persistence or escalate privileges on hybrid machines.
+query: "// Author: Aitor Fernandez + AI\n// Date: 2026-03-25\n// Threat: CVE-2026-26117\n// References:\n// - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/\n// Cloud Identity Takeover Signals\n// Look for unusual changes to Arc machine identity / RBAC right after local activity\nAzureActivity\n| where TimeGenerated > ago(7d)\n| where OperationName has_any (\"Write\", \"Update\", \"Assign\") \n    and ResourceProvider == \"Microsoft.HybridCompute\"\n| where Properties has \"identity\" or Properties has \"roleAssignment\"\n| project TimeGenerated, CallerIpAddress, OperationName, ResourceId, Properties\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1078.004
+    - T1556.007
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/

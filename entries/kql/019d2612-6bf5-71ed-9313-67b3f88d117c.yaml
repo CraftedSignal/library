@@ -1,0 +1,18 @@
+id: 019d2612-6bf5-71ed-9313-67b3f88d117c
+name: OpenSSL Data Encryption Activity by TeamPCP
+description: Detects the specific OpenSSL command line arguments used by TeamPCP to encrypt stolen credentials before exfiltration. This rule looks for executions of 'openssl' with AES-256 encryption flags ('enc -aes-256-cbc' or 'enc -aes-256') and the use of a file to pass the encryption password ('-pass file:').
+query: "// OpenSSL Data Encryption Activity\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// References:\n// - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n// Tactics and techniques: TA0011, T1486, T1560.001\n// Description: Detects the specific OpenSSL command line arguments used by TeamPCP to encrypt stolen credentials before exfiltration.\n\nunion isfuzzy=true \n(\n    DeviceProcessEvents \n    | where ActionType == \"ProcessCreated\"\n    | extend ProcessName = FileName\n), \nCloudProcessEvents\n// Focus on OpenSSL process executions\n| where ProcessName =~ \"openssl\" or FileName =~ \"openssl\"\n// Look for AES-256 encryption flags specific to the TeamPCP payload\n| where ProcessCommandLine has_any (\"enc -aes-256-cbc\", \"enc -aes-256\")\n// Identify the use of a file to pass the encryption password\n| where ProcessCommandLine has \"-pass file:\"\n// FP Tuning: Legitimate system administration, automated backup scripts, or secure transfer tools may use similar OpenSSL commands.\n// Consider excluding specific known parent processes, scripts, or authorized administrative accounts if noise occurs.\n// | where InitiatingProcessFileName !in~ (\"backup.sh\", \"encrypt_logs.sh\")\n// | where InitiatingProcessAccountName != \"known_admin_service\"\n//| extend HostName = coalesce(DeviceName, tostring(TargetDeviceName), tostring(ComputerName), \"\")\n| project Timestamp, DeviceName, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, ProcessId, InitiatingProcessId\n| sort by Timestamp desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0040
+    - TA0009
+techniques:
+    - T1486
+    - T1560.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/

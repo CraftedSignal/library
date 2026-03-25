@@ -1,0 +1,50 @@
+id: 019d259f-89af-75cb-adb6-d1949cbed9a8
+name: TeamPCP Systemd Persistence Drop
+description: Detects file creation events for the TeamPCP systemd persistence mechanism, specifically looking for 'sysmon.py' or 'sysmon.service' dropped in hidden user config directories. This persistence mechanism ensures the attacker maintains access and can download further stages via C2 even if the original vulnerable litellm process terminates.
+query: |
+    title: TeamPCP Systemd Persistence Drop
+    id: 749ce678-7f15-4c30-b785-560efe111036
+    status: experimental
+    description: Detects file creation events for the TeamPCP systemd persistence
+      mechanism, specifically looking for 'sysmon.py' or 'sysmon.service' dropped in
+      hidden user config directories. This persistence mechanism ensures the
+      attacker maintains access and can download further stages via C2 even if the
+      original vulnerable litellm process terminates.
+    author: detections.ai
+    references:
+      - https://www.endorlabs.com/learn/teampcp-isnt-done
+    date: 2026-03-25
+    tags:
+      - attack.persistence
+      - attack.t1543.002
+    logsource:
+      category: file_event
+      product: linux
+    detection:
+      selection:
+        # Identifies the creation of the specific persistence scripts and systemd unit files used by TeamPCP
+        TargetFilename|endswith:
+          - '/.config/sysmon/sysmon.py'
+          - '/.config/systemd/user/sysmon.service'
+      condition: selection
+    falsepositives:
+      - Unlikely, but possible custom user configurations or unrelated tools
+        utilizing the 'sysmon' naming convention in local user directories.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.002
+tags:
+    - attack.persistence
+    - attack.t1543.002
+author: detections.ai
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done
+data_sources:
+    - file_event
+    - linux

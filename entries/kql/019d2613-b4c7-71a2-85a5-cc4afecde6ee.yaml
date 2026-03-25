@@ -1,0 +1,15 @@
+id: 019d2613-b4c7-71a2-85a5-cc4afecde6ee
+name: GitHub Runner Process Discovery via Process Enumeration
+description: Detects attempts to discover GitHub runner processes (Runner.Worker or Runner.Listener) using process enumeration tools like pgrep, ps, or grep. Adversaries may use this technique to locate processes carrying secrets on compromised CI/CD runners.
+query: "// GitHub Runner Process Discovery\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// References:\n// - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n// Tactics and techniques: TA0007, T1057\n// Description: Detects attempts to discover GitHub runner processes (Runner.Worker or Runner.Listener) using process enumeration tools like pgrep. TeamPCP used this technique to locate processes carrying secrets on compromised CI/CD runners.\nunion isfuzzy=true \n(\n    DeviceProcessEvents \n    | where ActionType == \"ProcessCreated\"\n), \nCloudProcessEvents\n// Focus on process discovery tools such as pgrep, ps, or grep\n| where FileName in~ (\"pgrep\", \"ps\", \"grep\") or ProcessCommandLine has_any (\"pgrep\", \"ps\", \"grep\")\n// Detect searches specifically targeting GitHub runner worker/listener processes\n| where ProcessCommandLine has_any (\"Runner.Worker\", \"Runner.Listener\")\n// FP Tuning: Legitimate monitoring or CI/CD maintenance scripts may check for runner status.\n// Consider excluding known administrative scripts, health checks, or specific service accounts.\n// | where InitiatingProcessAccountName != \"known_admin_account\"\n// | where InitiatingProcessFileName !in~ (\"monitoring_agent\", \"healthcheck.sh\")\n| project Timestamp, DeviceName, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, ProcessId, InitiatingProcessId\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0007
+techniques:
+    - T1057
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/

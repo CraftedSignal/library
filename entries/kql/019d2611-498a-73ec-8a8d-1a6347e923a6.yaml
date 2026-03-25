@@ -1,0 +1,15 @@
+id: 019d2611-498a-73ec-8a8d-1a6347e923a6
+name: Kubernetes Broad Secret Dumping via Kubectl
+description: Detects the execution of `kubectl` commands designed to dump all secrets across all namespaces within a Kubernetes cluster. This activity is indicative of an adversary attempting to gain access to sensitive credentials, as observed in supply chain compromises.
+query: "// Kubernetes Broad Secret Dumping\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// References:\n// - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n// Tactics and techniques: TA0006, T1552.007\n// Description: Detects execution of kubectl commands designed to dump all secrets across all namespaces, as seen in the Trivy supply chain payload.\n\nunion isfuzzy=true \n(\n    DeviceProcessEvents \n    | where ActionType == \"ProcessCreated\"\n), \nCloudProcessEvents\n// Target kubectl process or shell executing kubectl\n| where FileName in~ (\"kubectl\", \"bash\", \"sh\", \"dash\", \"zsh\") or ProcessCommandLine has \"kubectl\"\n// Look for the specific secret dumping command components\n| where ProcessCommandLine has_all (\"kubectl\", \"get\", \"secrets\", \"-o\", \"json\")\n// Capture both --all-namespaces and its shorthand -A\n| where ProcessCommandLine has_any (\"--all-namespaces\", \"-A\")\n// FP Tuning: Legitimate cluster administrators or automation tools (e.g., CI/CD pipelines, backup jobs) may run similar commands.\n// Consider excluding known administrator accounts, specific automation scripts, or parent processes.\n// | where InitiatingProcessAccountName != \"known_k8s_admin\"\n// | where InitiatingProcessFileName !in~ (\"backup_script.sh\", \"automation_agent\")\n//| extend HostName = coalesce(DeviceName, tostring(TargetDeviceName), tostring(ComputerName), \"\")\n| project Timestamp, DeviceName, AccountName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, ProcessId, InitiatingProcessId\n| sort by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0006
+techniques:
+    - T1552.007
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/

@@ -1,0 +1,50 @@
+id: 019d25c4-ec4a-77f9-aa9f-c6d3c28eea50
+name: TeamPCP Data Exfiltration Header
+description: 'Detects outbound HTTP POST requests containing the specific custom header ''X-Filename: tpcp.tar.gz''. This custom header is used by the TeamPCP credential harvester to exfiltrate collected sensitive credentials (cloud, database, SSH, Kubernetes) to an attacker-controlled server following the compromise of the litellm PyPI package.'
+query: |
+    title: TeamPCP Data Exfiltration Header
+    description: "Detects outbound HTTP POST requests containing the specific custom
+      header 'X-Filename: tpcp.tar.gz'. This custom header is used by the TeamPCP
+      credential harvester to exfiltrate collected sensitive credentials (cloud,
+      database, SSH, Kubernetes) to an attacker-controlled server following the
+      compromise of the litellm PyPI package."
+    references:
+      - https://www.endorlabs.com/learn/teampcp-isnt-done
+    author: detections.ai
+    date: 2026-03-25
+    tags:
+      - attack.exfiltration
+      - attack.t1041
+      - attack.t1567
+    logsource:
+      category: web
+    detection:
+      selection_method:
+        cs-method: 'POST'
+      selection_header:
+        - 'cs-headers|contains': 'X-Filename: tpcp.tar.gz'
+        - 'c-headers|contains': 'X-Filename: tpcp.tar.gz'
+        - 'request_headers|contains': 'X-Filename: tpcp.tar.gz'
+        - 'AdditionalFields|contains': 'X-Filename: tpcp.tar.gz'
+      condition: selection_method and selection_header
+    falsepositives:
+      - Extremely unlikely. This header and filename combination is a highly
+        specific indicator of TeamPCP exfiltration activity.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1567
+tags:
+    - attack.exfiltration
+    - attack.t1041
+    - attack.t1567
+author: detections.ai
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done
+data_sources:
+    - web

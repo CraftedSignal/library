@@ -48459,6 +48459,309 @@ entries:
         - kql
       version: "1"
       file: entries/kql/019d23f7-3506-7671-9798-8356ab0b8bfa.yaml
+    - id: 019d2546-e0f9-74f8-b094-b594faef1a0c
+      name: OpenSSL Data Encryption Activity (TeamPCP)
+      description: Detects the specific OpenSSL command line arguments used by TeamPCP (Trivy compromise) to encrypt stolen credentials before exfiltration using a hybrid AES-256-CBC scheme. This rule looks for the 'openssl' executable being run with 'enc -aes-256-cbc' or 'enc -aes-256' and a passphrase specified via a file using '-pass file:'.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+        - TA0010
+      techniques:
+        - T1573.001
+        - T1567.002
+      tags:
+        - kql
+      author: tim@detections.ai
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2546-e0f9-74f8-b094-b594faef1a0c.yaml
+    - id: 019d2582-9137-736c-a3d6-a8f56588c456
+      name: Suspicious Device Registration After Device Login Page Visit
+      description: This rule detects suspicious device registration activity in Microsoft 365. It correlates users who have recently visited Microsoft device login or OAuth2 device authentication URLs with subsequent device registration events in Azure AD. This could indicate an adversary attempting to register a new device to bypass MFA or gain persistent access, potentially through device code phishing.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0001
+        - TA0006
+      techniques:
+        - T1098.005
+        - T1566.002
+        - T1528
+      tags:
+        - kql
+      author: Steven Lim
+      version: "4"
+      file: entries/kql/019d2582-9137-736c-a3d6-a8f56588c456.yaml
+    - id: 019d2582-e55b-7759-8fe9-67592eeb826f
+      name: Unusual Toast Notification DLL Load
+      description: Detects non-standard processes (e.g., command shells, script hosts) loading WinRT notification and push app libraries (wpnapps.dll, notificationcontroller.dll), which may indicate an implant or script attempting to send spoofed toast notifications for social engineering.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+      techniques:
+        - T1059
+        - T1204.001
+      tags:
+        - attack.execution
+        - attack.t1204.001
+        - attack.t1059
+      author: tim@detections.ai
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+      data_sources:
+        - image_load
+        - windows
+      file: entries/sigma/019d2582-e55b-7759-8fe9-67592eeb826f.yaml
+    - id: 019d259e-fa18-7309-b6b4-bf810fe65709
+      name: TeamPCP Masquerading pglog Binary Execution
+      description: Detects the execution of processes from the '/tmp/pglog' path or where the binary is named 'pglog'. Threat actor TeamPCP utilizes this specific filename to masquerade their downloaded malicious secondary payload as a legitimate PostgreSQL process, following the compromise of the litellm PyPI package.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0005
+      techniques:
+        - T1036.005
+      tags:
+        - attack.defense-evasion
+        - attack.t1036.005
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      data_sources:
+        - process_creation
+        - linux
+      file: entries/sigma/019d259e-fa18-7309-b6b4-bf810fe65709.yaml
+    - id: 019d259f-89af-75cb-adb6-d1949cbed9a8
+      name: TeamPCP Systemd Persistence Drop
+      description: Detects file creation events for the TeamPCP systemd persistence mechanism, specifically looking for 'sysmon.py' or 'sysmon.service' dropped in hidden user config directories. This persistence mechanism ensures the attacker maintains access and can download further stages via C2 even if the original vulnerable litellm process terminates.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1543.002
+      tags:
+        - attack.persistence
+        - attack.t1543.002
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      data_sources:
+        - file_event
+        - linux
+      file: entries/sigma/019d259f-89af-75cb-adb6-d1949cbed9a8.yaml
+    - id: 019d25c4-ec4a-77f9-aa9f-c6d3c28eea50
+      name: TeamPCP Data Exfiltration Header
+      description: 'Detects outbound HTTP POST requests containing the specific custom header ''X-Filename: tpcp.tar.gz''. This custom header is used by the TeamPCP credential harvester to exfiltrate collected sensitive credentials (cloud, database, SSH, Kubernetes) to an attacker-controlled server following the compromise of the litellm PyPI package.'
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0010
+      techniques:
+        - T1041
+        - T1567
+      tags:
+        - attack.exfiltration
+        - attack.t1041
+        - attack.t1567
+      author: detections.ai
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      data_sources:
+        - web
+      file: entries/sigma/019d25c4-ec4a-77f9-aa9f-c6d3c28eea50.yaml
+    - id: 019d25d3-0846-7619-8938-7663d378c67c
+      name: Azure Arc Agent Privilege Escalation Events
+      description: This rule detects privilege escalation events associated with Azure Arc agent processes. It monitors for specific Windows Security Event IDs (4672, 4673, 4674, 4688) where the involved process or its parent is an Azure Arc agent process (himds.exe, azcmagent.exe, gc_worker.exe, gc_service.exe) and the SubjectUserName is not a standard system account. This helps identify potential attempts to elevate privileges using or targeting the Azure Arc agent.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0004
+        - TA0005
+      techniques:
+        - T1548
+        - T1068
+      tags:
+        - kql
+      author: AFS + AI
+      version: "1"
+      references:
+        - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/
+      file: entries/kql/019d25d3-0846-7619-8938-7663d378c67c.yaml
+    - id: 019d25d8-d9d2-757c-8dc6-8dc0d7088349
+      name: Azure Arc Machine with Vulnerable Agent Version
+      description: This rule identifies Azure Arc-enabled machines running agent versions older than 1.61, which are potentially vulnerable to CVE-2026-26117. It queries Azure Activity logs to extract agent versions and flags machines with outdated agents.
+      query_type: kql
+      severity: medium
+      tags:
+        - kql
+      author: AFS
+      version: "1"
+      references:
+        - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/
+      file: entries/kql/019d25d8-d9d2-757c-8dc6-8dc0d7088349.yaml
+    - id: 019d25dc-6e3e-75b8-98b9-3c5c760ba2b9
+      name: Azure Arc Machine Identity/RBAC Change after Local Activity
+      description: This rule detects unusual modifications to Azure Arc machine identities or Role-Based Access Control (RBAC) assignments following local activity. It specifically looks for 'Write', 'Update', or 'Assign' operations on resources within the 'Microsoft.HybridCompute' resource provider where the properties include 'identity' or 'roleAssignment'. This could indicate an attempt to establish persistence or escalate privileges on hybrid machines.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0005
+        - TA0003
+        - TA0004
+        - TA0001
+        - TA0006
+      techniques:
+        - T1078.004
+        - T1556.007
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/
+      file: entries/kql/019d25dc-6e3e-75b8-98b9-3c5c760ba2b9.yaml
+    - id: 019d260e-ec13-7430-842f-8ea66ba37a94
+      name: TeamPCP Typosquat C2 Domains
+      description: This rule detects network connections and DNS resolution requests to known typosquatted domains used by the TeamPCP threat actor for command and control (C2) and data exfiltration. These domains are associated with a compromised Trivy scanner. Detection indicates successful execution of the compromised scanner and attempted exfiltration.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+        - TA0010
+        - TA0042
+      techniques:
+        - T1071.001
+        - T1567
+        - T1583.001
+      tags:
+        - kql
+      version: "2"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d260e-ec13-7430-842f-8ea66ba37a94.yaml
+    - id: 019d2610-4b60-7300-bebe-3c9e43cf06bc
+      name: GitHub Runner Process Discovery via Process Enumeration
+      description: Detects attempts to discover GitHub runner processes (Runner.Worker or Runner.Listener) using process enumeration tools like pgrep, ps, or grep. Adversaries may use this technique to locate processes carrying secrets on compromised CI/CD runners.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0007
+      techniques:
+        - T1057
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2610-4b60-7300-bebe-3c9e43cf06bc.yaml
+    - id: 019d2611-05ed-71da-a98b-dc40e3b97fbb
+      name: Kubernetes Broad Secret Dumping via Kubectl
+      description: Detects the execution of `kubectl` commands designed to dump all secrets across all namespaces within a Kubernetes cluster. This activity is indicative of an adversary attempting to gain access to sensitive credentials, as observed in supply chain compromises.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0006
+      techniques:
+        - T1552.007
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2611-05ed-71da-a98b-dc40e3b97fbb.yaml
+    - id: 019d2611-498a-73ec-8a8d-1a6347e923a6
+      name: Kubernetes Broad Secret Dumping via Kubectl
+      description: Detects the execution of `kubectl` commands designed to dump all secrets across all namespaces within a Kubernetes cluster. This activity is indicative of an adversary attempting to gain access to sensitive credentials, as observed in supply chain compromises.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0006
+      techniques:
+        - T1552.007
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2611-498a-73ec-8a8d-1a6347e923a6.yaml
+    - id: 019d2612-6bf5-71ed-9313-67b3f88d117c
+      name: OpenSSL Data Encryption Activity by TeamPCP
+      description: Detects the specific OpenSSL command line arguments used by TeamPCP to encrypt stolen credentials before exfiltration. This rule looks for executions of 'openssl' with AES-256 encryption flags ('enc -aes-256-cbc' or 'enc -aes-256') and the use of a file to pass the encryption password ('-pass file:').
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+        - TA0040
+        - TA0009
+      techniques:
+        - T1486
+        - T1560.001
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2612-6bf5-71ed-9313-67b3f88d117c.yaml
+    - id: 019d2613-169c-71e9-acb4-8aad984662c7
+      name: TeamPCP Artifact Archive Creation
+      description: Detects the creation or manipulation of the specific archive file (tpcp.tar.gz) used by TeamPCP to bundle stolen credentials. This rule monitors command line activity, cloud process execution, and file system events for references to 'tpcp.tar.gz'.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+        - TA0009
+      techniques:
+        - T1560.001
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2613-169c-71e9-acb4-8aad984662c7.yaml
+    - id: 019d2613-a3f0-705b-95e3-9441dd51fa69
+      name: TeamPCP Typosquat C2 Domains
+      description: This rule detects network connections and DNS resolution requests to known typosquatted domains used by the TeamPCP threat actor for command and control (C2) and data exfiltration. These domains are associated with a compromised Trivy scanner. Detection indicates successful execution of the compromised scanner and attempted exfiltration.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0011
+        - TA0010
+        - TA0042
+      techniques:
+        - T1071.001
+        - T1567
+        - T1583.001
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2613-a3f0-705b-95e3-9441dd51fa69.yaml
+    - id: 019d2613-b4c7-71a2-85a5-cc4afecde6ee
+      name: GitHub Runner Process Discovery via Process Enumeration
+      description: Detects attempts to discover GitHub runner processes (Runner.Worker or Runner.Listener) using process enumeration tools like pgrep, ps, or grep. Adversaries may use this technique to locate processes carrying secrets on compromised CI/CD runners.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0007
+      techniques:
+        - T1057
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
+      file: entries/kql/019d2613-b4c7-71a2-85a5-cc4afecde6ee.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'

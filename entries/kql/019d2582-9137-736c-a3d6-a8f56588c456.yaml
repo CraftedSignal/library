@@ -1,0 +1,19 @@
+id: 019d2582-9137-736c-a3d6-a8f56588c456
+name: Suspicious Device Registration After Device Login Page Visit
+description: This rule detects suspicious device registration activity in Microsoft 365. It correlates users who have recently visited Microsoft device login or OAuth2 device authentication URLs with subsequent device registration events in Azure AD. This could indicate an adversary attempting to register a new device to bypass MFA or gain persistent access, potentially through device code phishing.
+query: "let UserVisitedDeviceAuth =\r\nUrlClickEvents\r\n| where Timestamp > ago(1h)\r\n| where ActionType in (\"ClickAllowed\", \"UrlScanInProgress\", \"UrlErrorPage\") or IsClickedThrough != \"0\"\r\n| where UrlChain has_any (\"microsoft.com/devicelogin\", \"login.microsoftonline.com/common/oauth2/deviceauth\")\r\n| where Workload == \"Email\"\r\n| distinct AccountUpn;\r\nCloudAppEvents\r\n| where Timestamp > ago(1h)\r\n| where AccountDisplayName == \"Device Registration Service\"\r\n| extend ID = extract(\"Device_(.*)\", 1, tostring(RawEventData.ObjectId))\r\n| join IdentityInfo on $left.ID == $right.AccountObjectId\r\n| where AccountUpn has_any(UserVisitedDeviceAuth)"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+    - TA0001
+    - TA0006
+techniques:
+    - T1098.005
+    - T1566.002
+    - T1528
+tags:
+    - kql
+author: Steven Lim
+version: "4"

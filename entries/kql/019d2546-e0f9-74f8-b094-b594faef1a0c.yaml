@@ -1,0 +1,18 @@
+id: 019d2546-e0f9-74f8-b094-b594faef1a0c
+name: OpenSSL Data Encryption Activity (TeamPCP)
+description: Detects the specific OpenSSL command line arguments used by TeamPCP (Trivy compromise) to encrypt stolen credentials before exfiltration using a hybrid AES-256-CBC scheme. This rule looks for the 'openssl' executable being run with 'enc -aes-256-cbc' or 'enc -aes-256' and a passphrase specified via a file using '-pass file:'.
+query: "//\n// Title: OpenSSL Data Encryption Activity\n// Author: tim@detections.ai\n// Date: 2026-03-25\n// Description: Detects the specific OpenSSL command line arguments used by TeamPCP (Trivy compromise) to encrypt stolen credentials before exfiltration using a hybrid AES-256-CBC scheme.\n// Reference: https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n//\nunion isfuzzy=true DeviceProcessEvents, CloudProcessEvents\n| where FileName =~ \"openssl\" or ProcessName =~ \"openssl\"\n| where ProcessCommandLine has_any (\"enc -aes-256-cbc\", \"enc -aes-256\")\n    and ProcessCommandLine has \"-pass file:\"\n//\n// POTENTIAL FALSE POSITIVES (Medium Sensitivity):\n// Administrators or automated scripts (such as backups) may legitimately encrypt files \n// using AES-256 and passphrases stored in files.\n// Filter out known good parent processes or specific service accounts to reduce noise.\n// | where InitiatingProcessFileName !in~ (\"legitimate_backup.sh\", \"sysadmin_tool\")\n// | where AccountName != \"svc-backup-admin\"\n//\n| extend TargetEnvironment = coalesce(DeviceName, KubernetesPodName, ContainerName, \"Unknown\")\n| project TimeGenerated, TargetEnvironment, AccountName, ActionType, FileName, ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, FolderPath"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+techniques:
+    - T1573.001
+    - T1567.002
+tags:
+    - kql
+author: tim@detections.ai
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/

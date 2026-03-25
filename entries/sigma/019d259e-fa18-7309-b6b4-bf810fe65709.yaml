@@ -1,0 +1,54 @@
+id: 019d259e-fa18-7309-b6b4-bf810fe65709
+name: TeamPCP Masquerading pglog Binary Execution
+description: Detects the execution of processes from the '/tmp/pglog' path or where the binary is named 'pglog'. Threat actor TeamPCP utilizes this specific filename to masquerade their downloaded malicious secondary payload as a legitimate PostgreSQL process, following the compromise of the litellm PyPI package.
+query: |
+    title: TeamPCP Masquerading pglog Binary Execution
+    id: 9af06d71-3d7e-4952-8b0c-3a12002b84ad
+    status: experimental
+    description: Detects the execution of processes from the '/tmp/pglog' path or
+      where the binary is named 'pglog'. Threat actor TeamPCP utilizes this specific
+      filename to masquerade their downloaded malicious secondary payload as a
+      legitimate PostgreSQL process, following the compromise of the litellm PyPI
+      package.
+    author: detections.ai
+    references:
+      - https://www.endorlabs.com/learn/teampcp-isnt-done
+    date: 2026-03-25
+    tags:
+      - attack.defense-evasion
+      - attack.t1036.005
+    logsource:
+      category: process_creation
+      product: linux
+    detection:
+      selection:
+        # Identifies execution of the masqueraded 'pglog' binary, specifically focusing on the name and path
+        - Image|endswith: '/pglog'
+        - Image: 'pglog'
+
+      # Note: If false positives occur from legitimate admin scripts named 'pglog', uncomment and tune the filter below.
+      # filter_legit:
+      #   Image|startswith:
+      #     - '/usr/local/bin/'
+      #     - '/opt/scripts/'
+      condition: selection # and not filter_legit
+    falsepositives:
+      - Rare instances of custom administrative scripts or tools legitimately named
+        'pglog'
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - attack.defense-evasion
+    - attack.t1036.005
+author: detections.ai
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done
+data_sources:
+    - process_creation
+    - linux

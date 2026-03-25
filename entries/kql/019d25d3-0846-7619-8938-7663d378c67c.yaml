@@ -1,0 +1,18 @@
+id: 019d25d3-0846-7619-8938-7663d378c67c
+name: Azure Arc Agent Privilege Escalation Events
+description: This rule detects privilege escalation events associated with Azure Arc agent processes. It monitors for specific Windows Security Event IDs (4672, 4673, 4674, 4688) where the involved process or its parent is an Azure Arc agent process (himds.exe, azcmagent.exe, gc_worker.exe, gc_service.exe) and the SubjectUserName is not a standard system account. This helps identify potential attempts to elevate privileges using or targeting the Azure Arc agent.
+query: "// 1. Privilege escalation events related to Azure Arc agent\nlet TimeRange = 30d;\nlet ArcProcesses = dynamic([\"himds.exe\", \"azcmagent.exe\", \"gc_worker.exe\", \"gc_service.exe\"]);\n\nSecurityEvent\n| where TimeGenerated > ago(TimeRange)\n| where EventID in (4672, 4673, 4674, 4688)\n| where SubjectUserName !in (\"SYSTEM\", \"LOCAL SERVICE\", \"NETWORK SERVICE\")\n| extend \n    Process = case(\n        EventID == 4688, tostring(NewProcessName),\n        tostring(ProcessName)\n    ),\n    ParentProcess = case(\n        EventID == 4688, tostring(ParentProcessName),\n        \"\"\n    ),\n    EscalationType = case(\n        EventID == 4672, \"Special Privileges Assigned\",\n        EventID == 4673, \"Privileged Service Called\",\n        EventID == 4674, \"Operation on Privileged Object\",\n        EventID == 4688, \"Process Creation\",\n        \"Unknown\"\n    )\n| where \n    Process has_any (ArcProcesses) \n    or ParentProcess has_any (ArcProcesses)\n| project \n    TimeGenerated,\n    Computer,\n    SubjectUserName,\n    SubjectDomainName,\n    EscalationType,\n    EventID,\n    Process,\n    ParentProcess,\n    CommandLine = iff(EventID == 4688, tostring(CommandLine), \"\"),\n    Privileges = tostring(PrivilegeList),\n    MachineName = Computer\n| order by TimeGenerated desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+techniques:
+    - T1548
+    - T1068
+tags:
+    - kql
+author: AFS + AI
+version: "1"
+references:
+    - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/

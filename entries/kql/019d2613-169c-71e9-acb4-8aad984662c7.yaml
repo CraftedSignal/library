@@ -1,0 +1,16 @@
+id: 019d2613-169c-71e9-acb4-8aad984662c7
+name: TeamPCP Artifact Archive Creation
+description: Detects the creation or manipulation of the specific archive file (tpcp.tar.gz) used by TeamPCP to bundle stolen credentials. This rule monitors command line activity, cloud process execution, and file system events for references to 'tpcp.tar.gz'.
+query: "// TeamPCP Artifact Archive Creation\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// References:\n// - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n// Tactics and techniques: TA0011, T1560.001\n// Description: Detects the creation or manipulation of the specific archive file (tpcp.tar.gz) used by TeamPCP to bundle stolen credentials.\n\nlet archive_name = \"tpcp.tar.gz\";\nunion isfuzzy=true\n(\n    // Detect command line activity referencing the malicious archive\n    DeviceProcessEvents\n    | where ProcessCommandLine has archive_name\n    | project Timestamp, DeviceName, ActionType, TargetFileName = FileName, FolderPath = \"\", ProcessCommandLine, InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName\n),\n(\n    // Detect cloud process execution referencing the malicious archive\n    CloudProcessEvents\n    | where ProcessCommandLine has archive_name\n    | project Timestamp, ActionType = \"ProcessCreated\", TargetFileName = FileName, FolderPath = \"\", ProcessCommandLine, InitiatingProcessFileName = ParentProcessName, InitiatingProcessCommandLine = \"\", AccountName\n),\n(\n    // Detect file creation or modification events for the specific archive name\n    DeviceFileEvents\n    | where ActionType in (\"FileCreated\", \"FileModified\", \"FileRenamed\")\n    | where FileName =~ archive_name or FolderPath has archive_name\n    | project Timestamp, DeviceName, ActionType, FileName, FolderPath, ProcessCommandLine = \"\", InitiatingProcessFileName, InitiatingProcessCommandLine, AccountName = InitiatingProcessAccountName\n)\n// FP Tuning: The filename 'tpcp.tar.gz' is a highly specific IOC linked to the TeamPCP payload. \n// False positives are unlikely, but if testing generates noise, exclude known benign test directories.\n// | where FolderPath !contains \"/path/to/authorized/testing/\"\n| sort by Timestamp desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0009
+techniques:
+    - T1560.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/

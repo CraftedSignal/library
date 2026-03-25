@@ -1,0 +1,12 @@
+id: 019d25d8-d9d2-757c-8dc6-8dc0d7088349
+name: Azure Arc Machine with Vulnerable Agent Version
+description: This rule identifies Azure Arc-enabled machines running agent versions older than 1.61, which are potentially vulnerable to CVE-2026-26117. It queries Azure Activity logs to extract agent versions and flags machines with outdated agents.
+query: "// Author: Aitor Fernandez + AI\n// Date: 2026-03-25\n// Threat: CVE-2026-26117\n// References:\n// - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/\n// Find Azure Arc machines running vulnerable agent version (< 1.61)\nAzureActivity\n| where TimeGenerated > ago(30d)\n| where OperationNameValue has \"Microsoft.HybridCompute/machines\"\n| extend AgentVersion = tostring(parse_json(Properties).agentVersion)\n| where AgentVersion != \"\" and AgentVersion < \"1.61\"\n| summarize \n    Machines = dcount(ResourceId),\n    Versions = make_set(AgentVersion)\n    by SubscriptionId, ResourceGroup\n| order by Machines desc"
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: AFS
+version: "1"
+references:
+    - https://www.sentinelone.com/vulnerability-database/cve-2026-26117/

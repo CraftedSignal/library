@@ -1,0 +1,19 @@
+id: 019d260e-ec13-7430-842f-8ea66ba37a94
+name: TeamPCP Typosquat C2 Domains
+description: This rule detects network connections and DNS resolution requests to known typosquatted domains used by the TeamPCP threat actor for command and control (C2) and data exfiltration. These domains are associated with a compromised Trivy scanner. Detection indicates successful execution of the compromised scanner and attempted exfiltration.
+query: "// TeamPCP Typosquat C2 Domains\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// References:\n// - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/\n// Tactics and techniques: T1071.001, T1567\n// Description: Connections to these typosquatted domains indicate successful execution and attempted exfiltration by the compromised Trivy scanner.\n// Define the known TeamPCP typosquatted and C2 domains used for exfiltration\nlet c2_domains = dynamic([\n    \"scan.aquasecurtiy.org\", \n    \"aquasecurtiy.org\", \n    \"checkmarx.zone\", \n    \"plug-tab-protective-relay.trycloudflare.com\", \n    \"tdtqy-oyaaa-aaaae-af2dq-cai.raw.icp0.io\"\n]);\nunion isfuzzy=true\n(\n    // Detect network connections directed to the malicious domains\n    DeviceNetworkEvents\n    // FP tuning: Due to the high specificity of these domains, false positives should be rare. \n    // If noise occurs, consider correlating with Trivy/GitHub runner parent processes.\n    | where RemoteUrl has_any (c2_domains)\n    | project Timestamp, DeviceId, DeviceName, ActionType, RemoteIP, RemoteUrl, InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName\n),\n(\n    // Detect DNS resolution requests for the malicious C2 domains\n    DeviceEvents\n    | where ActionType in~ (\"DnsQueryResponse\", \"DnsRequest\")\n    | extend DnsQueryString = extract(@'\"DnsQueryString\":\"([^\"]+)\"', 1, AdditionalFields)\n    | where DnsQueryString has_any (c2_domains) or AdditionalFields has_any (c2_domains)\n    | project Timestamp, DeviceId, DeviceName, ActionType, RemoteIP = \"\", RemoteUrl = coalesce(DnsQueryString, tostring(AdditionalFields)), InitiatingProcessFileName, InitiatingProcessCommandLine, InitiatingProcessAccountName\n)\n| sort by Timestamp desc\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0011
+    - TA0010
+    - TA0042
+techniques:
+    - T1071.001
+    - T1567
+    - T1583.001
+tags:
+    - kql
+version: "2"
+references:
+    - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
