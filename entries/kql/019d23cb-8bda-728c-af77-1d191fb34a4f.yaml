@@ -1,0 +1,10 @@
+id: 019d23cb-8bda-728c-af77-1d191fb34a4f
+name: Scheduled Task CMD Payload Chain
+description: |
+    Detects the command shell execution chain used by scheduled tasks to launch ransomware payloads (run.bat, run.exe) distributed via malicious GPOs
+query: "DeviceProcessEvents\r\n| where ProcessName =~ \"cmd.exe\"\r\n| where ProcessCommandLine has_any (\"/c\", \"-c\", \"/C\", \"-C\")\r\n| where ProcessCommandLine has \"start run.bat\" \r\n     or (ProcessCommandLine has \"run.exe\" and ProcessCommandLine has \"\\\\users\\\\\")\r\n| where InitiatingProcessName in~ (\"svchost.exe\", \"cmd.exe\")\r\n| project \r\n    TimeGenerated, \r\n    DeviceName, \r\n    AccountName, \r\n    InitiatingProcessName, \r\n    InitiatingProcessCommandLine, \r\n    ProcessName, \r\n    ProcessCommandLine, \r\n    FolderPath,\r\n    ProcessId,\r\n    InitiatingProcessId\r\n    \r\n"
+query_type: kql
+severity: medium
+tags:
+    - kql
+version: "1"
