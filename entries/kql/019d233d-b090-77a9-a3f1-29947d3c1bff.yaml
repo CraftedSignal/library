@@ -1,0 +1,25 @@
+id: 019d233d-b090-77a9-a3f1-29947d3c1bff
+name: Microsoft Teams URL Click Events
+description: This rule identifies instances where users have clicked on URLs within Microsoft Teams. It specifically filters for 'UrlClickEvents' where the 'Workload' is 'Teams' and provides details such as the timestamp, user principal name, URL, URL domain, action type, and network message ID. This can be used to investigate potential phishing attempts or malicious link clicks within the Teams environment.
+query: |
+    // Who Clicked Links in Teams
+    // Exposure view showing Teams workload click activity over last 7 days
+    // Source: https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
+    let lookback = 7d;
+    UrlClickEvents
+    | where Timestamp > ago(lookback) and Workload == "Teams"
+    // Added: UrlDomain and NetworkMessageId for easier pivoting during investigations
+    | extend UrlDomain = tostring(parse_url(Url).Host)
+    | project Timestamp, AccountUpn, Url, UrlDomain, ActionType, NetworkMessageId
+    | order by Timestamp desc
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
