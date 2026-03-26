@@ -1,0 +1,61 @@
+id: 019d2aa5-3eec-734b-b9d7-3f29fcd2aa00
+name: Disabling VMware VMCI Device via Devcon
+description: Detects the execution of devcon.exe with command-line arguments to disable the VMware Virtual Machine Communication Interface (VMCI) PCI device or host device driver. Threat actors use this technique to gain direct hardware access as a preparatory step for VM escape exploits.
+query: |
+    title: Disabling VMware VMCI Device via Devcon
+    id: 7968541b-658e-4346-8998-888deb4d97cf
+    status: experimental
+    description: Detects the execution of devcon.exe with command-line arguments to
+      disable the VMware Virtual Machine Communication Interface (VMCI) PCI device
+      or host device driver. Threat actors use this technique to gain direct
+      hardware access as a preparatory step for VM escape exploits.
+    author: detections.ai
+    references:
+      - https://www.huntress.com/blog/esxi-vm-escape-exploit
+    date: 2026-03-26
+    tags:
+      - attack.defense-evasion
+      - attack.t1562.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # Targets the execution of the Device Console (devcon) utility
+      selection_img:
+        - Image|endswith: '\devcon.exe'
+        - OriginalFileName: 'devcon.exe'
+
+      # Focuses on the action of disabling a device
+      selection_action:
+        CommandLine|contains: 'disable'
+
+      # Specifically looks for the VMware VMCI PCI and Host devices
+      selection_device:
+        CommandLine|contains:
+          - 'PCI\VEN_15AD&DEV_0740'
+          - 'ROOT\VMWVMCIHOSTDEV'
+      condition: selection_img and selection_action and selection_device
+    falsepositives:
+      - Legitimate administrative troubleshooting or VMware Tools
+        installations/updates may temporarily disable these specific devices. Tune
+        by correlating with unexpected parent processes or excluding known update
+        executables.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+    - TA0004
+techniques:
+    - T1562.001
+    - T1611
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+author: detections.ai
+version: "1"
+references:
+    - https://www.huntress.com/blog/esxi-vm-escape-exploit
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,70 @@
+id: 019d2ac7-471c-7045-9f3a-f37a21801a10
+name: Oracle WebLogic Proxy Plug-in Path Traversal and Authentication Bypass
+description: Detects exploitation attempts of CVE-2026-21962 (Critical - CVSS 10.0) in Oracle WebLogic Server Proxy Plug-in. The vulnerability allows unauthenticated attackers to bypass access controls via path traversal (patterns like /_proxy/ or /wl_proxy/ + weblogic/..; + ProxyServlet) and header spoofing (WL-Proxy-Client-IP pointing to localhost/127.0.0.1). Successful exploitation can lead to unauthorized access, data modification or full compromise of the backend WebLogic Server.
+query: |-
+    // Author: Aitor Fernandez + AI
+    // Date: 2026-03-26
+    // Threat: CVE-2026-21962
+    // References:
+    //   - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    //   - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot
+    // Description:
+    //   Detects exploitation attempts of CVE-2026-21962 (Critical - CVSS 10.0) in Oracle WebLogic Server Proxy Plug-in.
+    //   The vulnerability allows unauthenticated attackers to bypass access controls via path traversal
+    //   (patterns like /_proxy/ or /wl_proxy/ + weblogic/..; + ProxyServlet) and header spoofing
+    //   (WL-Proxy-Client-IP pointing to localhost/127.0.0.1). Successful exploitation can lead to
+    //   unauthorized access, data modification or full compromise of the backend WebLogic Server.
+    // CVE-2026-21962 - Oracle WebLogic Proxy Plug-in Path Traversal + Auth Bypass
+    //
+    let TimeRange = 7d;
+    AzureDiagnostics
+    | where TimeGenerated > ago(TimeRange)
+    | where ResourceType == "APPLICATIONGATEWAYS" or ResourceType == "FRONTDOORS"
+      or Category == "ApplicationGatewayFirewallLog" or Category == "FrontdoorAccessLog"
+    | extend
+        RequestUri = tostring(OriginalRequestUriWithArgs),
+        ClientIP = tostring(ClientIP),
+        UserAgent = tostring(UserAgent),
+        HttpMethod = tostring(HttpMethod),
+        HttpStatus = tostring(HttpStatus),
+        WLProxyHeader = tostring(RequestHeaders["wl-proxy-client-ip"]),
+        XForwardedFor = tostring(RequestHeaders["x-forwarded-for"])
+    | where
+        (RequestUri matches regex @"(?i)(/_proxy/|/wl_proxy/).*weblogic/(\.{2}|%2e%2e|%252e%252e).*/bea_wls_internal/ProxyServlet"
+         or RequestUri matches regex @"(?i)weblogic//weblogic/\.{2};.*ProxyServlet"
+         or RequestUri matches regex @"(?i)(weblogic/){2,}.*(\.{2}|%2e)"
+        )
+        or
+        (WLProxyHeader matches regex @"(?i)^(127\.0\.0\.1|::1|localhost|10\.|192\.168\.|172\.(1[6-9]|2[0-9]|3[0-1]))"
+         or XForwardedFor matches regex @"(?i);|cmd:|whoami|base64|powershell|exec")
+    | project
+        TimeGenerated,
+        ClientIP,
+        HttpMethod,
+        RequestUri,
+        WLProxyHeader,
+        XForwardedFor,
+        UserAgent,
+        HttpStatus,
+        Resource
+    | summarize
+        AttemptCount = count(),
+        FirstSeen = min(TimeGenerated),
+        LastSeen = max(TimeGenerated),
+        IPs = make_set(ClientIP),
+        UserAgents = make_set(UserAgent)
+        by RequestUri, bin(TimeGenerated, 1h)
+    | order by AttemptCount desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - kql
+author: AFS
+version: "1"
+references:
+    - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot

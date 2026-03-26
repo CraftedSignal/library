@@ -1,0 +1,59 @@
+id: 019d2aa1-169e-779a-af50-f8b3dbbd97cf
+name: ClickFix 7z Password Extraction
+description: Detects command line executions using the 7z compression utility to extract archives with a specific hardcoded password (-pppp). This behavior is an established staging artifact observed in ClickFix campaigns (such as the QuickBooks and Booking.com clusters) to deploy payloads like the NetSupport RAT.
+query: |
+    title: ClickFix 7z Password Extraction
+    id: b2bc0e22-064d-47a6-a3c9-50de9c807893
+    status: experimental
+    description: Detects command line executions using the 7z compression utility to
+      extract archives with a specific hardcoded password (-pppp). This behavior is
+      an established staging artifact observed in ClickFix campaigns (such as the
+      QuickBooks and Booking.com clusters) to deploy payloads like the NetSupport
+      RAT.
+    author: detections.ai
+    references:
+      - https://www.recordedfuture.com/research/clickfix-campaigns-targeting-windows-and-macos
+    date: 2026-03-26
+    tags:
+      - attack.defense-evasion
+      - attack.t1027
+      - attack.t1140
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      selection:
+        # Detects the extraction command (' x ') alongside the specific ClickFix hardcoded password flag ('-pppp')
+        CommandLine|contains|all:
+          - '7z'
+          - ' x '
+          - '-pppp'
+      filter_legitimate:
+        # Placeholder for environments where an administrative script might coincidentally use 'pppp' as a password
+        CommandLine|contains:
+          - 'PLACEHOLDER_LEGITIMATE_SCRIPT_PATH'
+      condition: selection and not filter_legitimate
+    falsepositives:
+      - Highly unlikely due to the specific and weak nature of the hardcoded
+        password ('pppp'). However, if a legitimate internal script uses this exact
+        password for 7z extraction, tune the filter_legitimate section accordingly.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1027.015
+    - T1027
+    - T1140
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+    - attack.t1140
+author: detections.ai
+version: "1"
+references:
+    - https://www.recordedfuture.com/research/clickfix-campaigns-targeting-windows-and-macos
+data_sources:
+    - process_creation
+    - windows

@@ -1,0 +1,17 @@
+id: 019d2a93-d66d-76c8-abcb-f1410a728f4c
+name: PowerShell Invoke-Expression and Invoke-RestMethod with HTTP/S
+description: Detects PowerShell processes executing commands that combine `Invoke-Expression` (iex) and `Invoke-RestMethod` (irm) with an HTTP or HTTPS URL. This combination is often used by adversaries to download and execute malicious scripts or payloads directly from the internet, without writing them to disk. The rule includes exclusions for known legitimate installers like the UV installer launched by trusted processes.
+query: "let Lookback = 1h;\r\nlet PowerShellProcesses = dynamic([\"powershell.exe\", \"pwsh.exe\"]);\r\nlet iex_terms = dynamic([\"iex\", \"invoke-expression\"]);\r\nlet irm_terms = dynamic([\"irm\", \"invoke-restmethod\"]);\r\n\r\nDeviceProcessEvents\r\n| where Timestamp > ago(Lookback)\r\n| where FileName in~ (PowerShellProcesses) \r\n    or InitiatingProcessFileName in~ (PowerShellProcesses)\r\n| where ProcessCommandLine has_any (iex_terms)\r\n    and ProcessCommandLine has_any (irm_terms)\r\n| where ProcessCommandLine has_any (\"http://\", \"https://\")\r\n// ✅ Exclude UV installer launched by trusted parents\r\n| where not(\r\n    ProcessCommandLine has \"astral.sh/uv/install.ps1\"\r\n    and ProcessCommandLine has_any (\"| iex\", \"|iex\", \"invoke-expression\", \"iex\")\r\n    and InitiatingProcessFileName in~ (\"code.exe\", \"winget.exe\", \"choco.exe\", \"msiexec.exe\")\r\n)\r\n| extend AccountUpn = tolower(\r\n    iif(isnotempty(AccountDomain), strcat(AccountName, \"@\", AccountDomain), AccountName)\r\n)\r\n// ✅ One alert per DeviceId per hour\r\n| summarize arg_max(Timestamp, *) by DeviceId\r\n| project\r\n    Timestamp,\r\n    ReportId,\r\n    DeviceId,\r\n    DeviceName,\r\n    AccountUpn,\r\n    AccountName,\r\n    AccountDomain,\r\n    FileName,\r\n    ProcessCommandLine,\r\n    InitiatingProcessFileName,\r\n    InitiatingProcessCommandLine\r\n| order by Timestamp desc"
+query_type: kql
+severity: medium
+tactics:
+    - TA0002
+    - TA0011
+techniques:
+    - T1059.001
+    - T1105
+    - T1071
+tags:
+    - kql
+author: Niclas Gustafsson
+version: "1"

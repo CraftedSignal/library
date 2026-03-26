@@ -1,0 +1,37 @@
+id: 019d2acc-2589-726f-8d39-b5bd7f25d302
+name: FastSearch for CVE-2026-21962 hunt
+description: This rule detects attempts to exploit CVE-2026-21962, a vulnerability in Oracle WebLogic Server. It specifically looks for requests to Application Gateway or Frontdoor logs that contain 'weblogic' in the URI, along with path traversal indicators ('..;', '%2e%2e') or specific proxy paths ('/_proxy/', '/wl_proxy/'), and keywords like 'proxyservlet' or 'bea_wls_internal'. These patterns are indicative of attempts to bypass security controls and access internal resources within a WebLogic environment.
+query: |
+    // Author: Aitor Fernandez + AI
+    // Date: 2026-03-26
+    // Threat: CVE-2026-21962
+    // References:
+    //   - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    //   - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot
+    // FastSearch for CVE-2026-21962 hunt
+    AzureDiagnostics
+    | where TimeGenerated > ago(1d)
+    | where Category in ("ApplicationGatewayAccessLog", "FrontdoorAccessLog", "ApplicationGatewayFirewallLog")
+    | extend RequestUri = tolower(tostring(OriginalRequestUriWithArgs))
+    | where RequestUri contains "weblogic"
+        and (RequestUri contains "..;"
+             or RequestUri contains "%2e%2e"
+             or RequestUri contains "/_proxy/"
+             or RequestUri contains "/wl_proxy/")
+    | where RequestUri contains "proxyservlet" or RequestUri contains "bea_wls_internal"
+    | project
+        TimeGenerated,
+        ClientIP,
+        RequestUri,
+        RequestHeaders,
+        HttpStatus
+    | order by TimeGenerated desc
+query_type: kql
+severity: medium
+tags:
+    - kql
+author: AFS
+version: "1"
+references:
+    - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot

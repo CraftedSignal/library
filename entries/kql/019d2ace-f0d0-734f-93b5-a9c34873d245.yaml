@@ -1,0 +1,30 @@
+id: 019d2ace-f0d0-734f-93b5-a9c34873d245
+name: Header Spoofing Detection
+description: Detects attempts to exploit CVE-2026-21962, a header spoofing vulnerability in Oracle WebLogic Server. The rule identifies suspicious requests where 'wl-proxy-client-ip' or 'x-forwarded-for' headers contain localhost/loopback addresses or command injection keywords, combined with URI paths related to 'weblogic' or 'proxy'.
+query: |
+    // Author: Aitor Fernandez + AI
+    // Date: 2026-03-26
+    // Threat: CVE-2026-21962
+    // References:
+    //   - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    //   - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot
+    // CVE-2026-21962 - Header Spoofing Detection
+    AzureDiagnostics
+    | where TimeGenerated > ago(7d)
+    | extend
+        WLProxy = tostring(RequestHeaders["wl-proxy-client-ip"]),
+        XFF = tostring(RequestHeaders["x-forwarded-for"])
+    | where WLProxy matches regex "(?i)127|localhost|::1"
+       or XFF matches regex "(?i);|cmd|whoami|base64"
+    | where OriginalRequestUriWithArgs contains "weblogic" or OriginalRequestUriWithArgs contains "proxy"
+    | summarize count() by ClientIP, WLProxy, XFF, bin(TimeGenerated, 30m)
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+tags:
+    - kql
+version: "1"
+references:
+    - https://nvd.nist.gov/vuln/detail/CVE-2026-21962
+    - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot
