@@ -1,0 +1,16 @@
+id: 019d26fc-da0c-75a8-bd82-ae03ce3a21b4
+name: PTC Exploit URI Patterns (CVE-2026-4681)
+description: Identifies suspicious URI request patterns potentially indicative of CVE-2026-4681 exploitation attempts against PTC PLM solutions. This rule looks for these specific patterns within web traffic logs from various sources (access logs, IIS, Apache).
+query: "/*\n * Description: Identifies suspicious URI request patterns (run?p= or .jsp?c=) potentially indicative of CVE-2026-4681 exploitation attempts against PTC PLM solutions.\n * MITRE ATT&CK: TA0001, T1190\n * References:\n *   - https://www.bleepingcomputer.com/news/security/ptc-warns-of-imminent-threat-from-critical-windchill-flexplm-rce-bug/\n */\n\n// Broad search for web traffic containing the suspicious URI payload strings\n\nindex=* (sourcetype=*access* OR sourcetype=*iis* OR sourcetype=*apache*) (\"run?p=\" OR \".jsp?c=\")\n// Normalize web request fields across different log sources\n| eval request_uri=coalesce(uri, url, if(isnotnull(cs_uri_query), cs_uri_stem.\"?\".cs_uri_query, cs_uri_stem), _raw)\n| eval dest=coalesce(dest, dest_nt_host, site, host)\n| eval src_ip=coalesce(src, src_ip, c_ip, clientip)\n| eval user_agent=coalesce(http_user_agent, cs_User_Agent)\n\n// Ensure strict matching of the exploit patterns within the URI\n| where match(request_uri, \"(?i)(run\\?p=|\\.jsp\\?c=)\")\n\n// [Tuning Recommendation]: Consider restricting the scope to specific PTC Windchill/?FlexPLM destination IPs\n| search dest IN (\"ptc-server.local\") \n// Aggregate requests to identify potential scanning or active exploitation attempts\n| stats count as request_count dc(src_ip) as unique_ips min(_time) as firstTime max(_time) as lastTime values(user_agent) as user_agent values(src_ip) as src_ip by dest, request_uri\n| convert ctime(firstTime) ctime(lastTime)\n| sort - request_count\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1190
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://www.bleepingcomputer.com/news/security/ptc-warns-of-imminent-threat-from-critical-windchill-flexplm-rce-bug/

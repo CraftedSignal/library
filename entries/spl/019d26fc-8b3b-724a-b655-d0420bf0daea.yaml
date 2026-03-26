@@ -1,0 +1,16 @@
+id: 019d26fc-8b3b-724a-b655-d0420bf0daea
+name: TeamPCP C2 Domain Activity Detected
+description: This rule detects network communication (DNS queries, HTTP requests, or network connections) to the command and control (C2) domain 'checkmarx.zone', which is associated with the TeamPCP threat group. This activity indicates potential compromise or communication with adversary infrastructure.
+query: "``` Core detection: Search for DNS queries, HTTP requests, or network connections to the TeamPCP C2 domain 'checkmarx.zone' ```\nindex=* (query=\"*checkmarx.zone\" OR dest=\"checkmarx.zone\" OR dest_name=\"checkmarx.zone\" OR url=\"*checkmarx.zone*\" OR http_host=\"checkmarx.zone\")\n``` Exclude known benign IPs or subnets below if necessary. ```\n| search NOT (src_ip IN (\"10.0.0.0/8\", \"192.168.100.0/24\")) \n\n``` Aggregate results to identify the source and timing of the anomalous requests ```\n| stats count min(_time) as firstTime max(_time) as lastTime by index, sourcetype, src_ip, user, dest, query, url, http_host\n| convert ctime(firstTime) ctime(lastTime)\n"
+query_type: spl
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+tags:
+    - spl
+author: zendannyy
+version: "1"
+references:
+    - https://www.wiz.io/blog/teampcp-attack-kics-github-action

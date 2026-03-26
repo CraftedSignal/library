@@ -1,0 +1,35 @@
+id: 019d26bd-166b-72ca-9285-317fac2413fc
+name: TeamPCP Data Exfiltration via Custom HTTP Header
+description: 'Detects outbound HTTP POST requests containing the specific custom header ''X-Filename: tpcp.tar.gz'' used by the TeamPCP credential harvester for data exfiltration. This rule targets a highly specific Indicator of Compromise (IOC) associated with the TeamPCP threat.'
+query: |
+    // Title: TeamPCP Data Exfiltration Header
+    // Author: Brandon +  detections.ai
+    // Date: 2026-03-25
+    // Platform: Microsoft Defender for Endpoint
+    // Tactics: Exfiltration
+    // Techniques: T1041, T1567
+    // Reference: https://www.endorlabs.com/learn/teampcp-isnt-done
+    // Description: Detects outbound HTTP POST requests containing the specific custom header 'X-Filename: tpcp.tar.gz' used by the TeamPCP credential harvester for data exfiltration.
+
+    DeviceNetworkEvents
+    // Filter for HTTP connection events (requires deep packet inspection or proxy telemetry mapping to this ActionType)
+    | where ActionType == "HttpConnection"
+    // Match the exact custom header and filename combination observed in the TeamPCP exfiltration routine
+    | where AdditionalFields has "X-Filename: tpcp.tar.gz"
+    // Potential FP: Highly specific IOC, making false positives very unlikely outside of deliberate security testing or simulations.
+    // Tune by excluding specific test machines or authorized vulnerability scanners if necessary:
+    // | where DeviceName !in~ ("sec-test-machine-01")
+    // | where RemoteIP !in ("10.0.0.50")
+    | project Timestamp, DeviceName, RemoteUrl, RemoteIP, RemotePort, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, AdditionalFields
+query_type: kql
+severity: medium
+tactics:
+    - TA0010
+techniques:
+    - T1041
+    - T1567
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done

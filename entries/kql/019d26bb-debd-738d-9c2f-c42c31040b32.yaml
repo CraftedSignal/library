@@ -1,0 +1,29 @@
+id: 019d26bb-debd-738d-9c2f-c42c31040b32
+name: TeamPCP pglog Masquerading Binary
+description: This rule detects processes executing from the `/tmp/pglog` path or with the filename `pglog` within `/tmp/`, which is a known technique used by the TeamPCP threat actor to masquerade malicious binaries as legitimate PostgreSQL processes for post-exploitation activity.
+query: |
+    // Title: TeamPCP pglog Masquerading Binary
+    // Author: Brandon + detections.ai
+    // Date: 2026-03-25
+    // Platform: Microsoft Defender for Endpoint
+    // Tactics: Defense Evasion
+    // Techniques: T1036.005
+    // Reference: https://www.endorlabs.com/learn/teampcp-isnt-done
+    // Description: Identifying processes running from unusual temporary directories with names attempting to blend in with legitimate database services is critical for catching the post-exploitation activity of this campaign.
+
+    DeviceProcessEvents
+    // Look for processes executing specifically from the /tmp/pglog path used by TeamPCP to masquerade as a PostgreSQL process
+    | where FolderPath =~ "/tmp/pglog" or (FolderPath startswith "/tmp/" and FileName =~ "pglog")
+    // Potential FP: Legitimate database maintenance scripts operating out of /tmp. Tune by excluding known benign initiating processes or accounts if noise occurs.
+    | project Timestamp, DeviceName, AccountName, ActionType, FileName, FolderPath, ProcessCommandLine, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA256
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1036.005
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done

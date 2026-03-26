@@ -44932,28 +44932,6 @@ entries:
         - windows
         - sysmon
       file: entries/sigma/019ceadd-dbcc-704f-8b5d-04bf39500f2c.yaml
-    - id: 019ceade-8bef-717a-acbf-eb856b07fe7a
-      name: SMB Lateral Movement via Administrative Shares
-      description: Detects lateral movement attempts using SMB administrative shares
-      query_type: sigma
-      severity: medium
-      tactics:
-        - TA0008
-      techniques:
-        - T1021.002
-        - T1021
-      tags:
-        - attack.lateral-movement
-        - attack.t1021.002
-      author: zendannyy
-      version: "1"
-      references:
-        - https://attack.mitre.org/techniques/T1021/002/
-        - https://cyberdefenders.org/blog/soc-playbook-lateral-movement-detection-and-response-guide/
-      data_sources:
-        - windows
-        - security
-      file: entries/sigma/019ceade-8bef-717a-acbf-eb856b07fe7a.yaml
     - id: 019cec23-b321-741d-952c-7e08548a2986
       name: Storm-2561 Fake VPN Client Activity
       description: |
@@ -47724,7 +47702,7 @@ entries:
       tags:
         - kql
       author: Steven Lim
-      version: "6"
+      version: "7"
       file: entries/kql/019d145e-aefa-7316-a40b-21ca8a13b832.yaml
     - id: 019d15bf-789b-735c-903f-574fcf8995ef
       name: SmartScreen or Network Protection User Override/Bypass
@@ -48743,7 +48721,7 @@ entries:
         - T1583.001
       tags:
         - kql
-      version: "1"
+      version: "2"
       references:
         - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
       file: entries/kql/019d2613-a3f0-705b-95e3-9441dd51fa69.yaml
@@ -48762,6 +48740,385 @@ entries:
       references:
         - https://www.microsoft.com/en-us/security/blog/2026/03/24/detecting-investigating-defending-against-trivy-supply-chain-compromise/
       file: entries/kql/019d2613-b4c7-71a2-85a5-cc4afecde6ee.yaml
+    - id: 019d2695-88ce-745c-8624-d26bfa20e326
+      name: Application AUMID Enumeration via PowerShell
+      description: |
+        Detects PowerShell enumerating Application User Model IDs via the notification settings registry hive, the Get-StartApps cmdlet, or the System.AppUserModel.ID extended property on .lnk shortcuts. Attackers use these to discover trusted AUMIDs to impersonate in fake toast notifications.
+      query_type: sigma
+      severity: low
+      tactics:
+        - TA0007
+      techniques:
+        - T1518
+      tags:
+        - attack.discovery
+        - attack.t1518
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2695-88ce-745c-8624-d26bfa20e326.yaml
+    - id: 019d2697-a120-7451-b83c-734e50dba594
+      name: Toast Notification Credential Phishing Tool Executed via PowerShell
+      description: |
+        Detects Invoke-CredentialPhisher (legacy tool) or the sendtoast keyword in PowerShell script blocks. Both are direct indicators of an active toast notification-based credential phishing operation in progress.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0043
+      techniques:
+        - T1598.003
+      tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2697-a120-7451-b83c-734e50dba594.yaml
+    - id: 019d2697-b664-72fb-9ed1-2a675d73c3ca
+      name: Toast Notification XML with External Image URL Constructed via PowerShell
+      description: |
+        Detects PowerShell constructing toast notification XML with an external HTTP image URL alongside WinRT toast API calls. When the notification is displayed the notification platform fetches the image, creating an outbound connection to an attacker-controlled server for delivery confirmation. Sourced from the toastnotify-bof repository incoming-call.xml and teams-security-alert.xml example payloads.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0043
+      techniques:
+        - T1598.003
+      tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2697-b664-72fb-9ed1-2a675d73c3ca.yaml
+    - id: 019d2697-ca8c-700c-9a54-74a19f165179
+      name: Toast Notification Fake Incoming Call Scenario Constructed via PowerShell
+      description: |
+        Detects PowerShell script blocks containing the scenario="incomingCall" XML attribute, which triggers Windows' special incoming call notification UI with accept/dismiss buttons and an avatar image loaded from an attacker-controlled URL. Sourced from the toastnotify-bof repository incoming-call.xml example payload. Near-zero legitimate enterprise use of this attribute in PowerShell.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0001
+      techniques:
+        - T1566.002
+      tags:
+        - attack.initial_access
+        - attack.t1566.002
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2697-ca8c-700c-9a54-74a19f165179.yaml
+    - id: 019d2697-df76-7072-bd4a-5ec6b73b6342
+      name: WinRT Toast Notification API Loaded via PowerShell
+      description: |
+        Detects PowerShell script blocks loading the WinRT ToastNotificationManager API or using the ContentType=WindowsRuntime type accelerator syntax. Used by attackers to programmatically send fake toast notifications impersonating legitimate applications such as Microsoft Edge, Teams, or Windows Security.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0002
+      techniques:
+        - T1059.001
+      tags:
+        - attack.execution
+        - attack.t1059.001
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2697-df76-7072-bd4a-5ec6b73b6342.yaml
+    - id: 019d2697-f354-721f-9bea-33f5a1100181
+      name: Toast Notification XML with Protocol Action Button Constructed via PowerShell
+      description: |
+        Detects PowerShell constructing toast notification XML containing an activationType attribute combined with a protocol scheme. This pattern creates a clickable notification button that launches a URI handler, the primary mechanism for delivering phishing links via toast notifications. Covers both msteams:// protocol links and generic protocol handlers.
+      query_type: sigma
+      severity: medium
+      tactics:
+        - TA0043
+      techniques:
+        - T1598.003
+      tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - ps_script
+        - windows
+      file: entries/sigma/019d2697-f354-721f-9bea-33f5a1100181.yaml
+    - id: 019d2698-0dca-75bf-87b0-18e29d851683
+      name: ToastNotify.exe Custom Base64 XML Payload Subcommand Executed
+      description: |
+        Detects execution of ToastNotify.exe with the custom subcommand, which accepts a base64-encoded XML toast payload decoded at runtime via CryptStringToBinaryA. This is the most flexible attack mode, supporting protocol links, fake input forms, external images, and spoofed application UI. The XML content is not recoverable from the command line alone.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0001
+      techniques:
+        - T1566.002
+      tags:
+        - attack.initial_access
+        - attack.t1566.002
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d2698-0dca-75bf-87b0-18e29d851683.yaml
+    - id: 019d2698-1f72-72be-aa1f-754b89825fbe
+      name: ToastNotify.exe Phishing Tool Process Execution
+      description: |
+        Detects any execution of ToastNotify.exe, the .NET assembly used to dispatch phishing toast notifications impersonating legitimate applications. This catch-all rule fires when the binary runs with an unrecognized or absent subcommand. In environments that support rule ordering, evaluate subcommand-specific rules (getaumid, sendtoast, custom) before this rule. ToastNotify.exe has no known legitimate enterprise use.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0043
+      techniques:
+        - T1598.003
+      tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d2698-1f72-72be-aa1f-754b89825fbe.yaml
+    - id: 019d2698-3d7c-749a-9a45-bda0c36d7a05
+      name: ToastNotify.exe AUMID Enumeration via getaumid Argument
+      description: |
+        Detects execution of ToastNotify.exe with the getaumid subcommand, which enumerates registered Application User Model IDs from the HKCU and HKLM notification settings registry hives. This is the reconnaissance phase of a toast notification phishing attack, used to identify trusted AUMIDs to impersonate.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0007
+      techniques:
+        - T1518
+      tags:
+        - attack.discovery
+        - attack.t1518
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d2698-3d7c-749a-9a45-bda0c36d7a05.yaml
+    - id: 019d2698-51b3-762e-97e6-cea93ba96c3c
+      name: ToastNotify.exe Notification Phishing Dispatch via sendtoast Argument
+      description: |
+        Detects execution of ToastNotify.exe with the sendtoast subcommand, which dispatches a phishing notification with a title and body text using a specified AUMID for impersonation. Review CommandLine for Windows.Defender.SecurityCenter, MSTeams_8wekyb3d8bbwe, or MSEdge to identify the application being impersonated.
+      query_type: sigma
+      severity: high
+      tactics:
+        - TA0043
+      techniques:
+        - T1598.003
+      tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+      author: Detection Engineering
+      version: "1"
+      references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+      data_sources:
+        - process_creation
+        - windows
+      file: entries/sigma/019d2698-51b3-762e-97e6-cea93ba96c3c.yaml
+    - id: 019d26bb-debd-738d-9c2f-c42c31040b32
+      name: TeamPCP pglog Masquerading Binary
+      description: This rule detects processes executing from the `/tmp/pglog` path or with the filename `pglog` within `/tmp/`, which is a known technique used by the TeamPCP threat actor to masquerade malicious binaries as legitimate PostgreSQL processes for post-exploitation activity.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0005
+      techniques:
+        - T1036.005
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      file: entries/kql/019d26bb-debd-738d-9c2f-c42c31040b32.yaml
+    - id: 019d26bc-5fed-75fb-9de4-f1dc89818c78
+      name: TeamPCP Systemd Persistence Drop
+      description: This rule detects the creation of specific files associated with the TeamPCP malware's systemd persistence mechanism. It looks for the creation of '/.config/sysmon/sysmon.py' or '/.config/systemd/user/sysmon.service' which are used to maintain access and download further stages via C2 even if the original vulnerable litellm process terminates.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1543.002
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      file: entries/kql/019d26bc-5fed-75fb-9de4-f1dc89818c78.yaml
+    - id: 019d26bc-be57-7428-bf33-1ea652048596
+      name: TeamPCP Privileged Kubernetes Pod Creation
+      description: Detects the creation of highly privileged Kubernetes pods in the 'kube-system' namespace matching the naming convention 'node-setup-*', indicative of TeamPCP lateral movement techniques. These pods request elevated privileges such as 'hostPID', 'hostNetwork', and 'privileged'.
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0008
+        - TA0004
+        - TA0005
+        - TA0002
+      techniques:
+        - T1610
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      file: entries/kql/019d26bc-be57-7428-bf33-1ea652048596.yaml
+    - id: 019d26bd-166b-72ca-9285-317fac2413fc
+      name: TeamPCP Data Exfiltration via Custom HTTP Header
+      description: 'Detects outbound HTTP POST requests containing the specific custom header ''X-Filename: tpcp.tar.gz'' used by the TeamPCP credential harvester for data exfiltration. This rule targets a highly specific Indicator of Compromise (IOC) associated with the TeamPCP threat.'
+      query_type: kql
+      severity: medium
+      tactics:
+        - TA0010
+      techniques:
+        - T1041
+        - T1567
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.endorlabs.com/learn/teampcp-isnt-done
+      file: entries/kql/019d26bd-166b-72ca-9285-317fac2413fc.yaml
+    - id: 019d26fc-8b3b-724a-b655-d0420bf0daea
+      name: TeamPCP C2 Domain Activity Detected
+      description: This rule detects network communication (DNS queries, HTTP requests, or network connections) to the command and control (C2) domain 'checkmarx.zone', which is associated with the TeamPCP threat group. This activity indicates potential compromise or communication with adversary infrastructure.
+      query_type: spl
+      severity: medium
+      tactics:
+        - TA0010
+      techniques:
+        - T1041
+      tags:
+        - spl
+      author: zendannyy
+      version: "1"
+      references:
+        - https://www.wiz.io/blog/teampcp-attack-kics-github-action
+      file: entries/spl/019d26fc-8b3b-724a-b655-d0420bf0daea.yaml
+    - id: 019d26fc-da0c-75a8-bd82-ae03ce3a21b4
+      name: PTC Exploit URI Patterns (CVE-2026-4681)
+      description: Identifies suspicious URI request patterns potentially indicative of CVE-2026-4681 exploitation attempts against PTC PLM solutions. This rule looks for these specific patterns within web traffic logs from various sources (access logs, IIS, Apache).
+      query_type: spl
+      severity: medium
+      tactics:
+        - TA0001
+      techniques:
+        - T1190
+      tags:
+        - spl
+      author: zendannyy
+      version: "1"
+      references:
+        - https://www.bleepingcomputer.com/news/security/ptc-warns-of-imminent-threat-from-critical-windchill-flexplm-rce-bug/
+      file: entries/spl/019d26fc-da0c-75a8-bd82-ae03ce3a21b4.yaml
+    - id: 019d2748-31e8-7549-b4fb-ef02498557a9
+      name: Charon Ransomware Activity Detection
+      description: This rule detects various activities associated with the Charon ransomware, including DLL sideloading, ransomware deployment, payload reading, ransom note creation, shadow copy deletion, and service creation for persistence. It leverages specific filenames, process behaviors, and registry modifications to identify the threat.
+      query_type: kql
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+        - TA0040
+        - TA0007
+        - TA0002
+      techniques:
+        - T1574.001
+        - T1490
+        - T1083
+        - T1059
+        - T1543.003
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.trendmicro.com/en_dk/research/25/h/new-ransomware-charon.html
+      file: entries/kql/019d2748-31e8-7549-b4fb-ef02498557a9.yaml
+    - id: 019d2748-f632-71fb-a33b-5233c528d4ad
+      name: Successful Device Registration to Azure Entra Device Registration Service
+      description: This rule detects successful device registrations to the 'Device Registration Service' in Azure Entra. It specifically looks for sign-in events where the ResourceDisplayName is 'Device Registration Service', the ErrorCode is '0' (indicating success), and the ConditionalAccessStatus is not '1' (which typically means that conditional access did not block the authentication flow for device registration). The rule is pivotal for hunting devices registered for persistence, post-successful phishing campaign execution, where >= 1 accounts were compromised.
+      query_type: kql
+      tactics:
+        - TA0003
+        - TA0004
+      techniques:
+        - T1098
+        - T1098.005
+      tags:
+        - kql
+      version: "1"
+      file: entries/kql/019d2748-f632-71fb-a33b-5233c528d4ad.yaml
+    - id: 019d274c-37e5-767f-a297-8f12ac273071
+      name: threat-hunt-rokrat-malware---injection-and-steganography.kql
+      description: 'KQL Query from file: threat-hunt-rokrat-malware---injection-and-steganography.kql'
+      query_type: kql
+      tags:
+        - kql
+      version: "1"
+      file: entries/kql/019d274c-37e5-767f-a297-8f12ac273071.yaml
+    - id: 019d274c-c279-773e-bc75-fd23681170dd
+      name: Linux PAM-based Backdoor Detection (Plague)
+      description: This rule detects the presence or execution of files identified by specific SHA256 hashes or file names associated with PAM-based backdoors on Linux systems. It monitors device events, file events, process events, and image load events for these indicators. The rule aims to identify the 'Plague' PAM-based backdoor or similar malicious PAM modules.
+      query_type: kql
+      tactics:
+        - TA0003
+        - TA0004
+        - TA0005
+      techniques:
+        - T1574.006
+      tags:
+        - kql
+      version: "1"
+      references:
+        - https://www.nextron-systems.com/2025/08/01/plague-a-newly-discovered-pam-based-backdoor-for-linux/
+        - https://www.nextron-systems.com/2025/05/30/stealth-in-100-lines-analyzing-pam-backdoors-in-linux/
+      file: entries/kql/019d274c-c279-773e-bc75-fd23681170dd.yaml
     - id: 01bc2aa2-98db-4217-951d-727eacf33034
       name: Exposure Management + Defender for Office 365
       description: 'KQL Query from file: Exposure Management + Defender for Office 365'

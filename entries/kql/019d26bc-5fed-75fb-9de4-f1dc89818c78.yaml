@@ -1,0 +1,16 @@
+id: 019d26bc-5fed-75fb-9de4-f1dc89818c78
+name: TeamPCP Systemd Persistence Drop
+description: This rule detects the creation of specific files associated with the TeamPCP malware's systemd persistence mechanism. It looks for the creation of '/.config/sysmon/sysmon.py' or '/.config/systemd/user/sysmon.service' which are used to maintain access and download further stages via C2 even if the original vulnerable litellm process terminates.
+query: "// Title: TeamPCP Systemd Persistence Drop\n// Author: Brandon + detections.ai\n// Date: 2026-03-25\n// Platform: Microsoft Defender for Endpoint\n// Tactics: Persistence\n// Techniques: T1543.002\n// Reference: https://www.endorlabs.com/learn/teampcp-isnt-done\n// Description: This persistence mechanism ensures the attacker maintains access and can download further stages via C2 even if the original vulnerable litellm process terminates.\nDeviceFileEvents\n// Detect file creation events matching the specific TeamPCP systemd persistence paths\n| where ActionType == \"FileCreated\"\n| where FolderPath endswith \"/.config/sysmon/sysmon.py\" \n     or FolderPath endswith \"/.config/systemd/user/sysmon.service\"\n// Potential FP: Low probability, as 'sysmon' is primarily a Windows tool and its use in Linux user config directories is highly suspicious. Tune by excluding specific admin processes if noise occurs.\n| project Timestamp, DeviceName, ActionType, FileName, FolderPath, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, SHA256\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0003
+    - TA0004
+techniques:
+    - T1543.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://www.endorlabs.com/learn/teampcp-isnt-done

@@ -1,0 +1,56 @@
+id: 019d2697-b664-72fb-9ed1-2a675d73c3ca
+name: Toast Notification XML with External Image URL Constructed via PowerShell
+description: |
+    Detects PowerShell constructing toast notification XML with an external HTTP image URL alongside WinRT toast API calls. When the notification is displayed the notification platform fetches the image, creating an outbound connection to an attacker-controlled server for delivery confirmation. Sourced from the toastnotify-bof repository incoming-call.xml and teams-security-alert.xml example payloads.
+query: |
+    title: Toast Notification XML with External Image URL Constructed via PowerShell
+    id: f4a1b2c3-d4e5-4f67-8901-abcdef123410
+    status: experimental
+    description: >
+        Detects PowerShell constructing toast notification XML with an external HTTP image URL
+        alongside WinRT toast API calls. When the notification is displayed the notification
+        platform fetches the image, creating an outbound connection to an attacker-controlled
+        server for delivery confirmation. Sourced from the toastnotify-bof repository
+        incoming-call.xml and teams-security-alert.xml example payloads.
+    references:
+        - https://ipurple.team/2026/03/25/toast-notifications/
+        - https://brmk.me/2026/03/18/toast-my-way.html
+    author: Detection Engineering
+    date: 2026/03/25
+    modified: 2026/03/25
+    tags:
+        - attack.reconnaissance
+        - attack.t1598.003
+    logsource:
+        category: ps_script
+        product: windows
+    detection:
+        selection_toast_api:
+            ScriptBlockText|contains:
+                - 'ToastNotificationManager'
+                - 'ContentType=WindowsRuntime'
+        selection_external_image:
+            ScriptBlockText|contains:
+                - 'src="http'
+                - "src='http"
+        condition: selection_toast_api and selection_external_image
+    falsepositives:
+        - Enterprise notification scripts loading images from internal HTTP servers
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0043
+techniques:
+    - T1598.003
+tags:
+    - attack.reconnaissance
+    - attack.t1598.003
+author: Detection Engineering
+version: "1"
+references:
+    - https://ipurple.team/2026/03/25/toast-notifications/
+    - https://brmk.me/2026/03/18/toast-my-way.html
+data_sources:
+    - ps_script
+    - windows
