@@ -1,0 +1,63 @@
+id: 019d2fa2-7e95-7439-af3f-f605269a262e
+name: Suspicious Libcurl.dll Side-Loading
+description: Detects the loading of 'libcurl.dll' from suspicious or temporary directories such as ProgramData, Users\Public, or Temp. This behavior is associated with DLL side-loading techniques, such as those used by the BRUSHLOGGER keylogger which masquerades as 'libcurl.dll' to execute malicious code and capture keystrokes.
+query: |
+    title: Suspicious Libcurl.dll Side-Loading
+    id: 6cf08247-0917-4760-ac5a-d364f079ba88
+    status: experimental
+    description: >-
+      Detects the loading of 'libcurl.dll' from suspicious or temporary directories
+      such as ProgramData, Users\Public, or Temp. This behavior is associated with
+      DLL side-loading techniques, such as those used by the BRUSHLOGGER keylogger
+      which masquerades as 'libcurl.dll' to execute malicious code and capture
+      keystrokes.
+    author: detections.ai
+    references:
+      - https://www.elastic.co/security-labs/brushworm-targets-financial-services
+    date: 2026-03-27T00:00:00.000Z
+    tags:
+      - attack.defense-evasion
+      - attack.t1574.002
+      - attack.t1036.005
+    logsource:
+      category: image_load
+      product: windows
+    detection:
+      selection:
+        ImageLoaded|endswith: \libcurl.dll
+        ImageLoaded|contains:
+          - \ProgramData\
+          - \Users\Public\
+          - \AppData\Local\Temp\
+          - \Windows\Temp\
+          - \PerfLogs\
+      filter_main_legit_software:
+        ImageLoaded|contains:
+          - \ProgramData\Microsoft\
+          - \ProgramData\Amazon\
+          - \ProgramData\VMware\
+      condition: selection and not 1 of filter_main_*
+    falsepositives:
+      - Legitimate third-party applications or automated updaters that temporarily
+        drop and load libcurl.dll from ProgramData or Temp directories.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1574.001
+    - T1036.005
+tags:
+    - attack.defense-evasion
+    - attack.t1574.002
+    - attack.t1036.005
+author: detections.ai
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/brushworm-targets-financial-services
+data_sources:
+    - image_load
+    - windows

@@ -1,0 +1,50 @@
+id: 019d2fa1-4419-7604-87f1-5e02bb40780b
+name: BRUSHLOGGER Keylogger Mutex Creation
+description: Detects the creation of the specific mutex 'Windows-Updates-KB852654856' used by the BRUSHLOGGER keylogger to enforce single-instance execution. The malware decodes this string from Base64 at runtime to mimic a legitimate Windows Update KB identifier.
+query: |
+    title: BRUSHLOGGER Keylogger Mutex Creation
+    id: 3f1a1170-3a4a-40c4-840a-7136fa88247e
+    status: experimental
+    description: Detects the creation of the specific mutex
+      'Windows-Updates-KB852654856' used by the BRUSHLOGGER keylogger to enforce
+      single-instance execution. The malware decodes this string from Base64 at
+      runtime to mimic a legitimate Windows Update KB identifier.
+    author: detections.ai
+    references:
+      - https://www.elastic.co/security-labs/brushworm-targets-financial-services
+    date: 2026-03-27
+    tags:
+      - attack.defense-evasion
+      - attack.t1027
+    logsource:
+      category: object_creation
+      product: windows
+    detection:
+      selection:
+        # Matches the decoded mutex string across various EDR schema fields for mutex creation
+        - TargetObject|contains: 'Windows-Updates-KB852654856'
+        - Mutex|contains: 'Windows-Updates-KB852654856'
+        - MutexName|contains: 'Windows-Updates-KB852654856'
+      condition: selection
+    falsepositives:
+      - Highly unlikely. The KB identifier '852654856' does not align with standard
+        Microsoft KB numbering lengths and is highly specific to this malware
+        family.
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0005
+techniques:
+    - T1480.002
+    - T1027
+tags:
+    - attack.defense-evasion
+    - attack.t1027
+author: detections.ai
+version: "1"
+references:
+    - https://www.elastic.co/security-labs/brushworm-targets-financial-services
+data_sources:
+    - object_creation
+    - windows

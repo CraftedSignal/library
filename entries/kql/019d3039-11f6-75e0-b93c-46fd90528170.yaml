@@ -1,0 +1,64 @@
+id: 019d3039-11f6-75e0-b93c-46fd90528170
+name: Faux-Elevate UAC Bypass and Payload Execution
+description: Detects the Faux-Elevate UAC bypass technique where auto-elevated binaries (fodhelper.exe, eventvwr.exe) are abused to launch suspicious child processes like PowerShell or cmd.exe. The detection logic further correlates this with registry modifications related to UAC bypass (specifically 'Software\Classes\ms-settings\shell\open\command') and subsequent outbound network activity to retrieve payloads, indicating a full chain of execution and C2 communication.
+query: |-
+    // Detection Name: Faux-Elevate UAC Bypass and Payload Execution
+    // Author: Daniel Jeremiah
+    // Date: 2026-03-27
+    // Reference: Securonix Threat Research - Faux-Elevate Campaign (https://www.securonix.com/blog/faux-elevate-threat-actors-crypto-miners-and-infostealers)
+    // Description: Detects abuse of auto-elevated binaries (fodhelper.exe, eventvwr.exe) followed by PowerShell execution and registry hijack linked to UAC bypass
+    // MITRE ATT&CK: T1548.002, T1059.001, T1112, T1105
+    // Logic: Correlates elevated parent process → suspicious child process → registry modification → outbound network activity for payload retrieval
+
+
+    let suspicious_parents = dynamic(["fodhelper.exe", "eventvwr.exe"]);
+    let suspicious_cmd = dynamic([
+        "powershell",
+        "cmd.exe",
+        "wscript.exe",
+        "cscript.exe"
+    ]);
+    DeviceProcessEvents
+    | where Timestamp > ago(30d)
+    | where InitiatingProcessFileName in~ (suspicious_parents)
+    | where FileName in~ (suspicious_cmd)
+    | where ProcessCommandLine has_any ("IEX", "DownloadString", "Invoke-WebRequest", "-enc")
+    | extend SuspiciousScore = 1
+    | join kind=leftouter (
+        DeviceRegistryEvents
+        | where RegistryKey has @"Software\Classes\ms-settings\shell\open\command"
+    ) on DeviceId
+    | join kind=leftouter (
+        DeviceNetworkEvents
+        | where RemoteUrl !contains "microsoft.com"
+        | where RemoteIPType == "Public"
+    ) on DeviceId
+    | project Timestamp,
+              DeviceName,
+              InitiatingProcessFileName,
+              FileName,
+              ProcessCommandLine,
+              RegistryKey,
+              RemoteUrl,
+              RemoteIP,
+              SuspiciousScore
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0004
+    - TA0005
+    - TA0002
+    - TA0003
+    - TA0011
+techniques:
+    - T1548.002
+    - T1059.001
+    - T1112
+    - T1105
+tags:
+    - kql
+author: Daniel Jeremiah
+version: "1"
+references:
+    - https://www.securonix.com/blog/faux-elevate-threat-actors-crypto-miners-and-infostealers

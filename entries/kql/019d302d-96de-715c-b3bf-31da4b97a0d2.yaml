@@ -1,0 +1,26 @@
+id: 019d302d-96de-715c-b3bf-31da4b97a0d2
+name: macOS Plist File Creation or Modification
+description: Detects the creation or modification of .plist files on macOS systems. This activity can be indicative of various malicious behaviors, particularly those related to persistence or privilege escalation, as .plist files are often used to configure application settings, launch agents, or other system behaviors.
+query: |
+    DeviceFileEvents
+    | where Timestamp >= ago(7d)
+    | where FileName contains ".plist"
+    | where ActionType in ("FileCreated", "FileModified")
+    | join kind=inner (DeviceInfo | project DeviceId, DeviceName, OSPlatform) on DeviceId
+    | where OSPlatform == "macOS"
+    | project Timestamp, DeviceName, FileName, FolderPath, ActionType, InitiatingProcessFileName, InitiatingProcessCommandLine
+    | order by Timestamp desc
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+    - TA0003
+    - TA0004
+techniques:
+    - T1647
+    - T1547.007
+    - T1547.006
+    - T1547
+tags:
+    - kql
+version: "1"

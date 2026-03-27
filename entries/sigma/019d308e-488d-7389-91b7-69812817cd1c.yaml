@@ -1,0 +1,18 @@
+id: 019d308e-488d-7389-91b7-69812817cd1c
+name: Suspicious File Creation by Productivity App Followed by Execution
+description: This rule correlates the creation of a potentially executable or script file by a browser or Microsoft Office application with its subsequent execution within a short time frame. This pattern is highly indicative of a user being tricked into downloading and running a malicious payload, often associated with initial access techniques like spearphishing with malicious attachments.
+query: "title: 'Suspicious File Creation by Browser or Office Application'\nid: 7d2644f3-3b31-4439-b333-0210d374984a\nstatus: experimental\ndescription: |\n  (Part 1 of a Correlation) Detects the creation of a potentially executable or script file by a browser or Microsoft Office application.\n  This rule is intended to be used in a correlation with a subsequent process execution.\nauthor: Luís Marques, SIBS Cyberwatch @remotecodeexecution\ndate: 2026-03-20\ntags:\n  - attack.execution\n  - attack.t1204.002\n  - attack.initial_access\n  - attack.t1566.001\nlogsource:\n  product: windows\n  category: file_event\n  source: Sysmon\ndetection:\n\n  event_type:\n    EventID: 11\n\n  parent_process:\n    ParentImage|endswith:\n      - '\\chrome.exe'\n      - '\\firefox.exe'\n      - '\\msedge.exe'\n      - '\\iexplore.exe'\n      - '\\WINWORD.EXE'\n      - '\\EXCEL.EXE'\n      - '\\POWERPNT.EXE'\n      - '\\OUTLOOK.EXE'\n      - '\\ONENOTE.EXE'\n\n  target_path:\n    TargetFilename|contains:\n      - '\\Users\\'\n      - '\\AppData\\'\n      - '\\Temp\\'\n      - '\\Downloads\\'\n\n  target_extension:\n    TargetFilename|endswith:\n      - '.exe'\n      - '.dll'\n      - '.js'\n      - '.vbs'\n      - '.vbe'\n      - '.ps1'\n      - '.bat'\n      - '.cmd'\n      - '.scr'\n      - '.msi'\n      - '.hta'\n      - '.jar'\n      - '.docm'\n      - '.xlsm'\n      - '.pptm'\n\n  condition: all of them\nlevel: informational\nfields:\n  - ParentImage\n  - TargetFilename\n  - Hashes\nname: rule1\n\n---\n\ntitle: 'Process Creation'\nid: f6e9fb16-5700-4c6c-8957-5513e367b46a\nstatus: experimental\ndescription: |\n  (Part 2 of a Correlation) Detects any process creation event.\n  This rule is intended to be used only in a correlation with another event and is expected to generate a high volume of events if run standalone.\nauthor: Luís Marques, SIBS Cyberwatch @remotecodeexecution\ndate: 2026-03-20\n\ntags:\n  - attack.execution\n\nlogsource:\n  product: windows\n  category: process_creation\n  source: Sysmon\n\ndetection:\n  selection:\n    EventID: 1\n    Image|exists: true\n\n  condition: selection\nlevel: informational\nfields:\n  - Hashes\nname: rule2\n\n---\n\ntitle: Suspicious File Creation by Productivity App Followed by Execution\nid: 11f1638b-e5c6-409d-b4b7-b389c05dc7fb\nstatus: experimental\ndescription: |\n  (Part 3 of a Correlation) Correlates a suspicious file creation event (Part 1) with its subsequent execution (Part 2) within a short time frame.\n  This pattern is highly indicative of a user being tricked into downloading and running a malicious payload.\nauthor: Luís Marques, SIBS Cyberwatch @remotecodeexecution\ndate: 2026-03-20\ntags:\n  - attack.execution\n  - attack.t1204.002\n  - attack.initial_access\n  - attack.t1566.001\ncorrelation: \n  type: temporal\n  rules:\n    - rule1\n    - rule2\n  timespan: 10m\nfalsepositives:\n  - Legitimate software installers or updaters downloaded and run by users.\nlevel: high"
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0001
+techniques:
+    - T1204.002
+    - T1566.001
+    - T1059
+    - T1059.001
+    - T1059.003
+    - T1059.005
+author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+version: "1"

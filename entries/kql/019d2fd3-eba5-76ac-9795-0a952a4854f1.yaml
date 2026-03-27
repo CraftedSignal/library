@@ -1,0 +1,16 @@
+id: 019d2fd3-eba5-76ac-9795-0a952a4854f1
+name: Trello Invitation Phishing Attempt
+description: 'Detects phishing emails abusing legitimate Trello invitation notifications. This rule specifically looks for emails sent from ''invitation-do-not-reply@trello.com'' with a subject line matching the pattern ''<name> @ <org> invited you to their board <board>''. This pattern is recently observed being abused in phishing campaigns to trick users into clicking malicious links embedded within Trello boards. '
+query: "let timeframe = 14d;\r\nEmailEvents\r\n| where TimeGenerated >= ago(timeframe)\r\n// Target the specific legitimate sender address abused in this campaign\r\n| where SenderFromAddress =~ \"invitation-do-not-reply@trello.com\"\r\n// Match the observed subject pattern: '<name> @ <org> invited you to their board <board>'\r\n| where Subject matches regex @\"(?i)^.*?\\s*@\\s*.*?invited you to their board.*?$\"\r\n// POTENTIAL FALSE POSITIVES: Legitimate Trello use within the organization. \r\n// TUNE HERE: Exclude known legitimate board names or expected sender displays to reduce noise.\r\n// | where Subject !contains \"Authorized_Board_Name\"\r\n// | where RecipientEmailAddress !in (\"expected.user1@domain.com\", \"expected.user2@domain.com\")\r\n| project TimeGenerated, NetworkMessageId, SenderFromAddress, SenderDisplayName, RecipientEmailAddress, Subject, DeliveryAction, DeliveryLocation, EmailDirection\r\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "3"
+references:
+    - https://ctrl.co/security-advisory/trello-phishing-campaign/

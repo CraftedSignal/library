@@ -1,0 +1,48 @@
+id: 019d3049-f374-758f-9127-29a7b71810ac
+name: WebLogic Exploitation and RCE Activity (CVE-2026-21962)
+description: Detects exploitation attempts against Oracle WebLogic via suspicious HTTP requests and command execution patterns. The rule identifies WebLogic-specific endpoints combined with RCE payload indicators such as cmd, bash, powershell, wget, curl, or encoded payloads within the URI query.
+query: |-
+    # Detection Name: WebLogic Exploitation and RCE Activity (CVE-2026-21962)
+    # Author: Daniel Jeremiah
+    # Date: 2026-03-27
+    # Reference: CloudSEK Threat Research - WebLogic Honeypot Study (https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot)
+    # Description: Detects exploitation attempts against Oracle WebLogic via suspicious HTTP requests and command execution patterns
+    # MITRE ATT&CK: T1190, T1059, T1105
+    # Logic: Identifies WebLogic-specific endpoints combined with RCE payload indicators such as cmd, bash, powershell, wget, curl, or encoded payloads
+
+    index=web OR index=proxy OR index=network
+    (
+        uri_path="*/console/*" OR
+        uri_path="*/wls-wsat/*" OR
+        uri_path="*/bea_wls_internal/*" OR
+        uri_path="*/_async/*"
+    )
+    AND (
+        uri_query="*cmd=*" OR
+        uri_query="*bash*" OR
+        uri_query="*powershell*" OR
+        uri_query="*wget*" OR
+        uri_query="*curl*" OR
+        uri_query="*base64*" OR
+        uri_query="*IEX*" OR
+        uri_query="*Runtime.getRuntime*"
+    )
+    | stats count by src_ip, dest_ip, uri_path, uri_query, http_user_agent
+    | where count > 2
+    | sort - count
+query_type: spl
+severity: medium
+tactics:
+    - TA0001
+    - TA0002
+    - TA0011
+techniques:
+    - T1190
+    - T1059
+    - T1105
+tags:
+    - spl
+author: Daniel Jeremiah
+version: "1"
+references:
+    - https://www.cloudsek.com/blog/honey-for-hackers-a-study-of-attacks-targeting-the-recent-cve-2026-21962-and-other-critical-weblogic-vulnerabilities-on-a-high-interactive-oracle-honeypot

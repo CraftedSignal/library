@@ -1,0 +1,17 @@
+id: 019d2f98-741b-77e8-834c-c53236f977d4
+name: Python Hiding Files via Attrib
+description: Detects Python processes executing the 'attrib +h' command. This behavior was observed in the malicious telnyx PyPI package, which uses it to hide its execution lock file on Windows systems and avoid detection.
+query: "// Author: Ethan Andrews + detections.ai\n// Date: 2026-03-27\n// Threat: Python Hiding Files via Attrib\n// Reference: https://safedep.io/malicious-telnyx-pypi-compromise/\n// Description: Detects Python processes executing the 'attrib +h' command. This behavior was observed in the malicious telnyx PyPI package, which uses it to hide its execution lock file on Windows systems and avoid detection.\n// False Positives: Medium. While generally suspicious, legitimate developer or administrative Python scripts might occasionally modify file attributes. \n// Tuning: If false positives occur, consider filtering by known benign 'InitiatingProcessCommandLine' values or excluding specific service accounts.\nDeviceProcessEvents\n// Look for Python interpreters initiating the process\n| where InitiatingProcessFileName in~ (\"python.exe\", \"python3.exe\", \"pythonw.exe\")\n// Check for the attrib utility being executed\n| where FileName =~ \"attrib.exe\"\n// Ensure the command line contains the flag to add the hidden attribute\n| where ProcessCommandLine has \"+h\"\n| project TimeGenerated, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath, ProcessId, InitiatingProcessId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0005
+techniques:
+    - T1564.001
+    - T1222.001
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://safedep.io/malicious-telnyx-pypi-compromise/

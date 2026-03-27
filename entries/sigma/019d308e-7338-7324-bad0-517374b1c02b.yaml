@@ -1,0 +1,65 @@
+id: 019d308e-7338-7324-bad0-517374b1c02b
+name: PowerShell Cmdlet Globbing Detection
+description: Detects PowerShell commands using the call operator '&' with 'Get-Command' (gcm) or 'Get-Alias' (gal) containing wildcards to resolve and execute sensitive cmdlets. This is a common technique to evade static string-based detections for commands like 'Invoke-Expression' or 'Invoke-WebRequest'.
+query: |
+    title: PowerShell Cmdlet Globbing Detection
+    id: 190e3179-bfaf-41dc-9fc9-3e82e67971d4
+    status: experimental
+    description: Detects PowerShell commands using the call operator '&' with
+      'Get-Command' (gcm) or 'Get-Alias' (gal) containing wildcards to resolve and
+      execute sensitive cmdlets. This is a common technique to evade static
+      string-based detections for commands like 'Invoke-Expression' or
+      'Invoke-WebRequest'.
+    author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+    references:
+      - https://0xv1n.github.io/LOLGlobs/api/entries.json
+    date: 2026-02-28
+    tags:
+      - attack.execution
+      - attack.t1059.001
+    logsource:
+      category: process_creation
+      product: windows
+    detection:
+      # This detection logic is best applied to process creation events (e.g., Sysmon Event ID 1)
+      # and PowerShell script block logging (e.g., Sysmon Event ID 4104).
+      selection_operator:
+        # Detects the use of the PowerShell call operator '&' which is required to execute the resolved command
+        CommandLine|contains: '&'
+      selection_cmdlet:
+        # Looks for the commands used to resolve other cmdlets by name
+        CommandLine|contains:
+          - 'Get-Command'
+          - 'gcm'
+          - 'Get-Alias'
+          - 'gal'
+      selection_wildcard:
+        # Detects the presence of wildcard characters used for obfuscation
+        CommandLine|contains:
+          - '*'
+          - '?'
+          - '['
+      condition: all of them
+    falsepositives:
+      - Legitimate administrative or automation scripts may use this technique for
+        dynamic cmdlet resolution, though it is uncommon. Review script
+        functionality and purpose before escalating.
+    level: medium
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1027
+tags:
+    - attack.execution
+    - attack.t1059.001
+author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+version: "1"
+references:
+    - https://0xv1n.github.io/LOLGlobs/api/entries.json
+data_sources:
+    - process_creation
+    - windows

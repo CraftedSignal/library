@@ -1,0 +1,123 @@
+id: 019d308a-5dd9-761d-b001-c22acb58d5e9
+name: Suspicious Office/Browser Child Process Execution
+description: |
+    Detects when a process spawned by Microsoft Office or a web browser executes a child process.
+    These actions can be indicative of malicious activity such as macro-based malware or drive-by downloads.
+query: |
+    title: Suspicious Office/Browser Child Process Execution
+    id: f6ddefa9-ed8a-432b-8d42-a83a3abd471f
+    status: stable
+    description: >
+      Detects when a process spawned by Microsoft Office or a web browser executes a
+      child process.
+
+      These actions can be indicative of malicious activity such as macro-based
+      malware or drive-by downloads.
+    references:
+      - >-
+        https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/initial_access_suspicious_ms_office_child_process
+    author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+    date: 2026-03-26T00:00:00.000Z
+    tags:
+      - attack.execution
+      - attack.T1059.001
+      - attack.T1059.003
+    logsource:
+      category: process_creation
+      product: windows
+      service: sysmon
+    detection:
+      selection_id:
+        EventID: 1
+      selection_parents:
+        ParentImage|endswith:
+          - winword.exe
+          - excel.exe
+          - powerpnt.exe
+          - outlook.exe
+          - onenote.exe
+          - acrord32.exe
+          - chrome.exe
+          - msedge.exe
+          - firefox.exe
+      selection_childs:
+        Image|contains:
+          - \powershell.exe
+          - \pwsh.exe
+          - \mshta.exe
+          - \rundll32.exe
+          - \regsvr32.exe
+          - \wscript.exe
+          - \cscript.exe
+      selection_terms:
+        CommandLine|contains:
+          - http://
+          - https://
+          - .js
+          - .vbs
+          - .hta
+          - .dll
+          - 'javascript:'
+          - 'vbscript:'
+          - frombase64string
+          - downloadstring
+          - invoke-expression
+          - ' iwr '
+          - ' iex '
+          - ' -enc'
+          - ' /c '
+          - appdata
+          - \\temp\\
+          - \\downloads\\
+      selection_paths:
+        CommandLine|contains:
+          - \appdata\
+          - \temp\
+          - \downloads\
+          - \desktop\
+          - \users\
+      filter_native_messaging:
+        ParentImage|endswith:
+          - \chrome.exe
+          - \msedge.exe
+          - \firefox.exe
+        Image|endswith: \cmd.exe
+        CommandLine|contains:
+          - chrome-extension://
+          - chrome.nativemessaging
+      filter_clickonce:
+        Image|contains: \rundll32.exe
+        CommandLine|contains:
+          - dfshim.dll
+          - shopenverbapplication
+      condition: >-
+        selection_id and selection_parents and selection_childs and (selection_paths
+        or selection_terms) and not 1 of filter_*
+    falsepositives:
+      - Legitimate processes spawned by Microsoft Office or web browsers for normal
+        operations (e.g., updates, plugins, etc.)
+      - Printing services that are used from a browser or office application
+    level: high
+query_type: sigma
+severity: medium
+tactics:
+    - TA0002
+    - TA0005
+techniques:
+    - T1059.001
+    - T1059.003
+    - T1218
+    - T1059
+    - T1027
+tags:
+    - attack.execution
+    - attack.T1059.001
+    - attack.T1059.003
+author: Luís Marques, SIBS Cyberwatch @remotecodeexecution
+version: "3"
+references:
+    - https://www.elastic.co/docs/reference/security/prebuilt-rules/rules/windows/initial_access_suspicious_ms_office_child_process
+data_sources:
+    - process_creation
+    - windows
+    - sysmon

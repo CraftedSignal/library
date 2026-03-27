@@ -1,0 +1,19 @@
+id: 019d2f9c-d54b-71ca-bff1-40962ca5e94d
+name: OpenSSL AES-256-CBC or RSA OAEP Encryption Detection
+description: Detects instances of the openssl command-line tool being used to encrypt data with AES-256-CBC and RSA OAEP padding. This specific sequence matches the credential encryption pattern observed in the Linux/macOS payload of the malicious telnyx PyPI package attributed to TeamPCP.
+query: "// Author: Ethan Andrews + detections.ai\n// Date: 2026-03-27\n// Threat: OpenSSL RSA/AES File Encryption\n// Reference: https://safedep.io/malicious-telnyx-pypi-compromise/\n// Description: Detects instances of the openssl command-line tool being used to encrypt data with AES-256-CBC and RSA OAEP padding. This specific sequence matches the credential encryption pattern observed in the Linux/macOS payload of the malicious telnyx PyPI package attributed to TeamPCP.\n// False Positives: Medium. Legitimate administrative scripts, backup tools, or developer utilities might occasionally use openssl to encrypt files via the command line using these specific algorithms and padding modes.\n// Tuning: Consider filtering out known benign 'InitiatingProcessFileName' values (e.g., approved backup software) or specific 'InitiatingProcessAccountName' values if false positives occur in expected environments.\nDeviceProcessEvents\n// Isolate executions of the openssl binary\n| where FileName =~ \"openssl\" or ProcessVersionInfoOriginalFileName =~ \"openssl\"\n// Look for the specific encryption flags used by the TeamPCP payload (AES-256-CBC or RSA OAEP)\n| where (ProcessCommandLine has_all(\"enc\", \"-aes-256-cbc\", \"-pbkdf2\")) \n     or (ProcessCommandLine has_all(\"pkeyutl\", \"-encrypt\", \"rsa_padding_mode:oaep\"))\n// Project relevant fields for triage\n| project TimeGenerated, DeviceName, InitiatingProcessAccountName, InitiatingProcessFileName, InitiatingProcessCommandLine, FileName, ProcessCommandLine, FolderPath, ProcessId, InitiatingProcessId\n"
+query_type: kql
+severity: medium
+tactics:
+    - TA0040
+    - TA0011
+techniques:
+    - T1486
+    - T1573.001
+    - T1573.002
+tags:
+    - kql
+author: Ethan Andrews
+version: "1"
+references:
+    - https://safedep.io/malicious-telnyx-pypi-compromise/
