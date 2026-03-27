@@ -1,0 +1,74 @@
+id: 019d2dc4-2b76-7399-8541-09ae46c25ad1
+name: SessionReaper Webshell Detection
+description: Detects SessionReaper webshell activity on Magento e-commerce platforms, including process execution from suspicious media directories.
+query: |
+    title: SessionReaper Webshell Detection
+    id: 929a690e-bef0-4204-a928-ef5e62121212
+    status: experimental
+    description: Detects SessionReaper webshell activity on Magento e-commerce platforms, including process execution from suspicious media directories.
+    references:
+        - https://www.akamai.com/blog/security-research/grim-sessionreaper-cve-2025-54236-comes-collect-halloween
+        - https://sansec.io/research/sessionreaper
+    tags:
+        - attack.initial_access
+        - attack.t1190
+        - attack.execution
+        - attack.t1059.004
+        - attack.persistence
+        - attack.t1505.003
+    author: tom.saul
+    date: 2026-03-27
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection_webshell:
+            # Key logic to identify processes executing in or targeting the suspicious media directory.
+            - CurrentDirectory|contains: '/var/www/prod/shared/pub/media/customer_address/'
+            - Image|contains: '/var/www/prod/shared/pub/media/customer_address/'
+            - CommandLine|contains: '/var/www/prod/shared/pub/media/customer_address/'
+            - cs-uri-stem|contains: '.php'
+        selection_rest_api:
+            # Suspicious REST API session/customer endpoint access
+            cs-uri-stem|contains:
+                - '/rest/V1/customers'
+                - '/rest/V1/guest-carts'
+                - '/rest/all/V1/customers'
+                - '/rest/default/V1/customers'
+                - '/rest/V1/sessions'
+        selection_rest_method:
+            # Suspicous API methods to create, update or replace a resource
+            cs-method:
+                - 'POST'
+                - 'PUT'
+        condition: selection_webshell and selection_rest_api and selection_rest_method
+    falsepositives:
+        - Legitimate integrations that POST to /rest/V1/customers (e.g., ERP sync, order management systems)
+        - .php pages intentionally left by developers in non-production environments
+        - Security scanners and WAF health checks targeting REST endpoints
+    level: high
+query_type: sigma
+severity: high
+tactics:
+    - TA0002
+    - TA0003
+    - TA0001
+techniques:
+    - T1190
+    - T1059.004
+    - T1505.003
+tags:
+    - attack.initial_access
+    - attack.t1190
+    - attack.execution
+    - attack.t1059.004
+    - attack.persistence
+    - attack.t1505.003
+author: tom.saul
+version: "1"
+references:
+    - https://www.akamai.com/blog/security-research/grim-sessionreaper-cve-2025-54236-comes-collect-halloween
+    - https://sansec.io/research/sessionreaper
+data_sources:
+    - process_creation
+    - linux
