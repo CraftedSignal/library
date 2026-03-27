@@ -1,0 +1,35 @@
+id: 019d2c46-31a1-7525-bb6e-6da31b50c1d5
+name: External DM Social Engineering - IT Helpdesk Impersonation or WFH Lure
+description: This rule detects potential social engineering attempts in external direct messages (DMs) by identifying messages that impersonate IT helpdesk or support personnel, or discuss 'working from home' scenarios. It specifically looks for keywords like 'helpdesk', 'help desk', 'IT support', and 'working from home' in the recipient details or sender display name of external messages within the last 5 days. The goal is to surface lures that aim to trick users into revealing sensitive information or performing actions under false pretenses.
+query: |
+    // IT Helpdesk Imposters in External DMs
+    // Surface social-engineering lures impersonating support over last 5 days
+    // Source: https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
+    let lookback = 5d;
+    MessageEvents
+    | where Timestamp > ago(lookback)
+    | where IsExternalThread == true
+    // Improved: use "helpdesk"/"help desk" patterns and case-sensitive "IT" to reduce false positives
+    | where (RecipientDetails has "helpdesk" or RecipientDetails has "help desk")
+       or (RecipientDetails has_cs "IT" and RecipientDetails has "support")
+       or (SenderDisplayName has "helpdesk" or SenderDisplayName has "help desk")
+       or (SenderDisplayName has_cs "IT" and SenderDisplayName has "support")
+    // Separated: "working from home" is a different social-engineering lure category
+       or (RecipientDetails has "working" and RecipientDetails has "home")
+       or (SenderDisplayName has "working" and SenderDisplayName has "home")
+    | project Timestamp, SenderDisplayName, SenderEmailAddress,
+             RecipientDetails, IsOwnedThread, ThreadType, ReportId
+query_type: kql
+tactics:
+    - TA0001
+    - TA0043
+    - TA0005
+techniques:
+    - T1566
+    - T1598
+    - T1656
+tags:
+    - kql
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086

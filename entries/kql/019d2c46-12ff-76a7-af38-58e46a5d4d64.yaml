@@ -1,0 +1,59 @@
+id: 019d2c46-12ff-76a7-af38-58e46a5d4d64
+name: Rare External Domains with Clicks in Teams
+description: This rule detects rare external domains shared in Microsoft Teams messages that users subsequently click on. It identifies messages from external senders, extracts URLs and their domains, and then filters for domains that appear infrequently (less than 3 times in the last day). The rule then correlates these rare external domains with user click events within Teams, surfacing potential phishing attempts or malicious link sharing where users interact with untrusted content.
+query: |
+    // Rare External Domains with Clicks in Teams (Detection Rule)
+    // Surfaces rare external domains in Teams and associated user clicks for incident response
+    // Source: https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
+    let lookback = 1d;
+    // Improved: threshold is now a variable for easier tuning
+    let rareDomainThreshold = 3;
+    // External Teams messages
+    let externalMsgs =
+        MessageEvents
+        | where Timestamp > ago(lookback) and IsExternalThread == true
+        | project MsgTime = Timestamp, TeamsMessageId, SenderEmailAddress, ME_ReportId = ReportId;
+    // URLs found in Teams messages
+    let urlsInMsgs =
+        MessageUrlInfo
+        | where Timestamp > ago(lookback)
+        | project MUI_Time = Timestamp, TeamsMessageId, Url, UrlDomain, MUI_ReportId = ReportId;
+    // Clicks coming from Teams
+    let clicks =
+        UrlClickEvents
+        | where Timestamp > ago(lookback) and Workload == "Teams"
+        | project ClickTime = Timestamp, Url, Clicker = AccountUpn, ClickAction = ActionType, UCE_ReportId = ReportId;
+    // Define "rare" domains in the period
+    let rareDomains =
+        urlsInMsgs
+        | summarize msgCount = dcount(TeamsMessageId) by UrlDomain
+        | where msgCount < rareDomainThreshold;
+    rareDomains
+    | join kind=inner (urlsInMsgs) on UrlDomain
+    | join kind=leftouter (externalMsgs) on TeamsMessageId
+    | join kind=leftouter (clicks) on Url
+    | project
+        Timestamp = coalesce(ClickTime, MUI_Time, MsgTime),
+        UrlDomain,
+        Url,
+        SenderEmailAddress,
+        Clicker,
+        ClickTime,
+        ClickAction,
+        TeamsMessageId,
+        ReportId = coalesce(UCE_ReportId, MUI_ReportId, ME_ReportId)
+    // Added: deduplicate rows from multiple clicks on the same URL
+    | distinct *
+query_type: kql
+tactics:
+    - TA0001
+    - TA0002
+techniques:
+    - T1566
+    - T1566.002
+    - T1204.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086

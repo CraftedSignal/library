@@ -1,0 +1,31 @@
+id: 019d2c45-dc01-7062-b624-a45f6f32449a
+name: High Volume of External Links from Untrusted Domains in Microsoft Teams
+description: This rule identifies external domains sending a high number of unique links in Microsoft Teams messages over the last 7 days, excluding common trusted Microsoft domains. It aims to detect potential phishing attempts or unusual external communication patterns that might indicate malicious activity or data exfiltration.
+query: |
+    // External DMs with Links in Teams
+    // Identify top external domains sending links in Teams over last 7 days
+    // Source: https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
+    // Improved: added Timestamp filter on MessageUrlInfo for better join performance
+    // and filtered out common trusted domains to reduce noise
+    let lookback = 7d;
+    let trustedDomains = dynamic(["microsoft.com", "sharepoint.com", "office.com", "live.com", "windows.net", "microsoftonline.com"]);
+    MessageEvents
+    | where Timestamp > ago(lookback) and IsExternalThread == true
+    | join kind=inner (
+        MessageUrlInfo
+        | where Timestamp > ago(lookback)
+      ) on TeamsMessageId
+    | where not(UrlDomain has_any (trustedDomains))
+    | summarize Links=dcount(Url), Senders=dcount(SenderEmailAddress) by UrlDomain
+    | top 10 by Links desc
+query_type: kql
+tactics:
+    - TA0001
+techniques:
+    - T1566
+    - T1566.002
+tags:
+    - kql
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086

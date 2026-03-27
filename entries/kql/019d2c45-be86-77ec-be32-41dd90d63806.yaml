@@ -1,0 +1,27 @@
+id: 019d2c45-be86-77ec-be32-41dd90d63806
+name: Malicious Verdicts in Microsoft Teams Messages
+description: This rule detects messages within Microsoft Teams that have been identified by Microsoft Defender for Office 365 as containing phishing attempts, malware, or spam. It specifically looks for messages with 'Phish', 'Malware', or 'Spam' verdicts in the ThreatTypes field, allowing for quick identification and triage of malicious content.
+query: |
+    // Malicious Verdicts in Teams
+    // Find messages already carrying Spam/Phish/Malware verdicts for fastest triage queue
+    // Source: https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
+    let lookback = 1d;
+    MessageEvents
+    | where Timestamp > ago(lookback)
+    | where ThreatTypes has "Phish" or ThreatTypes has "Malware" or ThreatTypes has "Spam"
+    | project Timestamp, SenderDisplayName, SenderEmailAddress,
+             RecipientDetails, IsOwnedThread, ThreadType, IsExternalThread, ReportId
+    | order by Timestamp desc
+query_type: kql
+tactics:
+    - TA0001
+    - TA0042
+techniques:
+    - T1566
+    - T1566.002
+    - T1588.001
+tags:
+    - kql
+version: "1"
+references:
+    - https://techcommunity.microsoft.com/blog/microsoftdefenderforoffice365blog/safeguarding-microsoft-teams-with-microsoft-defender-for-office-365/4464086
