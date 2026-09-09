@@ -1,0 +1,69 @@
+id: 021310d9-30a6-480a-84b7-eaa69aeb92bb
+name: First Time Seen Remote Named Pipe - Zeek
+description: This detection excludes known namped pipes accessible remotely and notify on newly observed ones, may help to detect lateral movement and remote exec using named pipes
+query: |
+    title: First Time Seen Remote Named Pipe - Zeek
+    id: 021310d9-30a6-480a-84b7-eaa69aeb92bb
+    related:
+        - id: 52d8b0c6-53d6-439a-9e41-52ad442ad9ad
+          type: derived
+    status: test
+    description: This detection excludes known namped pipes accessible remotely and notify on newly observed ones, may help to detect lateral movement and remote exec using named pipes
+    references:
+        - https://twitter.com/menasec1/status/1104489274387451904
+    author: Samir Bousseaden, @neu5ron, Tim Shelton
+    date: 2020-04-02
+    modified: 2022-12-27
+    tags:
+        - attack.lateral-movement
+        - attack.t1021.002
+    logsource:
+        product: zeek
+        service: smb_files
+    detection:
+        selection:
+            path: '\\\\\*\\IPC$' # Looking for the string \\*\IPC$
+        filter_keywords:
+            - 'samr'
+            - 'lsarpc'
+            - 'winreg'
+            - 'netlogon'
+            - 'srvsvc'
+            - 'protected_storage'
+            - 'wkssvc'
+            - 'browser'
+            - 'netdfs'
+            - 'svcctl'
+            - 'spoolss'
+            - 'ntsvcs'
+            - 'LSM_API_service'
+            - 'HydraLsPipe'
+            - 'TermSrv_API_service'
+            - 'MsFteWds'
+        condition: selection and not 1 of filter_*
+    falsepositives:
+        - Update the excluded named pipe to filter out any newly observed legit named pipe
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1021.002
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+author: Samir Bousseaden, @neu5ron, Tim Shelton
+references:
+    - https://twitter.com/menasec1/status/1104489274387451904
+data_sources:
+    - zeek
+    - smb_files
+file: entries/sigma/021310d9-30a6-480a-84b7-eaa69aeb92bb.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/network/zeek/zeek_smb_converted_win_lm_namedpipe.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 021310d9-30a6-480a-84b7-eaa69aeb92bb
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

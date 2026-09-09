@@ -1,0 +1,68 @@
+id: dd218fb6-4d02-42dc-85f0-a0a376072efd
+name: Zimbra Collaboration Suite Email Server Unauthenticated RCE
+description: Detects an attempt to leverage the vulnerable servlet "mboximport" for an unauthenticated remote command injection
+query: |
+    title: Zimbra Collaboration Suite Email Server Unauthenticated RCE
+    id: dd218fb6-4d02-42dc-85f0-a0a376072efd
+    status: test
+    description: Detects an attempt to leverage the vulnerable servlet "mboximport" for an unauthenticated remote command injection
+    references:
+        - https://www.volexity.com/blog/2022/08/10/mass-exploitation-of-unauthenticated-zimbra-rce-cve-2022-27925/
+        - https://www.yang99.top/index.php/archives/82/
+        - https://github.com/vnhacker1337/CVE-2022-27925-PoC
+    author: '@gott_cyber'
+    date: 2022-08-17
+    modified: 2023-01-02
+    tags:
+        - attack.initial-access
+        - attack.t1190
+        - cve.2022-27925
+        - detection.emerging-threats
+    logsource:
+        category: webserver
+    detection:
+        selection_servlet:
+            cs-method: 'POST'
+            cs-uri-query|contains: '/service/extension/backup/mboximport\?'
+            cs-uri-query|contains|all:
+                - 'account-name'
+                - 'ow'
+                - 'no-switch'
+                - 'append'
+            sc-status:
+                - 401
+                - 200
+        selection_shell:
+            cs-uri-query|contains: '/zimbraAdmin/'
+            cs-uri-query|endswith: '.jsp'
+            sc-status|contains: '200'
+        condition: 1 of selection_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1190
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - cve.2022-27925
+    - detection.emerging-threats
+author: '@gott_cyber'
+references:
+    - https://www.volexity.com/blog/2022/08/10/mass-exploitation-of-unauthenticated-zimbra-rce-cve-2022-27925/
+    - https://www.yang99.top/index.php/archives/82/
+    - https://github.com/vnhacker1337/CVE-2022-27925-PoC
+data_sources:
+    - webserver
+file: entries/sigma/dd218fb6-4d02-42dc-85f0-a0a376072efd.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2022/Exploits/CVE-2022-27925/web_cve_2022_27925_exploit.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: dd218fb6-4d02-42dc-85f0-a0a376072efd
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

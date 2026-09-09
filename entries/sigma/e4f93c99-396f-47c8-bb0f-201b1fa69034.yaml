@@ -1,0 +1,60 @@
+id: e4f93c99-396f-47c8-bb0f-201b1fa69034
+name: Potential Data Exfiltration Via Audio File
+description: Detects potential exfiltration attempt via audio file using PowerShell
+query: |
+    title: Potential Data Exfiltration Via Audio File
+    id: e4f93c99-396f-47c8-bb0f-201b1fa69034
+    status: test
+    description: Detects potential exfiltration attempt via audio file using PowerShell
+    references:
+        - https://github.com/gtworek/PSBits/blob/e97cbbb173b31cbc4d37244d3412de0a114dacfb/NoDLP/bin2wav.ps1
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-01-16
+    tags:
+        - attack.exfiltration
+    logsource:
+        product: windows
+        category: ps_script
+        definition: 'Requirements: Script Block Logging must be enabled'
+    detection:
+        selection_main:
+            ScriptBlockText|contains|all:
+                - '[System.Math]::'
+                - '[IO.FileMode]::'
+                - 'BinaryWriter'
+        selection_header_wav:
+            ScriptBlockText|contains|all:
+                # Byte chunks from the WAV header used in the example POC
+                # You can extend this for different audio formats by adding different selections
+                - '0x52'
+                - '0x49'
+                - '0x46'
+                - '0x57'
+                - '0x41'
+                - '0x56'
+                - '0x45'
+                - '0xAC'
+        condition: selection_main and 1 of selection_header_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+tags:
+    - attack.exfiltration
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://github.com/gtworek/PSBits/blob/e97cbbb173b31cbc4d37244d3412de0a114dacfb/NoDLP/bin2wav.ps1
+data_sources:
+    - windows
+    - ps_script
+file: entries/sigma/e4f93c99-396f-47c8-bb0f-201b1fa69034.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/powershell/powershell_script/posh_ps_audio_exfiltration.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: e4f93c99-396f-47c8-bb0f-201b1fa69034
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

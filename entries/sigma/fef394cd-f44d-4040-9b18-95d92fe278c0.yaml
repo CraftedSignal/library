@@ -1,0 +1,66 @@
+id: fef394cd-f44d-4040-9b18-95d92fe278c0
+name: Potential DLL Sideloading Of DbgModel.DLL
+description: Detects potential DLL sideloading of "DbgModel.dll"
+query: |
+    title: Potential DLL Sideloading Of DbgModel.DLL
+    id: fef394cd-f44d-4040-9b18-95d92fe278c0
+    status: test
+    description: Detects potential DLL sideloading of "DbgModel.dll"
+    references:
+        - https://hijacklibs.net/entries/microsoft/built-in/dbgmodel.html
+    author: Gary Lobermier
+    date: 2024-07-11
+    modified: 2024-07-22
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.execution
+        - attack.stealth
+        - attack.t1574.001
+    logsource:
+        product: windows
+        category: image_load
+    detection:
+        selection:
+            ImageLoaded|endswith: '\dbgmodel.dll'
+        filter_main_generic:
+            ImageLoaded|startswith:
+                - 'C:\Windows\System32\'
+                - 'C:\Windows\SysWOW64\'
+                - 'C:\Windows\WinSxS\'
+        filter_optional_windbg:
+            ImageLoaded|startswith: 'C:\Program Files\WindowsApps\Microsoft.WinDbg_'
+        filter_optional_windows_kits:
+            ImageLoaded|startswith:
+                - 'C:\Program Files (x86)\Windows Kits\'
+                - 'C:\Program Files\Windows Kits\'
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - Legitimate applications loading their own versions of the DLL mentioned in this rule
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1574.001
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.execution
+    - attack.stealth
+    - attack.t1574.001
+author: Gary Lobermier
+references:
+    - https://hijacklibs.net/entries/microsoft/built-in/dbgmodel.html
+data_sources:
+    - windows
+    - image_load
+file: entries/sigma/fef394cd-f44d-4040-9b18-95d92fe278c0.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/image_load/image_load_side_load_dbgmodel.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: fef394cd-f44d-4040-9b18-95d92fe278c0
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

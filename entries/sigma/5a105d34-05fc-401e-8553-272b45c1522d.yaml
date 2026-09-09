@@ -1,0 +1,79 @@
+id: 5a105d34-05fc-401e-8553-272b45c1522d
+name: CobaltStrike Service Installations - System
+description: Detects known malicious service installs that appear in cases in which a Cobalt Strike beacon elevates privileges or lateral movement
+query: |
+    title: CobaltStrike Service Installations - System
+    id: 5a105d34-05fc-401e-8553-272b45c1522d
+    status: test
+    description: Detects known malicious service installs that appear in cases in which a Cobalt Strike beacon elevates privileges or lateral movement
+    references:
+        - https://www.sans.org/webcasts/119395
+        - https://www.crowdstrike.com/blog/getting-the-bacon-from-cobalt-strike-beacon/
+        - https://thedfirreport.com/2021/08/29/cobalt-strike-a-defenders-guide/
+    author: Florian Roth (Nextron Systems), Wojciech Lesicki
+    date: 2021-05-26
+    modified: 2022-11-27
+    tags:
+        - attack.persistence
+        - attack.execution
+        - attack.privilege-escalation
+        - attack.lateral-movement
+        - attack.t1021.002
+        - attack.t1543.003
+        - attack.t1569.002
+    logsource:
+        product: windows
+        service: system
+    detection:
+        selection_id:
+            Provider_Name: 'Service Control Manager'
+            EventID: 7045
+        selection1:
+            ImagePath|contains|all:
+                - 'ADMIN$'
+                - '.exe'
+        selection2:
+            ImagePath|contains|all:
+                - '%COMSPEC%'
+                - 'start'
+                - 'powershell'
+        selection3:
+            ImagePath|contains: 'powershell -nop -w hidden -encodedcommand'
+        selection4:
+            ImagePath|base64offset|contains: "IEX (New-Object Net.Webclient).DownloadString('http://127.0.0.1:"
+        condition: selection_id and (selection1 or selection2 or selection3 or selection4)
+    falsepositives:
+        - Unknown
+    level: critical
+query_type: sigma
+severity: critical
+techniques:
+    - T1021.002
+    - T1543.003
+    - T1569.002
+tags:
+    - attack.persistence
+    - attack.execution
+    - attack.privilege-escalation
+    - attack.lateral-movement
+    - attack.t1021.002
+    - attack.t1543.003
+    - attack.t1569.002
+author: Florian Roth (Nextron Systems), Wojciech Lesicki
+references:
+    - https://www.sans.org/webcasts/119395
+    - https://www.crowdstrike.com/blog/getting-the-bacon-from-cobalt-strike-beacon/
+    - https://thedfirreport.com/2021/08/29/cobalt-strike-a-defenders-guide/
+data_sources:
+    - windows
+    - system
+file: entries/sigma/5a105d34-05fc-401e-8553-272b45c1522d.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/system/service_control_manager/win_system_cobaltstrike_service_installs.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 5a105d34-05fc-401e-8553-272b45c1522d
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

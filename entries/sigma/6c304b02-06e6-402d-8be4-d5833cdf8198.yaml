@@ -1,0 +1,53 @@
+id: 6c304b02-06e6-402d-8be4-d5833cdf8198
+name: Potential SentinelOne Shell Context Menu Scan Command Tampering
+description: Detects potentially suspicious changes to the SentinelOne context menu scan command by a process other than SentinelOne.
+query: |
+    title: Potential SentinelOne Shell Context Menu Scan Command Tampering
+    id: 6c304b02-06e6-402d-8be4-d5833cdf8198
+    status: test
+    description: Detects potentially suspicious changes to the SentinelOne context menu scan command by a process other than SentinelOne.
+    references:
+        - https://mrd0x.com/sentinelone-persistence-via-menu-context/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2024-03-06
+    tags:
+        - attack.persistence
+    logsource:
+        category: registry_set
+        product: windows
+    detection:
+        selection:
+            TargetObject|contains: '\shell\SentinelOneScan\command\'
+        filter_main_sentinelone_default_scan_binary:
+            Details|startswith:
+                - 'C:\Program Files\SentinelOne\Sentinel Agent'
+                - 'C:\Program Files (x86)\SentinelOne\Sentinel Agent'
+            Details|contains: '\SentinelScanFromContextMenu.exe'
+        filter_main_sentinelone_binary:
+            Image|endswith:
+                - 'C:\Program Files\SentinelOne\'
+                - 'C:\Program Files (x86)\SentinelOne\'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+tags:
+    - attack.persistence
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://mrd0x.com/sentinelone-persistence-via-menu-context/
+data_sources:
+    - windows
+    - registry_set
+file: entries/sigma/6c304b02-06e6-402d-8be4-d5833cdf8198.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/registry/registry_set/registry_set_sentinelone_shell_context_tampering.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 6c304b02-06e6-402d-8be4-d5833cdf8198
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

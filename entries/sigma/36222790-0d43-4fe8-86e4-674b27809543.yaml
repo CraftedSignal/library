@@ -1,0 +1,67 @@
+id: 36222790-0d43-4fe8-86e4-674b27809543
+name: Potential MuddyWater APT Activity
+description: Detects potential Muddywater APT activity
+query: |
+    title: Potential MuddyWater APT Activity
+    id: 36222790-0d43-4fe8-86e4-674b27809543
+    status: test
+    description: Detects potential Muddywater APT activity
+    references:
+        - https://www.mandiant.com/resources/blog/iranian-threat-group-updates-ttps-in-spear-phishing-campaign
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-03-10
+    tags:
+        - attack.execution
+        - attack.stealth
+        - attack.g0069
+        - detection.emerging-threats
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_mshta:
+            CommandLine|contains|all:
+                - 'vbscript:Close(Execute("CreateObject('
+                - 'powershell'
+                - '-w 1 -exec Bypass'
+                - '\ProgramData\'
+        selection_survey:
+            CommandLine|contains|all:
+                - 'Win32_OperatingSystem'
+                - 'Win32_NetworkAdapterConfiguration'
+                - 'root\SecurityCenter2'
+                - '[System.Net.DNS]'
+        selection_pwsh_backdoor:
+            CommandLine|contains|all:
+                - '[Convert]::ToBase64String'
+                - '[System.Text.Encoding]::UTF8.GetString]'
+                - 'GetResponse().GetResponseStream()'
+                - '[System.Net.HttpWebRequest]::Create('
+                - '-bxor '
+        condition: 1 of selection_*
+    falsepositives:
+        - Unlikely
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.execution
+    - attack.stealth
+    - attack.g0069
+    - detection.emerging-threats
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.mandiant.com/resources/blog/iranian-threat-group-updates-ttps-in-spear-phishing-campaign
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/36222790-0d43-4fe8-86e4-674b27809543.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2018/TA/MuddyWater/proc_creation_win_apt_muddywater_activity.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 36222790-0d43-4fe8-86e4-674b27809543
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

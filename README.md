@@ -16,7 +16,7 @@ Each entry is a YAML file containing the detection rule, metadata, MITRE ATT&CK 
 
 ## Sync
 
-The library is automatically synced every 6 hours via GitHub Actions. Rules from well-known public sources (Sigma HQ, Splunk Security, Azure Sentinel, Hayabusa) are excluded to avoid duplication.
+The library is automatically synced every 6 hours via GitHub Actions. SigmaHQ rules are ingested directly from a commit-pinned checkout with quality gates, lifecycle categories, provenance, and DRL attribution. Other mirrored aggregators that duplicate well-known upstream sources remain excluded.
 
 ## License
 

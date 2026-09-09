@@ -1,0 +1,54 @@
+id: 4ae81040-fc1c-4249-bfa3-938d260214d9
+name: Use Icacls to Hide File to Everyone
+description: Detect use of icacls to deny access for everyone in Users folder sometimes used to hide malicious files
+query: |
+    title: Use Icacls to Hide File to Everyone
+    id: 4ae81040-fc1c-4249-bfa3-938d260214d9
+    status: test
+    description: Detect use of icacls to deny access for everyone in Users folder sometimes used to hide malicious files
+    references:
+        - https://app.any.run/tasks/1df999e6-1cb8-45e3-8b61-499d1b7d5a9b/
+    author: frack113
+    date: 2022-07-18
+    modified: 2024-04-29
+    tags:
+        - attack.stealth
+        - attack.t1564.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_icacls:
+            - OriginalFileName: 'iCACLS.EXE'
+            - Image|endswith: '\icacls.exe'
+        selection_cmd: # icacls "C:\Users\admin\AppData\Local\37f92fe8-bcf0-4ee0-b8ba-561f797f5696" /deny *S-1-1-0:(OI)(CI)(DE,DC)
+            CommandLine|contains|all:
+                - '/deny'
+                - '*S-1-1-0:'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1564.001
+tags:
+    - attack.stealth
+    - attack.t1564.001
+author: frack113
+references:
+    - https://app.any.run/tasks/1df999e6-1cb8-45e3-8b61-499d1b7d5a9b/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/4ae81040-fc1c-4249-bfa3-938d260214d9.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_icacls_deny.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 4ae81040-fc1c-4249-bfa3-938d260214d9
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

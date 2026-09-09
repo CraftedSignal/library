@@ -1,0 +1,60 @@
+id: 1af57a4b-460a-4738-9034-db68b880c665
+name: PowerShell SAM Copy
+description: Detects suspicious PowerShell scripts accessing SAM hives
+query: |
+    title: PowerShell SAM Copy
+    id: 1af57a4b-460a-4738-9034-db68b880c665
+    status: test
+    description: Detects suspicious PowerShell scripts accessing SAM hives
+    references:
+        - https://twitter.com/splinter_code/status/1420546784250769408
+    author: Florian Roth (Nextron Systems)
+    date: 2021-07-29
+    modified: 2023-01-06
+    tags:
+        - attack.credential-access
+        - attack.t1003.002
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_1:
+            CommandLine|contains|all:
+                - '\HarddiskVolumeShadowCopy'
+                - 'System32\config\sam'
+        selection_2:
+            CommandLine|contains:
+                - 'Copy-Item'
+                - 'cp $_.'
+                - 'cpi $_.'
+                - 'copy $_.'
+                - '.File]::Copy('
+        condition: all of selection*
+    falsepositives:
+        - Some rare backup scenarios
+        - PowerShell scripts fixing HiveNightmare / SeriousSAM ACLs
+    level: high
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_powershell_sam_access/info.yml
+query_type: sigma
+severity: high
+techniques:
+    - T1003.002
+tags:
+    - attack.credential-access
+    - attack.t1003.002
+author: Florian Roth (Nextron Systems)
+references:
+    - https://twitter.com/splinter_code/status/1420546784250769408
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/1af57a4b-460a-4738-9034-db68b880c665.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_powershell_sam_access.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 1af57a4b-460a-4738-9034-db68b880c665
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

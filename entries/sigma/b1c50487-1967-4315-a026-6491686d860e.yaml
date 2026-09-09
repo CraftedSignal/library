@@ -1,0 +1,72 @@
+id: b1c50487-1967-4315-a026-6491686d860e
+name: Office Macro File Creation From Suspicious Process
+description: Detects the creation of a office macro file from a a suspicious process
+query: |
+    title: Office Macro File Creation From Suspicious Process
+    id: b1c50487-1967-4315-a026-6491686d860e
+    status: test
+    description: Detects the creation of a office macro file from a a suspicious process
+    references:
+        - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1566.001/T1566.001.md
+        - https://learn.microsoft.com/en-us/deployoffice/compat/office-file-format-reference
+    author: frack113, Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-01-23
+    modified: 2023-02-22
+    tags:
+        - attack.initial-access
+        - attack.t1566.001
+    logsource:
+        category: file_event
+        product: windows
+        definition: 'Requirements: The "ParentImage" field is not available by default on EID 11 of Sysmon logs. To be able to use this rule to the full extent you need to enriche the log with additional ParentImage data'
+    detection:
+        selection_cmd:
+            - Image|endswith:
+                  - '\cscript.exe'
+                  - '\mshta.exe'
+                  - '\regsvr32.exe'
+                  - '\rundll32.exe'
+                  - '\wscript.exe'
+            # Note: ParentImage is a custom field and is not available by default on Sysmon EID 11
+            - ParentImage|endswith:
+                  - '\cscript.exe'
+                  - '\mshta.exe'
+                  - '\regsvr32.exe'
+                  - '\rundll32.exe'
+                  - '\wscript.exe'
+        selection_ext:
+            TargetFilename|endswith:
+                - '.docm'
+                - '.dotm'
+                - '.xlsm'
+                - '.xltm'
+                - '.potm'
+                - '.pptm'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1566.001
+tags:
+    - attack.initial-access
+    - attack.t1566.001
+author: frack113, Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1566.001/T1566.001.md
+    - https://learn.microsoft.com/en-us/deployoffice/compat/office-file-format-reference
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/b1c50487-1967-4315-a026-6491686d860e.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_event/file_event_win_office_macro_files_from_susp_process.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: b1c50487-1967-4315-a026-6491686d860e
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

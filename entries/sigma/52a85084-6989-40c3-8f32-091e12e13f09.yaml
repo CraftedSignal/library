@@ -1,0 +1,65 @@
+id: 52a85084-6989-40c3-8f32-091e12e13f09
+name: smbexec.py Service Installation
+description: Detects the use of smbexec.py tool by detecting a specific service installation
+query: |
+    title: smbexec.py Service Installation
+    id: 52a85084-6989-40c3-8f32-091e12e13f09
+    status: test
+    description: Detects the use of smbexec.py tool by detecting a specific service installation
+    references:
+        - https://blog.ropnop.com/using-credentials-to-own-windows-boxes-part-2-psexec-and-services/
+        - https://github.com/fortra/impacket/blob/33058eb2fde6976ea62e04bc7d6b629d64d44712/examples/smbexec.py#L286-L296
+        - https://github.com/fortra/impacket/blob/edef71f17bc1240f9f8c957bbda98662951ac3ec/examples/smbexec.py#L60 # Old service name
+    author: Omer Faruk Celik
+    date: 2018-03-20
+    modified: 2023-11-09
+    tags:
+        - attack.lateral-movement
+        - attack.execution
+        - attack.t1021.002
+        - attack.t1569.002
+    logsource:
+        product: windows
+        service: system
+    detection:
+        selection_eid:
+            Provider_Name: 'Service Control Manager'
+            EventID: 7045
+        selection_service_name:
+            ServiceName: 'BTOBTO'
+        selection_service_image:
+            ImagePath|contains:
+                - '.bat & del '
+                - '__output 2^>^&1 >'
+        condition: selection_eid and 1 of selection_service_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1021.002
+    - T1569.002
+tags:
+    - attack.lateral-movement
+    - attack.execution
+    - attack.t1021.002
+    - attack.t1569.002
+author: Omer Faruk Celik
+references:
+    - https://blog.ropnop.com/using-credentials-to-own-windows-boxes-part-2-psexec-and-services/
+    - https://github.com/fortra/impacket/blob/33058eb2fde6976ea62e04bc7d6b629d64d44712/examples/smbexec.py#L286-L296
+    - https://github.com/fortra/impacket/blob/edef71f17bc1240f9f8c957bbda98662951ac3ec/examples/smbexec.py#L60
+data_sources:
+    - windows
+    - system
+file: entries/sigma/52a85084-6989-40c3-8f32-091e12e13f09.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/system/service_control_manager/win_system_hack_smbexec.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 52a85084-6989-40c3-8f32-091e12e13f09
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

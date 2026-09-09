@@ -1,0 +1,75 @@
+id: 5e95028c-5229-4214-afae-d653d573d0ec
+name: Security Service Disabled Via Reg.EXE
+description: Detects execution of "reg.exe" to disable security services such as Windows Defender.
+query: |
+    title: Security Service Disabled Via Reg.EXE
+    id: 5e95028c-5229-4214-afae-d653d573d0ec
+    status: test
+    description: Detects execution of "reg.exe" to disable security services such as Windows Defender.
+    references:
+        - https://twitter.com/JohnLaTwC/status/1415295021041979392
+        - https://github.com/gordonbay/Windows-On-Reins/blob/e587ac7a0407847865926d575e3c46f68cf7c68d/wor.ps1
+        - https://vms.drweb.fr/virus/?i=24144899
+        - https://bidouillesecurity.com/disable-windows-defender-in-powershell/
+    author: Florian Roth (Nextron Systems), John Lambert (idea), elhoim
+    date: 2021-07-14
+    modified: 2023-06-05
+    tags:
+        - attack.defense-impairment
+        - attack.t1685
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_reg_add:
+            CommandLine|contains|all:
+                - 'reg'
+                - 'add'
+        selection_cli_reg_start:
+            CommandLine|contains|all:
+                - 'd 4'
+                - 'v Start'
+            CommandLine|contains:
+                - '\AppIDSvc'
+                - '\MsMpSvc'
+                - '\NisSrv'
+                - '\SecurityHealthService'
+                - '\Sense'
+                - '\UsoSvc'
+                - '\WdBoot'
+                - '\WdFilter'
+                - '\WdNisDrv'
+                - '\WdNisSvc'
+                - '\WinDefend'
+                - '\wscsvc'
+                - '\wuauserv'
+        condition: all of selection_*
+    falsepositives:
+        - Unlikely
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1685
+tags:
+    - attack.defense-impairment
+    - attack.t1685
+author: Florian Roth (Nextron Systems), John Lambert (idea), elhoim
+references:
+    - https://twitter.com/JohnLaTwC/status/1415295021041979392
+    - https://github.com/gordonbay/Windows-On-Reins/blob/e587ac7a0407847865926d575e3c46f68cf7c68d/wor.ps1
+    - https://vms.drweb.fr/virus/?i=24144899
+    - https://bidouillesecurity.com/disable-windows-defender-in-powershell/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/5e95028c-5229-4214-afae-d653d573d0ec.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_reg_disable_sec_services.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 5e95028c-5229-4214-afae-d653d573d0ec
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

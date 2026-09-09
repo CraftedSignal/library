@@ -1,0 +1,60 @@
+id: 7e8f2d3b-9c1a-4f67-b9e8-8d9006e0e51f
+name: PowerShell Web Access Feature Enabled Via DISM
+description: Detects the use of DISM to enable the PowerShell Web Access feature, which could be used for remote access and potential abuse
+query: |
+    title: PowerShell Web Access Feature Enabled Via DISM
+    id: 7e8f2d3b-9c1a-4f67-b9e8-8d9006e0e51f
+    status: test
+    description: Detects the use of DISM to enable the PowerShell Web Access feature, which could be used for remote access and potential abuse
+    references:
+        - https://docs.microsoft.com/en-us/powershell/module/dism/enable-windowsoptionalfeature
+        - https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-241a
+        - https://gist.github.com/MHaggis/7e67b659af9148fa593cf2402edebb41
+    author: Michael Haag
+    date: 2024-09-03
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.t1548.002
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\dism.exe'
+            - OriginalFileName: 'DISM.EXE'
+        selection_cli:
+            CommandLine|contains|all:
+                - 'WindowsPowerShellWebAccess'
+                - '/online'
+                - '/enable-feature'
+        condition: all of selection_*
+    falsepositives:
+        - Legitimate PowerShell Web Access installations by administrators
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1548.002
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.t1548.002
+author: Michael Haag
+references:
+    - https://docs.microsoft.com/en-us/powershell/module/dism/enable-windowsoptionalfeature
+    - https://www.cisa.gov/news-events/cybersecurity-advisories/aa24-241a
+    - https://gist.github.com/MHaggis/7e67b659af9148fa593cf2402edebb41
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/7e8f2d3b-9c1a-4f67-b9e8-8d9006e0e51f.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_dism_enable_powershell_web_access_feature.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 7e8f2d3b-9c1a-4f67-b9e8-8d9006e0e51f
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

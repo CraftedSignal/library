@@ -1,0 +1,67 @@
+id: 84232095-ecca-4015-b0d7-7726507ee793
+name: Suspicious DLL Loaded via CertOC.EXE
+description: Detects when a user installs certificates by using CertOC.exe to load the target DLL file.
+query: |
+    title: Suspicious DLL Loaded via CertOC.EXE
+    id: 84232095-ecca-4015-b0d7-7726507ee793
+    related:
+        - id: 242301bc-f92f-4476-8718-78004a6efd9f
+          type: similar
+    status: test
+    description: Detects when a user installs certificates by using CertOC.exe to load the target DLL file.
+    references:
+        - https://twitter.com/sblmsrsn/status/1445758411803480072?s=20
+        - https://github.com/elastic/protections-artifacts/commit/746086721fd385d9f5c6647cada1788db4aea95f#diff-fe98e74189873d6df72a15df2eaa0315c59ba9cdaca93ecd68afc4ea09194ef2
+        - https://lolbas-project.github.io/lolbas/Binaries/Certoc/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-02-15
+    modified: 2024-03-05
+    tags:
+        - attack.stealth
+        - attack.t1218
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\certoc.exe'
+            - OriginalFileName: 'CertOC.exe'
+        selection_cli:
+            CommandLine|contains|windash: ' -LoadDLL '
+        selection_paths:
+            CommandLine|contains:
+                - '\Appdata\Local\Temp\'
+                - '\Desktop\'
+                - '\Downloads\'
+                - '\Users\Public\'
+                - 'C:\Windows\Tasks\'
+                - 'C:\Windows\Temp\'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1218
+tags:
+    - attack.stealth
+    - attack.t1218
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://twitter.com/sblmsrsn/status/1445758411803480072?s=20
+    - https://github.com/elastic/protections-artifacts/commit/746086721fd385d9f5c6647cada1788db4aea95f#diff-fe98e74189873d6df72a15df2eaa0315c59ba9cdaca93ecd68afc4ea09194ef2
+    - https://lolbas-project.github.io/lolbas/Binaries/Certoc/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/84232095-ecca-4015-b0d7-7726507ee793.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_certoc_load_dll_susp_locations.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 84232095-ecca-4015-b0d7-7726507ee793
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

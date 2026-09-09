@@ -1,0 +1,90 @@
+id: 671bb7e3-a020-4824-a00e-2ee5b55f385e
+name: WMI Module Loaded By Uncommon Process
+description: Detects WMI modules being loaded by an uncommon process
+query: |
+    title: WMI Module Loaded By Uncommon Process
+    id: 671bb7e3-a020-4824-a00e-2ee5b55f385e
+    status: test
+    description: Detects WMI modules being loaded by an uncommon process
+    references:
+        - https://threathunterplaybook.com/hunts/windows/190811-WMIModuleLoad/notebook.html
+    author: Roberto Rodriguez @Cyb3rWard0g
+    date: 2019-08-10
+    modified: 2026-06-29
+    tags:
+        - attack.execution
+        - attack.t1047
+        - detection.threat-hunting
+    logsource:
+        category: image_load
+        product: windows
+    detection:
+        selection:
+            ImageLoaded|endswith:
+                - '\fastprox.dll'
+                - '\wbemcomn.dll'
+                - '\wbemprox.dll'
+                - '\wbemsvc.dll'
+                - '\WmiApRpl.dll'
+                - '\wmiclnt.dll'
+                - '\WMINet_Utils.dll'
+                - '\wmiprov.dll'
+                - '\wmiutils.dll'
+        filter_main_generic:
+            Image|contains:
+                - ':\Program Files (x86)\'
+                - ':\Program Files\'
+                - ':\Windows\explorer.exe'
+                - ':\Windows\Microsoft.NET\Framework\'
+                - ':\Windows\Microsoft.NET\FrameworkArm\'
+                - ':\Windows\Microsoft.NET\FrameworkArm64\'
+                - ':\Windows\Microsoft.NET\Framework64\'
+                - ':\Windows\System32\'
+                - ':\Windows\SysWOW64\'
+        filter_optional_other:
+            Image|endswith:
+                - '\WindowsAzureGuestAgent.exe'
+                - '\WaAppAgent.exe'
+        filter_optional_thor:
+            Image|endswith:
+                - '\thor.exe'
+                - '\thor64.exe'
+        filter_optional_defender:
+            Image|endswith: '\MsMpEng.exe'
+        filter_optional_teams:
+            Image|contains:
+                - '\Microsoft\Teams\current\Teams.exe'
+                - '\Microsoft\Teams\Update.exe'
+        filter_optional_sysmon:
+            Image|endswith:
+                - ':\Windows\Sysmon.exe'
+                - ':\Windows\Sysmon64.exe'
+                - ':\Windows\Sysmon64a.exe'
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - Unknown
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1047
+tags:
+    - attack.execution
+    - attack.t1047
+    - detection.threat-hunting
+author: Roberto Rodriguez @Cyb3rWard0g
+references:
+    - https://threathunterplaybook.com/hunts/windows/190811-WMIModuleLoad/notebook.html
+data_sources:
+    - windows
+    - image_load
+file: entries/sigma/671bb7e3-a020-4824-a00e-2ee5b55f385e.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-threat-hunting/windows/image_load/image_load_wmi_module_load_by_uncommon_process.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: threat_hunt
+upstream_id: 671bb7e3-a020-4824-a00e-2ee5b55f385e
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

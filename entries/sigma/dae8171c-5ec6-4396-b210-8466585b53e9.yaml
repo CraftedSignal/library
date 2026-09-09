@@ -1,0 +1,55 @@
+id: dae8171c-5ec6-4396-b210-8466585b53e9
+name: SCM Database Privileged Operation
+description: Detects non-system users performing privileged operation os the SCM database
+query: |
+    title: SCM Database Privileged Operation
+    id: dae8171c-5ec6-4396-b210-8466585b53e9
+    status: test
+    description: Detects non-system users performing privileged operation os the SCM database
+    references:
+        - https://threathunterplaybook.com/hunts/windows/190826-RemoteSCMHandle/notebook.html
+    author: Roberto Rodriguez @Cyb3rWard0g, Tim Shelton
+    date: 2019-08-15
+    modified: 2022-09-18
+    tags:
+        - attack.privilege-escalation
+        - attack.t1548
+    logsource:
+        product: windows
+        service: security
+    detection:
+        selection:
+            EventID: 4674
+            ObjectType: 'SC_MANAGER OBJECT'
+            ObjectName: 'servicesactive'
+            PrivilegeList: 'SeTakeOwnershipPrivilege'
+        filter:
+            SubjectLogonId: '0x3e4'
+            ProcessName|endswith: ':\Windows\System32\services.exe'
+        condition: selection and not filter
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1548
+tags:
+    - attack.privilege-escalation
+    - attack.t1548
+author: Roberto Rodriguez @Cyb3rWard0g, Tim Shelton
+references:
+    - https://threathunterplaybook.com/hunts/windows/190826-RemoteSCMHandle/notebook.html
+data_sources:
+    - windows
+    - security
+file: entries/sigma/dae8171c-5ec6-4396-b210-8466585b53e9.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_scm_database_privileged_operation.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: dae8171c-5ec6-4396-b210-8466585b53e9
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,68 @@
+id: 2f869d59-7f6a-4931-992c-cce556ff2d53
+name: Potential Adplus.EXE Abuse
+description: Detects execution of "AdPlus.exe", a binary that is part of the Windows SDK that can be used as a LOLBIN in order to dump process memory and execute arbitrary commands.
+query: |
+    title: Potential Adplus.EXE Abuse
+    id: 2f869d59-7f6a-4931-992c-cce556ff2d53
+    status: test
+    description: Detects execution of "AdPlus.exe", a binary that is part of the Windows SDK that can be used as a LOLBIN in order to dump process memory and execute arbitrary commands.
+    references:
+        - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Adplus/
+        - https://twitter.com/nas_bench/status/1534916659676422152
+        - https://twitter.com/nas_bench/status/1534915321856917506
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-06-09
+    modified: 2023-06-23
+    tags:
+        - attack.execution
+        - attack.credential-access
+        - attack.t1003.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\adplus.exe'
+            - OriginalFileName: 'Adplus.exe'
+        selection_cli:
+            CommandLine|contains:
+                # Dump process memory
+                - ' -hang '
+                - ' -pn '
+                - ' -pmn '
+                - ' -p '
+                - ' -po '
+                # Using a config file
+                - ' -c '
+                # Execute commands inline
+                - ' -sc '
+        condition: all of selection_*
+    falsepositives:
+        - Legitimate usage of Adplus for debugging purposes
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1003.001
+tags:
+    - attack.execution
+    - attack.credential-access
+    - attack.t1003.001
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://lolbas-project.github.io/lolbas/OtherMSBinaries/Adplus/
+    - https://twitter.com/nas_bench/status/1534916659676422152
+    - https://twitter.com/nas_bench/status/1534915321856917506
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/2f869d59-7f6a-4931-992c-cce556ff2d53.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_adplus_memory_dump.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 2f869d59-7f6a-4931-992c-cce556ff2d53
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,60 @@
+id: a6976974-ea6f-4e97-818e-ea08625c52cb
+name: Potential RipZip Attack on Startup Folder
+description: |
+    Detects a phishing attack which expands a ZIP file containing a malicious shortcut.
+    If the victim expands the ZIP file via the explorer process, then the explorer process expands the malicious ZIP file and drops a malicious shortcut redirected to a backdoor into the Startup folder.
+    Additionally, the file name of the malicious shortcut in Startup folder contains {0AFACED1-E828-11D1-9187-B532F1E9575D} meaning the folder shortcut operation.
+query: |
+    title: Potential RipZip Attack on Startup Folder
+    id: a6976974-ea6f-4e97-818e-ea08625c52cb
+    status: test
+    description: |
+        Detects a phishing attack which expands a ZIP file containing a malicious shortcut.
+        If the victim expands the ZIP file via the explorer process, then the explorer process expands the malicious ZIP file and drops a malicious shortcut redirected to a backdoor into the Startup folder.
+        Additionally, the file name of the malicious shortcut in Startup folder contains {0AFACED1-E828-11D1-9187-B532F1E9575D} meaning the folder shortcut operation.
+    references:
+        - https://twitter.com/jonasLyk/status/1549338335243534336?t=CrmPocBGLbDyE4p6zTX1cg&s=19
+    author: Greg (rule)
+    date: 2022-07-21
+    modified: 2023-01-05
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.t1547
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection: # %APPDATA%\Microsoft\Windows\Start Menu\Programs\Startup\target.lnk.{0AFACED1-E828-11D1-9187-B532F1E9575D}\target.lnk
+            TargetFilename|contains|all:
+                - '\Microsoft\Windows\Start Menu\Programs\Startup'
+                - '.lnk.{0AFACED1-E828-11D1-9187-B532F1E9575D}'
+            Image|endswith: '\explorer.exe'
+        condition: selection
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1547
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.t1547
+author: Greg (rule)
+references:
+    - https://twitter.com/jonasLyk/status/1549338335243534336?t=CrmPocBGLbDyE4p6zTX1cg&s=19
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/a6976974-ea6f-4e97-818e-ea08625c52cb.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_event/file_event_win_ripzip_attack.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: a6976974-ea6f-4e97-818e-ea08625c52cb
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

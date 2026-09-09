@@ -1,0 +1,66 @@
+id: d26ce60c-2151-403c-9a42-49420d87b5e4
+name: HackTool Service Registration or Execution
+description: Detects installation or execution of services
+query: |
+    title: HackTool Service Registration or Execution
+    id: d26ce60c-2151-403c-9a42-49420d87b5e4
+    status: test
+    description: Detects installation or execution of services
+    references:
+        - Internal Research
+    author: Florian Roth (Nextron Systems)
+    date: 2022-03-21
+    modified: 2023-08-07
+    tags:
+        - attack.execution
+        - attack.t1569.002
+        - attack.s0029
+    logsource:
+        product: windows
+        service: system
+    detection:
+        selection_eid:
+            Provider_Name: 'Service Control Manager'
+            EventID:
+                - 7045
+                - 7036
+        selection_service_name:
+            ServiceName|contains:
+                - 'cachedump'
+                - 'DumpSvc'
+                - 'gsecdump'
+                - 'pwdump'
+                - 'UACBypassedService'
+                - 'WCE SERVICE'
+                - 'WCESERVICE'
+                - 'winexesvc'
+        selection_service_image:
+            ImagePath|contains: 'bypass' # https://gist.github.com/tyranid/c24cfd1bd141d14d4925043ee7e03c82#file-scmuacbypass-cpp-L159
+        condition: selection_eid and 1 of selection_service_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1569.002
+tags:
+    - attack.execution
+    - attack.t1569.002
+    - attack.s0029
+author: Florian Roth (Nextron Systems)
+references:
+    - Internal Research
+data_sources:
+    - windows
+    - system
+file: entries/sigma/d26ce60c-2151-403c-9a42-49420d87b5e4.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/system/service_control_manager/win_system_service_install_hacktools.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: d26ce60c-2151-403c-9a42-49420d87b5e4
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,69 @@
+id: 12f6b752-042d-483e-bf9c-915a6d06ad75
+name: Windows Firewall Disabled via PowerShell
+description: Detects attempts to disable the Windows Firewall using PowerShell
+query: |
+    title: Windows Firewall Disabled via PowerShell
+    id: 12f6b752-042d-483e-bf9c-915a6d06ad75
+    related:
+        - id: 488b44e7-3781-4a71-888d-c95abfacf44d
+          type: similar
+    status: test
+    description: Detects attempts to disable the Windows Firewall using PowerShell
+    references:
+        - https://www.elastic.co/guide/en/security/current/windows-firewall-disabled-via-powershell.html
+    author: Tim Rauch, Elastic (idea)
+    date: 2022-09-14
+    modified: 2023-02-13
+    tags:
+        - attack.defense-impairment
+        - attack.t1685
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_name:
+            - Image|endswith:
+                  - '\powershell.exe'
+                  - '\pwsh.exe'
+                  - '\powershell_ise.exe'
+            - OriginalFileName:
+                  - 'PowerShell.EXE'
+                  - 'pwsh.dll'
+        selection_args:
+            CommandLine|contains|all:
+                - 'Set-NetFirewallProfile '
+                - ' -Enabled '
+                - ' False'
+        selection_opt:
+            CommandLine|contains:
+                - ' -All '
+                - 'Public'
+                - 'Domain'
+                - 'Private'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1685
+tags:
+    - attack.defense-impairment
+    - attack.t1685
+author: Tim Rauch, Elastic (idea)
+references:
+    - https://www.elastic.co/guide/en/security/current/windows-firewall-disabled-via-powershell.html
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/12f6b752-042d-483e-bf9c-915a6d06ad75.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_powershell_disable_firewall.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 12f6b752-042d-483e-bf9c-915a6d06ad75
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

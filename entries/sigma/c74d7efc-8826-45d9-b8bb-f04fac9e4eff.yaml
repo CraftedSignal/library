@@ -1,0 +1,63 @@
+id: c74d7efc-8826-45d9-b8bb-f04fac9e4eff
+name: Run Once Task Configuration in Registry
+description: Rule to detect the configuration of Run Once registry key. Configured payload can be run by runonce.exe /AlternateShellStartup
+query: |
+    title: Run Once Task Configuration in Registry
+    id: c74d7efc-8826-45d9-b8bb-f04fac9e4eff
+    status: test
+    description: Rule to detect the configuration of Run Once registry key. Configured payload can be run by runonce.exe /AlternateShellStartup
+    references:
+        - https://twitter.com/pabraeken/status/990717080805789697
+        - https://lolbas-project.github.io/lolbas/Binaries/Runonce/
+    author: 'Avneet Singh @v3t0_, oscd.community'
+    date: 2020-11-15
+    modified: 2024-03-25
+    tags:
+        - attack.persistence
+        - attack.defense-impairment
+        - attack.t1112
+    logsource:
+        product: windows
+        category: registry_event
+    detection:
+        selection:
+            TargetObject|contains: '\Microsoft\Active Setup\Installed Components'
+            TargetObject|endswith: '\StubPath'
+        filter_optional_chrome:
+            Details|contains|all:
+                - 'C:\Program Files\Google\Chrome\Application\'
+                - '\Installer\chrmstp.exe" --configure-user-settings --verbose-logging --system-level' # In some cases the Details will contain an additional flag called "--channel=stable" at the end
+        filter_optional_edge:
+            Details|contains:
+                - 'C:\Program Files (x86)\Microsoft\Edge\Application\'
+                - 'C:\Program Files\Microsoft\Edge\Application\'
+            Details|endswith: '\Installer\setup.exe" --configure-user-settings --verbose-logging --system-level --msedge --channel=stable'
+        condition: selection and not 1 of filter_optional_*
+    falsepositives:
+        - Legitimate modification of the registry key by legitimate program
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1112
+tags:
+    - attack.persistence
+    - attack.defense-impairment
+    - attack.t1112
+author: Avneet Singh @v3t0_, oscd.community
+references:
+    - https://twitter.com/pabraeken/status/990717080805789697
+    - https://lolbas-project.github.io/lolbas/Binaries/Runonce/
+data_sources:
+    - windows
+    - registry_event
+file: entries/sigma/c74d7efc-8826-45d9-b8bb-f04fac9e4eff.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/registry/registry_event/registry_event_runonce_persistence.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c74d7efc-8826-45d9-b8bb-f04fac9e4eff
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,73 @@
+id: 09576804-7a05-458e-a817-eb718ca91f54
+name: Suspicious PowerShell IEX Execution Patterns
+description: Detects suspicious ways to run Invoke-Execution using IEX alias
+query: |
+    title: Suspicious PowerShell IEX Execution Patterns
+    id: 09576804-7a05-458e-a817-eb718ca91f54
+    status: test
+    description: Detects suspicious ways to run Invoke-Execution using IEX alias
+    references:
+        - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-expression?view=powershell-7.2
+        - https://www.huntress.com/blog/slashandgrab-screen-connect-post-exploitation-in-the-wild-cve-2024-1709-cve-2024-1708
+    author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-03-24
+    modified: 2022-11-28
+    tags:
+        - attack.execution
+        - attack.t1059.001
+    logsource:
+        product: windows
+        category: process_creation
+    detection:
+        selection_combined_1:
+            Image|endswith:
+                - '\powershell.exe'
+                - '\pwsh.exe'
+            CommandLine|contains:
+                - ' | iex;'
+                - ' | iex '
+                - ' | iex}'
+                - ' | IEX ;'
+                - ' | IEX -Error'
+                - ' | IEX (new'
+                - ');IEX '
+        selection_combined_2:
+            CommandLine|contains:
+                - '::FromBase64String'
+                - '.GetString([System.Convert]::'
+        selection_standalone:
+            CommandLine|contains:
+                - ')|iex;$'
+                - ');iex($'
+                - ');iex $'
+                - ' | IEX | '
+                - ' | iex\"'
+        condition: all of selection_combined_* or selection_standalone
+    falsepositives:
+        - Legitimate scripts that use IEX
+    level: high
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_powershell_iex_patterns/info.yml
+query_type: sigma
+severity: high
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://learn.microsoft.com/en-us/powershell/module/microsoft.powershell.utility/invoke-expression?view=powershell-7.2
+    - https://www.huntress.com/blog/slashandgrab-screen-connect-post-exploitation-in-the-wild-cve-2024-1709-cve-2024-1708
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/09576804-7a05-458e-a817-eb718ca91f54.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_powershell_iex_patterns.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 09576804-7a05-458e-a817-eb718ca91f54
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

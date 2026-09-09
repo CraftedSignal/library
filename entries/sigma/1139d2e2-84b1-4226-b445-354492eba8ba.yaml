@@ -1,0 +1,69 @@
+id: 1139d2e2-84b1-4226-b445-354492eba8ba
+name: Usage Of Web Request Commands And Cmdlets - ScriptBlock
+description: Detects the use of various web request commands with commandline tools and Windows PowerShell cmdlets (including aliases) via PowerShell scriptblock logs
+query: |
+    title: Usage Of Web Request Commands And Cmdlets - ScriptBlock
+    id: 1139d2e2-84b1-4226-b445-354492eba8ba
+    related:
+        - id: 9fc51a3c-81b3-4fa7-b35f-7c02cf10fd2d
+          type: derived
+    status: test
+    description: Detects the use of various web request commands with commandline tools and Windows PowerShell cmdlets (including aliases) via PowerShell scriptblock logs
+    references:
+        - https://4sysops.com/archives/use-powershell-to-download-a-file-with-http-https-and-ftp/
+        - https://blog.jourdant.me/post/3-ways-to-download-files-with-powershell
+    author: James Pemberton / @4A616D6573
+    date: 2019-10-24
+    modified: 2025-10-20
+    tags:
+        - attack.execution
+        - attack.t1059.001
+    logsource:
+        product: windows
+        category: ps_script
+        definition: 'Requirements: Script Block Logging must be enabled'
+    detection:
+        selection:
+            ScriptBlockText|contains:
+                - '[System.Net.WebRequest]::create'
+                - 'curl '
+                - 'Invoke-RestMethod'
+                - 'Invoke-WebRequest'
+                - ' irm ' # Space before and after to avoid false positives with 'irm' as a substring
+                - 'iwr '
+                # - 'Net.WebClient' # There are various other rules that cover this, so it is commented out
+                - 'Resume-BitsTransfer'
+                - 'Start-BitsTransfer'
+                - 'wget '
+                - 'WinHttp.WinHttpRequest'
+        filter:
+            Path|startswith: 'C:\Packages\Plugins\Microsoft.GuestConfiguration.ConfigurationforWindows\'
+        condition: selection and not filter
+    falsepositives:
+        - Use of Get-Command and Get-Help modules to reference Invoke-WebRequest and Start-BitsTransfer.
+    level: medium
+    regression_tests_path: regression_data/rules/windows/powershell/powershell_script/posh_ps_web_request_cmd_and_cmdlets/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+author: James Pemberton / @4A616D6573
+references:
+    - https://4sysops.com/archives/use-powershell-to-download-a-file-with-http-https-and-ftp/
+    - https://blog.jourdant.me/post/3-ways-to-download-files-with-powershell
+data_sources:
+    - windows
+    - ps_script
+file: entries/sigma/1139d2e2-84b1-4226-b445-354492eba8ba.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/powershell/powershell_script/posh_ps_web_request_cmd_and_cmdlets.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 1139d2e2-84b1-4226-b445-354492eba8ba
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

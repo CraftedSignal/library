@@ -1,0 +1,66 @@
+id: 5570c4d9-8fdd-4622-965b-403a5a101aa0
+name: Firewall Rule Modified In The Windows Firewall Exception List
+description: Detects when a rule has been modified in the Windows firewall exception list
+query: |
+    title: Firewall Rule Modified In The Windows Firewall Exception List
+    id: 5570c4d9-8fdd-4622-965b-403a5a101aa0
+    status: test
+    description: Detects when a rule has been modified in the Windows firewall exception list
+    references:
+        - https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-r2-and-2008/dd364427(v=ws.10)
+    author: frack113
+    date: 2022-02-19
+    modified: 2024-01-22
+    tags:
+        - attack.defense-impairment
+        - attack.t1686.003
+        - detection.threat-hunting
+    logsource:
+        product: windows
+        service: firewall-as
+    detection:
+        selection:
+            EventID:
+                - 2005 # A rule has been modified in the Windows Defender Firewall exception list (Windows 10)
+                - 2073 # A rule has been modified in the Windows Defender Firewall exception list. (Windows 11)
+        filter_optional_teams:
+            ApplicationPath|endswith: '\AppData\local\microsoft\teams\current\teams.exe'
+        filter_optional_keybase:
+            ApplicationPath|endswith: '\AppData\Local\Keybase\keybase.exe'
+        filter_optional_messenger:
+            ApplicationPath|endswith: '\AppData\Local\Programs\Messenger\Messenger.exe'
+        filter_optional_opera:
+            ApplicationPath|contains|all:
+                - ':\Users\'
+                - '\AppData\Local\Programs\Opera\'
+                - '\opera.exe'
+        filter_optional_brave:
+            ApplicationPath|contains|all:
+                - ':\Users\'
+                - '\AppData\Local\BraveSoftware\Brave-Browser\Application\brave.exe'
+        condition: selection and not 1 of filter_optional_*
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1686.003
+tags:
+    - attack.defense-impairment
+    - attack.t1686.003
+    - detection.threat-hunting
+author: frack113
+references:
+    - https://docs.microsoft.com/en-us/previous-versions/windows/it-pro/windows-server-2008-r2-and-2008/dd364427(v=ws.10)
+data_sources:
+    - windows
+    - firewall-as
+file: entries/sigma/5570c4d9-8fdd-4622-965b-403a5a101aa0.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-threat-hunting/windows/builtin/firewall_as/win_firewall_as_change_rule.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: threat_hunt
+upstream_id: 5570c4d9-8fdd-4622-965b-403a5a101aa0
+upstream_status: test
+license: DRL-1.1
+quality_score: 95

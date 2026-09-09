@@ -1,0 +1,62 @@
+id: c7c8aa1c-5aff-408e-828b-998e3620b341
+name: MSI Installation From Suspicious Locations
+description: Detects MSI package installation from suspicious locations
+query: |
+    title: MSI Installation From Suspicious Locations
+    id: c7c8aa1c-5aff-408e-828b-998e3620b341
+    status: test
+    description: Detects MSI package installation from suspicious locations
+    references:
+        - https://www.trendmicro.com/en_us/research/22/h/ransomware-actor-abuses-genshin-impact-anti-cheat-driver-to-kill-antivirus.html
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-08-31
+    modified: 2023-10-23
+    tags:
+        - attack.execution
+    logsource:
+        product: windows
+        service: application
+        # warning: The 'data' field used in the detection section is the container for the event data as a whole. You may have to adapt the rule for your backend accordingly
+    detection:
+        selection:
+            Provider_Name: 'MsiInstaller'
+            EventID:
+                - 1040
+                - 1042
+            Data|contains:
+                # Add more suspicious paths
+                - ':\Windows\TEMP\'
+                - '\\\\'
+                - '\Desktop\'
+                - '\PerfLogs\'
+                - '\Users\Public\'
+                # - '\AppData\Local\Temp\'  # too many FPs
+                # - '\Downloads\'  # too many FPs, typical legitimate staging directory
+        filter_winget:
+            Data|contains: '\AppData\Local\Temp\WinGet\'
+        filter_updhealthtools:
+            Data|contains: 'C:\Windows\TEMP\UpdHealthTools.msi'
+        condition: selection and not 1 of filter_*
+    falsepositives:
+        - False positives may occur if you allow installation from folders such as the desktop, the public folder or remote shares. A baseline is required before production use.
+    level: medium
+query_type: sigma
+severity: medium
+tags:
+    - attack.execution
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.trendmicro.com/en_us/research/22/h/ransomware-actor-abuses-genshin-impact-anti-cheat-driver-to-kill-antivirus.html
+data_sources:
+    - windows
+    - application
+file: entries/sigma/c7c8aa1c-5aff-408e-828b-998e3620b341.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/application/msiinstaller/win_msi_install_from_susp_locations.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c7c8aa1c-5aff-408e-828b-998e3620b341
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,63 @@
+id: 7b544661-69fc-419f-9a59-82ccc328f205
+name: Potential Ke3chang/TidePool Malware Activity
+description: Detects registry modifications potentially related to the Ke3chang/TidePool malware as seen in campaigns running in 2019 and 2020
+query: |
+    title: Potential Ke3chang/TidePool Malware Activity
+    id: 7b544661-69fc-419f-9a59-82ccc328f205
+    status: test
+    description: Detects registry modifications potentially related to the Ke3chang/TidePool malware as seen in campaigns running in 2019 and 2020
+    references:
+        - https://web.archive.org/web/20200618080300/https://www.verfassungsschutz.de/embed/broschuere-2020-06-bfv-cyber-brief-2020-01.pdf
+        - https://unit42.paloaltonetworks.com/operation-ke3chang-resurfaces-with-new-tidepool-malware/
+    author: Markus Neis, Swisscom
+    date: 2020-06-18
+    modified: 2023-03-10
+    tags:
+        - attack.defense-impairment
+        - attack.g0004
+        - attack.t1685
+        - detection.emerging-threats
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            # Ke3chang and TidePool both modify the IEHarden registry key, as well as the following list of keys.
+            # Setting these registry keys is unique to the Ke3chang and TidePool malware families.
+            # HKCU\Software\Microsoft\Internet Explorer\Main\Check_Associations
+            # HKCU\Software\Microsoft\Internet Explorer\Main\DisableFirstRunCustomize
+            # HKCU\Software\Microsoft\Windows\CurrentVersion\Internet Settings\ZoneMap\IEharden
+            CommandLine|contains:
+                - '-Property DWORD -name DisableFirstRunCustomize -value 2 -Force'
+                - '-Property String -name Check_Associations -value'
+                - '-Property DWORD -name IEHarden -value 0 -Force'
+        condition: selection
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1685
+tags:
+    - attack.defense-impairment
+    - attack.g0004
+    - attack.t1685
+    - detection.emerging-threats
+author: Markus Neis, Swisscom
+references:
+    - https://web.archive.org/web/20200618080300/https://www.verfassungsschutz.de/embed/broschuere-2020-06-bfv-cyber-brief-2020-01.pdf
+    - https://unit42.paloaltonetworks.com/operation-ke3chang-resurfaces-with-new-tidepool-malware/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/7b544661-69fc-419f-9a59-82ccc328f205.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2020/Malware/Ke3chang-TidePool/proc_creation_win_malware_ke3chang_tidepool.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 7b544661-69fc-419f-9a59-82ccc328f205
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

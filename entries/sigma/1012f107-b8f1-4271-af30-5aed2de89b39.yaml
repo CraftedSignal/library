@@ -1,0 +1,66 @@
+id: 1012f107-b8f1-4271-af30-5aed2de89b39
+name: Terminal Service Process Spawn
+description: Detects a process spawned by the terminal service server process (this could be an indicator for an exploitation of CVE-2019-0708)
+query: |
+    title: Terminal Service Process Spawn
+    id: 1012f107-b8f1-4271-af30-5aed2de89b39
+    status: test
+    description: Detects a process spawned by the terminal service server process (this could be an indicator for an exploitation of CVE-2019-0708)
+    references:
+        - https://securingtomorrow.mcafee.com/other-blogs/mcafee-labs/rdp-stands-for-really-do-patch-understanding-the-wormable-rdp-vulnerability-cve-2019-0708/
+    author: Florian Roth (Nextron Systems)
+    date: 2019-05-22
+    modified: 2023-01-25
+    tags:
+        - attack.initial-access
+        - attack.t1190
+        - attack.lateral-movement
+        - attack.t1210
+        - car.2013-07-002
+    logsource:
+        product: windows
+        category: process_creation
+    detection:
+        selection:
+            ParentCommandLine|contains|all:
+                - '\svchost.exe'
+                - 'termsvcs'
+        filter_img:
+            Image|endswith:
+                - '\rdpclip.exe'
+                - ':\Windows\System32\csrss.exe'
+                - ':\Windows\System32\wininit.exe'
+                - ':\Windows\System32\winlogon.exe'
+        filter_null:
+            Image: null
+        condition: selection and not 1 of filter_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1190
+    - T1210
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - attack.lateral-movement
+    - attack.t1210
+    - car.2013-07-002
+author: Florian Roth (Nextron Systems)
+references:
+    - https://securingtomorrow.mcafee.com/other-blogs/mcafee-labs/rdp-stands-for-really-do-patch-understanding-the-wormable-rdp-vulnerability-cve-2019-0708/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/1012f107-b8f1-4271-af30-5aed2de89b39.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_svchost_termserv_proc_spawn.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 1012f107-b8f1-4271-af30-5aed2de89b39
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

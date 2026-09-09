@@ -1,0 +1,68 @@
+id: 431a1fdb-4799-4f3b-91c3-a683b003fc49
+name: New Kernel Driver Via SC.EXE
+description: Detects creation of a new service (kernel driver) with the type "kernel"
+query: |
+    title: New Kernel Driver Via SC.EXE
+    id: 431a1fdb-4799-4f3b-91c3-a683b003fc49
+    status: test
+    description: Detects creation of a new service (kernel driver) with the type "kernel"
+    references:
+        - https://www.aon.com/cyber-solutions/aon_cyber_labs/yours-truly-signed-av-driver-weaponizing-an-antivirus-driver/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-07-14
+    modified: 2025-10-07
+    tags:
+        - attack.persistence
+        - attack.privilege-escalation
+        - attack.t1543.003
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\sc.exe'
+            CommandLine|contains:
+                - 'create'
+                - 'config'
+            CommandLine|contains|all:
+                - 'binPath'
+                - 'type'
+                - 'kernel'
+        filter_optional_avira_driver:
+            - CommandLine|contains|all:
+                  - 'create netprotection_network_filter'
+                  - 'type= kernel start= '
+                  - 'binPath= System32\drivers\netprotection_network_filter'
+                  - 'DisplayName= netprotection_network_filter'
+                  - 'group= PNP_TDI tag= yes'
+            - CommandLine|contains|all:
+                  - 'create avelam binpath=C:\Windows\system32\drivers\avelam.sys'
+                  - 'type=kernel start=boot error=critical group=Early-Launch'
+        condition: selection and not 1 of filter_optional_*
+    falsepositives:
+        - Rare legitimate installation of kernel drivers via sc.exe
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1543.003
+tags:
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.t1543.003
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.aon.com/cyber-solutions/aon_cyber_labs/yours-truly-signed-av-driver-weaponizing-an-antivirus-driver/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/431a1fdb-4799-4f3b-91c3-a683b003fc49.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_sc_new_kernel_driver.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 431a1fdb-4799-4f3b-91c3-a683b003fc49
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

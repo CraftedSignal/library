@@ -1,0 +1,80 @@
+id: c0b2768a-dd06-4671-8339-b16ca8d1f27f
+name: Potentially Suspicious NTFS Symlink Behavior Modification
+description: |
+    Detects the modification of NTFS symbolic link behavior using fsutil, which could be used to enable remote to local or remote to remote symlinks for potential attacks.
+query: |
+    title: Potentially Suspicious NTFS Symlink Behavior Modification
+    id: c0b2768a-dd06-4671-8339-b16ca8d1f27f
+    status: test
+    description: |
+        Detects the modification of NTFS symbolic link behavior using fsutil, which could be used to enable remote to local or remote to remote symlinks for potential attacks.
+    references:
+        - https://www.cybereason.com/blog/cybereason-vs.-blackcat-ransomware
+        - https://learn.microsoft.com/fr-fr/windows-server/administration/windows-commands/fsutil-behavior
+        - https://thedfirreport.com/2025/06/30/hide-your-rdp-password-spray-leads-to-ransomhub-deployment/
+    author: frack113, The DFIR Report
+    date: 2022-03-02
+    modified: 2025-11-13
+    tags:
+        - attack.execution
+        - attack.defense-impairment
+        - attack.t1059
+        - attack.t1222.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img_proxy:
+            # Note: Example command observed:  cmd.exe /c "fsutil behaviour set SymlinkEvaluation"
+            - Image|endswith:
+                  - '\cmd.exe'
+                  - '\powershell.exe'
+                  - '\pwsh.exe'
+            - OriginalFileName:
+                  - 'Cmd.Exe'
+                  - 'PowerShell.EXE'
+                  - 'pwsh.dll'
+        selection_fsutil_cli:
+            CommandLine|contains|all:
+                - 'fsutil'
+                - 'behavior'
+                - 'set'
+                - 'SymlinkEvaluation'
+        selection_symlink_params:
+            CommandLine|contains:
+                - 'R2L:1' # Remote to Local
+                - 'R2R:1' # Remote to Remote
+                - 'L2L:1' # Local to Local
+        condition: all of selection_*
+    falsepositives:
+        - Legitimate usage, investigate the parent process and context to determine if benign.
+    level: medium
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_fsutil_symlinkevaluation/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1059
+    - T1222.001
+tags:
+    - attack.execution
+    - attack.defense-impairment
+    - attack.t1059
+    - attack.t1222.001
+author: frack113, The DFIR Report
+references:
+    - https://www.cybereason.com/blog/cybereason-vs.-blackcat-ransomware
+    - https://learn.microsoft.com/fr-fr/windows-server/administration/windows-commands/fsutil-behavior
+    - https://thedfirreport.com/2025/06/30/hide-your-rdp-password-spray-leads-to-ransomhub-deployment/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/c0b2768a-dd06-4671-8339-b16ca8d1f27f.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_fsutil_symlinkevaluation.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c0b2768a-dd06-4671-8339-b16ca8d1f27f
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

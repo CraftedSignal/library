@@ -1,0 +1,72 @@
+id: 95d61234-7f56-465c-6f2d-b562c6fedbc4
+name: Linux Package Uninstall
+description: Detects linux package removal using builtin tools such as "yum", "apt", "apt-get" or "dpkg".
+query: |
+    title: Linux Package Uninstall
+    id: 95d61234-7f56-465c-6f2d-b562c6fedbc4
+    status: test
+    description: Detects linux package removal using builtin tools such as "yum", "apt", "apt-get" or "dpkg".
+    references:
+        - https://sysdig.com/blog/mitre-defense-evasion-falco
+        - https://www.tutorialspoint.com/how-to-install-a-software-on-linux-using-yum-command
+        - https://linuxhint.com/uninstall_yum_package/
+        - https://linuxhint.com/uninstall-debian-packages/
+    author: Tuan Le (NCSGroup), Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-03-09
+    tags:
+        - attack.stealth
+        - attack.t1070
+    logsource:
+        product: linux
+        category: process_creation
+    detection:
+        selection_yum:
+            Image|endswith: '/yum'
+            CommandLine|contains:
+                - 'erase'
+                - 'remove'
+        selection_apt:
+            Image|endswith:
+                - '/apt'
+                - '/apt-get'
+            CommandLine|contains:
+                - 'remove'
+                - 'purge'
+        selection_dpkg:
+            Image|endswith: '/dpkg'
+            CommandLine|contains:
+                - '--remove '
+                - ' -r '
+        selection_rpm:
+            Image|endswith: '/rpm'
+            CommandLine|contains: ' -e '
+        condition: 1 of selection_*
+    falsepositives:
+        - Administrator or administrator scripts might delete packages for several reasons (debugging, troubleshooting).
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1070
+tags:
+    - attack.stealth
+    - attack.t1070
+author: Tuan Le (NCSGroup), Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://sysdig.com/blog/mitre-defense-evasion-falco
+    - https://www.tutorialspoint.com/how-to-install-a-software-on-linux-using-yum-command
+    - https://linuxhint.com/uninstall_yum_package/
+    - https://linuxhint.com/uninstall-debian-packages/
+data_sources:
+    - linux
+    - process_creation
+file: entries/sigma/95d61234-7f56-465c-6f2d-b562c6fedbc4.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/process_creation/proc_creation_lnx_remove_package.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 95d61234-7f56-465c-6f2d-b562c6fedbc4
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

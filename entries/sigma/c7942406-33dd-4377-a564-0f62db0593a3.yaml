@@ -1,0 +1,59 @@
+id: c7942406-33dd-4377-a564-0f62db0593a3
+name: Suspicious CodePage Switch Via CHCP
+description: Detects a code page switch in command line or batch scripts to a rare language
+query: |
+    title: Suspicious CodePage Switch Via CHCP
+    id: c7942406-33dd-4377-a564-0f62db0593a3
+    status: test
+    description: Detects a code page switch in command line or batch scripts to a rare language
+    references:
+        - https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
+        - https://twitter.com/cglyer/status/1183756892952248325
+    author: Florian Roth (Nextron Systems), Jonhnathan Ribeiro, oscd.community
+    date: 2019-10-14
+    modified: 2023-03-07
+    tags:
+        - attack.stealth
+        - attack.t1036
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\chcp.com'
+            CommandLine|endswith:
+                - ' 936'    # Chinese
+                # - ' 1256' # Arabic
+                - ' 1258'   # Vietnamese
+                # - ' 855'  # Russian
+                # - ' 866'  # Russian
+                # - ' 864'  # Arabic
+        condition: selection
+    falsepositives:
+        - Administrative activity (adjust code pages according to your organization's region)
+    level: medium
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_chcp_codepage_switch/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1036
+tags:
+    - attack.stealth
+    - attack.t1036
+author: Florian Roth (Nextron Systems), Jonhnathan Ribeiro, oscd.community
+references:
+    - https://learn.microsoft.com/en-us/windows/win32/intl/code-page-identifiers
+    - https://twitter.com/cglyer/status/1183756892952248325
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/c7942406-33dd-4377-a564-0f62db0593a3.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_chcp_codepage_switch.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c7942406-33dd-4377-a564-0f62db0593a3
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

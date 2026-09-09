@@ -1,0 +1,67 @@
+id: 6fb63b40-e02a-403e-9ffd-3bcc1d749442
+name: Metasploit Or Impacket Service Installation Via SMB PsExec
+description: Detects usage of Metasploit SMB PsExec (exploit/windows/smb/psexec) and Impacket psexec.py by triggering on specific service installation
+query: |
+    title: Metasploit Or Impacket Service Installation Via SMB PsExec
+    id: 6fb63b40-e02a-403e-9ffd-3bcc1d749442
+    related:
+        - id: 1a17ce75-ff0d-4f02-9709-2b7bb5618cf0
+          type: derived
+    status: test
+    description: Detects usage of Metasploit SMB PsExec (exploit/windows/smb/psexec) and Impacket psexec.py by triggering on specific service installation
+    references:
+        - https://bczyz1.github.io/2021/01/30/psexec.html
+    author: Bartlomiej Czyz, Relativity
+    date: 2021-01-21
+    modified: 2022-10-05
+    tags:
+        - attack.lateral-movement
+        - attack.t1021.002
+        - attack.t1570
+        - attack.execution
+        - attack.t1569.002
+    logsource:
+        product: windows
+        service: security
+        definition: The 'System Security Extension' audit subcategory need to be enabled to log the EID 4697
+    detection:
+        selection:
+            EventID: 4697
+            ServiceFileName|re: '^%systemroot%\\[a-zA-Z]{8}\.exe$'
+            ServiceName|re: '(^[a-zA-Z]{4}$)|(^[a-zA-Z]{8}$)|(^[a-zA-Z]{16}$)'
+            ServiceStartType: 3  # on-demand start, see https://www.ultimatewindowssecurity.com/securitylog/encyclopedia/event.aspx?eventID=4697
+            ServiceType: '0x10'
+        filter:
+            ServiceName: 'PSEXESVC'
+        condition: selection and not filter
+    falsepositives:
+        - Possible, different agents with a 8 character binary and a 4, 8 or 16 character service name
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1021.002
+    - T1570
+    - T1569.002
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+    - attack.t1570
+    - attack.execution
+    - attack.t1569.002
+author: Bartlomiej Czyz, Relativity
+references:
+    - https://bczyz1.github.io/2021/01/30/psexec.html
+data_sources:
+    - windows
+    - security
+file: entries/sigma/6fb63b40-e02a-403e-9ffd-3bcc1d749442.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_metasploit_or_impacket_smb_psexec_service_install.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 6fb63b40-e02a-403e-9ffd-3bcc1d749442
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

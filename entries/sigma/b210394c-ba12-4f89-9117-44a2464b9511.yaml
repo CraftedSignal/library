@@ -1,0 +1,57 @@
+id: b210394c-ba12-4f89-9117-44a2464b9511
+name: SMB Create Remote File Admin Share
+description: Look for non-system accounts SMB accessing a file with write (0x2) access mask via administrative share (i.e C$).
+query: |
+    title: SMB Create Remote File Admin Share
+    id: b210394c-ba12-4f89-9117-44a2464b9511
+    status: test
+    description: Look for non-system accounts SMB accessing a file with write (0x2) access mask via administrative share (i.e C$).
+    references:
+        - https://github.com/OTRF/ThreatHunter-Playbook/blob/f7a58156dbfc9b019f17f638b8c62d22e557d350/playbooks/WIN-201012004336.yaml
+        - https://securitydatasets.com/notebooks/atomic/windows/lateral_movement/SDWIN-200806015757.html?highlight=create%20file
+    author: Jose Rodriguez (@Cyb3rPandaH), OTR (Open Threat Research)
+    date: 2020-08-06
+    modified: 2025-10-17
+    tags:
+        - attack.lateral-movement
+        - attack.t1021.002
+    logsource:
+        product: windows
+        service: security
+    detection:
+        selection:
+            EventID: 5145
+            ShareName|endswith: 'C$'
+            AccessMask: '0x2'
+        filter_main_subjectusername:
+            SubjectUserName|endswith: '$'
+        filter_optional_local_ip:
+            IpAddress: '::1'
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1021.002
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+author: Jose Rodriguez (@Cyb3rPandaH), OTR (Open Threat Research)
+references:
+    - https://github.com/OTRF/ThreatHunter-Playbook/blob/f7a58156dbfc9b019f17f638b8c62d22e557d350/playbooks/WIN-201012004336.yaml
+    - https://securitydatasets.com/notebooks/atomic/windows/lateral_movement/SDWIN-200806015757.html?highlight=create%20file
+data_sources:
+    - windows
+    - security
+file: entries/sigma/b210394c-ba12-4f89-9117-44a2464b9511.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_smb_file_creation_admin_shares.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: b210394c-ba12-4f89-9117-44a2464b9511
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

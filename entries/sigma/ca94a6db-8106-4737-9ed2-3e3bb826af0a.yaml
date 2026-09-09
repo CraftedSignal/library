@@ -1,0 +1,75 @@
+id: ca94a6db-8106-4737-9ed2-3e3bb826af0a
+name: Password Policy Discovery - Linux
+description: Detects password policy discovery commands
+query: |
+    title: Password Policy Discovery - Linux
+    id: ca94a6db-8106-4737-9ed2-3e3bb826af0a
+    status: stable
+    description: Detects password policy discovery commands
+    references:
+        - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1201/T1201.md
+        - https://linux.die.net/man/1/chage
+        - https://man7.org/linux/man-pages/man1/passwd.1.html
+        - https://superuser.com/questions/150675/how-to-display-password-policy-information-for-a-user-ubuntu
+    author: Ömer Günal, oscd.community, Pawel Mazur
+    date: 2020-10-08
+    modified: 2024-12-01
+    tags:
+        - attack.discovery
+        - attack.t1201
+    logsource:
+        product: linux
+        service: auditd
+    detection:
+        selection_files:
+            type: 'PATH'
+            name:
+                - '/etc/login.defs'
+                - '/etc/pam.d/auth'
+                - '/etc/pam.d/common-account'
+                - '/etc/pam.d/common-auth'
+                - '/etc/pam.d/common-password'
+                - '/etc/pam.d/system-auth'
+                - '/etc/security/pwquality.conf'
+        selection_chage:
+            type: 'EXECVE'
+            a0: 'chage'
+            a1:
+                - '--list'
+                - '-l'
+        selection_passwd:
+            type: 'EXECVE'
+            a0: 'passwd'
+            a1:
+                - '-S'
+                - '--status'
+        condition: 1 of selection_*
+    falsepositives:
+        - Legitimate administration activities
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1201
+tags:
+    - attack.discovery
+    - attack.t1201
+author: Ömer Günal, oscd.community, Pawel Mazur
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1201/T1201.md
+    - https://linux.die.net/man/1/chage
+    - https://man7.org/linux/man-pages/man1/passwd.1.html
+    - https://superuser.com/questions/150675/how-to-display-password-policy-information-for-a-user-ubuntu
+data_sources:
+    - linux
+    - auditd
+file: entries/sigma/ca94a6db-8106-4737-9ed2-3e3bb826af0a.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/auditd/lnx_auditd_password_policy_discovery.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: ca94a6db-8106-4737-9ed2-3e3bb826af0a
+upstream_status: stable
+license: DRL-1.1
+quality_score: 100

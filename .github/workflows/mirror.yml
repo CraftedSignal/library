@@ -14,6 +14,11 @@ jobs:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
         with:
           token: ${{ secrets.GH_PAT }}
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10
+        with:
+          repository: SigmaHQ/sigma
+          path: .upstream/sigma
+          fetch-depth: 1
 
       - name: Resolve Go version
         id: go-version
@@ -27,6 +32,9 @@ jobs:
       - run: go run . --output-dir "$GITHUB_WORKSPACE"
         env:
           UPSTREAM_REFRESH_TOKEN: ${{ secrets.UPSTREAM_REFRESH_TOKEN }}
+      - name: Merge quality-gated SigmaHQ rules
+        working-directory: .github/sigmahq
+        run: go run . --output-dir "$GITHUB_WORKSPACE" --sigma-dir "$GITHUB_WORKSPACE/.upstream/sigma"
 
       - name: Rotate refresh token
         if: always()

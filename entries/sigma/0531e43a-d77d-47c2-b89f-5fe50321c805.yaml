@@ -1,0 +1,63 @@
+id: 0531e43a-d77d-47c2-b89f-5fe50321c805
+name: RegAsm.EXE Initiating Network Connection To Public IP
+description: Detects "RegAsm.exe" initiating a network connection to public IP adresses
+query: |
+    title: RegAsm.EXE Initiating Network Connection To Public IP
+    id: 0531e43a-d77d-47c2-b89f-5fe50321c805
+    status: test
+    description: Detects "RegAsm.exe" initiating a network connection to public IP adresses
+    references:
+        - https://app.any.run/tasks/ec207948-4916-47eb-a0f4-4c6abb2e7668/
+        - https://research.splunk.com/endpoint/07921114-6db4-4e2e-ae58-3ea8a52ae93f/
+        - https://lolbas-project.github.io/lolbas/Binaries/Regasm/
+    author: frack113
+    date: 2024-04-25
+    tags:
+        - attack.stealth
+        - attack.t1218.009
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection:
+            Initiated: 'true'
+            Image|endswith: '\regasm.exe'
+        filter_main_local_ranges:
+            DestinationIp|cidr:
+                - '127.0.0.0/8'
+                - '10.0.0.0/8'
+                - '172.16.0.0/12'
+                - '192.168.0.0/16'
+                - '169.254.0.0/16'
+                - '::1/128'  # IPv6 loopback
+                - 'fe80::/10'  # IPv6 link-local addresses
+                - 'fc00::/7'  # IPv6 private addresses
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1218.009
+tags:
+    - attack.stealth
+    - attack.t1218.009
+author: frack113
+references:
+    - https://app.any.run/tasks/ec207948-4916-47eb-a0f4-4c6abb2e7668/
+    - https://research.splunk.com/endpoint/07921114-6db4-4e2e-ae58-3ea8a52ae93f/
+    - https://lolbas-project.github.io/lolbas/Binaries/Regasm/
+data_sources:
+    - windows
+    - network_connection
+file: entries/sigma/0531e43a-d77d-47c2-b89f-5fe50321c805.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/network_connection/net_connection_win_regasm_network_activity.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 0531e43a-d77d-47c2-b89f-5fe50321c805
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

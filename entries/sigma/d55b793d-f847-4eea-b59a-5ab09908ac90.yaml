@@ -1,0 +1,78 @@
+id: d55b793d-f847-4eea-b59a-5ab09908ac90
+name: Suspicious Child Process Of Veeam Dabatase
+description: Detects suspicious child processes of the Veeam service process. This could indicate potential RCE or SQL Injection.
+query: |
+    title: Suspicious Child Process Of Veeam Dabatase
+    id: d55b793d-f847-4eea-b59a-5ab09908ac90
+    related:
+        - id: 869b9ca7-9ea2-4a5a-8325-e80e62f75445
+          type: similar
+    status: test
+    description: Detects suspicious child processes of the Veeam service process. This could indicate potential RCE or SQL Injection.
+    references:
+        - https://labs.withsecure.com/publications/fin7-target-veeam-servers
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-05-04
+    tags:
+        - attack.initial-access
+        - attack.persistence
+        - attack.privilege-escalation
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_parent:
+            ParentImage|endswith: '\sqlservr.exe'
+            ParentCommandLine|contains: 'VEEAMSQL'
+        selection_child_1:
+            Image|endswith:
+                - '\cmd.exe'
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\wsl.exe'
+                - '\wt.exe'
+            CommandLine|contains:
+                - '-ex '
+                - 'bypass'
+                - 'cscript'
+                - 'DownloadString'
+                - 'http://'
+                - 'https://'
+                - 'mshta'
+                - 'regsvr32'
+                - 'rundll32'
+                - 'wscript'
+                - 'copy '
+        selection_child_2:
+            Image|endswith:
+                - '\net.exe'
+                - '\net1.exe'
+                - '\netstat.exe'
+                - '\nltest.exe'
+                - '\ping.exe'
+                - '\tasklist.exe'
+                - '\whoami.exe'
+        condition: selection_parent and 1 of selection_child_*
+    level: critical
+query_type: sigma
+severity: critical
+tags:
+    - attack.initial-access
+    - attack.persistence
+    - attack.privilege-escalation
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://labs.withsecure.com/publications/fin7-target-veeam-servers
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/d55b793d-f847-4eea-b59a-5ab09908ac90.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_mssql_veaam_susp_child_processes.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: d55b793d-f847-4eea-b59a-5ab09908ac90
+upstream_status: test
+license: DRL-1.1
+quality_score: 95

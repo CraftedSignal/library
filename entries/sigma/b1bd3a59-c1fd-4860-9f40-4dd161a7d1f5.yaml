@@ -1,0 +1,59 @@
+id: b1bd3a59-c1fd-4860-9f40-4dd161a7d1f5
+name: HackTool - HandleKatz Duplicating LSASS Handle
+description: Detects HandleKatz opening LSASS to duplicate its handle to later dump the memory without opening any new handles
+query: |
+    title: HackTool - HandleKatz Duplicating LSASS Handle
+    id: b1bd3a59-c1fd-4860-9f40-4dd161a7d1f5
+    status: test
+    description: Detects HandleKatz opening LSASS to duplicate its handle to later dump the memory without opening any new handles
+    references:
+        - https://github.com/codewhitesec/HandleKatz
+    author: Bhabesh Raj (rule), @thefLinkk
+    date: 2022-06-27
+    modified: 2023-11-28
+    tags:
+        - attack.execution
+        - attack.t1106
+        - attack.t1003.001
+        - attack.credential-access
+    logsource:
+        category: process_access
+        product: windows
+    detection:
+        selection:
+            TargetImage|endswith: '\lsass.exe' # Theoretically, can be any benign process holding handle to LSASS
+            GrantedAccess: '0x1440' # Only PROCESS_DUP_HANDLE, PROCESS_QUERY_LIMITED_INFORMATION, PROCESS_QUERY_INFORMATION
+            # Example: C:\Windows\SYSTEM32\ntdll.dll+9d234\|UNKNOWN(00000000001C119B)
+            CallTrace|startswith: 'C:\Windows\System32\ntdll.dll+'
+            CallTrace|contains: '|UNKNOWN('
+            CallTrace|endswith: ')'
+        condition: selection
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1106
+    - T1003.001
+tags:
+    - attack.execution
+    - attack.t1106
+    - attack.t1003.001
+    - attack.credential-access
+author: Bhabesh Raj (rule), @thefLinkk
+references:
+    - https://github.com/codewhitesec/HandleKatz
+data_sources:
+    - windows
+    - process_access
+file: entries/sigma/b1bd3a59-c1fd-4860-9f40-4dd161a7d1f5.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_access/proc_access_win_hktl_handlekatz_lsass_access.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: b1bd3a59-c1fd-4860-9f40-4dd161a7d1f5
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

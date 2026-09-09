@@ -1,0 +1,59 @@
+id: 736ffa74-5f6f-44ca-94ef-1c0df4f51d2a
+name: HackTool - CrackMapExec File Indicators
+description: Detects file creation events with filename patterns used by CrackMapExec.
+query: |
+    title: HackTool - CrackMapExec File Indicators
+    id: 736ffa74-5f6f-44ca-94ef-1c0df4f51d2a
+    related:
+        - id: 9433ff9c-5d3f-4269-99f8-95fc826ea489
+          type: obsolete
+    status: test
+    description: Detects file creation events with filename patterns used by CrackMapExec.
+    references:
+        - https://github.com/byt3bl33d3r/CrackMapExec/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2024-03-11
+    modified: 2024-06-27
+    tags:
+        - attack.credential-access
+        - attack.t1003.001
+    logsource:
+        product: windows
+        category: file_event
+    detection:
+        selection_path:
+            TargetFilename|startswith: 'C:\Windows\Temp\' # The disk extension is hardcoded in the tool.
+        selection_names_str:
+            TargetFilename|endswith:
+                - '\temp.ps1' # https://github.com/byt3bl33d3r/CrackMapExec/blob/3c3e412193cb6d3237abe90c543e5d995bfa4447/cme/modules/keepass_trigger.py#L42C41-L42C68
+                - '\msol.ps1' # https://github.com/byt3bl33d3r/CrackMapExec/blob/3c3e412193cb6d3237abe90c543e5d995bfa4447/cme/modules/msol.py#L48C98-L48C106
+        selection_names_re:
+            - TargetFilename|re: '\\[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\.txt$' # https://github.com/byt3bl33d3r/CrackMapExec/blob/3c3e412193cb6d3237abe90c543e5d995bfa4447/cme/protocols/wmi/wmiexec.py#L86
+            - TargetFilename|re: '\\[a-zA-Z]{8}\.tmp$' # https://github.com/byt3bl33d3r/CrackMapExec/blob/3c3e412193cb6d3237abe90c543e5d995bfa4447/cme/protocols/smb/atexec.py#L145C19-L146
+        condition: selection_path and 1 of selection_names_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1003.001
+tags:
+    - attack.credential-access
+    - attack.t1003.001
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://github.com/byt3bl33d3r/CrackMapExec/
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/736ffa74-5f6f-44ca-94ef-1c0df4f51d2a.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_event/file_event_win_hktl_crackmapexec_indicators.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 736ffa74-5f6f-44ca-94ef-1c0df4f51d2a
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

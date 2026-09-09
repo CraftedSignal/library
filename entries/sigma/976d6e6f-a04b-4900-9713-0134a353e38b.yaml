@@ -1,0 +1,51 @@
+id: 976d6e6f-a04b-4900-9713-0134a353e38b
+name: Veeam Backup Servers Credential Dumping Script Execution
+description: Detects execution of a PowerShell script that contains calls to the "Veeam.Backup" class, in order to dump stored credentials.
+query: |
+    title: Veeam Backup Servers Credential Dumping Script Execution
+    id: 976d6e6f-a04b-4900-9713-0134a353e38b
+    status: test
+    description: Detects execution of a PowerShell script that contains calls to the "Veeam.Backup" class, in order to dump stored credentials.
+    references:
+        - https://www.pwndefend.com/2021/02/15/retrieving-passwords-from-veeam-backup-servers/
+        - https://labs.withsecure.com/publications/fin7-target-veeam-servers
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-05-04
+    tags:
+        - attack.credential-access
+    logsource:
+        product: windows
+        category: ps_script
+        definition: bade5735-5ab0-4aa7-a642-a11be0e40872
+    detection:
+        selection:
+            ScriptBlockText|contains|all:
+                - '[Credentials]'
+                - '[Veeam.Backup.Common.ProtectedStorage]::GetLocalString'
+                - 'Invoke-Sqlcmd'
+                - 'Veeam Backup and Replication'
+        condition: selection
+    falsepositives:
+        - Administrators backup scripts (must be investigated)
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.credential-access
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.pwndefend.com/2021/02/15/retrieving-passwords-from-veeam-backup-servers/
+    - https://labs.withsecure.com/publications/fin7-target-veeam-servers
+data_sources:
+    - windows
+    - ps_script
+file: entries/sigma/976d6e6f-a04b-4900-9713-0134a353e38b.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/powershell/powershell_script/posh_ps_veeam_credential_dumping_script.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 976d6e6f-a04b-4900-9713-0134a353e38b
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,68 @@
+id: 5660d8db-6e25-411f-b92f-094420168a5d
+name: Potential CVE-2022-22954 Exploitation Attempt - VMware Workspace ONE Access Remote Code Execution
+description: |
+    Detects potential exploitation attempt of CVE-2022-22954, a remote code execution vulnerability in VMware Workspace ONE Access and Identity Manager.
+    As reported by Morphisec, part of the attack chain, threat actors used PowerShell commands that executed as a child processes of the legitimate Tomcat "prunsrv.exe" process application.
+query: |
+    title: Potential CVE-2022-22954 Exploitation Attempt - VMware Workspace ONE Access Remote Code Execution
+    id: 5660d8db-6e25-411f-b92f-094420168a5d
+    status: test
+    description: |
+        Detects potential exploitation attempt of CVE-2022-22954, a remote code execution vulnerability in VMware Workspace ONE Access and Identity Manager.
+        As reported by Morphisec, part of the attack chain, threat actors used PowerShell commands that executed as a child processes of the legitimate Tomcat "prunsrv.exe" process application.
+    references:
+        - https://blog.morphisec.com/vmware-identity-manager-attack-backdoor
+        - https://github.com/DrorDvash/CVE-2022-22954_VMware_PoC
+    author: '@kostastsale'
+    date: 2022-04-25
+    tags:
+        - attack.execution
+        - attack.initial-access
+        - attack.t1059.006
+        - attack.t1190
+        - cve.2022-22954
+        - detection.emerging-threats
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_parent:
+            ParentImage|endswith: '\prunsrv.exe'
+        selection_payload_pwsh:
+            Image|endswith: '\powershell.exe'
+        selection_payload_cmd:
+            Image|endswith: '\cmd.exe'
+            CommandLine|contains: '/c powershell'
+        condition: selection_parent and 1 of selection_payload_*
+    falsepositives:
+        - Some false positives are possible as part of a custom script implementation from admins executed with cmd.exe as the child process.
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1059.006
+    - T1190
+tags:
+    - attack.execution
+    - attack.initial-access
+    - attack.t1059.006
+    - attack.t1190
+    - cve.2022-22954
+    - detection.emerging-threats
+author: '@kostastsale'
+references:
+    - https://blog.morphisec.com/vmware-identity-manager-attack-backdoor
+    - https://github.com/DrorDvash/CVE-2022-22954_VMware_PoC
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/5660d8db-6e25-411f-b92f-094420168a5d.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2022/Exploits/CVE-2022-22954/proc_creation_win_exploit_cve_2022_22954_vmware_workspace_one_rce.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 5660d8db-6e25-411f-b92f-094420168a5d
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

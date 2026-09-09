@@ -1,0 +1,66 @@
+id: effee1f6-a932-4297-a81f-acb44064fa3a
+name: ProxyLogon Reset Virtual Directories Based On IIS Log
+description: When exploiting this vulnerability with CVE-2021-26858, an SSRF attack is used to manipulate virtual directories
+query: |
+    title: ProxyLogon Reset Virtual Directories Based On IIS Log
+    id: effee1f6-a932-4297-a81f-acb44064fa3a
+    status: test
+    description: When exploiting this vulnerability with CVE-2021-26858, an SSRF attack is used to manipulate virtual directories
+    references:
+        - https://bi-zone.medium.com/hunting-down-ms-exchange-attacks-part-1-proxylogon-cve-2021-26855-26858-27065-26857-6e885c5f197c
+    author: frack113
+    date: 2021-08-10
+    modified: 2023-05-08
+    tags:
+        - cve.2021-26858
+        - detection.emerging-threats
+        - attack.initial-access
+        - attack.t1190
+    logsource:
+        category: webserver
+        definition: 'Requirements: The POST request body data must be collected in order to make use of this detection'
+    detection:
+        selection:
+            cs-method: 'POST'
+            sc-status: 200
+            cs-uri-stem: '/ecp/DDI/DDIService.svc/SetObject'
+            cs-uri-query|contains|all:
+                - 'schema=Reset'
+                - 'VirtualDirectory'
+            cs-username|endswith: '$'
+        keywords:
+            '|all':
+                - 'POST'
+                - 200
+                - '/ecp/DDI/DDIService.svc/SetObject'
+                - 'schema=Reset'
+                - 'VirtualDirectory'
+                - '$'
+        condition: selection or keywords
+    falsepositives:
+        - Unlikely
+    level: critical
+query_type: sigma
+severity: critical
+techniques:
+    - T1190
+tags:
+    - cve.2021-26858
+    - detection.emerging-threats
+    - attack.initial-access
+    - attack.t1190
+author: frack113
+references:
+    - https://bi-zone.medium.com/hunting-down-ms-exchange-attacks-part-1-proxylogon-cve-2021-26855-26858-27065-26857-6e885c5f197c
+data_sources:
+    - webserver
+file: entries/sigma/effee1f6-a932-4297-a81f-acb44064fa3a.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2021/Exploits/CVE-2021-26858/web_cve_2021_26858_iis_rce.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: effee1f6-a932-4297-a81f-acb44064fa3a
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

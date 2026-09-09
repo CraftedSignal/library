@@ -1,0 +1,65 @@
+id: 949f1ffb-6e85-4f00-ae1e-c3c5b190d605
+name: Explorer Process Tree Break
+description: |
+    Detects a command line process that uses explorer.exe to launch arbitrary commands or binaries,
+    which is similar to cmd.exe /c, only it breaks the process tree and makes its parent a new instance of explorer spawning from "svchost"
+query: |
+    title: Explorer Process Tree Break
+    id: 949f1ffb-6e85-4f00-ae1e-c3c5b190d605
+    status: test
+    description: |
+      Detects a command line process that uses explorer.exe to launch arbitrary commands or binaries,
+      which is similar to cmd.exe /c, only it breaks the process tree and makes its parent a new instance of explorer spawning from "svchost"
+    references:
+        - https://twitter.com/CyberRaiju/status/1273597319322058752
+        - https://twitter.com/bohops/status/1276357235954909188?s=12
+        - https://twitter.com/nas_bench/status/1535322450858233858
+        - https://securityboulevard.com/2019/09/deobfuscating-ostap-trickbots-34000-line-javascript-downloader/
+    author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems), @gott_cyber
+    date: 2019-06-29
+    modified: 2025-10-31
+    tags:
+        - attack.stealth
+        - attack.t1036
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        # Note: See CLSID_SeparateMultipleProcessExplorerHost in the registry for reference
+        selection_factory:
+            CommandLine|contains: '/factory,{75dff2b7-6936-4c06-a8bb-676a7b00b24b}' # This will catch, the new explorer spawning which indicates a process/tree break. But you won't be able to catch the executing process. For that you need historical data
+        selection_root:
+            CommandLine|contains: 'explorer.exe'
+            CommandLine|contains|windash: ' /root,'
+            # There exists almost infinite possibilities to spawn from explorer. The "/root" flag is just an example
+            # It's better to have the ability to look at the process tree and look for explorer processes with "weird" flags to be able to catch this technique.
+        condition: 1 of selection_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1036
+tags:
+    - attack.stealth
+    - attack.t1036
+author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems), @gott_cyber
+references:
+    - https://twitter.com/CyberRaiju/status/1273597319322058752
+    - https://twitter.com/bohops/status/1276357235954909188?s=12
+    - https://twitter.com/nas_bench/status/1535322450858233858
+    - https://securityboulevard.com/2019/09/deobfuscating-ostap-trickbots-34000-line-javascript-downloader/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/949f1ffb-6e85-4f00-ae1e-c3c5b190d605.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_explorer_break_process_tree.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 949f1ffb-6e85-4f00-ae1e-c3c5b190d605
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

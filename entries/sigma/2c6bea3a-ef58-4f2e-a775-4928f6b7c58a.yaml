@@ -1,0 +1,68 @@
+id: 2c6bea3a-ef58-4f2e-a775-4928f6b7c58a
+name: Raspberry Robin Initial Execution From External Drive
+description: Detects the initial execution of the Raspberry Robin malware from an external drive using "Cmd.EXE".
+query: |
+    title: Raspberry Robin Initial Execution From External Drive
+    id: 2c6bea3a-ef58-4f2e-a775-4928f6b7c58a
+    related:
+        - id: d52d2e87-eb03-4fac-961d-eb616da79788
+          type: similar
+    status: test
+    description: Detects the initial execution of the Raspberry Robin malware from an external drive using "Cmd.EXE".
+    references:
+        - https://redcanary.com/blog/raspberry-robin/
+    author: '@kostastsale'
+    date: 2022-05-06
+    tags:
+        - attack.execution
+        - attack.t1059.001
+        - detection.emerging-threats
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_parent:
+            ParentImage|endswith: '\cmd.exe'
+            ParentCommandLine|contains: '/r'
+            ParentCommandLine|endswith:
+                - '.bin'
+                - '.ico'
+                - '.lnk'
+                - '.lo'
+                - '.sv'
+                - '.usb'
+        selection_child_img:
+            Image|endswith: '\msiexec.exe'
+            CommandLine|contains|windash: '/q'
+        selection_child_http:
+            CommandLine|contains:
+                - 'http:'
+                - 'https:'
+        condition: all of selection_*
+    falsepositives:
+        - Unlikely
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1059.001
+tags:
+    - attack.execution
+    - attack.t1059.001
+    - detection.emerging-threats
+author: '@kostastsale'
+references:
+    - https://redcanary.com/blog/raspberry-robin/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/2c6bea3a-ef58-4f2e-a775-4928f6b7c58a.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2022/Malware/Raspberry-Robin/proc_creation_win_malware_raspberry_robin_external_drive_exec.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 2c6bea3a-ef58-4f2e-a775-4928f6b7c58a
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

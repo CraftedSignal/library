@@ -1,0 +1,59 @@
+id: 35bc7e28-ee6b-492f-ab04-da58fcf6402e
+name: Windows Network Access Suspicious desktop.ini Action
+description: Detects unusual processes accessing desktop.ini remotely over network share, which can be leveraged to alter how Explorer displays a folder's content (i.e. renaming files) without changing them on disk.
+query: |
+    title: Windows Network Access Suspicious desktop.ini Action
+    id: 35bc7e28-ee6b-492f-ab04-da58fcf6402e
+    status: test
+    description: Detects unusual processes accessing desktop.ini remotely over network share, which can be leveraged to alter how Explorer displays a folder's content (i.e. renaming files) without changing them on disk.
+    references:
+        - https://isc.sans.edu/forums/diary/Desktopini+as+a+postexploitation+tool/25912/
+    author: Tim Shelton (HAWK.IO)
+    date: 2021-12-06
+    modified: 2022-01-16
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.t1547.009
+    logsource:
+        product: windows
+        service: security
+    detection:
+        selection:
+            EventID: 5145
+            ObjectType: File
+            RelativeTargetName|endswith: '\desktop.ini'
+            AccessList|contains:
+                - 'WriteData'
+                - 'DELETE'
+                - 'WriteDAC'
+                - 'AppendData'
+                - 'AddSubdirectory'
+        condition: selection
+    falsepositives:
+        - Read only access list authority
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1547.009
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.t1547.009
+author: Tim Shelton (HAWK.IO)
+references:
+    - https://isc.sans.edu/forums/diary/Desktopini+as+a+postexploitation+tool/25912/
+data_sources:
+    - windows
+    - security
+file: entries/sigma/35bc7e28-ee6b-492f-ab04-da58fcf6402e.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_net_share_obj_susp_desktop_ini.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 35bc7e28-ee6b-492f-ab04-da58fcf6402e
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,76 @@
+id: 817f252c-5143-4dae-b418-48c3e9f63728
+name: Windows Recall Feature Enabled Via Reg.EXE
+description: |
+    Detects the enabling of the Windows Recall feature via registry manipulation.
+    Windows Recall can be enabled by deleting the existing "DisableAIDataAnalysis" value, or setting it to 0.
+    Adversaries may enable Windows Recall as part of post-exploitation discovery and collection activities.
+    This rule assumes that Recall is already explicitly disabled on the host, and subsequently enabled by the adversary.
+query: |
+    title: Windows Recall Feature Enabled Via Reg.EXE
+    id: 817f252c-5143-4dae-b418-48c3e9f63728
+    related:
+        - id: 5dfc1465-8f65-4fde-8eb5-6194380c6a62
+          type: similar
+        - id: 75180c5f-4ea1-461a-a4f6-6e4700c065d4
+          type: similar
+    status: test
+    description: |
+        Detects the enabling of the Windows Recall feature via registry manipulation.
+        Windows Recall can be enabled by deleting the existing "DisableAIDataAnalysis" value, or setting it to 0.
+        Adversaries may enable Windows Recall as part of post-exploitation discovery and collection activities.
+        This rule assumes that Recall is already explicitly disabled on the host, and subsequently enabled by the adversary.
+    references:
+        - https://learn.microsoft.com/en-us/windows/client-management/manage-recall
+        - https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowsai#disableaidataanalysis
+    author: Sajid Nawaz Khan
+    date: 2024-06-02
+    tags:
+        - attack.collection
+        - attack.t1113
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\reg.exe'
+            - OriginalFileName: 'reg.exe'
+        selection_value:
+            # HKEY_CURRENT_USER\Software\Policies\Microsoft\Windows\WindowsAI\DisableAIDataAnalysis
+            # HKEY_LOCAL_MACHINE\SOFTWARE\Policies\Microsoft\Windows\WindowsAI\DisableAIDataAnalysis
+            CommandLine|contains|all:
+                - 'Microsoft\Windows\WindowsAI'
+                - 'DisableAIDataAnalysis'
+        selection_action_add:
+            CommandLine|contains:
+                - 'add'
+                - '0'
+        selection_action_delete:
+            CommandLine|contains: 'delete'
+        condition: selection_img and selection_value and 1 of selection_action_*
+    falsepositives:
+        - Legitimate use/activation of Windows Recall
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1113
+tags:
+    - attack.collection
+    - attack.t1113
+author: Sajid Nawaz Khan
+references:
+    - https://learn.microsoft.com/en-us/windows/client-management/manage-recall
+    - https://learn.microsoft.com/en-us/windows/client-management/mdm/policy-csp-windowsai#disableaidataanalysis
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/817f252c-5143-4dae-b418-48c3e9f63728.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_reg_enable_windows_recall.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 817f252c-5143-4dae-b418-48c3e9f63728
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

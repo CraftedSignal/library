@@ -1,0 +1,55 @@
+id: 778ba9a8-45e4-4b80-8e3e-34a419f0b85e
+name: TeamViewer Domain Query By Non-TeamViewer Application
+description: Detects DNS queries to a TeamViewer domain only resolved by a TeamViewer client by an image that isn't named TeamViewer (sometimes used by threat actors for obfuscation)
+query: |
+    title: TeamViewer Domain Query By Non-TeamViewer Application
+    id: 778ba9a8-45e4-4b80-8e3e-34a419f0b85e
+    status: test
+    description: Detects DNS queries to a TeamViewer domain only resolved by a TeamViewer client by an image that isn't named TeamViewer (sometimes used by threat actors for obfuscation)
+    references:
+        - https://www.teamviewer.com/en-us/
+    author: Florian Roth (Nextron Systems)
+    date: 2022-01-30
+    modified: 2023-09-18
+    tags:
+        - attack.command-and-control
+        - attack.t1219.002
+    logsource:
+        product: windows
+        category: dns_query
+    detection:
+        selection:
+            QueryName:
+                - 'taf.teamviewer.com'
+                - 'udp.ping.teamviewer.com'
+        filter_main_teamviewer:
+            # Note: To avoid evasion based on similar names. Best add full install location of TeamViewer
+            Image|contains: 'TeamViewer'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Unknown binary names of TeamViewer
+        - Depending on the environment the rule might require some initial tuning before usage to avoid FP with third party applications
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1219.002
+tags:
+    - attack.command-and-control
+    - attack.t1219.002
+author: Florian Roth (Nextron Systems)
+references:
+    - https://www.teamviewer.com/en-us/
+data_sources:
+    - windows
+    - dns_query
+file: entries/sigma/778ba9a8-45e4-4b80-8e3e-34a419f0b85e.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/dns_query/dns_query_win_teamviewer_domain_query_by_uncommon_app.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 778ba9a8-45e4-4b80-8e3e-34a419f0b85e
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

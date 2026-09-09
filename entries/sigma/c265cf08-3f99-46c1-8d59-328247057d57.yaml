@@ -1,0 +1,65 @@
+id: c265cf08-3f99-46c1-8d59-328247057d57
+name: User Added to Local Administrator Group
+description: Detects the addition of a new member to the local administrator group, which could be legitimate activity or a sign of privilege escalation activity
+query: |
+    title: User Added to Local Administrator Group
+    id: c265cf08-3f99-46c1-8d59-328247057d57
+    status: stable
+    description: Detects the addition of a new member to the local administrator group, which could be legitimate activity or a sign of privilege escalation activity
+    references:
+        - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4732
+        - https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers
+    author: Florian Roth (Nextron Systems)
+    date: 2017-03-14
+    modified: 2021-01-17
+    tags:
+        - attack.initial-access
+        - attack.privilege-escalation
+        - attack.stealth
+        - attack.t1078
+        - attack.persistence
+        - attack.t1098
+    logsource:
+        product: windows
+        service: security
+    detection:
+        selection_eid:
+            EventID: 4732
+        selection_group:
+            - TargetUserName|startswith: 'Administr'
+            - TargetSid: 'S-1-5-32-544'
+        filter_main_computer_accounts:
+            SubjectUserName|endswith: '$'
+        condition: all of selection_* and not 1 of filter_*
+    falsepositives:
+        - Legitimate administrative activity
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1078
+    - T1098
+tags:
+    - attack.initial-access
+    - attack.privilege-escalation
+    - attack.stealth
+    - attack.t1078
+    - attack.persistence
+    - attack.t1098
+author: Florian Roth (Nextron Systems)
+references:
+    - https://learn.microsoft.com/en-us/previous-versions/windows/it-pro/windows-10/security/threat-protection/auditing/event-4732
+    - https://learn.microsoft.com/en-us/windows-server/identity/ad-ds/manage/understand-security-identifiers
+data_sources:
+    - windows
+    - security
+file: entries/sigma/c265cf08-3f99-46c1-8d59-328247057d57.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_user_added_to_local_administrators.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c265cf08-3f99-46c1-8d59-328247057d57
+upstream_status: stable
+license: DRL-1.1
+quality_score: 100

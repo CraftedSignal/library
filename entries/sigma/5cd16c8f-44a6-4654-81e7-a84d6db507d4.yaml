@@ -1,0 +1,64 @@
+id: 5cd16c8f-44a6-4654-81e7-a84d6db507d4
+name: Process Execution From Shared Memory Directory
+description: |
+    Detects the execution of a binary from the Linux shared memory directory /dev/shm.
+    This directory is a tmpfs mount backed entirely by RAM and is abused by attackers for fileless malware staging because files written there never touch physical disk and may evade disk-based detection.
+query: |
+    title: Process Execution From Shared Memory Directory
+    id: 5cd16c8f-44a6-4654-81e7-a84d6db507d4
+    status: experimental
+    description: |
+        Detects the execution of a binary from the Linux shared memory directory /dev/shm.
+        This directory is a tmpfs mount backed entirely by RAM and is abused by attackers for fileless malware staging because files written there never touch physical disk and may evade disk-based detection.
+    references:
+        - https://www.sysdig.com/blog/containers-read-only-fileless-malware
+        - https://unfinished.bike/fun-with-the-new-bpfdoor-2023
+        - https://asiapacificdefencereporter.com/wp-content/uploads/2023/08/Final-CRWD-2023-Threat-Hunting-Report.pdf
+        - https://www.crowdstrike.com/en-us/blog/how-to-hunt-for-decisivearchitect-and-justforfun-implant/
+        - https://www.linkedin.com/posts/avradeep_malware-apt-infostealer-activity-7373203959697719296-JR-7
+        - https://www.stormshield.com/news/orbit-analysis-of-a-linux-dedicated-malware/
+    author: Stan Beukers
+    date: 2026-06-20
+    tags:
+        - attack.stealth
+        - attack.execution
+        - attack.t1027.011
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection:
+            Image|startswith: '/dev/shm/'
+        condition: selection
+    falsepositives:
+        - Unlikely in production environments; some container runtimes or IPC frameworks may use /dev/shm for inter-process communication but should not spawn executables.
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1027.011
+tags:
+    - attack.stealth
+    - attack.execution
+    - attack.t1027.011
+author: Stan Beukers
+references:
+    - https://www.sysdig.com/blog/containers-read-only-fileless-malware
+    - https://unfinished.bike/fun-with-the-new-bpfdoor-2023
+    - https://asiapacificdefencereporter.com/wp-content/uploads/2023/08/Final-CRWD-2023-Threat-Hunting-Report.pdf
+    - https://www.crowdstrike.com/en-us/blog/how-to-hunt-for-decisivearchitect-and-justforfun-implant/
+    - https://www.linkedin.com/posts/avradeep_malware-apt-infostealer-activity-7373203959697719296-JR-7
+    - https://www.stormshield.com/news/orbit-analysis-of-a-linux-dedicated-malware/
+data_sources:
+    - linux
+    - process_creation
+file: entries/sigma/5cd16c8f-44a6-4654-81e7-a84d6db507d4.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/process_creation/proc_creation_lnx_susp_exec_from_dev_shm.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 5cd16c8f-44a6-4654-81e7-a84d6db507d4
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

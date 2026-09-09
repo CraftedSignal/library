@@ -1,0 +1,58 @@
+id: b7bc7038-638b-4ffd-880c-292c692209ef
+name: Certificate Request Export to Exchange Webserver
+description: Detects a write of an Exchange CSR to an untypical directory or with aspx name suffix which can be used to place a webshell
+query: |
+    title: Certificate Request Export to Exchange Webserver
+    id: b7bc7038-638b-4ffd-880c-292c692209ef
+    status: test
+    description: Detects a write of an Exchange CSR to an untypical directory or with aspx name suffix which can be used to place a webshell
+    references:
+        - https://twitter.com/GossiTheDog/status/1429175908905127938
+    author: Max Altgelt (Nextron Systems)
+    date: 2021-08-23
+    modified: 2023-01-23
+    tags:
+        - attack.persistence
+        - attack.t1505.003
+    logsource:
+        service: msexchange-management
+        product: windows
+    detection:
+        keywords_export_command:
+            '|all':
+                - 'New-ExchangeCertificate'
+                - ' -GenerateRequest'
+                - ' -BinaryEncoded'
+                - ' -RequestFile'
+        keywords_export_params:
+            - '\\\\localhost\\C$'
+            - '\\\\127.0.0.1\\C$'
+            - 'C:\\inetpub'
+            - '.aspx'
+        condition: keywords_export_command and keywords_export_params
+    falsepositives:
+        - Unlikely
+    level: critical
+query_type: sigma
+severity: critical
+techniques:
+    - T1505.003
+tags:
+    - attack.persistence
+    - attack.t1505.003
+author: Max Altgelt (Nextron Systems)
+references:
+    - https://twitter.com/GossiTheDog/status/1429175908905127938
+data_sources:
+    - windows
+    - msexchange-management
+file: entries/sigma/b7bc7038-638b-4ffd-880c-292c692209ef.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/msexchange/win_exchange_proxyshell_certificate_generation.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: b7bc7038-638b-4ffd-880c-292c692209ef
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

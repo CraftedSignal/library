@@ -1,0 +1,63 @@
+id: 6fe4aa1e-0531-4510-8be2-782154b73b48
+name: File Recovery From Backup Via Wbadmin.EXE
+description: |
+    Detects the recovery of files from backups via "wbadmin.exe".
+    Attackers can restore sensitive files such as NTDS.DIT or Registry Hives from backups in order to potentially extract credentials.
+query: |
+    title: File Recovery From Backup Via Wbadmin.EXE
+    id: 6fe4aa1e-0531-4510-8be2-782154b73b48
+    related:
+        - id: 84972c80-251c-4c3a-9079-4f00aad93938
+          type: derived
+    status: test
+    description: |
+        Detects the recovery of files from backups via "wbadmin.exe".
+        Attackers can restore sensitive files such as NTDS.DIT or Registry Hives from backups in order to potentially extract credentials.
+    references:
+        - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/wbadmin-start-recovery
+        - https://lolbas-project.github.io/lolbas/Binaries/Wbadmin/
+    author: Nasreddine Bencherchali (Nextron Systems), frack113
+    date: 2024-05-10
+    tags:
+        - attack.impact
+        - attack.t1490
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\wbadmin.exe'
+            - OriginalFileName: 'WBADMIN.EXE'
+        selection_cli:
+            CommandLine|contains|all:
+                - ' recovery'
+                - 'recoveryTarget'
+                - 'itemtype:File'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1490
+tags:
+    - attack.impact
+    - attack.t1490
+author: Nasreddine Bencherchali (Nextron Systems), frack113
+references:
+    - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/wbadmin-start-recovery
+    - https://lolbas-project.github.io/lolbas/Binaries/Wbadmin/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/6fe4aa1e-0531-4510-8be2-782154b73b48.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_wbadmin_restore_file.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 6fe4aa1e-0531-4510-8be2-782154b73b48
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

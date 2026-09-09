@@ -1,0 +1,62 @@
+id: cdb15e19-c2d0-432a-928e-e49c8c60dcf2
+name: Potential DLL Sideloading Of MsCorSvc.DLL
+description: Detects potential DLL sideloading of "mscorsvc.dll".
+query: |
+    title: Potential DLL Sideloading Of MsCorSvc.DLL
+    id: cdb15e19-c2d0-432a-928e-e49c8c60dcf2
+    status: test
+    description: Detects potential DLL sideloading of "mscorsvc.dll".
+    references:
+        - https://hijacklibs.net/entries/microsoft/built-in/mscorsvc.html
+    author: Wietze Beukema
+    date: 2024-07-11
+    modified: 2025-02-26
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.execution
+        - attack.stealth
+        - attack.t1574.001
+    logsource:
+        product: windows
+        category: image_load
+    detection:
+        selection:
+            ImageLoaded|endswith: '\mscorsvc.dll'
+        filter_main_generic:
+            ImageLoaded|startswith:
+                - 'C:\Windows\Microsoft.NET\Framework\'
+                - 'C:\Windows\Microsoft.NET\Framework64\'
+                - 'C:\Windows\Microsoft.NET\FrameworkArm\'
+                - 'C:\Windows\Microsoft.NET\FrameworkArm64\'
+                - 'C:\Windows\WinSxS\'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Legitimate applications loading their own versions of the DLL mentioned in this rule.
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1574.001
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.execution
+    - attack.stealth
+    - attack.t1574.001
+author: Wietze Beukema
+references:
+    - https://hijacklibs.net/entries/microsoft/built-in/mscorsvc.html
+data_sources:
+    - windows
+    - image_load
+file: entries/sigma/cdb15e19-c2d0-432a-928e-e49c8c60dcf2.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/image_load/image_load_side_load_mscorsvc.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: cdb15e19-c2d0-432a-928e-e49c8c60dcf2
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

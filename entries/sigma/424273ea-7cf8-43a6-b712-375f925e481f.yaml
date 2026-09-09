@@ -1,0 +1,65 @@
+id: 424273ea-7cf8-43a6-b712-375f925e481f
+name: Scheduled Task Executed From A Suspicious Location
+description: Detects the execution of Scheduled Tasks where the Program being run is located in a suspicious location or it's an unusale program to be run from a Scheduled Task
+query: |
+    title: Scheduled Task Executed From A Suspicious Location
+    id: 424273ea-7cf8-43a6-b712-375f925e481f
+    status: test
+    description: Detects the execution of Scheduled Tasks where the Program being run is located in a suspicious location or it's an unusale program to be run from a Scheduled Task
+    references:
+        - Internal Research
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2022-12-05
+    modified: 2023-02-07
+    tags:
+        - attack.privilege-escalation
+        - attack.execution
+        - attack.persistence
+        - attack.t1053.005
+    logsource:
+        product: windows
+        service: taskscheduler
+        definition: 'Requirements: The "Microsoft-Windows-TaskScheduler/Operational" is disabled by default and needs to be enabled in order for this detection to trigger'
+    detection:
+        selection:
+            EventID: 129 # Created Task Process
+            Path|contains:
+                - 'C:\Windows\Temp\'
+                - '\AppData\Local\Temp\'
+                - '\Desktop\'
+                - '\Downloads\'
+                - '\Users\Public\'
+                - 'C:\Temp\'
+        # If you experience FP. Uncomment the filter below and add the specific TaskName with the Program to it
+        # filter:
+        #     TaskName: '\Exact\Task\Name'
+        #     Path: 'Exact\Path'
+        condition: selection
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1053.005
+tags:
+    - attack.privilege-escalation
+    - attack.execution
+    - attack.persistence
+    - attack.t1053.005
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - Internal Research
+data_sources:
+    - windows
+    - taskscheduler
+file: entries/sigma/424273ea-7cf8-43a6-b712-375f925e481f.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/taskscheduler/win_taskscheduler_execution_from_susp_locations.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 424273ea-7cf8-43a6-b712-375f925e481f
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

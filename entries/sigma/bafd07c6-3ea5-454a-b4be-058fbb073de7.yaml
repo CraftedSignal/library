@@ -1,0 +1,93 @@
+id: bafd07c6-3ea5-454a-b4be-058fbb073de7
+name: Potential Executable Run Itself As Sacrificial Process
+description: |
+    Detects when an executable launches an identical instance of itself, a behavior often used to create a suspended “sacrificial” process for code injection or evasion.
+    Investigate for indicators such as the process being started in suspended mode, rapid parent termination, memory manipulation (e.g., WriteProcessMemory, CreateRemoteThread), or unsigned binaries.
+    Review command-line arguments, process ancestry, and network activity to confirm if this is legitimate behavior or process injection activity.
+query: |
+    title: Potential Executable Run Itself As Sacrificial Process
+    id: bafd07c6-3ea5-454a-b4be-058fbb073de7
+    status: experimental
+    description: |
+        Detects when an executable launches an identical instance of itself, a behavior often used to create a suspended “sacrificial” process for code injection or evasion.
+        Investigate for indicators such as the process being started in suspended mode, rapid parent termination, memory manipulation (e.g., WriteProcessMemory, CreateRemoteThread), or unsigned binaries.
+        Review command-line arguments, process ancestry, and network activity to confirm if this is legitimate behavior or process injection activity.
+    references:
+        - https://www.joesandbox.com/analysis/1605063/0/html
+    author: frack113
+    date: 2025-10-17
+    tags:
+        - attack.privilege-escalation
+        - attack.stealth
+        - attack.t1055
+        - detection.threat-hunting
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|fieldref: ParentImage
+        filter_main_path:
+            Image|startswith:
+                - 'C:\Program Files\'
+                - 'C:\Program Files (x86)\'
+        filter_main_original_fn:
+            OriginalFileName:
+                - 'Cmd.Exe'
+                - 'CompatTelRunner.exe'
+                - 'Discord.exe'
+                - 'electron.exe' # Vs Code
+                - 'EXPLORER.EXE'
+                - 'httpd.exe'
+                - 'IE4UINIT.EXE'
+                - 'mmc.exe'
+                - 'MpCmdRun.exe'
+                - 'mscorsvw.exe'
+                - 'msiexec.exe'
+                - 'NGenTask.exe'
+                - 'OneDriveSetup.exe'
+                - 'PowerShell.EXE'
+                - 'REGSVR32.EXE'
+                - 'smss.exe'
+                - 'Spotify.exe'
+                - 'WerMgr'
+        filter_main_product:
+            Product:
+                - 'Avira'
+                - 'Evernote'
+                - 'Firefox'
+                - 'Microsoft Office'
+                - 'Ninite'
+                - 'Opera Browser Assistant Installer'
+                - 'Opera Installer'
+                - 'Sysinternals Sysmon'
+        condition: selection and not 1 of filter_*
+    falsepositives:
+        - Legitimate software that may launch a new instance of itself, especially updaters or installers. Investigate each alert and apply whitelisting as needed.
+    # Increase the level after some initial tuning in your environment
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1055
+tags:
+    - attack.privilege-escalation
+    - attack.stealth
+    - attack.t1055
+    - detection.threat-hunting
+author: frack113
+references:
+    - https://www.joesandbox.com/analysis/1605063/0/html
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/bafd07c6-3ea5-454a-b4be-058fbb073de7.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-threat-hunting/windows/process_creation/proc_creation_win_susp_parent_execute_itself.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: threat_hunt
+upstream_id: bafd07c6-3ea5-454a-b4be-058fbb073de7
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

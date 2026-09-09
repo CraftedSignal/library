@@ -1,0 +1,66 @@
+id: 0b7889b4-5577-4521-a60a-3376ee7f9f7b
+name: WMI Persistence
+description: Detects suspicious WMI event filter and command line event consumer based on WMI and Security Logs.
+query: |
+    title: WMI Persistence
+    id: 0b7889b4-5577-4521-a60a-3376ee7f9f7b
+    status: test
+    description: Detects suspicious WMI event filter and command line event consumer based on WMI and Security Logs.
+    references:
+        - https://twitter.com/mattifestation/status/899646620148539397
+        - https://www.eideon.com/2018-03-02-THL03-WMIBackdoors/
+    author: Florian Roth (Nextron Systems), Gleb Sukhodolskiy, Timur Zinniatullin oscd.community
+    date: 2017-08-22
+    modified: 2022-02-10
+    tags:
+        - attack.persistence
+        - attack.privilege-escalation
+        - attack.t1546.003
+    logsource:
+        product: windows
+        service: wmi
+        definition: 'WMI Namespaces Auditing and SACL should be configured, EventID 5861 and 5859 detection requires Windows 10, 2012 and higher'
+    detection:
+        wmi_filter_to_consumer_binding:
+            EventID: 5861
+        consumer_keywords:
+            - 'ActiveScriptEventConsumer'
+            - 'CommandLineEventConsumer'
+            - 'CommandLineTemplate'
+            # - 'Binding EventFilter'  # too many false positive with HP Health Driver
+        wmi_filter_registration:
+            EventID: 5859
+        filter_scmevent:
+            Provider: 'SCM Event Provider'
+            Query: 'select * from MSFT_SCMEventLogEvent'
+            User: 'S-1-5-32-544'
+            PossibleCause: 'Permanent'
+        condition: ( (wmi_filter_to_consumer_binding and consumer_keywords) or (wmi_filter_registration) ) and not filter_scmevent
+    falsepositives:
+        - Unknown (data set is too small; further testing needed)
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1546.003
+tags:
+    - attack.persistence
+    - attack.privilege-escalation
+    - attack.t1546.003
+author: Florian Roth (Nextron Systems), Gleb Sukhodolskiy, Timur Zinniatullin oscd.community
+references:
+    - https://twitter.com/mattifestation/status/899646620148539397
+    - https://www.eideon.com/2018-03-02-THL03-WMIBackdoors/
+data_sources:
+    - windows
+    - wmi
+file: entries/sigma/0b7889b4-5577-4521-a60a-3376ee7f9f7b.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/wmi/win_wmi_persistence.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 0b7889b4-5577-4521-a60a-3376ee7f9f7b
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

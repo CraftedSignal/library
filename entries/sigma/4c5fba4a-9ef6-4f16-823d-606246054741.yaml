@@ -1,0 +1,61 @@
+id: 4c5fba4a-9ef6-4f16-823d-606246054741
+name: Dfsvc.EXE Initiated Network Connection Over Uncommon Port
+description: Detects an initiated network connection over uncommon ports from "dfsvc.exe". A utility used to handled ClickOnce applications.
+query: |
+    title: Dfsvc.EXE Initiated Network Connection Over Uncommon Port
+    id: 4c5fba4a-9ef6-4f16-823d-606246054741
+    status: test
+    description: Detects an initiated network connection over uncommon ports from "dfsvc.exe". A utility used to handled ClickOnce applications.
+    references:
+        - https://posts.specterops.io/less-smartscreen-more-caffeine-ab-using-clickonce-for-trusted-code-execution-1446ea8051c5
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-06-12
+    modified: 2024-01-31
+    tags:
+        - attack.execution
+        - attack.t1203
+        - detection.threat-hunting
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection:
+            Image|contains: ':\Windows\Microsoft.NET\'
+            Image|endswith: '\dfsvc.exe'
+            Initiated: 'true'
+        filter_main_known_ports:
+            DestinationPort:
+                - 80
+                - 443
+        filter_optional_dns_ipv6:
+            # Based on VT. More than 140 binaries made communication over DNS
+            DestinationIsIpv6: 'true'
+            DestinationPort: 53
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1203
+tags:
+    - attack.execution
+    - attack.t1203
+    - detection.threat-hunting
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://posts.specterops.io/less-smartscreen-more-caffeine-ab-using-clickonce-for-trusted-code-execution-1446ea8051c5
+data_sources:
+    - windows
+    - network_connection
+file: entries/sigma/4c5fba4a-9ef6-4f16-823d-606246054741.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-threat-hunting/windows/network_connection/net_connection_win_dfsvc_uncommon_ports.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: threat_hunt
+upstream_id: 4c5fba4a-9ef6-4f16-823d-606246054741
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

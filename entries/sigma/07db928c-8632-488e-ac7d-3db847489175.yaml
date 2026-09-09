@@ -1,0 +1,77 @@
+id: 07db928c-8632-488e-ac7d-3db847489175
+name: Forest Blizzard APT - Process Creation Activity
+description: |
+    Detects the execution of specific processes and command line combination.
+    These were seen being created by Forest Blizzard as described by MSFT.
+query: |
+    title: Forest Blizzard APT - Process Creation Activity
+    id: 07db928c-8632-488e-ac7d-3db847489175
+    status: experimental
+    description: |
+        Detects the execution of specific processes and command line combination.
+        These were seen being created by Forest Blizzard as described by MSFT.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2024/04/22/analyzing-forest-blizzards-custom-post-compromise-tool-for-exploiting-cve-2022-38028-to-obtain-credentials/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2024-04-23
+    modified: 2025-01-22
+    tags:
+        - attack.execution
+        - detection.emerging-threats
+        - attack.stealth
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_hashes:
+            Hashes|contains:
+                - 'SHA256=6b311c0a977d21e772ac4e99762234da852bbf84293386fbe78622a96c0b052f'
+                - 'SHA256=c60ead92cd376b689d1b4450f2578b36ea0bf64f3963cfa5546279fa4424c2a5'
+        selection_schtasks_create:
+            Image|endswith: '\schtasks.exe'
+            CommandLine|contains|all:
+                - 'Create'
+                - '/RU'
+                - 'SYSTEM'
+                - '\Microsoft\Windows\WinSrv'
+            CommandLine|contains:
+                - 'servtask.bat'
+                - 'execute.bat'
+                - 'doit.bat'
+        selection_schtasks_delete:
+            Image|endswith: '\schtasks.exe'
+            CommandLine|contains|all:
+                - 'Delete'
+                - '/F '
+                - '\Microsoft\Windows\WinSrv'
+        selection_powershell:
+            CommandLine|contains|all:
+                - 'Get-ChildItem'
+                - '.save'
+                - 'Compress-Archive -DestinationPath C:\ProgramData\'
+        condition: 1 of selection_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.execution
+    - detection.emerging-threats
+    - attack.stealth
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.microsoft.com/en-us/security/blog/2024/04/22/analyzing-forest-blizzards-custom-post-compromise-tool-for-exploiting-cve-2022-38028-to-obtain-credentials/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/07db928c-8632-488e-ac7d-3db847489175.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2024/TA/Forest-Blizzard/proc_creation_win_apt_forest_blizzard_activity.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 07db928c-8632-488e-ac7d-3db847489175
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

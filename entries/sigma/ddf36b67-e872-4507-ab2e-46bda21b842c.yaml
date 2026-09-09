@@ -1,0 +1,97 @@
+id: ddf36b67-e872-4507-ab2e-46bda21b842c
+name: Local System Accounts Discovery - MacOs
+description: |
+    Detects enumeration of local system accounts on MacOS systems.
+    This can be used by attackers to identify accounts for lateral movement or privilege escalation.
+query: |
+    title: Local System Accounts Discovery - MacOs
+    id: ddf36b67-e872-4507-ab2e-46bda21b842c
+    status: test
+    description: |
+        Detects enumeration of local system accounts on MacOS systems.
+        This can be used by attackers to identify accounts for lateral movement or privilege escalation.
+    references:
+        - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1087.001/T1087.001.md
+        - https://ss64.com/osx/dscl.html
+        - https://ss64.com/mac/dscacheutil.html
+    author: Alejandro Ortuno, oscd.community
+    date: 2020-10-08
+    modified: 2026-07-07
+    tags:
+        - attack.discovery
+        - attack.t1087.001
+    logsource:
+        category: process_creation
+        product: macos
+    detection:
+        selection_dscl:
+            Image|endswith: '/dscl'
+            CommandLine|contains|all:
+                - 'list'
+                - '/users'
+        selection_dscacheutil:
+            Image|endswith: '/dscacheutil'
+            CommandLine|contains|all:
+                - '-q'
+                - 'user'
+        selection_root:
+            CommandLine|contains: '''*:0:'''
+        selection_passwd_sudo:
+            Image|endswith:
+                - '/cat'
+                - '/awk'
+                - '/grep'
+            CommandLine|contains:
+                - '/etc/passwd'
+                - '/etc/sudoers'
+        selection_id:
+            Image|endswith: '/id'
+        selection_lsof:
+            Image|endswith: '/lsof'
+            CommandLine|contains: '-u'
+        selection_logged_in_users:
+            Image|endswith:
+                - '/who'
+                - '/w'
+                - '/users'
+                - '/last'
+        selection_home_dir_listing:
+            Image|endswith: '/ls'
+            CommandLine|endswith:
+                - '/Users'
+                - "/Users'"
+                - '/Users"'
+        selection_loginwindow_prefs:
+            Image|endswith:
+                - '/defaults' # defaults read /Library/Preferences/com.apple.loginwindow
+                - '/plutil' # plutil -p /Library/Preferences/com.apple.loginwindow.plist
+            CommandLine|contains: 'com.apple.loginwindow'
+        condition: 1 of selection*
+    falsepositives:
+        - Legitimate administration activities
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1087.001
+tags:
+    - attack.discovery
+    - attack.t1087.001
+author: Alejandro Ortuno, oscd.community
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1087.001/T1087.001.md
+    - https://ss64.com/osx/dscl.html
+    - https://ss64.com/mac/dscacheutil.html
+data_sources:
+    - macos
+    - process_creation
+file: entries/sigma/ddf36b67-e872-4507-ab2e-46bda21b842c.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/macos/process_creation/proc_creation_macos_local_account.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: ddf36b67-e872-4507-ab2e-46bda21b842c
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

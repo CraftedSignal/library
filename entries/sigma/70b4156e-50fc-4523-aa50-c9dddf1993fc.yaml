@@ -1,0 +1,60 @@
+id: 70b4156e-50fc-4523-aa50-c9dddf1993fc
+name: Bpfdoor TCP Ports Redirect
+description: |
+    All TCP traffic on particular port from attacker is routed to different port. ex. '/sbin/iptables -t nat -D PREROUTING -p tcp -s 192.168.1.1 --dport 22 -j REDIRECT --to-ports 42392'
+    The traffic looks like encrypted SSH communications going to TCP port 22, but in reality is being directed to the shell port once it hits the iptables rule for the attacker host only.
+query: |
+    title: Bpfdoor TCP Ports Redirect
+    id: 70b4156e-50fc-4523-aa50-c9dddf1993fc
+    status: test
+    description: |
+        All TCP traffic on particular port from attacker is routed to different port. ex. '/sbin/iptables -t nat -D PREROUTING -p tcp -s 192.168.1.1 --dport 22 -j REDIRECT --to-ports 42392'
+        The traffic looks like encrypted SSH communications going to TCP port 22, but in reality is being directed to the shell port once it hits the iptables rule for the attacker host only.
+    references:
+        - https://www.sandflysecurity.com/blog/bpfdoor-an-evasive-linux-backdoor-technical-analysis/
+        - https://www.elastic.co/security-labs/a-peek-behind-the-bpfdoor
+    author: Rafal Piasecki
+    date: 2022-08-10
+    tags:
+        - attack.defense-impairment
+        - attack.t1686
+    logsource:
+        product: linux
+        service: auditd
+    detection:
+        cmd:
+            type: 'EXECVE'
+            a0|endswith: 'iptables'
+            a1: '-t'
+            a2: 'nat'
+        keywords:
+            - '--to-ports 42'
+            - '--to-ports 43'
+        condition: cmd and keywords
+    falsepositives:
+        - Legitimate ports redirect
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1686
+tags:
+    - attack.defense-impairment
+    - attack.t1686
+author: Rafal Piasecki
+references:
+    - https://www.sandflysecurity.com/blog/bpfdoor-an-evasive-linux-backdoor-technical-analysis/
+    - https://www.elastic.co/security-labs/a-peek-behind-the-bpfdoor
+data_sources:
+    - linux
+    - auditd
+file: entries/sigma/70b4156e-50fc-4523-aa50-c9dddf1993fc.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/auditd/execve/lnx_auditd_bpfdoor_port_redirect.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 70b4156e-50fc-4523-aa50-c9dddf1993fc
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

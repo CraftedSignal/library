@@ -1,0 +1,85 @@
+id: 6938366d-8954-4ddc-baff-c830b3ba8fcd
+name: HackTool - Certipy Execution
+description: |
+    Detects Certipy execution, a tool for Active Directory Certificate Services enumeration and abuse based on PE metadata characteristics and common command line arguments.
+query: |
+    title: HackTool - Certipy Execution
+    id: 6938366d-8954-4ddc-baff-c830b3ba8fcd
+    status: test
+    description: |
+        Detects Certipy execution, a tool for Active Directory Certificate Services enumeration and abuse based on PE metadata characteristics and common command line arguments.
+    references:
+        - https://github.com/ly4k/Certipy
+        - https://research.ifcr.dk/certipy-4-0-esc9-esc10-bloodhound-gui-new-authentication-and-request-methods-and-more-7237d88061f7
+    author: pH-T (Nextron Systems), Sittikorn Sangrattanapitak
+    date: 2023-04-17
+    modified: 2024-10-08
+    tags:
+        - attack.discovery
+        - attack.credential-access
+        - attack.t1649
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\Certipy.exe'
+            - OriginalFileName: 'Certipy.exe'
+            - Description|contains: 'Certipy'
+        selection_cli_commands:
+            CommandLine|contains:
+                - ' account '
+                - ' auth '
+                # - ' ca ' # Too short to be used with just one CLI
+                - ' cert '
+                - ' find '
+                - ' forge '
+                - ' ptt '
+                - ' relay '
+                - ' req '
+                - ' shadow '
+                - ' template '
+        selection_cli_flags:
+            CommandLine|contains:
+                - ' -bloodhound'
+                - ' -ca-pfx '
+                - ' -dc-ip '
+                - ' -kirbi'
+                - ' -old-bloodhound'
+                - ' -pfx '
+                - ' -target'
+                - ' -template'
+                - ' -username '
+                - ' -vulnerable'
+                - 'auth -pfx'
+                - 'shadow auto'
+                - 'shadow list'
+        condition: selection_img or all of selection_cli_*
+    falsepositives:
+        - Unlikely
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1649
+tags:
+    - attack.discovery
+    - attack.credential-access
+    - attack.t1649
+author: pH-T (Nextron Systems), Sittikorn Sangrattanapitak
+references:
+    - https://github.com/ly4k/Certipy
+    - https://research.ifcr.dk/certipy-4-0-esc9-esc10-bloodhound-gui-new-authentication-and-request-methods-and-more-7237d88061f7
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/6938366d-8954-4ddc-baff-c830b3ba8fcd.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_hktl_certipy.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 6938366d-8954-4ddc-baff-c830b3ba8fcd
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,76 @@
+id: 90ae0469-0cee-4509-b67f-e5efcef040f7
+name: Aruba Network Service Potential DLL Sideloading
+description: Detects potential DLL sideloading activity via the Aruba Networks Virtual Intranet Access "arubanetsvc.exe" process using DLL Search Order Hijacking
+query: |
+    title: Aruba Network Service Potential DLL Sideloading
+    id: 90ae0469-0cee-4509-b67f-e5efcef040f7
+    status: test
+    description: Detects potential DLL sideloading activity via the Aruba Networks Virtual Intranet Access "arubanetsvc.exe" process using DLL Search Order Hijacking
+    references:
+        - https://twitter.com/wdormann/status/1616581559892545537?t=XLCBO9BziGzD7Bmbt8oMEQ&s=09
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-01-22
+    modified: 2023-03-15
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.execution
+        - attack.stealth
+        - attack.t1574.001
+    logsource:
+        category: image_load
+        product: windows
+    detection:
+        selection:
+            Image|endswith: '\arubanetsvc.exe'
+            ImageLoaded|endswith:
+                - '\wtsapi32.dll'
+                - '\msvcr100.dll'
+                - '\msvcp100.dll'
+                - '\dbghelp.dll'
+                - '\dbgcore.dll'
+                - '\wininet.dll'
+                - '\iphlpapi.dll'
+                - '\version.dll'
+                - '\cryptsp.dll'
+                - '\cryptbase.dll'
+                - '\wldp.dll'
+                - '\profapi.dll'
+                - '\sspicli.dll'
+                - '\winsta.dll'
+                - '\dpapi.dll'
+        filter:
+            ImageLoaded|startswith:
+                - 'C:\Windows\System32\'
+                - 'C:\Windows\SysWOW64\'
+                - 'C:\Windows\WinSxS\'
+        condition: selection and not filter
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1574.001
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.execution
+    - attack.stealth
+    - attack.t1574.001
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://twitter.com/wdormann/status/1616581559892545537?t=XLCBO9BziGzD7Bmbt8oMEQ&s=09
+data_sources:
+    - windows
+    - image_load
+file: entries/sigma/90ae0469-0cee-4509-b67f-e5efcef040f7.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/image_load/image_load_side_load_aruba_networks_virtual_intranet_access.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 90ae0469-0cee-4509-b67f-e5efcef040f7
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

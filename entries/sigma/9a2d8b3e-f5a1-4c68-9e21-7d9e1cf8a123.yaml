@@ -1,0 +1,93 @@
+id: 9a2d8b3e-f5a1-4c68-9e21-7d9e1cf8a123
+name: Potential Exploitation of RCE Vulnerability CVE-2025-33053 - Process Access
+description: |
+    Detects potential exploitation of remote code execution vulnerability CVE-2025-33053
+    by looking for process access that involves legitimate Windows executables (iediagcmd.exe, CustomShellHost.exe)
+    accessing suspicious executables hosted on WebDAV shares. This indicates an attacker may be exploiting
+    Process.Start() search order manipulation to execute malicious code from attacker-controlled WebDAV servers
+    instead of legitimate system binaries. The vulnerability allows unauthorized code execution through
+    external control of file names or paths via WebDAV.
+query: |
+    title: Potential Exploitation of RCE Vulnerability CVE-2025-33053 - Process Access
+    id: 9a2d8b3e-f5a1-4c68-9e21-7d9e1cf8a123
+    related:
+        - id: abe06362-a5b9-4371-8724-ebd00cd48a04
+          type: similar
+        - id: 04fc4b22-91a6-495a-879d-0144fec5ec03
+          type: similar
+    status: experimental
+    description: |
+        Detects potential exploitation of remote code execution vulnerability CVE-2025-33053
+        by looking for process access that involves legitimate Windows executables (iediagcmd.exe, CustomShellHost.exe)
+        accessing suspicious executables hosted on WebDAV shares. This indicates an attacker may be exploiting
+        Process.Start() search order manipulation to execute malicious code from attacker-controlled WebDAV servers
+        instead of legitimate system binaries. The vulnerability allows unauthorized code execution through
+        external control of file names or paths via WebDAV.
+    references:
+        - https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2025-33053
+        - https://research.checkpoint.com/2025/stealth-falcon-zero-day/
+    author: Swachchhanda Shrawan Poudel (Nextron Systems)
+    date: 2025-06-13
+    tags:
+        - attack.command-and-control
+        - attack.execution
+        - attack.stealth
+        - attack.t1218
+        - attack.lateral-movement
+        - attack.t1105
+        - detection.emerging-threats
+        - cve.2025-33053
+    logsource:
+        category: process_access
+        product: windows
+    detection:
+        selection_src:
+            SourceImage:
+                - 'C:\Program Files\internet explorer\iediagcmd.exe'
+                - 'C:\Windows\System32\CustomShellHost.exe'
+        selection_target_dir:
+            - TargetImage|startswith: '\\\\'
+            - TargetImage|contains: '\DavWWWRoot\'
+        selection_target_exe:
+            TargetImage|endswith:
+                - '\route.exe'
+                - '\netsh.exe'
+                - '\makecab.exe'
+                - '\dxdiag.exe'
+                - '\ipconfig.exe'
+                - '\explorer.exe'
+        condition: all of selection_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1218
+    - T1105
+tags:
+    - attack.command-and-control
+    - attack.execution
+    - attack.stealth
+    - attack.t1218
+    - attack.lateral-movement
+    - attack.t1105
+    - detection.emerging-threats
+    - cve.2025-33053
+author: Swachchhanda Shrawan Poudel (Nextron Systems)
+references:
+    - https://msrc.microsoft.com/update-guide/en-US/vulnerability/CVE-2025-33053
+    - https://research.checkpoint.com/2025/stealth-falcon-zero-day/
+data_sources:
+    - windows
+    - process_access
+file: entries/sigma/9a2d8b3e-f5a1-4c68-9e21-7d9e1cf8a123.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2025/Exploits/CVE-2025-33053/proc_access_win_exploit_cve_2025_33053.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 9a2d8b3e-f5a1-4c68-9e21-7d9e1cf8a123
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

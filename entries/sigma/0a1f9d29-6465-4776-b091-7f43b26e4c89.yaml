@@ -1,0 +1,57 @@
+id: 0a1f9d29-6465-4776-b091-7f43b26e4c89
+name: Prefetch File Deleted
+description: Detects the deletion of a prefetch file which may indicate an attempt to destroy forensic evidence
+query: |
+    title: Prefetch File Deleted
+    id: 0a1f9d29-6465-4776-b091-7f43b26e4c89
+    status: test
+    description: Detects the deletion of a prefetch file which may indicate an attempt to destroy forensic evidence
+    references:
+        - Internal Research
+        - https://www.group-ib.com/blog/hunting-for-ttps-with-prefetch-files/
+    author: Cedric MAURUGEON
+    date: 2021-09-29
+    modified: 2024-01-25
+    tags:
+        - attack.stealth
+        - attack.t1070.004
+    logsource:
+        product: windows
+        category: file_delete
+    detection:
+        selection:
+            TargetFilename|contains: ':\Windows\Prefetch\'
+            TargetFilename|endswith: '.pf'
+        filter_main_svchost:
+            Image|endswith: ':\windows\system32\svchost.exe'
+            User|contains: # covers many language settings
+                - 'AUTHORI'
+                - 'AUTORI'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1070.004
+tags:
+    - attack.stealth
+    - attack.t1070.004
+author: Cedric MAURUGEON
+references:
+    - Internal Research
+    - https://www.group-ib.com/blog/hunting-for-ttps-with-prefetch-files/
+data_sources:
+    - windows
+    - file_delete
+file: entries/sigma/0a1f9d29-6465-4776-b091-7f43b26e4c89.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_delete/file_delete_win_delete_prefetch.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 0a1f9d29-6465-4776-b091-7f43b26e4c89
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

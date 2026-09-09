@@ -1,0 +1,75 @@
+id: d3577be1-42c9-44a7-b56e-2e8de97349d3
+name: Inbox Rules Creation Or Update Activity in O365
+description: |
+    Detects inbox rule creation or update via O365 Audit logs, a technique commonly observed in Business Email Compromise (BEC) attacks to hide emails.
+    The usage of inbox rules can be a sign of a compromised mailbox, where an attacker is attempting to evade detections by suppressing or redirecting incoming emails.
+    Analysts should review these rules in context, validate whether they reflect normal user behavior, and correlate with other indicators such as unusual login activity or recent mailbox rule modifications.
+query: |
+    title: Inbox Rules Creation Or Update Activity in O365
+    id: d3577be1-42c9-44a7-b56e-2e8de97349d3
+    status: experimental
+    description: |
+        Detects inbox rule creation or update via O365 Audit logs, a technique commonly observed in Business Email Compromise (BEC) attacks to hide emails.
+        The usage of inbox rules can be a sign of a compromised mailbox, where an attacker is attempting to evade detections by suppressing or redirecting incoming emails.
+        Analysts should review these rules in context, validate whether they reflect normal user behavior, and correlate with other indicators such as unusual login activity or recent mailbox rule modifications.
+    references:
+        - https://redcanary.com/threat-detection-report/techniques/email-hiding-rules/
+        - https://learn.microsoft.com/it-it/powershell/module/exchangepowershell/set-inboxrule?view=exchange-ps
+        - https://learn.microsoft.com/it-it/powershell/module/exchangepowershell/new-inboxrule?view=exchange-ps
+    author: Marco Pedrinazzi (@pedrinazziM) (InTheCyber)
+    date: 2026-01-09
+    tags:
+        - attack.stealth
+        - attack.t1564.008
+        - attack.exfiltration
+        - attack.collection
+        - attack.t1114.003
+        - detection.threat-hunting
+    logsource:
+        service: audit
+        product: m365
+        definition: "Requirements: The 'Parameters' field is a list of dict. A correct mapping to the 'Value' field inside is recommended to avoid greedy search"
+    detection:
+        selection:
+            Operation:
+                - 'New-InboxRule'
+                - 'Set-InboxRule'
+            Parameters|contains:
+                - 'DeleteMessage'
+                - 'MarkAsRead'
+                - 'MoveToFolder'
+                - 'SubjectOrBodyContainsWords'
+        condition: selection
+    falsepositives:
+        - Legitimate inbox rules created by users or administrators to manage email flow such as filtering, organizing, or automating email handling.
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1564.008
+    - T1114.003
+tags:
+    - attack.stealth
+    - attack.t1564.008
+    - attack.exfiltration
+    - attack.collection
+    - attack.t1114.003
+    - detection.threat-hunting
+author: Marco Pedrinazzi (@pedrinazziM) (InTheCyber)
+references:
+    - https://redcanary.com/threat-detection-report/techniques/email-hiding-rules/
+    - https://learn.microsoft.com/it-it/powershell/module/exchangepowershell/set-inboxrule?view=exchange-ps
+    - https://learn.microsoft.com/it-it/powershell/module/exchangepowershell/new-inboxrule?view=exchange-ps
+data_sources:
+    - m365
+    - audit
+file: entries/sigma/d3577be1-42c9-44a7-b56e-2e8de97349d3.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-threat-hunting/cloud/m365/audit/microsoft365_susp_inbox_rule_creation_or_update_activity.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: threat_hunt
+upstream_id: d3577be1-42c9-44a7-b56e-2e8de97349d3
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

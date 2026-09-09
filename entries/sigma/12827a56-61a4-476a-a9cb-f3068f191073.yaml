@@ -1,0 +1,70 @@
+id: 12827a56-61a4-476a-a9cb-f3068f191073
+name: HackTool - KrbRelayUp Execution
+description: Detects KrbRelayUp used to perform a universal no-fix local privilege escalation in Windows domain environments where LDAP signing is not enforced
+query: |
+    title: HackTool - KrbRelayUp Execution
+    id: 12827a56-61a4-476a-a9cb-f3068f191073
+    status: test
+    description: Detects KrbRelayUp used to perform a universal no-fix local privilege escalation in Windows domain environments where LDAP signing is not enforced
+    references:
+        - https://github.com/Dec0ne/KrbRelayUp
+    author: Florian Roth (Nextron Systems)
+    date: 2022-04-26
+    modified: 2023-02-04
+    tags:
+        - attack.credential-access
+        - attack.t1558.003
+        - attack.lateral-movement
+        - attack.t1550.003
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\KrbRelayUp.exe'
+            - OriginalFileName: 'KrbRelayUp.exe' # In case the file has been renamed after compilation
+        selection_cli_1:
+            CommandLine|contains|all:
+                - ' relay '
+                - ' -Domain '
+                - ' -ComputerName '
+        selection_cli_2:
+            CommandLine|contains|all:
+                - ' krbscm '
+                - ' -sc '
+        selection_cli_3:
+            CommandLine|contains|all:
+                - ' spawn '
+                - ' -d '
+                - ' -cn '
+                - ' -cp '
+        condition: 1 of selection_*
+    falsepositives:
+        - Unlikely
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1558.003
+    - T1550.003
+tags:
+    - attack.credential-access
+    - attack.t1558.003
+    - attack.lateral-movement
+    - attack.t1550.003
+author: Florian Roth (Nextron Systems)
+references:
+    - https://github.com/Dec0ne/KrbRelayUp
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/12827a56-61a4-476a-a9cb-f3068f191073.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_hktl_krbrelayup.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 12827a56-61a4-476a-a9cb-f3068f191073
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,67 @@
+id: 1b2eeb27-949b-4704-8bfa-d8e5cfa045a1
+name: Potential Centos Web Panel Exploitation Attempt - CVE-2022-44877
+description: Detects potential exploitation attempts that target the Centos Web Panel 7 Unauthenticated Remote Code Execution CVE-2022-44877
+query: |
+    title: Potential Centos Web Panel Exploitation Attempt - CVE-2022-44877
+    id: 1b2eeb27-949b-4704-8bfa-d8e5cfa045a1
+    status: test
+    description: Detects potential exploitation attempts that target the Centos Web Panel 7 Unauthenticated Remote Code Execution CVE-2022-44877
+    references:
+        - https://seclists.org/fulldisclosure/2023/Jan/1
+        - https://www.rapid7.com/blog/post/2023/01/19/etr-exploitation-of-control-web-panel-cve-2022-44877/
+    author: Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-01-20
+    tags:
+        - attack.initial-access
+        - attack.t1190
+        - cve.2022-44877
+        - detection.emerging-threats
+    logsource:
+        category: webserver
+    detection:
+        selection:
+            cs-method: 'POST'
+            cs-uri-query|contains|all:
+                - '/login/index.php'
+                - 'login='
+            cs-uri-query|contains:
+                # TOD: Include other commonly used reverse shells. Examples: https://www.revshells.com/
+                - 'login=$('
+                # Common keywords related to python reverse shells
+                - 'base64'
+                - 'subprocess'
+                - 'socket'
+                - '${IFS}' # Usage of the input field separator to avoid writing spaces
+                # B64 Encoded "python" with different offsets
+                - 'cHl0aG9u'
+                - 'B5dGhvb'
+                - 'weXRob2'
+        condition: selection
+    falsepositives:
+        - Web vulnerability scanners
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1190
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - cve.2022-44877
+    - detection.emerging-threats
+author: Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://seclists.org/fulldisclosure/2023/Jan/1
+    - https://www.rapid7.com/blog/post/2023/01/19/etr-exploitation-of-control-web-panel-cve-2022-44877/
+data_sources:
+    - webserver
+file: entries/sigma/1b2eeb27-949b-4704-8bfa-d8e5cfa045a1.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2022/Exploits/CVE-2022-44877/web_cve_2022_44877_exploitation_attempt.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: 1b2eeb27-949b-4704-8bfa-d8e5cfa045a1
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

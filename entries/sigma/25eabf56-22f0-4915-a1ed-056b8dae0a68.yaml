@@ -1,0 +1,61 @@
+id: 25eabf56-22f0-4915-a1ed-056b8dae0a68
+name: Suspicious Dropbox API Usage
+description: Detects an executable that isn't dropbox but communicates with the Dropbox API
+query: |
+    title: Suspicious Dropbox API Usage
+    id: 25eabf56-22f0-4915-a1ed-056b8dae0a68
+    status: test
+    description: Detects an executable that isn't dropbox but communicates with the Dropbox API
+    references:
+        - https://app.any.run/tasks/7e906adc-9d11-447f-8641-5f40375ecebb
+        - https://www.zscaler.com/blogs/security-research/new-espionage-attack-molerats-apt-targeting-users-middle-east
+    author: Florian Roth (Nextron Systems)
+    date: 2022-04-20
+    tags:
+        - attack.command-and-control
+        - attack.exfiltration
+        - attack.t1105
+        - attack.t1567.002
+    logsource:
+        category: network_connection
+        product: windows
+    detection:
+        selection:
+            Initiated: 'true'
+            DestinationHostname|endswith:
+                - 'api.dropboxapi.com'
+                - 'content.dropboxapi.com'
+        filter_main_legit_dropbox:
+            # Note: It's better to add a specific path to the exact location(s) where dropbox is installed
+            Image|contains: '\Dropbox'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Legitimate use of the API with a tool that the author wasn't aware of
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1105
+    - T1567.002
+tags:
+    - attack.command-and-control
+    - attack.exfiltration
+    - attack.t1105
+    - attack.t1567.002
+author: Florian Roth (Nextron Systems)
+references:
+    - https://app.any.run/tasks/7e906adc-9d11-447f-8641-5f40375ecebb
+    - https://www.zscaler.com/blogs/security-research/new-espionage-attack-molerats-apt-targeting-users-middle-east
+data_sources:
+    - windows
+    - network_connection
+file: entries/sigma/25eabf56-22f0-4915-a1ed-056b8dae0a68.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/network_connection/net_connection_win_domain_dropbox_api.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 25eabf56-22f0-4915-a1ed-056b8dae0a68
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

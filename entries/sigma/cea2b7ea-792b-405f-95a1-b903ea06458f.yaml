@@ -1,0 +1,89 @@
+id: cea2b7ea-792b-405f-95a1-b903ea06458f
+name: Suspicious Child Process Of Manage Engine ServiceDesk
+description: Detects suspicious child processes of the "Manage Engine ServiceDesk Plus" Java web service
+query: |
+    title: Suspicious Child Process Of Manage Engine ServiceDesk
+    id: cea2b7ea-792b-405f-95a1-b903ea06458f
+    status: test
+    description: Detects suspicious child processes of the "Manage Engine ServiceDesk Plus" Java web service
+    references:
+        - https://www.horizon3.ai/manageengine-cve-2022-47966-technical-deep-dive/
+        - https://github.com/horizon3ai/CVE-2022-47966/blob/3a51c6b72ebbd87392babd955a8fbeaee2090b35/CVE-2022-47966.py
+        - https://blog.viettelcybersecurity.com/saml-show-stopper/
+    author: Florian Roth (Nextron Systems)
+    date: 2023-01-18
+    modified: 2023-08-29
+    tags:
+        - attack.command-and-control
+        - attack.t1102
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            ParentImage|contains|all:
+                - '\ManageEngine\ServiceDesk\'
+                - '\java.exe'
+            Image|endswith:
+                - '\AppVLP.exe'
+                - '\bash.exe'
+                - '\bitsadmin.exe'
+                - '\calc.exe'
+                - '\certutil.exe'
+                - '\cscript.exe'
+                - '\curl.exe'
+                - '\forfiles.exe'
+                - '\mftrace.exe'
+                - '\mshta.exe'
+                - '\net.exe'
+                - '\net1.exe'
+                - '\notepad.exe'  # Often used in POCs
+                - '\powershell.exe'
+                - '\pwsh.exe'
+                - '\query.exe'
+                - '\reg.exe'
+                - '\schtasks.exe'
+                - '\scrcons.exe'
+                - '\sh.exe'
+                - '\systeminfo.exe'
+                - '\whoami.exe'  # Often used in POCs
+                - '\wmic.exe'
+                - '\wscript.exe'
+                # - '\hh.exe'
+                # - '\regsvr32.exe'
+                # - '\rundll32.exe'
+                # - '\scriptrunner.exe'
+        filter_main_net:
+            Image|endswith:
+                - '\net.exe'
+                - '\net1.exe'
+            CommandLine|contains: ' stop'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Legitimate sub processes started by Manage Engine ServiceDesk Pro
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1102
+tags:
+    - attack.command-and-control
+    - attack.t1102
+author: Florian Roth (Nextron Systems)
+references:
+    - https://www.horizon3.ai/manageengine-cve-2022-47966-technical-deep-dive/
+    - https://github.com/horizon3ai/CVE-2022-47966/blob/3a51c6b72ebbd87392babd955a8fbeaee2090b35/CVE-2022-47966.py
+    - https://blog.viettelcybersecurity.com/saml-show-stopper/
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/cea2b7ea-792b-405f-95a1-b903ea06458f.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_java_manageengine_susp_child_process.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: cea2b7ea-792b-405f-95a1-b903ea06458f
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

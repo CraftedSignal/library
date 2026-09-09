@@ -1,0 +1,62 @@
+id: b3503044-60ce-4bf4-bbcb-e3db98788823
+name: DLL Load via LSASS
+description: Detects a method to load DLL via LSASS process using an undocumented Registry key
+query: |
+    title: DLL Load via LSASS
+    id: b3503044-60ce-4bf4-bbcb-e3db98788823
+    status: test
+    description: Detects a method to load DLL via LSASS process using an undocumented Registry key
+    references:
+        - https://blog.xpnsec.com/exploring-mimikatz-part-1/
+        - https://twitter.com/SBousseaden/status/1183745981189427200
+    author: Florian Roth (Nextron Systems)
+    date: 2019-10-16
+    modified: 2022-04-21
+    tags:
+        - attack.privilege-escalation
+        - attack.execution
+        - attack.persistence
+        - attack.t1547.008
+    logsource:
+        category: registry_event
+        product: windows
+    detection:
+        selection:
+            TargetObject|contains:
+                - '\CurrentControlSet\Services\NTDS\DirectoryServiceExtPt'
+                - '\CurrentControlSet\Services\NTDS\LsaDbExtPt'
+        filter_domain_controller:
+            Image: 'C:\Windows\system32\lsass.exe'
+            Details:
+                - '%%systemroot%%\system32\ntdsa.dll'
+                - '%%systemroot%%\system32\lsadb.dll'
+        condition: selection and not 1 of filter_*
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1547.008
+tags:
+    - attack.privilege-escalation
+    - attack.execution
+    - attack.persistence
+    - attack.t1547.008
+author: Florian Roth (Nextron Systems)
+references:
+    - https://blog.xpnsec.com/exploring-mimikatz-part-1/
+    - https://twitter.com/SBousseaden/status/1183745981189427200
+data_sources:
+    - windows
+    - registry_event
+file: entries/sigma/b3503044-60ce-4bf4-bbcb-e3db98788823.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/registry/registry_event/registry_event_susp_lsass_dll_load.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: b3503044-60ce-4bf4-bbcb-e3db98788823
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

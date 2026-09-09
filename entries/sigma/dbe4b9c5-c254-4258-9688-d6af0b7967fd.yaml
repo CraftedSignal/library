@@ -1,0 +1,72 @@
+id: dbe4b9c5-c254-4258-9688-d6af0b7967fd
+name: Screen Capture with Import Tool
+description: |
+    Detects adversary creating screen capture of a desktop with Import Tool.
+    Highly recommended using rule on servers, due to high usage of screenshot utilities on user workstations.
+    ImageMagick must be installed.
+query: |
+    title: Screen Capture with Import Tool
+    id: dbe4b9c5-c254-4258-9688-d6af0b7967fd
+    status: test
+    description: |
+      Detects adversary creating screen capture of a desktop with Import Tool.
+      Highly recommended using rule on servers, due to high usage of screenshot utilities on user workstations.
+      ImageMagick must be installed.
+    references:
+        - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1113/T1113.md
+        - https://linux.die.net/man/1/import
+        - https://imagemagick.org/
+    author: 'Pawel Mazur'
+    date: 2021-09-21
+    modified: 2022-10-09
+    tags:
+        - attack.collection
+        - attack.t1113
+    logsource:
+        product: linux
+        service: auditd
+    detection:
+        import:
+            type: EXECVE
+            a0: import
+        import_window_root:
+            a1: '-window'
+            a2: 'root'
+            a3|endswith:
+                - '.png'
+                - '.jpg'
+                - '.jpeg'
+        import_no_window_root:
+            a1|endswith:
+                - '.png'
+                - '.jpg'
+                - '.jpeg'
+        condition: import and (import_window_root or import_no_window_root)
+    falsepositives:
+        - Legitimate use of screenshot utility
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1113
+tags:
+    - attack.collection
+    - attack.t1113
+author: Pawel Mazur
+references:
+    - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1113/T1113.md
+    - https://linux.die.net/man/1/import
+    - https://imagemagick.org/
+data_sources:
+    - linux
+    - auditd
+file: entries/sigma/dbe4b9c5-c254-4258-9688-d6af0b7967fd.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/auditd/execve/lnx_auditd_screencapture_import.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: dbe4b9c5-c254-4258-9688-d6af0b7967fd
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

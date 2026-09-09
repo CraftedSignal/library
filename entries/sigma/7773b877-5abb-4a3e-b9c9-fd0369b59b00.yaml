@@ -1,0 +1,69 @@
+id: 7773b877-5abb-4a3e-b9c9-fd0369b59b00
+name: WMIC Remote Command Execution
+description: Detects the execution of WMIC to query information on a remote system
+query: |
+    title: WMIC Remote Command Execution
+    id: 7773b877-5abb-4a3e-b9c9-fd0369b59b00
+    related:
+        - id: e42af9df-d90b-4306-b7fb-05c863847ebd
+          type: obsolete
+        - id: 09af397b-c5eb-4811-b2bb-08b3de464ebf
+          type: obsolete
+    status: test
+    description: Detects the execution of WMIC to query information on a remote system
+    references:
+        - https://securelist.com/moonbounce-the-dark-side-of-uefi-firmware/105468/
+        - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/wmic
+    author: frack113, Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-02-14
+    modified: 2025-10-22
+    tags:
+        - attack.execution
+        - attack.t1047
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith: '\WMIC.exe'
+            - OriginalFileName: 'wmic.exe'
+        selection_cli:
+            CommandLine|contains|windash: '/node:'
+        filter_main_localhost:
+            CommandLine|contains:
+                - 'localhost'
+                - '127.0.0.1'
+        condition: all of selection_* and not 1 of filter_main_*
+    falsepositives:
+        - Unknown
+    level: medium
+    simulation:
+        - type: atomic-red-team
+          name: WMI Execute Remote Process
+          technique: T1047
+          atomic_guid: 9c8ef159-c666-472f-9874-90c8d60d136b
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_wmic_remote_execution/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1047
+tags:
+    - attack.execution
+    - attack.t1047
+author: frack113, Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://securelist.com/moonbounce-the-dark-side-of-uefi-firmware/105468/
+    - https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/wmic
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/7773b877-5abb-4a3e-b9c9-fd0369b59b00.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_wmic_remote_execution.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 7773b877-5abb-4a3e-b9c9-fd0369b59b00
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

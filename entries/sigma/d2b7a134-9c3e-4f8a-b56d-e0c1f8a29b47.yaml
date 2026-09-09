@@ -1,0 +1,80 @@
+id: d2b7a134-9c3e-4f8a-b56d-e0c1f8a29b47
+name: Suspicious Cross-User Process Spawn
+description: |
+    Detects suspicious spawning of a process under a different user context than the parent process.
+    Processes such as notepad.exe, calculator etc. are generally spawned under the same user context and
+    also they are often targeted as sacrificial process or decoy process to check successful privilege escalation.
+query: |
+    title: Suspicious Cross-User Process Spawn
+    id: d2b7a134-9c3e-4f8a-b56d-e0c1f8a29b47
+    status: experimental
+    description: |
+        Detects suspicious spawning of a process under a different user context than the parent process.
+        Processes such as notepad.exe, calculator etc. are generally spawned under the same user context and
+        also they are often targeted as sacrificial process or decoy process to check successful privilege escalation.
+    references:
+        - https://github.com/MSNightmare/LegacyHive
+        - https://git.projectnightcrawler.dev/NightmareEclipse/LegacyHive
+    author: Swachchhanda Shrawan Poudel (Nextron Systems)
+    date: 2026-07-23
+    tags:
+        - attack.privilege-escalation
+        - attack.stealth
+        - attack.t1055
+        - attack.t1134
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            Image|endswith:
+                - '\notepad.exe'
+                - '\calc.exe'
+                - '\mspaint.exe'
+                - '\wordpad.exe'
+                - '\write.exe'
+        filter_main_same_user:
+            User|fieldref: ParentUser
+        filter_optional_user_null:
+            User: null
+        filter_optional_parent_null:
+            ParentUser: null
+        filter_optional_empty_user:
+            - ParentUser:
+                  - ''
+                  - '-'
+            - User:
+                  - ''
+                  - '-'
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - RunAs usage spawning one of the listed binaries under a different account
+    level: medium
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_susp_cross_user_process_spawn/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1055
+    - T1134
+tags:
+    - attack.privilege-escalation
+    - attack.stealth
+    - attack.t1055
+    - attack.t1134
+author: Swachchhanda Shrawan Poudel (Nextron Systems)
+references:
+    - https://github.com/MSNightmare/LegacyHive
+    - https://git.projectnightcrawler.dev/NightmareEclipse/LegacyHive
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/d2b7a134-9c3e-4f8a-b56d-e0c1f8a29b47.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_susp_cross_user_process_spawn.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: d2b7a134-9c3e-4f8a-b56d-e0c1f8a29b47
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

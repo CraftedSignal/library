@@ -1,0 +1,83 @@
+id: cdf05894-89e7-4ead-b2b0-0a5f97a90f2f
+name: Potential Encoded PowerShell Patterns In CommandLine
+description: Detects specific combinations of encoding methods in PowerShell via the commandline
+query: |
+    title: Potential Encoded PowerShell Patterns In CommandLine
+    id: cdf05894-89e7-4ead-b2b0-0a5f97a90f2f
+    related:
+        - id: 5b572dcf-254b-425c-a8c5-d9af6bea35a6
+          type: similar
+    status: test
+    description: Detects specific combinations of encoding methods in PowerShell via the commandline
+    references:
+        - https://speakerdeck.com/heirhabarov/hunting-for-powershell-abuse?slide=65
+    author: Teymur Kheirkhabarov (idea), Vasiliy Burov (rule), oscd.community, Tim Shelton
+    date: 2020-10-11
+    modified: 2023-01-26
+    tags:
+        - attack.stealth
+        - attack.t1027
+        - attack.execution
+        - attack.t1059.001
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_img:
+            - Image|endswith:
+                  - '\powershell.exe'
+                  - '\pwsh.exe'
+            - OriginalFileName:
+                  - 'PowerShell.EXE'
+                  - 'pwsh.dll'
+        selection_to_1:
+            CommandLine|contains:
+                - 'ToInt'
+                - 'ToDecimal'
+                - 'ToByte'
+                - 'ToUint'
+                - 'ToSingle'
+                - 'ToSByte'
+        selection_to_2:
+            CommandLine|contains:
+                - 'ToChar'
+                - 'ToString'
+                - 'String'
+        selection_gen_1:
+            CommandLine|contains|all:
+                - 'char'
+                - 'join'
+        selection_gen_2:
+            CommandLine|contains|all:
+                - 'split'
+                - 'join'
+        condition: selection_img and (all of selection_to_* or 1 of selection_gen_*)
+    falsepositives:
+        - Unknown
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1027
+    - T1059.001
+tags:
+    - attack.stealth
+    - attack.t1027
+    - attack.execution
+    - attack.t1059.001
+author: Teymur Kheirkhabarov (idea), Vasiliy Burov (rule), oscd.community, Tim Shelton
+references:
+    - https://speakerdeck.com/heirhabarov/hunting-for-powershell-abuse?slide=65
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/cdf05894-89e7-4ead-b2b0-0a5f97a90f2f.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_powershell_encoding_patterns.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: cdf05894-89e7-4ead-b2b0-0a5f97a90f2f
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

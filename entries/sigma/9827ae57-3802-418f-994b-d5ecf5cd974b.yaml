@@ -1,0 +1,59 @@
+id: 9827ae57-3802-418f-994b-d5ecf5cd974b
+name: Potential Registry Persistence Attempt Via DbgManagedDebugger
+description: Detects the addition of the "Debugger" value to the "DbgManagedDebugger" key in order to achieve persistence. Which will get invoked when an application crashes
+query: |
+    title: Potential Registry Persistence Attempt Via DbgManagedDebugger
+    id: 9827ae57-3802-418f-994b-d5ecf5cd974b
+    status: test
+    description: Detects the addition of the "Debugger" value to the "DbgManagedDebugger" key in order to achieve persistence. Which will get invoked when an application crashes
+    references:
+        - https://www.hexacorn.com/blog/2013/09/19/beyond-good-ol-run-key-part-4/
+        - https://github.com/last-byte/PersistenceSniper
+    author: frack113
+    date: 2022-08-07
+    modified: 2023-08-17
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.execution
+        - attack.stealth
+        - attack.t1574
+    logsource:
+        category: registry_set
+        product: windows
+    detection:
+        selection:
+            TargetObject|endswith: '\Microsoft\.NETFramework\DbgManagedDebugger'
+        filter:
+            Details: '"C:\Windows\system32\vsjitdebugger.exe" PID %d APPDOM %d EXTEXT "%s" EVTHDL %d'
+        condition: selection and not filter
+    falsepositives:
+        - Legitimate use of the key to setup a debugger. Which is often the case on developers machines
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1574
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.execution
+    - attack.stealth
+    - attack.t1574
+author: frack113
+references:
+    - https://www.hexacorn.com/blog/2013/09/19/beyond-good-ol-run-key-part-4/
+    - https://github.com/last-byte/PersistenceSniper
+data_sources:
+    - windows
+    - registry_set
+file: entries/sigma/9827ae57-3802-418f-994b-d5ecf5cd974b.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/registry/registry_set/registry_set_dbgmanageddebugger_persistence.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 9827ae57-3802-418f-994b-d5ecf5cd974b
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

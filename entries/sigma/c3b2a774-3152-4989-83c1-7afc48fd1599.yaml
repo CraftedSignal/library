@@ -1,0 +1,96 @@
+id: c3b2a774-3152-4989-83c1-7afc48fd1599
+name: Potential MOVEit Transfer CVE-2023-34362 Exploitation - File Activity
+description: Detects file indicators of potential exploitation of MOVEit CVE-2023-34362.
+query: |
+    title: Potential MOVEit Transfer CVE-2023-34362 Exploitation - File Activity
+    id: c3b2a774-3152-4989-83c1-7afc48fd1599
+    status: test
+    description: Detects file indicators of potential exploitation of MOVEit CVE-2023-34362.
+    references:
+        - https://www.bleepingcomputer.com/news/security/new-moveit-transfer-zero-day-mass-exploited-in-data-theft-attacks/
+        - https://community.progress.com/s/article/MOVEit-Transfer-Critical-Vulnerability-31May2023
+        - https://www.rapid7.com/blog/post/2023/06/01/rapid7-observed-exploitation-of-critical-moveit-transfer-vulnerability/
+        - https://www.reddit.com/r/sysadmin/comments/13wxuej/comment/jmhdg55/
+    author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems)
+    date: 2023-06-01
+    modified: 2024-08-13
+    tags:
+        - attack.initial-access
+        - attack.t1190
+        - cve.2023-34362
+        - detection.emerging-threats
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_generic:
+            TargetFilename|contains:
+                - '\MOVEit Transfer\wwwroot\'
+                - '\MOVEitTransfer\wwwroot\'
+            TargetFilename|endswith:
+                - '.7z'
+                - '.bat'
+                - '.dll'
+                - '.exe'
+                - '.ps1'
+                - '.rar'
+                - '.vbe'
+                - '.vbs'
+                - '.zip'
+        selection_known_ioc:
+            TargetFilename|endswith:
+                - '\MOVEit Transfer\wwwroot\_human2.aspx.lnk'
+                - '\MOVEit Transfer\wwwroot\_human2.aspx'
+                - '\MOVEit Transfer\wwwroot\human2.aspx.lnk'
+                - '\MOVEit Transfer\wwwroot\human2.aspx'
+                - '\MOVEitTransfer\wwwroot\_human2.aspx.lnk'
+                - '\MOVEitTransfer\wwwroot\_human2.aspx'
+                - '\MOVEitTransfer\wwwroot\human2.aspx.lnk'
+                - '\MOVEitTransfer\wwwroot\human2.aspx'
+        # Uncomment selection if you wanna threat hunt for additional artifacts
+        # selection_cmdline:
+        #    TargetFilename|contains: ':\Windows\TEMP\'
+        #    TargetFilename|endswith: '.cmdline'
+        selection_compiled_asp:
+            CreationUtcTime|startswith:
+                - '2023-03- '
+                - '2023-04- '
+                - '2023-05- '
+                - '2023-06- '
+            TargetFilename|contains|all:
+                - '\Windows\Microsoft.net\Framework64\v'
+                - '\Temporary ASP.NET Files\'
+                - 'App_Web_'
+            TargetFilename|endswith: '.dll'
+        condition: 1 of selection_*
+    falsepositives:
+        - To avoid FP, this rule should only be applied on MOVEit servers.
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1190
+tags:
+    - attack.initial-access
+    - attack.t1190
+    - cve.2023-34362
+    - detection.emerging-threats
+author: Florian Roth (Nextron Systems), Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://www.bleepingcomputer.com/news/security/new-moveit-transfer-zero-day-mass-exploited-in-data-theft-attacks/
+    - https://community.progress.com/s/article/MOVEit-Transfer-Critical-Vulnerability-31May2023
+    - https://www.rapid7.com/blog/post/2023/06/01/rapid7-observed-exploitation-of-critical-moveit-transfer-vulnerability/
+    - https://www.reddit.com/r/sysadmin/comments/13wxuej/comment/jmhdg55/
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/c3b2a774-3152-4989-83c1-7afc48fd1599.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules-emerging-threats/2023/Exploits/CVE-2023-34362-MOVEit-Transfer-Exploit/file_event_win_exploit_cve_2023_34362_moveit_transfer.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: emerging_threat
+upstream_id: c3b2a774-3152-4989-83c1-7afc48fd1599
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,57 @@
+id: c462f537-a1e3-41a6-b5fc-b2c2cef9bf82
+name: Suspicious PsExec Execution
+description: detects execution of psexec or paexec with renamed service name, this rule helps to filter out the noise if psexec is used for legit purposes or if attacker uses a different psexec client other than sysinternal one
+query: |
+    title: Suspicious PsExec Execution
+    id: c462f537-a1e3-41a6-b5fc-b2c2cef9bf82
+    status: test
+    description: detects execution of psexec or paexec with renamed service name, this rule helps to filter out the noise if psexec is used for legit purposes or if attacker uses a different psexec client other than sysinternal one
+    references:
+        - https://web.archive.org/web/20230329171218/https://blog.menasec.net/2019/02/threat-hunting-3-detecting-psexec.html
+    author: Samir Bousseaden
+    date: 2019-04-03
+    modified: 2022-08-11
+    tags:
+        - attack.lateral-movement
+        - attack.t1021.002
+    logsource:
+        product: windows
+        service: security
+        definition: 'The advanced audit policy setting "Object Access > Audit Detailed File Share" must be configured for Success/Failure'
+    detection:
+        selection1:
+            EventID: 5145
+            ShareName: '\\\\\*\\IPC$' # looking for the string \\*\IPC$
+            RelativeTargetName|endswith:
+                - '-stdin'
+                - '-stdout'
+                - '-stderr'
+        filter:
+            RelativeTargetName|startswith: 'PSEXESVC'
+        condition: selection1 and not filter
+    falsepositives:
+        - Unknown
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1021.002
+tags:
+    - attack.lateral-movement
+    - attack.t1021.002
+author: Samir Bousseaden
+references:
+    - https://web.archive.org/web/20230329171218/https://blog.menasec.net/2019/02/threat-hunting-3-detecting-psexec.html
+data_sources:
+    - windows
+    - security
+file: entries/sigma/c462f537-a1e3-41a6-b5fc-b2c2cef9bf82.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/builtin/security/win_security_susp_psexec.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c462f537-a1e3-41a6-b5fc-b2c2cef9bf82
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

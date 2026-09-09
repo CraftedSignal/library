@@ -1,0 +1,65 @@
+id: fe63010f-8823-4864-a96b-a7b4a0f7b929
+name: LSASS Process Reconnaissance Via Findstr.EXE
+description: Detects findstring commands that include the keyword lsass, which indicates recon actviity for the LSASS process PID
+query: |
+    title: LSASS Process Reconnaissance Via Findstr.EXE
+    id: fe63010f-8823-4864-a96b-a7b4a0f7b929
+    status: test
+    description: Detects findstring commands that include the keyword lsass, which indicates recon actviity for the LSASS process PID
+    references:
+        - https://blog.talosintelligence.com/2022/08/recent-cyber-attack.html?m=1
+    author: Florian Roth (Nextron Systems)
+    date: 2022-08-12
+    modified: 2024-06-04
+    tags:
+        - attack.credential-access
+        - attack.t1552.006
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection_findstr_img:
+            - Image|endswith:
+                  - '\find.exe'
+                  - '\findstr.exe'
+            - OriginalFileName:
+                  - 'FIND.EXE'
+                  - 'FINDSTR.EXE'
+        selection_findstr_cli:
+            CommandLine|contains: 'lsass'
+        selection_special:
+            CommandLine|contains|windash:
+                - ' /i "lsass'
+                - ' /i lsass.exe'
+                - 'findstr "lsass'
+                - 'findstr lsass'
+                - 'findstr.exe "lsass'
+                - 'findstr.exe lsass'
+        condition: all of selection_findstr_* or selection_special
+    falsepositives:
+        - Unknown
+    level: high
+    regression_tests_path: regression_data/rules/windows/process_creation/proc_creation_win_findstr_lsass/info.yml
+query_type: sigma
+severity: high
+techniques:
+    - T1552.006
+tags:
+    - attack.credential-access
+    - attack.t1552.006
+author: Florian Roth (Nextron Systems)
+references:
+    - https://blog.talosintelligence.com/2022/08/recent-cyber-attack.html?m=1
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/fe63010f-8823-4864-a96b-a7b4a0f7b929.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_findstr_lsass.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: fe63010f-8823-4864-a96b-a7b4a0f7b929
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

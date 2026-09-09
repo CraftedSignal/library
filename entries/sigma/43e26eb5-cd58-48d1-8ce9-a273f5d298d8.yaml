@@ -1,0 +1,59 @@
+id: 43e26eb5-cd58-48d1-8ce9-a273f5d298d8
+name: Potential Container Discovery Via Inodes Listing
+description: Detects listing of the inodes of the "/" directory to determine if the we are running inside of a container.
+query: |
+    title: Potential Container Discovery Via Inodes Listing
+    id: 43e26eb5-cd58-48d1-8ce9-a273f5d298d8
+    status: test
+    description: Detects listing of the inodes of the "/" directory to determine if the we are running inside of a container.
+    references:
+        - https://blog.skyplabs.net/posts/container-detection/
+        - https://stackoverflow.com/questions/20010199/how-to-determine-if-a-process-runs-inside-lxc-docker
+    tags:
+        - attack.discovery
+        - attack.t1082
+    author: Seth Hanford
+    date: 2023-08-23
+    modified: 2025-11-24
+    logsource:
+        category: process_creation
+        product: linux
+    detection:
+        selection_ls_img:
+            Image|endswith: '/ls'    # inode outside containers low, inside high
+        selection_ls_cli:
+            - CommandLine|endswith: ' /'
+            - CommandLine|contains: ' / '
+        selection_regex_inode:
+            CommandLine|re: '(?:\s-[^-\s]{0,20}i|\s--inode\s)'      # -i finds inode number
+        selection_regex_dir:
+            CommandLine|re: '(?:\s-[^-\s]{0,20}d|\s--directory\s)'  # -d gets directory itself, not contents
+        condition: all of selection_*
+    falsepositives:
+        - Legitimate system administrator usage of these commands
+        - Some container tools or deployments may use these techniques natively to determine how they proceed with execution, and will need to be filtered
+    level: low
+query_type: sigma
+severity: low
+techniques:
+    - T1082
+tags:
+    - attack.discovery
+    - attack.t1082
+author: Seth Hanford
+references:
+    - https://blog.skyplabs.net/posts/container-detection/
+    - https://stackoverflow.com/questions/20010199/how-to-determine-if-a-process-runs-inside-lxc-docker
+data_sources:
+    - linux
+    - process_creation
+file: entries/sigma/43e26eb5-cd58-48d1-8ce9-a273f5d298d8.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/linux/process_creation/proc_creation_lnx_susp_inod_listing.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 43e26eb5-cd58-48d1-8ce9-a273f5d298d8
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

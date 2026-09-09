@@ -1,0 +1,64 @@
+id: c4b890e5-8d8c-4496-8c66-c805753817cd
+name: Potential Process Hollowing Activity
+description: Detects when a memory process image does not match the disk image, indicative of process hollowing.
+query: |
+    title: Potential Process Hollowing Activity
+    id: c4b890e5-8d8c-4496-8c66-c805753817cd
+    status: test
+    description: Detects when a memory process image does not match the disk image, indicative of process hollowing.
+    references:
+        - https://twitter.com/SecurePeacock/status/1486054048390332423?s=20
+        - https://www.bleepingcomputer.com/news/microsoft/microsoft-sysmon-now-detects-malware-process-tampering-attempts/
+    author: Christopher Peacock '@securepeacock', SCYTHE '@scythe_io', Sittikorn S
+    date: 2022-01-25
+    modified: 2023-11-28
+    tags:
+        - attack.privilege-escalation
+        - attack.stealth
+        - attack.t1055.012
+    logsource:
+        product: windows
+        category: process_tampering
+    detection:
+        selection:
+            Type: 'Image is replaced'
+        filter_main_generic:
+            Image|contains:
+                - ':\Program Files (x86)'
+                - ':\Program Files\'
+                - ':\Windows\System32\wbem\WMIADAP.exe'
+                - ':\Windows\SysWOW64\wbem\WMIADAP.exe'
+        filter_optional_opera:
+            Image|contains: '\AppData\Local\Programs\Opera\'
+            Image|endswith: '\opera.exe'
+        filter_optional_edge:
+            Image|endswith: '\WindowsApps\MicrosoftEdge.exe'
+        condition: selection and not 1 of filter_main_* and not 1 of filter_optional_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1055.012
+tags:
+    - attack.privilege-escalation
+    - attack.stealth
+    - attack.t1055.012
+author: Christopher Peacock '@securepeacock', SCYTHE '@scythe_io', Sittikorn S
+references:
+    - https://twitter.com/SecurePeacock/status/1486054048390332423?s=20
+    - https://www.bleepingcomputer.com/news/microsoft/microsoft-sysmon-now-detects-malware-process-tampering-attempts/
+data_sources:
+    - windows
+    - process_tampering
+file: entries/sigma/c4b890e5-8d8c-4496-8c66-c805753817cd.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_tampering/proc_tampering_susp_process_hollowing.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c4b890e5-8d8c-4496-8c66-c805753817cd
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

@@ -1,0 +1,67 @@
+id: c625d754-6a3d-4f65-9c9a-536aea960d37
+name: Permission Check Via Accesschk.EXE
+description: Detects the usage of the "Accesschk" utility, an access and privilege audit tool developed by SysInternal and often being abused by attacker to verify process privileges
+query: |
+    title: Permission Check Via Accesschk.EXE
+    id: c625d754-6a3d-4f65-9c9a-536aea960d37
+    status: test
+    description: Detects the usage of the "Accesschk" utility, an access and privilege audit tool developed by SysInternal and often being abused by attacker to verify process privileges
+    references:
+        - https://speakerdeck.com/heirhabarov/hunting-for-privilege-escalation-in-windows-environment?slide=43
+        - https://www.youtube.com/watch?v=JGs-aKf2OtU&ab_channel=OFFZONEMOSCOW
+        - https://github.com/carlospolop/PEASS-ng/blob/fa0f2e17fbc1d86f1fd66338a40e665e7182501d/winPEAS/winPEASbat/winPEAS.bat
+        - https://github.com/gladiatx0r/Powerless/blob/04f553bbc0c65baf4e57344deff84e3f016e6b51/Powerless.bat
+    author: Teymur Kheirkhabarov (idea), Mangatas Tondang, oscd.community, Nasreddine Bencherchali (Nextron Systems)
+    date: 2020-10-13
+    modified: 2026-06-29
+    tags:
+        - attack.discovery
+        - attack.t1069.001
+    logsource:
+        product: windows
+        category: process_creation
+    detection:
+        selection_img:
+            - Product|endswith: 'AccessChk'
+            - Description|contains: 'Reports effective permissions'
+            - Image|endswith:
+                  - '\accesschk.exe'
+                  - '\accesschk64.exe'
+                  - '\accesschk64a.exe'
+            - OriginalFileName: 'accesschk.exe'
+        selection_cli:
+            CommandLine|contains: # These are the most common flags used with this tool. You could add other combinations if needed
+                - 'uwcqv '
+                - 'kwsu '
+                - 'qwsu '
+                - 'uwdqs '
+        condition: all of selection*
+    falsepositives:
+        - System administrator Usage
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1069.001
+tags:
+    - attack.discovery
+    - attack.t1069.001
+author: Teymur Kheirkhabarov (idea), Mangatas Tondang, oscd.community, Nasreddine Bencherchali (Nextron Systems)
+references:
+    - https://speakerdeck.com/heirhabarov/hunting-for-privilege-escalation-in-windows-environment?slide=43
+    - https://www.youtube.com/watch?v=JGs-aKf2OtU&ab_channel=OFFZONEMOSCOW
+    - https://github.com/carlospolop/PEASS-ng/blob/fa0f2e17fbc1d86f1fd66338a40e665e7182501d/winPEAS/winPEASbat/winPEAS.bat
+    - https://github.com/gladiatx0r/Powerless/blob/04f553bbc0c65baf4e57344deff84e3f016e6b51/Powerless.bat
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/c625d754-6a3d-4f65-9c9a-536aea960d37.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_sysinternals_accesschk_check_permissions.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: c625d754-6a3d-4f65-9c9a-536aea960d37
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

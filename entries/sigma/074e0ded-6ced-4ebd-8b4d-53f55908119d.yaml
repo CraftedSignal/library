@@ -1,0 +1,59 @@
+id: 074e0ded-6ced-4ebd-8b4d-53f55908119d
+name: AWL Bypass with Winrm.vbs and Malicious WsmPty.xsl/WsmTxt.xsl
+description: Detects execution of attacker-controlled WsmPty.xsl or WsmTxt.xsl via winrm.vbs and copied cscript.exe (can be renamed)
+query: |
+    title: AWL Bypass with Winrm.vbs and Malicious WsmPty.xsl/WsmTxt.xsl
+    id: 074e0ded-6ced-4ebd-8b4d-53f55908119d
+    status: test
+    description: Detects execution of attacker-controlled WsmPty.xsl or WsmTxt.xsl via winrm.vbs and copied cscript.exe (can be renamed)
+    references:
+        - https://posts.specterops.io/application-whitelisting-bypass-and-arbitrary-unsigned-code-execution-technique-in-winrm-vbs-c8c24fb40404
+    author: Julia Fomina, oscd.community
+    date: 2020-10-06
+    modified: 2022-10-09
+    tags:
+        - attack.stealth
+        - attack.t1216
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        contains_format_pretty_arg:
+            CommandLine|contains:
+                - 'format:pretty'
+                - 'format:"pretty"'
+                - 'format:"text"'
+                - 'format:text'
+        image_from_system_folder:
+            Image|startswith:
+                - 'C:\Windows\System32\'
+                - 'C:\Windows\SysWOW64\'
+        contains_winrm:
+            CommandLine|contains: 'winrm'
+        condition: contains_winrm and (contains_format_pretty_arg and not image_from_system_folder)
+    falsepositives:
+        - Unlikely
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1216
+tags:
+    - attack.stealth
+    - attack.t1216
+author: Julia Fomina, oscd.community
+references:
+    - https://posts.specterops.io/application-whitelisting-bypass-and-arbitrary-unsigned-code-execution-technique-in-winrm-vbs-c8c24fb40404
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/074e0ded-6ced-4ebd-8b4d-53f55908119d.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/process_creation/proc_creation_win_winrm_awl_bypass.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 074e0ded-6ced-4ebd-8b4d-53f55908119d
+upstream_status: test
+license: DRL-1.1
+quality_score: 100

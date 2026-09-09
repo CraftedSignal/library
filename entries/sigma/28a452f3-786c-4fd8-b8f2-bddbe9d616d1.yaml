@@ -1,0 +1,66 @@
+id: 28a452f3-786c-4fd8-b8f2-bddbe9d616d1
+name: Creation of WerFault.exe/Wer.dll in Unusual Folder
+description: Detects the creation of a file named "WerFault.exe" or "wer.dll" in an uncommon folder, which could be a sign of WerFault DLL hijacking.
+query: |
+    title: Creation of WerFault.exe/Wer.dll in Unusual Folder
+    id: 28a452f3-786c-4fd8-b8f2-bddbe9d616d1
+    status: test
+    description: Detects the creation of a file named "WerFault.exe" or "wer.dll" in an uncommon folder, which could be a sign of WerFault DLL hijacking.
+    references:
+        - https://www.bleepingcomputer.com/news/security/hackers-are-now-hiding-malware-in-windows-event-logs/
+    author: frack113
+    date: 2022-05-09
+    modified: 2026-05-18
+    tags:
+        - attack.privilege-escalation
+        - attack.persistence
+        - attack.execution
+        - attack.stealth
+        - attack.t1574.001
+    logsource:
+        product: windows
+        category: file_event
+    detection:
+        selection:
+            TargetFilename|endswith:
+                - '\WerFault.exe'
+                - '\wer.dll'
+        filter_main_known_locations:
+            TargetFilename|startswith:
+                - 'C:\Windows\SoftwareDistribution\'
+                - 'C:\Windows\System32\'
+                - 'C:\Windows\SysWOW64\'
+                - 'C:\Windows\WinSxS\'
+                - 'C:\Windows\UUS\' # covers both C:\Windows\UUS\arm64\ and C:\Windows\UUS\packages\
+        filter_main_process:
+            Image|endswith: '\wuaucltcore.exe'
+        condition: selection and not 1 of filter_main_*
+    falsepositives:
+        - Unknown
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1574.001
+tags:
+    - attack.privilege-escalation
+    - attack.persistence
+    - attack.execution
+    - attack.stealth
+    - attack.t1574.001
+author: frack113
+references:
+    - https://www.bleepingcomputer.com/news/security/hackers-are-now-hiding-malware-in-windows-event-logs/
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/28a452f3-786c-4fd8-b8f2-bddbe9d616d1.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_event/file_event_win_werfault_dll_hijacking.yml
+source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_category: detection
+upstream_id: 28a452f3-786c-4fd8-b8f2-bddbe9d616d1
+upstream_status: test
+license: DRL-1.1
+quality_score: 100
