@@ -19,8 +19,8 @@ import (
 
 const (
 	baseURL      = "https://detections.ai"
-	authPath     = "/bff/api/v1/auth/refresh"
-	discoverPath = "/bff/api/v1/detections/v2/discover"
+	authPath     = "/api/v1/auth/refresh"
+	discoverPath = "/api/v1/detections/v2/discover"
 	maxPageSize  = 500
 	envToken     = "UPSTREAM_REFRESH_TOKEN"
 )
@@ -52,15 +52,15 @@ type discoverResponse struct {
 }
 
 type apiRule struct {
-	ID          string      `json:"id"`
-	Title       string      `json:"title"`
-	Description string      `json:"description"`
-	Content     string      `json:"content"`
-	RuleType    string      `json:"rule_type"`
-	Author      string      `json:"author"`
-	Version     any         `json:"version"` // can be int or string
-	Tags        []string    `json:"tags"`
-	Metadata    apiMetadata `json:"metadata"`
+	ID          string          `json:"id"`
+	Title       string          `json:"title"`
+	Description string          `json:"description"`
+	Content     string          `json:"content"`
+	RuleType    string          `json:"rule_type"`
+	Author      string          `json:"author"`
+	Version     any             `json:"version"` // can be int or string
+	Tags        []string        `json:"tags"`
+	Metadata    apiMetadata     `json:"metadata"`
 	Contributor json.RawMessage `json:"contributor"`
 }
 
@@ -72,7 +72,7 @@ type apiMetadata struct {
 }
 
 type mitreReference struct {
-	Type    string `json:"type"`    // "tactic", "technique", "subtechnique"
+	Type    string `json:"type"` // "tactic", "technique", "subtechnique"
 	MitreID string `json:"mitre_id"`
 }
 
