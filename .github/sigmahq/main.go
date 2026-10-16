@@ -27,6 +27,7 @@ type sigmaRule struct {
 	Status         string         `yaml:"status"`
 	Description    string         `yaml:"description"`
 	Author         string         `yaml:"author"`
+	Date           string         `yaml:"date"`
 	Level          string         `yaml:"level"`
 	Tags           []string       `yaml:"tags"`
 	References     []string       `yaml:"references"`
@@ -45,6 +46,7 @@ type libraryEntry struct {
 	Tactics          []string `yaml:"tactics,omitempty"`
 	Techniques       []string `yaml:"techniques,omitempty"`
 	Tags             []string `yaml:"tags,omitempty"`
+	Date             string   `yaml:"date,omitempty"`
 	Author           string   `yaml:"author,omitempty"`
 	Version          string   `yaml:"version,omitempty"`
 	References       []string `yaml:"references,omitempty"`
@@ -253,6 +255,7 @@ func convertSigmaRule(rule sigmaRule, raw, path, commit, category string, score 
 		Tactics:          uniqueStrings(tactics),
 		Techniques:       uniqueStrings(techniques),
 		Tags:             rule.Tags,
+		Date:             sigmaRuleDate(rule.Date),
 		Author:           rule.Author,
 		References:       rule.References,
 		DataSources:      uniqueStrings(dataSources),
@@ -287,6 +290,9 @@ func mergeLibrary(outputDir string, sigmaEntries []libraryEntry) error {
 			}
 			continue
 		}
+		if entry.Date == "" && entry.QueryType == "sigma" {
+			entry.Date = sigmaEntryFileDate(outputDir, entry.File)
+		}
 		retained = append(retained, entry)
 	}
 
@@ -306,6 +312,37 @@ func mergeLibrary(outputDir string, sigmaEntries []libraryEntry) error {
 	}
 	sort.Slice(retained, func(i, j int) bool { return retained[i].ID < retained[j].ID })
 	return writeYAML(indexPath, libraryIndex{Entries: retained})
+}
+
+// sigmaRuleDate returns a Sigma rule's date as YYYY-MM-DD, or "" when the rule
+// has none or it can't be read. Rules write it as 2023-01-15 or 2023/01/15.
+func sigmaRuleDate(raw string) string {
+	raw = strings.ReplaceAll(strings.TrimSpace(raw), "/", "-")
+	if date, err := time.Parse("2006-1-2", raw); err == nil {
+		return date.Format("2006-01-02")
+	}
+	return ""
+}
+
+// sigmaEntryFileDate reads the date from the Sigma rule in a library entry
+// file, for Sigma entries other sources added without one.
+func sigmaEntryFileDate(outputDir, file string) string {
+	if file == "" {
+		return ""
+	}
+	data, err := os.ReadFile(filepath.Join(outputDir, filepath.FromSlash(file)))
+	if err != nil {
+		return ""
+	}
+	var entry libraryEntry
+	if err := yaml.Unmarshal(data, &entry); err != nil {
+		return ""
+	}
+	var rule sigmaRule
+	if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+		return ""
+	}
+	return sigmaRuleDate(rule.Date)
 }
 
 func writeYAML(path string, value any) error {
