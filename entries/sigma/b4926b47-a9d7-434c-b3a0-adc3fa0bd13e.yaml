@@ -21,7 +21,7 @@ query: |
         - https://vipre.com/blog/svg-phishing-attacks-the-new-trick-in-the-cybercriminals-playbook/
     author: Nasreddine Bencherchali (Nextron Systems), frack113
     date: 2022-06-19
-    modified: 2026-03-31
+    modified: 2026-10-16
     tags:
         - attack.stealth
         - attack.t1036.007
@@ -30,30 +30,7 @@ query: |
         product: windows
     detection:
         selection_gen:
-            TargetFilename|endswith:
-                - '.exe'
-                - '.iso'
-                - '.rar'
-                - '.svg'
-                - '.zip'
-                # - '.lnk'  # legitimate links can happen just anywhere
-            TargetFilename|contains:
-                - '.doc.'
-                - '.docx.'
-                - '.gif.'
-                - '.jpeg.'
-                - '.jpg.'
-                - '.mp3.'
-                - '.mp4.'
-                - '.pdf.'
-                - '.png.'
-                - '.ppt.'
-                - '.pptx.'
-                - '.rtf.'
-                - '.svg.'
-                - '.txt.'
-                - '.xls.'
-                - '.xlsx.'
+            TargetFilename|re|i: '\.(docx?|gif|jpe?g|mp3|mp4|pdf|png|pptx?|rtf|svg|txt|xlsx?)\.(bat|exe|iso|rar|svg|vbe|vbs|zip)$'
         selection_exe:
             TargetFilename|endswith:
                 - '.rar.exe'
@@ -63,9 +40,15 @@ query: |
         #     TargetFilename|contains:
         #         - '\AppData\Roaming\Microsoft\Office\Recent\'
         #         - '\AppData\Roaming\Microsoft\Windows\Recent\'
-        filter_icons_linux:
+        filter_main_legitimate_extensions:
+            TargetFilename|endswith:
+                - '.svg.svg'
+                - '.png.svg'
+                - '.jpg.svg'
+                - '.jpeg.svg'
+        filter_optional_icons_linux:
             TargetFilename|startswith: '/usr/share/icons/'
-        condition: 1 of selection_* and not 1 of filter_*
+        condition: 1 of selection_* and not 1 of filter_main_* and not 1 of filter_optional_*
     falsepositives:
         - Unlikely
     level: high
@@ -94,7 +77,7 @@ file: entries/sigma/b4926b47-a9d7-434c-b3a0-adc3fa0bd13e.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/windows/file/file_event/file_event_win_susp_double_extension.yml
-source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_commit: 05d1031f537e830b76da53bae2400c5814c89165
 source_category: detection
 upstream_id: b4926b47-a9d7-434c-b3a0-adc3fa0bd13e
 upstream_status: test

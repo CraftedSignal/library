@@ -10,7 +10,7 @@ query: |
         - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1012/T1012.md
     author: Timur Zinniatullin, oscd.community
     date: 2019-10-21
-    modified: 2023-02-05
+    modified: 2026-10-19
     tags:
         - attack.discovery
         - attack.t1012
@@ -23,7 +23,7 @@ query: |
             - Image|endswith: '\reg.exe'
             - OriginalFileName: 'reg.exe'
         selection_flag:
-            CommandLine|contains: 'query'
+            CommandLine|contains: ' query '
         selection_key:
             CommandLine|contains:
                 - 'currentVersion\windows'
@@ -32,7 +32,10 @@ query: |
                 - 'currentVersion\run' # Also covers the strings "RunOnce", "RunOnceEx" and "runServicesOnce"
                 - 'currentVersion\policies\explorer\run'
                 - 'currentcontrolset\services'
-        condition: all of selection_*
+        filter_optional_yammer:
+            ParentImage|endswith: '\Yammer.exe'
+            CommandLine: 'C:\Windows\system32\reg.exe QUERY HKCU\Software\Microsoft\Windows\CurrentVersion\Run /v Yammer'
+        condition: all of selection_* and not 1 of filter_optional_*
     falsepositives:
         - Discord
     level: medium
@@ -56,7 +59,7 @@ file: entries/sigma/970007b7-ce32-49d0-a4a4-fbef016950bd.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/windows/process_creation/proc_creation_win_reg_query_registry.yml
-source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_commit: 05d1031f537e830b76da53bae2400c5814c89165
 source_category: detection
 upstream_id: 970007b7-ce32-49d0-a4a4-fbef016950bd
 upstream_status: test

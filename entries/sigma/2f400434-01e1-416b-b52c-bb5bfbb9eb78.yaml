@@ -1,0 +1,79 @@
+id: 2f400434-01e1-416b-b52c-bb5bfbb9eb78
+name: Potential WSL Binary Modification from Installed Location
+description: |
+    Detects the modification of the wsl.exe binary from its installed location.
+    Attackers can replace the legitimate wsl.exe binary with a malicious payload in its place, which is then executed when the user runs WSL, acting as a proxy execution and defense evasion technique.
+query: |
+    title: Potential WSL Binary Modification from Installed Location
+    id: 2f400434-01e1-416b-b52c-bb5bfbb9eb78
+    status: experimental
+    description: |
+        Detects the modification of the wsl.exe binary from its installed location.
+        Attackers can replace the legitimate wsl.exe binary with a malicious payload in its place, which is then executed when the user runs WSL, acting as a proxy execution and defense evasion technique.
+    references:
+        - https://cardinalops.com/blog/bash-and-switch-hijacking-via-windows-subsystem-for-linux/
+        - https://blog.qualys.com/vulnerabilities-threat-research/2022/04/20/implications-of-windows-subsystem-for-linux-for-adversaries-defenders-part-2
+        - https://www.bleepingcomputer.com/news/security/new-malware-uses-windows-subsystem-for-linux-for-stealthy-attacks/
+        - https://thehackernews.com/2021/09/new-malware-targets-windows-subsystem.html
+        - https://learn.microsoft.com/en-us/windows/wsl/
+    author: Liran Ravich, Swachchhanda Shrawan Poudel (Nextron Systems)
+    date: 2026-05-05
+    tags:
+        - attack.stealth
+        - attack.t1036.005
+        - attack.t1218
+    logsource:
+        category: file_event
+        product: windows
+    detection:
+        selection_wsl_exe:
+            TargetFilename|endswith: '\wsl.exe'
+        selection_wsl_folder:
+            - TargetFilename|contains:
+                  - ':\Program files\wsl\'
+                  - ':\Program files\WindowsApps\MicrosoftCorporationII.WindowsSubsystemForLinux_'
+            - TargetFilename|contains|all:
+                  - ':\Users\'
+                  - '\AppData\Local\Microsoft\WindowsApps\'
+        filter_main_msiexec:
+            Image:
+                - 'C:\Windows\System32\msiexec.exe'
+                - 'C:\Windows\SysWOW64\msiexec.exe'
+        filter_main_svchost:
+            Image: 'C:\Windows\System32\svchost.exe'
+            TargetFilename|contains: '\WindowsApps\'
+        condition: all of selection_* and not 1 of filter_main_*
+    falsepositives:
+        - Unlikely
+    level: medium
+    regression_tests_path: regression_data/rules/windows/file/file_event/file_event_win_wsl_binary_modification/info.yml
+query_type: sigma
+severity: medium
+techniques:
+    - T1036.005
+    - T1218
+tags:
+    - attack.stealth
+    - attack.t1036.005
+    - attack.t1218
+date: "2026-05-05"
+author: Liran Ravich, Swachchhanda Shrawan Poudel (Nextron Systems)
+references:
+    - https://cardinalops.com/blog/bash-and-switch-hijacking-via-windows-subsystem-for-linux/
+    - https://blog.qualys.com/vulnerabilities-threat-research/2022/04/20/implications-of-windows-subsystem-for-linux-for-adversaries-defenders-part-2
+    - https://www.bleepingcomputer.com/news/security/new-malware-uses-windows-subsystem-for-linux-for-stealthy-attacks/
+    - https://thehackernews.com/2021/09/new-malware-targets-windows-subsystem.html
+    - https://learn.microsoft.com/en-us/windows/wsl/
+data_sources:
+    - windows
+    - file_event
+file: entries/sigma/2f400434-01e1-416b-b52c-bb5bfbb9eb78.yaml
+source: sigmahq
+source_repository: https://github.com/SigmaHQ/sigma
+source_path: rules/windows/file/file_event/file_event_win_wsl_binary_modification.yml
+source_commit: 05d1031f537e830b76da53bae2400c5814c89165
+source_category: detection
+upstream_id: 2f400434-01e1-416b-b52c-bb5bfbb9eb78
+upstream_status: experimental
+license: DRL-1.1
+quality_score: 95

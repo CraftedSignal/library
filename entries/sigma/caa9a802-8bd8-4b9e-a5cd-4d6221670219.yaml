@@ -4,7 +4,8 @@ description: |
     Detects suspicious Kerberos ticket requests via command line using System.IdentityModel.Tokens.KerberosRequestorSecurityToken class.
     Threat actors may use command line interfaces to request Kerberos tickets for service accounts in order to
     perform offline password cracking attacks commonly known as Kerberoasting or other Kerberos ticket abuse
-    techniques like silver ticket attacks.
+    techniques like silver ticket attacks. Encoded commands will not surface the class name, so the ps_script
+    rule covers that instead.
 query: |
     title: Suspicious Kerberos Ticket Request via CLI
     id: caa9a802-8bd8-4b9e-a5cd-4d6221670219
@@ -16,13 +17,15 @@ query: |
         Detects suspicious Kerberos ticket requests via command line using System.IdentityModel.Tokens.KerberosRequestorSecurityToken class.
         Threat actors may use command line interfaces to request Kerberos tickets for service accounts in order to
         perform offline password cracking attacks commonly known as Kerberoasting or other Kerberos ticket abuse
-        techniques like silver ticket attacks.
+        techniques like silver ticket attacks. Encoded commands will not surface the class name, so the ps_script
+        rule covers that instead.
     references:
         - https://www.huntress.com/blog/gootloader-threat-detection-woff2-obfuscation
         - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1558.003/T1558.003.md#atomic-test-4---request-a-single-ticket-via-powershell
         - https://learn.microsoft.com/en-us/dotnet/api/system.identitymodel.tokens.kerberosrequestorsecuritytoken?view=netframework-4.8.1
     author: Swachchhanda Shrawan Poudel (Nextron Systems)
     date: 2025-11-18
+    modified: 2026-09-14
     tags:
         - attack.credential-access
         - attack.t1558.003
@@ -38,12 +41,10 @@ query: |
                   - 'powershell.exe'
                   - 'pwsh.dll'
         selection_cli:
-            CommandLine|contains|all:
-                - 'System.IdentityModel.Tokens.KerberosRequestorSecurityToken'
-                - '.GetRequest()'
+            CommandLine|contains: 'System.IdentityModel.Tokens.KerberosRequestorSecurityToken'
         condition: all of selection_*
     falsepositives:
-        - Legitimate command line usage by administrators or security tools.
+        - Legitimate command line usage by administrators or security tools
     level: high
 query_type: sigma
 severity: high
@@ -65,7 +66,7 @@ file: entries/sigma/caa9a802-8bd8-4b9e-a5cd-4d6221670219.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/windows/process_creation/proc_creation_win_powershell_kerberos_kerberos_ticket_request_via_cli.yml
-source_commit: 5c9b21756f4e3ba137c1773ac9ba5a8332188961
+source_commit: 05d1031f537e830b76da53bae2400c5814c89165
 source_category: detection
 upstream_id: caa9a802-8bd8-4b9e-a5cd-4d6221670219
 upstream_status: experimental
