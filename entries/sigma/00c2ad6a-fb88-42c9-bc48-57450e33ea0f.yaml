@@ -1,0 +1,60 @@
+id: 00c2ad6a-fb88-42c9-bc48-57450e33ea0f
+name: Possible CVE-2023-23397
+description: |
+    Detects suspicious Rundll32 WebDAV client execution with observed .WAV artifact added to the UNC path.
+    The .WAV is associated with the value stored in the PidLidReminderFileParameter which determines the audio tone to use in a missed meeting or overdue task.
+    The UNC path in the attack forces the victim machine to look for the file on a remote server where the victim machine attempts to authenticate -- subsequently leaking NTLM hashes.
+query: |+
+    title: Possible CVE-2023-23397
+    id: 00c2ad6a-fb88-42c9-bc48-57450e33ea0f
+    status: experimental
+    description: |
+        Detects suspicious Rundll32 WebDAV client execution with observed .WAV artifact added to the UNC path.
+        The .WAV is associated with the value stored in the PidLidReminderFileParameter which determines the audio tone to use in a missed meeting or overdue task.
+        The UNC path in the attack forces the victim machine to look for the file on a remote server where the victim machine attempts to authenticate -- subsequently leaking NTLM hashes.
+    references:
+        - https://www.huntress.com/blog/everything-we-know-about-cve-2023-23397
+    author: Huntress DE&TH Team
+    date: 2023/03/16
+    tags:
+        - attack.exfiltration
+        - attack.t1048.003
+    logsource:
+        category: process_creation
+        product: windows
+    detection:
+        selection:
+            ParentImage|endswith: '\svchost.exe'
+            Image|endswith: '\rundll32.exe'
+            CommandLine|contains|all:
+                - 'C:\windows\system32\davclnt.dll,DavSetCookie'
+                - '.WAV'
+        condition: selection
+    falsepositives:
+        - unknown
+    level: high
+
+query_type: sigma
+severity: high
+techniques:
+    - T1048.003
+tags:
+    - attack.exfiltration
+    - attack.t1048.003
+date: "2023-03-16"
+author: Huntress DE&TH Team
+references:
+    - https://www.huntress.com/blog/everything-we-know-about-cve-2023-23397
+data_sources:
+    - windows
+    - process_creation
+file: entries/sigma/00c2ad6a-fb88-42c9-bc48-57450e33ea0f.yaml
+source: huntresslabs-threat-intel
+source_repository: https://github.com/huntresslabs/threat-intel
+source_path: 2023/2023-03/cve-23397/win_cve_23397_davclnt_wav.yml
+source_commit: bf913c1e770b39274c66d5720299410daec13ecb
+source_category: threat_intel
+upstream_id: 00c2ad6a-fb88-42c9-bc48-57450e33ea0f
+upstream_status: experimental
+license: MIT
+quality_score: 95

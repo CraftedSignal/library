@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"sort"
 	"strings"
 	"time"
@@ -14,12 +15,33 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-var includedTrees = map[string]string{
-	"rules":                  "detection",
-	"rules-emerging-threats": "emerging_threat",
-	"rules-threat-hunting":   "threat_hunt",
-	"rules-compliance":       "compliance",
+type upstreamSource struct {
+	Name       string
+	Repository string
+	License    string
+	Trees      map[string]string
 }
+
+var sigmaHQSource = upstreamSource{
+	Name:       "sigmahq",
+	Repository: "https://github.com/SigmaHQ/sigma",
+	License:    "DRL-1.1",
+	Trees: map[string]string{
+		"rules":                  "detection",
+		"rules-emerging-threats": "emerging_threat",
+		"rules-threat-hunting":   "threat_hunt",
+		"rules-compliance":       "compliance",
+	},
+}
+
+var huntressSource = upstreamSource{
+	Name:       "huntresslabs-threat-intel",
+	Repository: "https://github.com/huntresslabs/threat-intel",
+	License:    "MIT",
+	Trees:      map[string]string{".": "threat_intel"},
+}
+
+var sigmaIDPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type sigmaRule struct {
 	Title          string         `yaml:"title"`
@@ -76,48 +98,105 @@ type rejection struct {
 }
 
 type syncManifest struct {
-	SourceRepository string         `yaml:"source_repository"`
-	SourceCommit     string         `yaml:"source_commit"`
-	SyncedAt         string         `yaml:"synced_at"`
-	Accepted         int            `yaml:"accepted"`
-	Rejected         int            `yaml:"rejected"`
-	ByCategory       map[string]int `yaml:"by_category"`
-	Rejections       []rejection    `yaml:"rejections,omitempty"`
+	SourceRepository  string         `yaml:"source_repository"`
+	SourceCommit      string         `yaml:"source_commit"`
+	SyncedAt          string         `yaml:"synced_at"`
+	Accepted          int            `yaml:"accepted"`
+	Imported          int            `yaml:"imported"`
+	Rejected          int            `yaml:"rejected"`
+	DuplicatesSkipped int            `yaml:"duplicates_skipped,omitempty"`
+	ByCategory        map[string]int `yaml:"by_category"`
+	Rejections        []rejection    `yaml:"rejections,omitempty"`
+}
+
+type sourceBatch struct {
+	source       upstreamSource
+	commit       string
+	entries      []libraryEntry
+	rejections   []rejection
+	byCategory   map[string]int
+	manifestPath string
 }
 
 func main() {
 	outputDir := flag.String("output-dir", ".", "CraftedSignal library repository root")
 	sigmaDir := flag.String("sigma-dir", "", "SigmaHQ/sigma checkout root")
+	huntressDir := flag.String("huntress-dir", "", "huntresslabs/threat-intel checkout root")
 	flag.Parse()
 
-	if strings.TrimSpace(*sigmaDir) == "" {
-		log.Fatal("--sigma-dir is required")
+	var batches []sourceBatch
+	if strings.TrimSpace(*sigmaDir) != "" {
+		batch, err := collectSourceBatch(*sigmaDir, sigmaHQSource, "sigmahq.sync.yaml")
+		if err != nil {
+			log.Fatalf("collect SigmaHQ rules: %v", err)
+		}
+		batches = append(batches, batch)
 	}
-	commit, err := gitCommit(*sigmaDir)
-	if err != nil {
-		log.Fatalf("resolve SigmaHQ commit: %v", err)
+	if strings.TrimSpace(*huntressDir) != "" {
+		batch, err := collectSourceBatch(*huntressDir, huntressSource, "huntress.sync.yaml")
+		if err != nil {
+			log.Fatalf("collect Huntress rules: %v", err)
+		}
+		batches = append(batches, batch)
 	}
+	if len(batches) == 0 {
+		log.Fatal("at least one of --sigma-dir or --huntress-dir is required")
+	}
+	if err := mergeAndWriteManifests(*outputDir, batches, time.Now().UTC()); err != nil {
+		log.Fatalf("sync Sigma upstreams: %v", err)
+	}
+	for _, batch := range batches {
+		log.Printf("%s sync complete: accepted=%d rejected=%d commit=%s", batch.source.Name, len(batch.entries), len(batch.rejections), batch.commit)
+	}
+}
 
-	entries, rejections, byCategory, err := collectRules(*sigmaDir, commit)
+func collectSourceBatch(root string, source upstreamSource, manifestPath string) (sourceBatch, error) {
+	commit, err := gitCommit(root)
 	if err != nil {
-		log.Fatalf("collect SigmaHQ rules: %v", err)
+		return sourceBatch{}, fmt.Errorf("resolve %s commit: %w", source.Name, err)
 	}
-	if err := mergeLibrary(*outputDir, entries); err != nil {
-		log.Fatalf("merge SigmaHQ rules: %v", err)
+	entries, rejections, byCategory, err := collectRules(root, commit, source)
+	if err != nil {
+		return sourceBatch{}, err
 	}
-	manifest := syncManifest{
-		SourceRepository: "https://github.com/SigmaHQ/sigma",
-		SourceCommit:     commit,
-		SyncedAt:         time.Now().UTC().Format(time.RFC3339),
-		Accepted:         len(entries),
-		Rejected:         len(rejections),
-		ByCategory:       byCategory,
-		Rejections:       rejections,
+	return sourceBatch{
+		source:       source,
+		commit:       commit,
+		entries:      entries,
+		rejections:   rejections,
+		byCategory:   byCategory,
+		manifestPath: manifestPath,
+	}, nil
+}
+
+func mergeAndWriteManifests(outputDir string, batches []sourceBatch, syncedAt time.Time) error {
+	refreshedSources := make(map[string]bool, len(batches))
+	var entries []libraryEntry
+	for _, batch := range batches {
+		refreshedSources[batch.source.Name] = true
+		entries = append(entries, batch.entries...)
 	}
-	if err := writeYAML(filepath.Join(*outputDir, "sigmahq.sync.yaml"), manifest); err != nil {
-		log.Fatalf("write sync manifest: %v", err)
+	imported, err := mergeLibrary(outputDir, refreshedSources, entries)
+	if err != nil {
+		return err
 	}
-	log.Printf("SigmaHQ sync complete: accepted=%d rejected=%d commit=%s", len(entries), len(rejections), commit)
+	for _, batch := range batches {
+		manifest := syncManifest{
+			SourceRepository:  batch.source.Repository,
+			SourceCommit:      batch.commit,
+			SyncedAt:          syncedAt.Format(time.RFC3339),
+			Accepted:          len(batch.entries),
+			Imported:          imported[batch.source.Name],
+			Rejected:          len(batch.rejections),
+			DuplicatesSkipped: len(batch.entries) - imported[batch.source.Name],
+			ByCategory:        batch.byCategory,
+			Rejections:        batch.rejections,
+		}
+		if err := writeYAML(filepath.Join(outputDir, batch.manifestPath), manifest); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func gitCommit(root string) (string, error) {
@@ -129,18 +208,25 @@ func gitCommit(root string) (string, error) {
 	return strings.TrimSpace(string(output)), nil
 }
 
-func collectRules(root, commit string) ([]libraryEntry, []rejection, map[string]int, error) {
+func collectRules(root, commit string, source upstreamSource) ([]libraryEntry, []rejection, map[string]int, error) {
 	var entries []libraryEntry
 	var rejections []rejection
 	byCategory := make(map[string]int)
 
-	for tree, category := range includedTrees {
+	for tree, category := range source.Trees {
 		treeRoot := filepath.Join(root, tree)
 		err := filepath.WalkDir(treeRoot, func(path string, directoryEntry os.DirEntry, walkErr error) error {
 			if walkErr != nil {
 				return walkErr
 			}
-			if directoryEntry.IsDir() || filepath.Ext(path) != ".yml" {
+			if directoryEntry.IsDir() {
+				if directoryEntry.Name() == ".git" {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+			extension := strings.ToLower(filepath.Ext(path))
+			if extension != ".yml" && extension != ".yaml" {
 				return nil
 			}
 			raw, err := os.ReadFile(path)
@@ -157,7 +243,7 @@ func collectRules(root, commit string) ([]libraryEntry, []rejection, map[string]
 				rejections = append(rejections, rejection{Path: relativePath(root, path), Title: rule.Title, ID: rule.ID, Score: score, Reasons: reasons})
 				return nil
 			}
-			entry := convertSigmaRule(rule, string(raw), relativePath(root, path), commit, category, score)
+			entry := convertSigmaRule(rule, string(raw), relativePath(root, path), commit, category, score, source)
 			entries = append(entries, entry)
 			byCategory[category]++
 			return nil
@@ -180,6 +266,7 @@ func qualityScore(rule sigmaRule, category string) (int, []string) {
 		reason  string
 	}{
 		{strings.TrimSpace(rule.ID) == "", "missing_id"},
+		{strings.TrimSpace(rule.ID) != "" && !sigmaIDPattern.MatchString(rule.ID), "invalid_id"},
 		{strings.TrimSpace(rule.Title) == "", "missing_title"},
 		{len(rule.LogSource) == 0, "missing_logsource"},
 		{len(rule.Detection) == 0, "missing_detection"},
@@ -228,7 +315,7 @@ func qualityScore(rule sigmaRule, category string) (int, []string) {
 	return score, reasons
 }
 
-func convertSigmaRule(rule sigmaRule, raw, path, commit, category string, score int) libraryEntry {
+func convertSigmaRule(rule sigmaRule, raw, path, commit, category string, score int, source upstreamSource) libraryEntry {
 	var tactics []string
 	var techniques []string
 	for _, tag := range rule.Tags {
@@ -259,59 +346,112 @@ func convertSigmaRule(rule sigmaRule, raw, path, commit, category string, score 
 		Author:           rule.Author,
 		References:       rule.References,
 		DataSources:      uniqueStrings(dataSources),
-		Source:           "sigmahq",
-		SourceRepository: "https://github.com/SigmaHQ/sigma",
+		Source:           source.Name,
+		SourceRepository: source.Repository,
 		SourcePath:       path,
 		SourceCommit:     commit,
 		SourceCategory:   category,
 		UpstreamID:       rule.ID,
 		UpstreamStatus:   rule.Status,
-		License:          "DRL-1.1",
+		License:          source.License,
 		QualityScore:     score,
 	}
 }
 
-func mergeLibrary(outputDir string, sigmaEntries []libraryEntry) error {
+type mergeCandidate struct {
+	entry    libraryEntry
+	incoming bool
+}
+
+func mergeLibrary(outputDir string, refreshedSources map[string]bool, newEntries []libraryEntry) (map[string]int, error) {
 	indexPath := filepath.Join(outputDir, "library.index.yaml")
 	indexData, err := os.ReadFile(indexPath)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	var index libraryIndex
 	if err := yaml.Unmarshal(indexData, &index); err != nil {
-		return err
+		return nil, err
 	}
 
-	retained := make([]libraryEntry, 0, len(index.Entries)+len(sigmaEntries))
+	candidates := make([]mergeCandidate, 0, len(index.Entries)+len(newEntries))
+	removed := make([]libraryEntry, 0)
 	for _, entry := range index.Entries {
-		if entry.Source == "sigmahq" {
-			if entry.File != "" {
-				_ = os.Remove(filepath.Join(outputDir, filepath.FromSlash(entry.File)))
-			}
+		if refreshedSources[entry.Source] {
+			removed = append(removed, entry)
 			continue
 		}
 		if entry.Date == "" && entry.QueryType == "sigma" {
 			entry.Date = sigmaEntryFileDate(outputDir, entry.File)
 		}
-		retained = append(retained, entry)
+		candidates = append(candidates, mergeCandidate{entry: entry})
+	}
+	for _, entry := range newEntries {
+		candidates = append(candidates, mergeCandidate{entry: entry, incoming: true})
+	}
+
+	winners := make(map[string]mergeCandidate, len(candidates))
+	for _, candidate := range candidates {
+		winner, exists := winners[candidate.entry.ID]
+		if !exists || sourcePriority(candidate.entry.Source) > sourcePriority(winner.entry.Source) {
+			winners[candidate.entry.ID] = candidate
+		}
+	}
+
+	winnerFiles := make(map[string]mergeCandidate, len(winners))
+	for id, winner := range winners {
+		if winner.incoming {
+			winner.entry.File = filepath.ToSlash(filepath.Join("entries", "sigma", id+".yaml"))
+			winners[id] = winner
+		}
+		if winner.entry.File != "" {
+			winnerFiles[winner.entry.File] = winner
+		}
+	}
+	for _, entry := range removed {
+		if entry.File == "" {
+			continue
+		}
+		winner, retained := winnerFiles[entry.File]
+		if retained && !winner.incoming {
+			continue
+		}
+		if err := os.Remove(filepath.Join(outputDir, filepath.FromSlash(entry.File))); err != nil && !os.IsNotExist(err) {
+			return nil, err
+		}
 	}
 
 	entriesDir := filepath.Join(outputDir, "entries", "sigma")
 	if err := os.MkdirAll(entriesDir, 0755); err != nil {
-		return err
+		return nil, err
 	}
-	for _, entry := range sigmaEntries {
-		entryPath := filepath.Join("entries", "sigma", entry.ID+".yaml")
-		entry.File = filepath.ToSlash(entryPath)
-		if err := writeYAML(filepath.Join(outputDir, entryPath), entry); err != nil {
-			return err
+	imported := make(map[string]int, len(refreshedSources))
+	merged := make([]libraryEntry, 0, len(winners))
+	for _, winner := range winners {
+		entry := winner.entry
+		if winner.incoming {
+			if err := writeYAML(filepath.Join(outputDir, filepath.FromSlash(entry.File)), entry); err != nil {
+				return nil, err
+			}
+			imported[entry.Source]++
 		}
 		indexEntry := entry
 		indexEntry.Query = ""
-		retained = append(retained, indexEntry)
+		merged = append(merged, indexEntry)
 	}
-	sort.Slice(retained, func(i, j int) bool { return retained[i].ID < retained[j].ID })
-	return writeYAML(indexPath, libraryIndex{Entries: retained})
+	sort.Slice(merged, func(i, j int) bool { return merged[i].ID < merged[j].ID })
+	return imported, writeYAML(indexPath, libraryIndex{Entries: merged})
+}
+
+func sourcePriority(source string) int {
+	switch source {
+	case sigmaHQSource.Name:
+		return 200
+	case huntressSource.Name:
+		return 100
+	default:
+		return 0
+	}
 }
 
 // sigmaRuleDate returns a Sigma rule's date as YYYY-MM-DD, or "" when the rule

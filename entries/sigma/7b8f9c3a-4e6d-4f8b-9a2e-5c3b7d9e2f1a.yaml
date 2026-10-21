@@ -1,0 +1,67 @@
+id: 7b8f9c3a-4e6d-4f8b-9a2e-5c3b7d9e2f1a
+name: Modification to Security Center AV Registry Key
+description: |-
+    Detects modifications to the HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security Center\Provider\Av registry key, which stores antivirus provider information for Windows Security Center. A registry is added by the Defendnot tool for evasion, which registers a fake AV product to turn Defender off.
+    Note: This rule requires auditing to be enabled for the registry key (e.g., via 'Set Value' auditing in Registry Editor or Group Policy) and the 'Audit Object Access' policy to be enabled in Local Security Policy.
+query: |-
+    title: Modification to Security Center AV Registry Key
+    id: 7b8f9c3a-4e6d-4f8b-9a2e-5c3b7d9e2f1a
+    status: experimental
+    description: |-
+      Detects modifications to the HKEY_LOCAL_MACHINE\SOFTWARE\Microsoft\Security Center\Provider\Av registry key, which stores antivirus provider information for Windows Security Center. A registry is added by the Defendnot tool for evasion, which registers a fake AV product to turn Defender off.
+      Note: This rule requires auditing to be enabled for the registry key (e.g., via 'Set Value' auditing in Registry Editor or Group Policy) and the 'Audit Object Access' policy to be enabled in Local Security Policy.
+    author: Matt Anderson, Andrew Schwartz, Jonathon Johnson
+    date: 2025-05-21
+    References:
+      - https://blog.es3n1n.eu/posts/how-i-ruined-my-vacation/
+      - https://github.com/es3n1n/defendnot/tree/master
+      - https://www.huntress.com/blog/defendnot-detecting-malicious-security-product-bypass-techniques
+    logsource:
+        product: windows
+        service: security
+        definition: |-
+          Requirements: Audit Policy : Security Settings/Local Policies/Audit Policy, Registry
+    detection:
+      selection:
+        EventID: 4657
+        Channel: Security
+        ObjectName|contains: \REGISTRY\MACHINE\SOFTWARE\Microsoft\Security Center\Provider\Av
+      filter:
+        ObjectName|contains: {D68DDC3A-831F-4fae-9E44-DA132C1ACF46}
+      condition: selection and not filter
+    fields:
+      - SubjectUserName
+      - SubjectDomainName
+      - ObjectName
+      - ObjectValueName
+      - OldValue
+      - NewValue
+      - ProcessName
+    falsepositives:
+      - Administrative actions modifying antivirus settings
+    level: medium
+    tags:
+        - attack.defense-evasion
+        - attack.t1562.001
+query_type: sigma
+severity: medium
+techniques:
+    - T1562.001
+tags:
+    - attack.defense-evasion
+    - attack.t1562.001
+date: "2025-05-21"
+author: Matt Anderson, Andrew Schwartz, Jonathon Johnson
+data_sources:
+    - windows
+    - security
+file: entries/sigma/7b8f9c3a-4e6d-4f8b-9a2e-5c3b7d9e2f1a.yaml
+source: huntresslabs-threat-intel
+source_repository: https://github.com/huntresslabs/threat-intel
+source_path: 2025/2025-05/defendnot/sigma/win_security_modifiy_security_center_registry_key.yml
+source_commit: bf913c1e770b39274c66d5720299410daec13ecb
+source_category: threat_intel
+upstream_id: 7b8f9c3a-4e6d-4f8b-9a2e-5c3b7d9e2f1a
+upstream_status: experimental
+license: MIT
+quality_score: 85

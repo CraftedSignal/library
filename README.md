@@ -16,7 +16,9 @@ Each entry is a YAML file containing the detection rule, metadata, MITRE ATT&CK 
 
 ## Sync
 
-The library is automatically synced every 6 hours via GitHub Actions. SigmaHQ rules are ingested directly from a commit-pinned checkout with quality gates, lifecycle categories, provenance, and DRL attribution. Other mirrored aggregators that duplicate well-known upstream sources remain excluded.
+The library is automatically synced every 6 hours via GitHub Actions. Curated Sigma rules are ingested directly from commit-pinned checkouts of [SigmaHQ/sigma](https://github.com/SigmaHQ/sigma) and [huntresslabs/threat-intel](https://github.com/huntresslabs/threat-intel), with quality gates, source provenance, duplicate handling, and per-source license attribution.
+
+The Huntress sync currently imports Sigma detections only. IOC CSVs, YARA signatures, tools, and other artifact formats remain excluded until the library has first-class schemas for them. Other mirrored aggregators that duplicate well-known upstream sources also remain excluded.
 
 ## License
 
