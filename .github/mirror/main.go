@@ -18,11 +18,12 @@ import (
 )
 
 const (
-	baseURL      = "https://detections.ai"
-	authPath     = "/api/v1/auth/refresh"
-	discoverPath = "/api/v1/detections/v2/discover"
-	maxPageSize  = 500
-	envToken     = "UPSTREAM_REFRESH_TOKEN"
+	baseURL             = "https://detections.ai"
+	authPath            = "/api/v1/auth/refresh"
+	discoverPath        = "/api/v1/detections/v2/discover"
+	maxPageSize         = 500
+	envToken            = "UPSTREAM_REFRESH_TOKEN"
+	craftedSignalSource = "craftedsignal"
 )
 
 // API response types
@@ -79,20 +80,30 @@ type mitreReference struct {
 // Library YAML output types
 
 type libraryEntry struct {
-	ID          string   `yaml:"id"`
-	Name        string   `yaml:"name"`
-	Description string   `yaml:"description,omitempty"`
-	Query       string   `yaml:"query,omitempty"`
-	QueryType   string   `yaml:"query_type"`
-	Severity    string   `yaml:"severity,omitempty"`
-	Tactics     []string `yaml:"tactics,omitempty"`
-	Techniques  []string `yaml:"techniques,omitempty"`
-	Tags        []string `yaml:"tags,omitempty"`
-	Author      string   `yaml:"author,omitempty"`
-	Version     string   `yaml:"version,omitempty"`
-	References  []string `yaml:"references,omitempty"`
-	DataSources []string `yaml:"data_sources,omitempty"`
-	File        string   `yaml:"file,omitempty"`
+	ID               string   `yaml:"id"`
+	Name             string   `yaml:"name"`
+	Description      string   `yaml:"description,omitempty"`
+	Query            string   `yaml:"query,omitempty"`
+	QueryType        string   `yaml:"query_type"`
+	Severity         string   `yaml:"severity,omitempty"`
+	Tactics          []string `yaml:"tactics,omitempty"`
+	Techniques       []string `yaml:"techniques,omitempty"`
+	Tags             []string `yaml:"tags,omitempty"`
+	Date             string   `yaml:"date,omitempty"`
+	Author           string   `yaml:"author,omitempty"`
+	Version          string   `yaml:"version,omitempty"`
+	References       []string `yaml:"references,omitempty"`
+	DataSources      []string `yaml:"data_sources,omitempty"`
+	File             string   `yaml:"file,omitempty"`
+	Source           string   `yaml:"source,omitempty"`
+	SourceRepository string   `yaml:"source_repository,omitempty"`
+	SourcePath       string   `yaml:"source_path,omitempty"`
+	SourceCommit     string   `yaml:"source_commit,omitempty"`
+	SourceCategory   string   `yaml:"source_category,omitempty"`
+	UpstreamID       string   `yaml:"upstream_id,omitempty"`
+	UpstreamStatus   string   `yaml:"upstream_status,omitempty"`
+	License          string   `yaml:"license,omitempty"`
+	QualityScore     int      `yaml:"quality_score,omitempty"`
 }
 
 type libraryIndex struct {
@@ -336,10 +347,17 @@ func writeOutput(outputDir string, rules []apiRule) error {
 		}
 	}
 
-	var indexEntries []libraryEntry
+	preserved, err := loadCraftedSignalEntries(outputDir)
+	if err != nil {
+		return err
+	}
+	indexEntries := make([]libraryEntry, 0, len(rules)+len(preserved))
 
 	for _, r := range rules {
 		entry := convertRule(r)
+		if _, exists := preserved[entry.ID]; exists {
+			continue
+		}
 		queryType := entry.QueryType
 
 		// Ensure subdirectory exists for this query type
@@ -367,6 +385,9 @@ func writeOutput(outputDir string, rules []apiRule) error {
 		indexEntry.File = entryPath
 		indexEntries = append(indexEntries, indexEntry)
 	}
+	for _, entry := range preserved {
+		indexEntries = append(indexEntries, entry)
+	}
 
 	// Sort index entries by ID for deterministic output
 	sort.Slice(indexEntries, func(i, j int) bool {
@@ -386,4 +407,26 @@ func writeOutput(outputDir string, rules []apiRule) error {
 
 	log.Printf("Wrote %d entries and index to %s", len(indexEntries), outputDir)
 	return nil
+}
+
+func loadCraftedSignalEntries(outputDir string) (map[string]libraryEntry, error) {
+	path := filepath.Join(outputDir, "library.index.yaml")
+	data, err := os.ReadFile(path)
+	if os.IsNotExist(err) {
+		return map[string]libraryEntry{}, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("reading existing library index: %w", err)
+	}
+	var index libraryIndex
+	if err := yaml.Unmarshal(data, &index); err != nil {
+		return nil, fmt.Errorf("parsing existing library index: %w", err)
+	}
+	preserved := make(map[string]libraryEntry)
+	for _, entry := range index.Entries {
+		if entry.Source == craftedSignalSource {
+			preserved[entry.ID] = entry
+		}
+	}
+	return preserved, nil
 }

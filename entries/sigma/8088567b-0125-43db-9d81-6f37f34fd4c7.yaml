@@ -1,0 +1,74 @@
+id: 8088567b-0125-43db-9d81-6f37f34fd4c7
+name: Large Multipart POST to PHP Endpoint with Server Error
+description: >-
+    Detects multipart POST requests of at least 5,000,000 received bytes to
+    explicit PHP paths with selected 5xx responses. This generic failed-upload
+    anomaly can provide context during CVE-2026-109618 investigations, but it is
+    not an exploit indicator or proof of memory corruption. The size threshold is
+    tunable and is not an exploitation requirement; requests with other sizes or
+    responses will not match.
+query: |
+    title: Large Multipart POST to PHP Endpoint with Server Error
+    id: 8088567b-0125-43db-9d81-6f37f34fd4c7
+    status: experimental
+    description: >-
+        Detects multipart POST requests of at least 5,000,000 received bytes to
+        explicit PHP paths with selected 5xx responses. This generic failed-upload
+        anomaly can provide context during CVE-2026-109618 investigations, but it is
+        not an exploit indicator or proof of memory corruption. The size threshold is
+        tunable and is not an exploitation requirement; requests with other sizes or
+        responses will not match.
+    author: Qi Deng (@ikow), adapted by OpenAI
+    date: 2026-10-21
+    modified: 2026-10-22
+    references:
+        - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+    logsource:
+        category: webserver
+        definition: >-
+            Requires method, parsed URL path, response status, numeric received
+            request bytes, and request Content-Type in the same HTTP event.
+            RequestContentType is a custom normalized request-header field. Map
+            cs-bytes to bytes received from the client, not response bytes, and use a
+            backend that supports the numeric gte modifier. Adapt the URI selection
+            for extensionless or differently mapped PHP routes.
+    detection:
+        selection_request:
+            cs-method: 'POST'
+            cs-bytes|gte: 5000000
+            sc-status:
+                - 500
+                - 502
+                - 503
+                - 504
+        selection_content_type:
+            RequestContentType|re|i: '^multipart/form-data([;, ]|$)'
+        selection_php:
+            - cs-uri-stem|endswith: '.php'
+            - cs-uri-stem|contains: '.php/'
+        condition: selection_request and selection_content_type and selection_php
+    fields:
+        - c-ip
+        - cs-method
+        - cs-uri-stem
+        - cs-bytes
+        - sc-status
+        - RequestContentType
+    falsepositives:
+        - Legitimate large uploads failing due to application or infrastructure errors
+        - Capacity tests and authorized security testing
+    level: medium
+query_type: sigma
+severity: medium
+date: "2026-10-21"
+author: Qi Deng (@ikow), adapted by OpenAI
+references:
+    - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+data_sources:
+    - webserver
+source: craftedsignal
+source_repository: https://github.com/CraftedSignal/library
+source_path: entries/sigma/8088567b-0125-43db-9d81-6f37f34fd4c7.yaml
+source_category: detection
+license: AGPL-3.0-only
+quality_score: 90

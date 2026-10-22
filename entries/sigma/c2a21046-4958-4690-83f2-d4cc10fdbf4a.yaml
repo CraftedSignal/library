@@ -1,0 +1,70 @@
+id: c2a21046-4958-4690-83f2-d4cc10fdbf4a
+name: Shell, Interpreter or Network Utility Spawned by PHP or Apache
+description: >-
+    Detects selected shells, scripting interpreters, and network utilities
+    started as immediate children of PHP or Apache processes. Includes common
+    versioned executable names and additional Unix shells and transfer tools.
+    This is a generic suspicious-execution signal and does not identify the
+    initial vulnerability or establish that exploitation succeeded.
+query: |
+    title: Shell, Interpreter or Network Utility Spawned by PHP or Apache
+    id: c2a21046-4958-4690-83f2-d4cc10fdbf4a
+    status: experimental
+    description: >-
+        Detects selected shells, scripting interpreters, and network utilities
+        started as immediate children of PHP or Apache processes. Includes common
+        versioned executable names and additional Unix shells and transfer tools.
+        This is a generic suspicious-execution signal and does not identify the
+        initial vulnerability or establish that exploitation succeeded.
+    author: Qi Deng (@ikow), adapted by OpenAI
+    date: 2026-10-21
+    modified: 2026-10-22
+    references:
+        - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+        - https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp
+    tags:
+        - attack.execution
+    logsource:
+        category: process_creation
+        product: linux
+        definition: >-
+            Requires process creation telemetry with full executable paths in Image
+            and ParentImage. ParentImage must identify the immediate parent executable,
+            not its display name or command line. Regex conversion support is required.
+    detection:
+        selection_parent:
+            ParentImage|re:
+                - '/php(-fpm|-cgi)?([0-9]+(\.[0-9]+)*)?$'
+                - '/php[0-9]+(\.[0-9]+)*-(fpm|cgi)$'
+                - '/(apache2|httpd)$'
+        selection_child:
+            Image|re: '/(sh|ash|bash|dash|ksh|zsh|python([0-9]+(\.[0-9]+)*)?|perl([0-9]+(\.[0-9]+)*)?|ruby([0-9]+(\.[0-9]+)*)?|lua([0-9]+(\.[0-9]+)*)?|node(js)?|nc|ncat|socat|curl|wget)$'
+        condition: selection_parent and selection_child
+    fields:
+        - Image
+        - CommandLine
+        - ParentImage
+        - ParentCommandLine
+        - User
+    falsepositives:
+        - PHP applications legitimately invoking shell commands or external utilities
+        - PHP command-line automation, maintenance tasks, and deployment tooling
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.execution
+date: "2026-10-21"
+author: Qi Deng (@ikow), adapted by OpenAI
+references:
+    - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+    - https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp
+data_sources:
+    - linux
+    - process_creation
+source: craftedsignal
+source_repository: https://github.com/CraftedSignal/library
+source_path: entries/sigma/c2a21046-4958-4690-83f2-d4cc10fdbf4a.yaml
+source_category: detection
+license: AGPL-3.0-only
+quality_score: 95

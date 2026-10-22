@@ -41,6 +41,8 @@ var huntressSource = upstreamSource{
 	Trees:      map[string]string{".": "threat_intel"},
 }
 
+const craftedSignalSource = "craftedsignal"
+
 var sigmaIDPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
 
 type sigmaRule struct {
@@ -54,6 +56,7 @@ type sigmaRule struct {
 	Tags           []string       `yaml:"tags"`
 	References     []string       `yaml:"references"`
 	FalsePositives []string       `yaml:"falsepositives"`
+	Fields         []string       `yaml:"fields"`
 	LogSource      map[string]any `yaml:"logsource"`
 	Detection      map[string]any `yaml:"detection"`
 }
@@ -445,6 +448,8 @@ func mergeLibrary(outputDir string, refreshedSources map[string]bool, newEntries
 
 func sourcePriority(source string) int {
 	switch source {
+	case craftedSignalSource:
+		return 300
 	case sigmaHQSource.Name:
 		return 200
 	case huntressSource.Name:

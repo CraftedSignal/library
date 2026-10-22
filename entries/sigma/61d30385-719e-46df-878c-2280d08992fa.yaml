@@ -1,0 +1,58 @@
+id: 61d30385-719e-46df-878c-2280d08992fa
+name: PHP Memory Exhaustion with Unknown Source Location
+description: >-
+    Detects individual PHP memory-exhaustion messages with an Unknown on line 0
+    source location. This is a triage signal for possible early request-processing
+    failures during CVE-2026-109618 investigations. This generic error is not an
+    exploit indicator and does not prove multipart parsing, exploitation, or
+    repeated errors; correlate it with relevant HTTP and process events separately.
+query: |
+    title: PHP Memory Exhaustion with Unknown Source Location
+    id: 61d30385-719e-46df-878c-2280d08992fa
+    status: experimental
+    description: >-
+        Detects individual PHP memory-exhaustion messages with an Unknown on line 0
+        source location. This is a triage signal for possible early request-processing
+        failures during CVE-2026-109618 investigations. This generic error is not an
+        exploit indicator and does not prove multipart parsing, exploitation, or
+        repeated errors; correlate it with relevant HTTP and process events separately.
+    author: Qi Deng (@ikow), adapted by OpenAI
+    date: 2026-10-21
+    modified: 2026-10-22
+    references:
+        - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+    logsource:
+        category: application
+        product: php
+        definition: >-
+            Requires PHP error logs with the complete error text mapped to Message.
+            Map the logsource to PHP errors even when collected through Apache,
+            PHP-FPM, a container log, or syslog. Different error formats may not match.
+    detection:
+        selection_memory_exhaustion:
+            Message|contains|all:
+                - 'Allowed memory size'
+                - 'exhausted'
+                - 'in Unknown on line 0'
+        condition: selection_memory_exhaustion
+    fields:
+        - Message
+    falsepositives:
+        - Legitimate PHP initialization or request processing exhausting the memory limit
+        - Resource-constrained hosts, misconfiguration, and authorized load testing
+    level: medium
+query_type: sigma
+severity: medium
+date: "2026-10-21"
+author: Qi Deng (@ikow), adapted by OpenAI
+references:
+    - https://github.com/php/php-src/security/advisories/GHSA-w8hw-w9fx-j79w
+data_sources:
+    - php
+    - application
+source: craftedsignal
+source_repository: https://github.com/CraftedSignal/library
+source_path: entries/sigma/61d30385-719e-46df-878c-2280d08992fa.yaml
+source_category: detection
+license: AGPL-3.0-only
+quality_score: 90

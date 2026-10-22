@@ -1,0 +1,70 @@
+id: ce41b180-c21d-49a1-8848-dff5cce2a069
+name: PHP Upload Progress Parameter in Multipart POST
+description: >-
+    Detects the default PHP session upload-progress field as a multipart form-data
+    name parameter in POST requests to explicit PHP paths. The field is relevant
+    to the session lifecycle described for CVE-2026-109619, but is enabled by
+    default and is not malicious by itself. Treat this as low-context enrichment;
+    deployments can also configure a different field name.
+query: |
+    title: PHP Upload Progress Parameter in Multipart POST
+    id: ce41b180-c21d-49a1-8848-dff5cce2a069
+    status: experimental
+    description: >-
+        Detects the default PHP session upload-progress field as a multipart form-data
+        name parameter in POST requests to explicit PHP paths. The field is relevant
+        to the session lifecycle described for CVE-2026-109619, but is enabled by
+        default and is not malicious by itself. Treat this as low-context enrichment;
+        deployments can also configure a different field name.
+    author: Qi Deng (@ikow), adapted by OpenAI
+    date: 2026-10-21
+    modified: 2026-10-22
+    references:
+        - https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp
+        - https://www.php.net/manual/en/session.upload-progress.php
+    logsource:
+        category: webserver
+        definition: >-
+            Requires HTTP request telemetry with the request Content-Type header
+            mapped to RequestContentType and the raw or reconstructed multipart body
+            mapped to RequestBody in the same event. Standard access logs are
+            insufficient. Normalize cs-uri-stem to the path without its query string.
+            Adapt the URI selection for extensionless or differently mapped PHP routes,
+            and adapt the field name if session.upload_progress.name is customized.
+    detection:
+        selection_request:
+            cs-method: 'POST'
+        selection_content_type:
+            RequestContentType|re|i: '^multipart/form-data([;, ]|$)'
+        selection_progress_field:
+            RequestBody|re|m: '(^|;)[ \t]*[Nn][Aa][Mm][Ee]=[ \t]*("PHP_SESSION_UPLOAD_PROGRESS"|''PHP_SESSION_UPLOAD_PROGRESS''|PHP_SESSION_UPLOAD_PROGRESS)([ \t]*(;|\r?$))'
+        selection_php:
+            - cs-uri-stem|endswith: '.php'
+            - cs-uri-stem|contains: '.php/'
+        condition: selection_request and selection_content_type and selection_progress_field and selection_php
+    fields:
+        - c-ip
+        - cs-method
+        - cs-uri-stem
+        - RequestContentType
+        - RequestBody
+    falsepositives:
+        - Applications using PHP session upload progress tracking
+        - Uploaded source files or other content containing a matching multipart name fragment
+        - Authorized security testing
+    level: low
+query_type: sigma
+severity: low
+date: "2026-10-21"
+author: Qi Deng (@ikow), adapted by OpenAI
+references:
+    - https://github.com/php/php-src/security/advisories/GHSA-6wmf-4rv5-p3rp
+    - https://www.php.net/manual/en/session.upload-progress.php
+data_sources:
+    - webserver
+source: craftedsignal
+source_repository: https://github.com/CraftedSignal/library
+source_path: entries/sigma/ce41b180-c21d-49a1-8848-dff5cce2a069.yaml
+source_category: detection
+license: AGPL-3.0-only
+quality_score: 90

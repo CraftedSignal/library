@@ -3,7 +3,10 @@ package main
 import (
 	"os"
 	"path/filepath"
+	"reflect"
+	"regexp"
 	"slices"
+	"strings"
 	"testing"
 	"time"
 
@@ -249,6 +252,55 @@ func TestMergeLibraryPrefersSigmaHQForDuplicateID(t *testing.T) {
 	}
 }
 
+func TestMergeLibraryPrefersCraftedSignalForDuplicateID(t *testing.T) {
+	for _, incomingSource := range []upstreamSource{sigmaHQSource, huntressSource} {
+		t.Run(incomingSource.Name, func(t *testing.T) {
+			dir := t.TempDir()
+			entriesDir := filepath.Join(dir, "entries", "sigma")
+			if err := os.MkdirAll(entriesDir, 0755); err != nil {
+				t.Fatal(err)
+			}
+			local := libraryEntry{
+				ID:        "same-id",
+				Name:      "CraftedSignal",
+				QueryType: "sigma",
+				Query:     "title: CraftedSignal\n",
+				File:      "entries/sigma/same-id.yaml",
+				Source:    "craftedsignal",
+			}
+			if err := writeYAML(filepath.Join(entriesDir, "same-id.yaml"), local); err != nil {
+				t.Fatal(err)
+			}
+			if err := writeYAML(filepath.Join(dir, "library.index.yaml"), libraryIndex{Entries: []libraryEntry{local}}); err != nil {
+				t.Fatal(err)
+			}
+			incoming := libraryEntry{
+				ID:        "same-id",
+				Name:      incomingSource.Name,
+				QueryType: "sigma",
+				Query:     "title: upstream duplicate\n",
+				Source:    incomingSource.Name,
+			}
+
+			imported, err := mergeLibrary(dir, map[string]bool{incomingSource.Name: true}, []libraryEntry{incoming})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if imported[incomingSource.Name] != 0 {
+				t.Fatalf("imported = %v, want duplicate skipped", imported)
+			}
+			index := readLibraryIndex(t, filepath.Join(dir, "library.index.yaml"))
+			if len(index.Entries) != 1 || index.Entries[0].Source != "craftedsignal" {
+				t.Fatalf("duplicate winner = %#v, want CraftedSignal", index.Entries)
+			}
+			entry := readLibraryEntry(t, filepath.Join(entriesDir, "same-id.yaml"))
+			if entry.Source != "craftedsignal" || entry.Name != "CraftedSignal" {
+				t.Fatalf("first-party file was overwritten: %#v", entry)
+			}
+		})
+	}
+}
+
 func TestIndependentHuntressRefreshKeepsExistingSigmaHQWinner(t *testing.T) {
 	dir := t.TempDir()
 	entriesDir := filepath.Join(dir, "entries", "sigma")
@@ -342,6 +394,215 @@ func TestMergeAndWriteManifestsReportsImportedAndDuplicateCounts(t *testing.T) {
 	}
 	if huntressManifest.SyncedAt != "2026-10-21T12:00:00Z" {
 		t.Fatalf("synced_at = %q", huntressManifest.SyncedAt)
+	}
+}
+
+func TestCraftedSignalSigmaEntriesAreIndexedAndMeetQualityGate(t *testing.T) {
+	repositoryRoot := filepath.Clean(filepath.Join("..", ".."))
+	index := readLibraryIndex(t, filepath.Join(repositoryRoot, "library.index.yaml"))
+	indexed := make(map[string]libraryEntry)
+	for _, entry := range index.Entries {
+		if entry.Source == "craftedsignal" && entry.QueryType == "sigma" {
+			indexed[entry.ID] = entry
+		}
+	}
+	if len(indexed) == 0 {
+		t.Fatal("no craftedsignal entries found in library index")
+	}
+
+	paths, err := filepath.Glob(filepath.Join(repositoryRoot, "entries", "sigma", "*.yaml"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	seen := make(map[string]bool)
+	for _, path := range paths {
+		entry := readLibraryEntry(t, path)
+		if entry.Source != "craftedsignal" || entry.QueryType != "sigma" {
+			continue
+		}
+		seen[entry.ID] = true
+		indexEntry, exists := indexed[entry.ID]
+		if !exists {
+			t.Errorf("first-party entry %s is missing from library.index.yaml", entry.ID)
+			continue
+		}
+		relativePath, err := filepath.Rel(repositoryRoot, path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		relativePath = filepath.ToSlash(relativePath)
+		if indexEntry.File != relativePath || entry.SourcePath != relativePath {
+			t.Errorf("%s paths: index=%q source=%q want %q", entry.ID, indexEntry.File, entry.SourcePath, relativePath)
+		}
+		expectedIndexEntry := entry
+		expectedIndexEntry.Query = ""
+		expectedIndexEntry.File = relativePath
+		if !reflect.DeepEqual(indexEntry, expectedIndexEntry) {
+			t.Errorf("%s index metadata does not match its entry file", entry.ID)
+		}
+		if entry.ID != strings.TrimSuffix(filepath.Base(path), filepath.Ext(path)) {
+			t.Errorf("%s does not match filename %s", entry.ID, filepath.Base(path))
+		}
+
+		var rule sigmaRule
+		if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+			t.Errorf("%s has invalid Sigma YAML: %v", entry.ID, err)
+			continue
+		}
+		if rule.ID != entry.ID || rule.Title != entry.Name || rule.Level != entry.Severity {
+			t.Errorf("%s wrapper does not match Sigma rule metadata", entry.ID)
+		}
+		score, reasons := qualityScore(rule, entry.SourceCategory)
+		if len(reasons) > 0 {
+			t.Errorf("%s fails quality gate: score=%d reasons=%v", entry.ID, score, reasons)
+		}
+		if entry.QualityScore != score || indexEntry.QualityScore != score {
+			t.Errorf("%s quality score: entry=%d index=%d want=%d", entry.ID, entry.QualityScore, indexEntry.QualityScore, score)
+		}
+		if entry.Date != sigmaRuleDate(rule.Date) || indexEntry.Date != entry.Date {
+			t.Errorf("%s dates: rule=%q entry=%q index=%q", entry.ID, rule.Date, entry.Date, indexEntry.Date)
+		}
+		converted := convertSigmaRule(rule, entry.Query, relativePath, "", entry.SourceCategory, score, upstreamSource{})
+		if entry.Description != converted.Description || entry.Author != converted.Author ||
+			!slices.Equal(entry.Tags, converted.Tags) || !slices.Equal(entry.Techniques, converted.Techniques) ||
+			!slices.Equal(entry.Tactics, converted.Tactics) || !slices.Equal(entry.References, converted.References) ||
+			!slices.Equal(entry.DataSources, converted.DataSources) {
+			t.Errorf("%s wrapper fields do not match converted Sigma metadata", entry.ID)
+		}
+	}
+	for id := range indexed {
+		if !seen[id] {
+			t.Errorf("indexed first-party entry %s has no corresponding file", id)
+		}
+	}
+}
+
+func TestPHPDetectionRuleSemantics(t *testing.T) {
+	repositoryRoot := filepath.Clean(filepath.Join("..", ".."))
+
+	t.Run("upload progress field follows PHP multipart parsing", func(t *testing.T) {
+		entry := readLibraryEntry(t, filepath.Join(repositoryRoot, "entries", "sigma", "ce41b180-c21d-49a1-8848-dff5cce2a069.yaml"))
+		var rule sigmaRule
+		if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+			t.Fatal(err)
+		}
+		selection, ok := rule.Detection["selection_progress_field"].(map[string]any)
+		if !ok {
+			t.Fatalf("selection_progress_field = %#v", rule.Detection["selection_progress_field"])
+		}
+		pattern, ok := selection["RequestBody|re|m"].(string)
+		if !ok {
+			t.Fatalf("RequestBody|re|m = %#v", selection["RequestBody|re|m"])
+		}
+		if strings.Contains(pattern, "(?:") || strings.Contains(pattern, "(?m)") {
+			t.Fatalf("progress-field regex uses non-portable Sigma constructs: %q", pattern)
+		}
+		expression, err := regexp.Compile("(?m)" + pattern)
+		if err != nil {
+			t.Fatalf("invalid progress-field regex: %v", err)
+		}
+		for _, body := range []string{
+			`Content-Disposition: form-data; name="PHP_SESSION_UPLOAD_PROGRESS"`,
+			`Content-Disposition: form-data; Name='PHP_SESSION_UPLOAD_PROGRESS'; filename="x"`,
+			"Content-Disposition: form-data; NAME=PHP_SESSION_UPLOAD_PROGRESS\r\n",
+		} {
+			if !expression.MatchString(body) {
+				t.Errorf("progress-field regex did not match %q", body)
+			}
+		}
+		for _, body := range []string{
+			`Content-Disposition: form-data; name="php_session_upload_progress"`,
+			`Content-Disposition: form-data; filename="PHP_SESSION_UPLOAD_PROGRESS"`,
+		} {
+			if expression.MatchString(body) {
+				t.Errorf("progress-field regex unexpectedly matched %q", body)
+			}
+		}
+		if rule.Level != "low" {
+			t.Errorf("level = %q, want low", rule.Level)
+		}
+		assertNoExploitTags(t, rule)
+		assertPHPMultipartContentType(t, rule)
+	})
+
+	t.Run("generic anomalies do not claim exploit attribution", func(t *testing.T) {
+		for _, id := range []string{
+			"8088567b-0125-43db-9d81-6f37f34fd4c7",
+			"61d30385-719e-46df-878c-2280d08992fa",
+		} {
+			entry := readLibraryEntry(t, filepath.Join(repositoryRoot, "entries", "sigma", id+".yaml"))
+			var rule sigmaRule
+			if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+				t.Fatal(err)
+			}
+			assertNoExploitTags(t, rule)
+			if id == "8088567b-0125-43db-9d81-6f37f34fd4c7" {
+				assertPHPMultipartContentType(t, rule)
+			}
+		}
+	})
+
+	t.Run("mixed child process signal does not claim interpreter technique", func(t *testing.T) {
+		entry := readLibraryEntry(t, filepath.Join(repositoryRoot, "entries", "sigma", "c2a21046-4958-4690-83f2-d4cc10fdbf4a.yaml"))
+		var rule sigmaRule
+		if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+			t.Fatal(err)
+		}
+		if slices.Contains(rule.Tags, "attack.t1059") {
+			t.Error("mixed shell/network-utility rule must not claim T1059 for every match")
+		}
+	})
+
+	t.Run("session content evidence is included in analyst fields", func(t *testing.T) {
+		entry := readLibraryEntry(t, filepath.Join(repositoryRoot, "entries", "sigma", "4d82642b-19c6-4934-8401-5f933b21ffe9.yaml"))
+		var rule sigmaRule
+		if err := yaml.Unmarshal([]byte(entry.Query), &rule); err != nil {
+			t.Fatal(err)
+		}
+		if !slices.Contains(rule.Fields, "FileContent") {
+			t.Errorf("fields = %v, want FileContent", rule.Fields)
+		}
+	})
+}
+
+func assertNoExploitTags(t *testing.T, rule sigmaRule) {
+	t.Helper()
+	for _, tag := range rule.Tags {
+		if strings.HasPrefix(tag, "attack.") || strings.HasPrefix(tag, "cve.") {
+			t.Errorf("generic signal has exploit-attribution tag %q", tag)
+		}
+	}
+}
+
+func assertPHPMultipartContentType(t *testing.T, rule sigmaRule) {
+	t.Helper()
+	selection, ok := rule.Detection["selection_content_type"].(map[string]any)
+	if !ok {
+		t.Fatalf("selection_content_type = %#v", rule.Detection["selection_content_type"])
+	}
+	pattern, ok := selection["RequestContentType|re|i"].(string)
+	if !ok {
+		t.Fatalf("RequestContentType|re|i = %#v", selection["RequestContentType|re|i"])
+	}
+	if strings.Contains(pattern, "(?:") || strings.Contains(pattern, "(?i)") {
+		t.Fatalf("content-type regex uses non-portable Sigma constructs: %q", pattern)
+	}
+	expression, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		t.Fatalf("invalid content-type regex: %v", err)
+	}
+	for _, contentType := range []string{
+		"multipart/form-data",
+		"MULTIPART/FORM-DATA; boundary=x",
+		"multipart/form-data ; boundary=x",
+		"multipart/form-data,boundary=x",
+	} {
+		if !expression.MatchString(contentType) {
+			t.Errorf("content-type regex did not match %q", contentType)
+		}
+	}
+	if expression.MatchString("multipart/form-dataevil") {
+		t.Error("content-type regex matched a non-delimited prefix")
 	}
 }
 
