@@ -1,16 +1,23 @@
 id: 676381a6-15ca-4d73-a9c8-6a22e970b90d
-name: Local Groups Discovery - Linux
-description: Detects enumeration of local system groups. Adversaries may attempt to find local system groups and permission settings
+name: Local Groups Discovery Attempt - Linux
+description: |
+    Detects attempts to enumerate local groups and group membership via common Linux utilities and sensitive file access.
+    Adversaries may read files such as /etc/group and /etc/gshadow, or use tools like getent and groups to identify
+    group memberships and privilege assignments on a compromised system.
 query: |
-    title: Local Groups Discovery - Linux
+    title: Local Groups Discovery Attempt - Linux
     id: 676381a6-15ca-4d73-a9c8-6a22e970b90d
     status: test
-    description: Detects enumeration of local system groups. Adversaries may attempt to find local system groups and permission settings
+    description: |
+        Detects attempts to enumerate local groups and group membership via common Linux utilities and sensitive file access.
+        Adversaries may read files such as /etc/group and /etc/gshadow, or use tools like getent and groups to identify
+        group memberships and privilege assignments on a compromised system.
     references:
         - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1069.001/T1069.001.md
+        - https://man7.org/linux/man-pages/man1/getent.1.html
     author: Ömer Günal, Alejandro Ortuno, oscd.community
     date: 2020-10-11
-    modified: 2025-06-04
+    modified: 2026-11-03
     tags:
         - attack.discovery
         - attack.t1069.001
@@ -18,20 +25,33 @@ query: |
         category: process_creation
         product: linux
     detection:
-        selection_1:
+        selection_groups:
             Image|endswith: '/groups'
-        selection_2:
+        selection_read_utilities:
             Image|endswith:
                 - '/cat'
                 - '/ed'
+                - '/emacs'
                 - '/head'
                 - '/less'
+                - '/makemap'
                 - '/more'
                 - '/nano'
+                - '/sqlite3'
                 - '/tail'
                 - '/vi'
                 - '/vim'
-            CommandLine|contains: '/etc/group'
+            CommandLine|contains:
+                - 'group'
+                - 'gshadow'
+        selection_getent:
+            Image|endswith: '/getent'
+            CommandLine|contains:
+                - ' group'
+                - ' gshadow'
+        selection_ypcat:
+            Image|endswith: '/ypcat'
+            CommandLine|contains: 'group'
         condition: 1 of selection_*
     falsepositives:
         - Legitimate administration activities
@@ -47,6 +67,7 @@ date: "2020-10-11"
 author: Ömer Günal, Alejandro Ortuno, oscd.community
 references:
     - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1069.001/T1069.001.md
+    - https://man7.org/linux/man-pages/man1/getent.1.html
 data_sources:
     - linux
     - process_creation
@@ -54,7 +75,7 @@ file: entries/sigma/676381a6-15ca-4d73-a9c8-6a22e970b90d.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/linux/process_creation/proc_creation_lnx_local_groups.yml
-source_commit: ccbb0369507f796db0b0ae6854c8a2be471b9d84
+source_commit: 26a2c3810a4878caec599563f972a8c39587b154
 source_category: detection
 upstream_id: 676381a6-15ca-4d73-a9c8-6a22e970b90d
 upstream_status: test
