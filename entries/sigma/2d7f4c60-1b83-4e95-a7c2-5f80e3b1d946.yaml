@@ -1,0 +1,77 @@
+id: 2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946
+name: Agent Tool Invocation at Machine Tempo
+description: |
+    Detects MCP/agent tool invocations occurring at a rate no human operator could drive. In the GTG-1002
+    campaign Anthropic disclosed (Nov 2025), Claude Code plugged into MCP servers executed 80-90% of the
+    tactical work and sustained request rates reported as "thousands of requests per second" across ~30
+    targets, with human operators intervening at only 4-6 decision points per campaign. Tempo is therefore
+    one of the few reliable discriminators between an analyst using an agent and an adversary orchestrating one.
+    This rule counts tool-invocation events per source in a short window; tune `count` to your baseline.
+    For the richer behavioural picture (phase progression, breadth, autonomy ratio, exfil data-flow), run
+    `analyze_agent_traces.py` in this directory over the collected session traces.
+query: |
+    title: Agent Tool Invocation at Machine Tempo
+    name: agent_tool_invocation_tempo_base
+    id: 2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946
+    status: experimental
+    description: |
+        Detects MCP/agent tool invocations occurring at a rate no human operator could drive. In the GTG-1002
+        campaign Anthropic disclosed (Nov 2025), Claude Code plugged into MCP servers executed 80-90% of the
+        tactical work and sustained request rates reported as "thousands of requests per second" across ~30
+        targets, with human operators intervening at only 4-6 decision points per campaign. Tempo is therefore
+        one of the few reliable discriminators between an analyst using an agent and an adversary orchestrating one.
+        This rule counts tool-invocation events per source in a short window; tune `count` to your baseline.
+        For the richer behavioural picture (phase progression, breadth, autonomy ratio, exfil data-flow), run
+        `analyze_agent_traces.py` in this directory over the collected session traces.
+    references:
+        - https://www.anthropic.com/news/disrupting-AI-espionage
+        - https://www.scworld.com/perspective/anthropics-ai-disclosure-what-we-know-and-what-were-watching-for
+        - https://atlas.mitre.org/techniques/AML.T0096
+    author: Raymond DePalma (@depalmar)
+    date: 2026-08-12
+    tags:
+        - attack.execution
+        - attack.t1059
+        - atlas.aml-t0096
+        - atlas.aml-t0053
+    logsource:
+        product: mcp
+        service: tool_invocation
+        definition: 'MCP server / agent framework tool-invocation logs normalized with fields: session_id, tool_name, src_host. Emitted by MCP gateways, agent observability (OTel gen_ai.execute_tool spans), or parsed Claude Code JSONL.'
+    detection:
+        selection:
+            event_type: 'tool_invocation'
+        timeframe: 1m
+        condition: selection
+    falsepositives:
+        - Legitimate bulk automation, CI pipelines, and large-scale refactoring agents. Baseline per session type before enforcing.
+        - Agent retry storms against a failing tool.
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+    - atlas.aml-t0096
+    - atlas.aml-t0053
+date: "2026-08-12"
+author: Raymond DePalma (@depalmar)
+references:
+    - https://www.anthropic.com/news/disrupting-AI-espionage
+    - https://www.scworld.com/perspective/anthropics-ai-disclosure-what-we-know-and-what-were-watching-for
+    - https://atlas.mitre.org/techniques/AML.T0096
+data_sources:
+    - mcp
+    - tool_invocation
+file: entries/sigma/2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 08-agentic-orchestration/agentic_orchestration_behavior.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: agentic_orchestration
+upstream_id: 2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

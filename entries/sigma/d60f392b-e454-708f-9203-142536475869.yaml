@@ -1,0 +1,94 @@
+id: d60f392b-e454-708f-9203-142536475869
+name: Vector Database Port Accessed by Non-Application Process
+description: |
+    Detects network connections to common vector database ports
+    (ChromaDB 8000, Weaviate 8080, Qdrant 6333/6334, Milvus 19530,
+    pgvector 5432) initiated by processes that are not recognized ML
+    application runtimes. Catches unauthorized vector DB access from
+    compromised endpoints or misused service accounts.
+query: |
+    title: Vector Database Port Accessed by Non-Application Process
+    id: d60f392b-e454-708f-9203-142536475869
+    status: experimental
+    description: |
+      Detects network connections to common vector database ports
+      (ChromaDB 8000, Weaviate 8080, Qdrant 6333/6334, Milvus 19530,
+      pgvector 5432) initiated by processes that are not recognized ML
+      application runtimes. Catches unauthorized vector DB access from
+      compromised endpoints or misused service accounts.
+    references:
+      - https://atlas.mitre.org/techniques/AML.T0020
+      - https://atlas.mitre.org/techniques/AML.T0024
+      - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.collection
+      - attack.exfiltration
+      - attack.atlas.t0024
+      - owasp.llm02
+      - owasp.llm08
+    logsource:
+      category: network_connection
+    detection:
+      selection_vector_db_ports:
+        DestinationPort:
+          - 6333
+          - 6334
+          - 8080
+          - 19530
+          - 9091
+      filter_ml_runtimes:
+        Image|endswith:
+          - '/python'
+          - '/python3'
+          - '/node'
+          - '/java'
+          - '/uvicorn'
+          - '/gunicorn'
+          - '/ray'
+          - '/jupyter-notebook'
+          - '/jupyter-lab'
+          - '/ollama'
+          - '/vllm'
+          - '/tritonserver'
+          - '\python.exe'
+          - '\node.exe'
+          - '\java.exe'
+      condition: selection_vector_db_ports and not filter_ml_runtimes
+    fields:
+      - Image
+      - ParentImage
+      - DestinationIp
+      - DestinationPort
+      - User
+    falsepositives:
+      - Admin CLI tools (psql, curl, httpie) used for legitimate debugging
+      - Custom ML runtimes not covered by the filter list — extend as needed
+    level: medium
+query_type: sigma
+severity: medium
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.atlas.t0024
+    - owasp.llm02
+    - owasp.llm08
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0020
+    - https://atlas.mitre.org/techniques/AML.T0024
+    - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+data_sources:
+    - network_connection
+file: entries/sigma/d60f392b-e454-708f-9203-142536475869.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 06-rag-vector-db/vector_db_query_anomaly.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: rag_vector_database
+upstream_id: d60f392b-e454-708f-9203-142536475869
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

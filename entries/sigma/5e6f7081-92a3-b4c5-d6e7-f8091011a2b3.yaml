@@ -1,0 +1,66 @@
+id: 5e6f7081-92a3-b4c5-d6e7-f8091011a2b3
+name: HuggingFace Token File Read by Unexpected Process
+description: |
+    Detects reads of the HuggingFace token file (~/.cache/huggingface/token)
+    by processes other than huggingface_hub Python clients or the official
+    CLI. Indicates credential theft via infostealer or compromised process.
+query: |
+    title: HuggingFace Token File Read by Unexpected Process
+    id: 5e6f7081-92a3-b4c5-d6e7-f8091011a2b3
+    status: experimental
+    description: |
+      Detects reads of the HuggingFace token file (~/.cache/huggingface/token)
+      by processes other than huggingface_hub Python clients or the official
+      CLI. Indicates credential theft via infostealer or compromised process.
+    references:
+      - https://www.lasso.security/blog/huggingface-vulnerable-to-account-takeover
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.credential_access
+      - attack.t1552.001
+      - attack.atlas.t0086
+    logsource:
+      category: file_event
+    detection:
+      selection_target:
+        TargetFilename|contains:
+          - '/.cache/huggingface/token'
+          - '\.cache\huggingface\token'
+          - '/.huggingface/token'
+      filter_legitimate:
+        Image|endswith:
+          - '/python'
+          - '/python3'
+          - '/huggingface-cli'
+          - '\python.exe'
+          - '\huggingface-cli.exe'
+      condition: selection_target and not filter_legitimate
+    falsepositives:
+      - Backup software (Time Machine, Restic, Borg)
+      - Cloud sync clients
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1552.001
+tags:
+    - attack.credential_access
+    - attack.t1552.001
+    - attack.atlas.t0086
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://www.lasso.security/blog/huggingface-vulnerable-to-account-takeover
+data_sources:
+    - file_event
+file: entries/sigma/5e6f7081-92a3-b4c5-d6e7-f8091011a2b3.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 03-model-supply-chain/huggingface_token_exposure.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: model_supply_chain
+upstream_id: 5e6f7081-92a3-b4c5-d6e7-f8091011a2b3
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

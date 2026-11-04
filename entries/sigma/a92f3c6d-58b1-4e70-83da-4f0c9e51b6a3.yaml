@@ -1,0 +1,75 @@
+id: a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3
+name: Memory Poisoning Indicator Written to Agent Memory
+description: |
+    Content-based detection for poisoning instructions being committed to agent memory, for platforms that
+    log memory-write operations (assistant memory APIs, agent frameworks emitting OpenTelemetry gen_ai spans,
+    or MCP memory servers). Matches the spAIware pattern - a stored instruction directing the agent to append
+    a markdown image beacon carrying conversation content to every future response - along with secrecy
+    directives and standing credential-collection instructions.
+    Where memory writes are not logged, use 09-agent-memory/analyze_agent_memory.py against the store on disk.
+query: |
+    title: Memory Poisoning Indicator Written to Agent Memory
+    name: agent_memory_poisoning_content
+    id: a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3
+    status: experimental
+    description: |
+        Content-based detection for poisoning instructions being committed to agent memory, for platforms that
+        log memory-write operations (assistant memory APIs, agent frameworks emitting OpenTelemetry gen_ai spans,
+        or MCP memory servers). Matches the spAIware pattern - a stored instruction directing the agent to append
+        a markdown image beacon carrying conversation content to every future response - along with secrecy
+        directives and standing credential-collection instructions.
+        Where memory writes are not logged, use 09-agent-memory/analyze_agent_memory.py against the store on disk.
+    references:
+        - https://atlas.mitre.org/techniques/AML.T0080
+        - https://embracethered.com/blog/posts/2024/chatgpt-hacking-memories/
+    author: Raymond DePalma (@depalmar)
+    date: 2026-08-12
+    tags:
+        - attack.persistence
+        - attack.exfiltration
+        - atlas.aml-t0080
+        - atlas.aml-t0086
+    logsource:
+        product: agent
+        service: memory_write
+        definition: 'Memory-write events from an assistant memory API, agent framework, or MCP memory server. Expected fields: user_id, memory_text, source.'
+    detection:
+        selection_exfil:
+            memory_text|re: '(?i)(end|append|conclude)\s+(all\s+|every\s+)?(future\s+)?(responses?|replies)\s+with[^.\n]{0,120}https?://'
+        selection_secrecy:
+            memory_text|re: '(?i)(do\s*n(o|'')t|never)\s+(tell|inform|mention|reveal|notify)\s+(the\s+)?(user|human|anyone)'
+        selection_creds:
+            memory_text|re: '(?i)(whenever|when|if)\s+you\s+(see|find|encounter)\s+(an?\s+)?(api[_\s-]?key|password|secret|credential|token)'
+        selection_beacon:
+            memory_text|contains:
+                - '!['
+            memory_text|re: '(?i)https?://[^\s)]{0,200}[?&][a-z0-9_]{1,20}=\s*(\[[A-Z_]{2,20}\]|\{\{?[a-z_]{2,30}\}?\})'
+        condition: 1 of selection_*
+    falsepositives:
+        - Users legitimately storing a preferred signature or link format. Review the destination domain.
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.persistence
+    - attack.exfiltration
+    - atlas.aml-t0080
+    - atlas.aml-t0086
+date: "2026-08-12"
+author: Raymond DePalma (@depalmar)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0080
+    - https://embracethered.com/blog/posts/2024/chatgpt-hacking-memories/
+data_sources:
+    - agent
+    - memory_write
+file: entries/sigma/a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 09-agent-memory-forensics/memory_poisoning.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: agent_memory_forensics
+upstream_id: a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

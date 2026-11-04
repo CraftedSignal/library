@@ -1,0 +1,99 @@
+id: 4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40
+name: SesameOp - OpenAI Assistants API Abused as C2 Relay
+description: |
+    Detects the SesameOp backdoor pattern, in which the OpenAI Assistants API is abused as a storage/relay
+    channel for command and control rather than for model inference. Microsoft DART discovered SesameOp in
+    July 2025 in an environment where the actor had persisted for months: a heavily obfuscated .NET loader
+    (Netapi64.dll) delivered the OpenAIAgent.Netapi64 implant, which polls the Assistants list and reads the
+    `description` field for one of three verbs - SLEEP, Payload, or Result - taking the encrypted, compressed
+    command body from the `instructions` field and returning output as a new message with description "Result".
+    Because the traffic terminates at a trusted provider, it blends with legitimate AI usage.
+    Detection keys on non-inference Assistants-API endpoints being reached by a process with no business
+    calling them, and on the documented loader artifacts / AppDomainManager injection.
+    NOTE: OpenAI deprecates the Assistants API in August 2026 in favour of the Responses API; expect this
+    tradecraft to migrate. Extend `selection_api` to Responses-API paths as your estate adopts them.
+query: |
+    title: SesameOp - OpenAI Assistants API Abused as C2 Relay
+    name: sesameop_assistants_api_c2
+    id: 4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40
+    status: experimental
+    description: |
+        Detects the SesameOp backdoor pattern, in which the OpenAI Assistants API is abused as a storage/relay
+        channel for command and control rather than for model inference. Microsoft DART discovered SesameOp in
+        July 2025 in an environment where the actor had persisted for months: a heavily obfuscated .NET loader
+        (Netapi64.dll) delivered the OpenAIAgent.Netapi64 implant, which polls the Assistants list and reads the
+        `description` field for one of three verbs - SLEEP, Payload, or Result - taking the encrypted, compressed
+        command body from the `instructions` field and returning output as a new message with description "Result".
+        Because the traffic terminates at a trusted provider, it blends with legitimate AI usage.
+        Detection keys on non-inference Assistants-API endpoints being reached by a process with no business
+        calling them, and on the documented loader artifacts / AppDomainManager injection.
+        NOTE: OpenAI deprecates the Assistants API in August 2026 in favour of the Responses API; expect this
+        tradecraft to migrate. Extend `selection_api` to Responses-API paths as your estate adopts them.
+    references:
+        - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/
+        - https://thehackernews.com/2025/11/microsoft-detects-sesameop-backdoor.html
+        - https://www.infosecurity-magazine.com/news/openai-assistants-api-sesameop/
+        - https://atlas.mitre.org/techniques/AML.T0096
+    author: Raymond DePalma (@depalmar)
+    date: 2026-08-12
+    tags:
+        - attack.command-and-control
+        - attack.t1071.001
+        - attack.t1102          # Web Service as C2 relay
+        - attack.defense-evasion
+        - attack.t1574.014      # AppDomainManager injection
+        - atlas.aml-t0096
+    logsource:
+        category: proxy
+    detection:
+        selection_api:
+            c-uri|contains:
+                - '/v1/assistants'
+                - '/v1/threads'
+        filter_known_ai_clients:
+            # Tune to your sanctioned AI tooling; the point is a NON-AI process reaching these endpoints.
+            c-useragent|contains:
+                - 'OpenAI/Python'
+                - 'openai-node'
+                - 'langchain'
+        condition: selection_api and not filter_known_ai_clients
+    fields:
+        - c-uri
+        - c-useragent
+        - src_ip
+        - cs-method
+    falsepositives:
+        - Bespoke internal applications built on the Assistants API with custom user agents. Baseline first, then allowlist by host/process.
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1071.001
+    - T1102
+    - T1574.014
+tags:
+    - attack.command-and-control
+    - attack.t1071.001
+    - attack.t1102
+    - attack.defense-evasion
+    - attack.t1574.014
+    - atlas.aml-t0096
+date: "2026-08-12"
+author: Raymond DePalma (@depalmar)
+references:
+    - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/
+    - https://thehackernews.com/2025/11/microsoft-detects-sesameop-backdoor.html
+    - https://www.infosecurity-magazine.com/news/openai-assistants-api-sesameop/
+    - https://atlas.mitre.org/techniques/AML.T0096
+data_sources:
+    - proxy
+file: entries/sigma/4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 08-agentic-orchestration/sesameop_assistants_api_c2.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: agentic_orchestration
+upstream_id: 4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

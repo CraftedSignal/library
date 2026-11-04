@@ -1,0 +1,111 @@
+id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
+name: MCP Server Process Accessing Credential Files
+description: |
+    Detects MCP server processes (typically spawned via npx/uvx/python)
+    reading credential files such as SSH keys, AWS credentials, .env files,
+    or browser cookie databases. This pattern indicates a poisoned MCP
+    tool exfiltrating secrets via the LLM-as-proxy technique documented
+    by Invariant Labs and Cyata.
+query: |
+    title: MCP Server Process Accessing Credential Files
+    id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
+    status: experimental
+    description: |
+      Detects MCP server processes (typically spawned via npx/uvx/python)
+      reading credential files such as SSH keys, AWS credentials, .env files,
+      or browser cookie databases. This pattern indicates a poisoned MCP
+      tool exfiltrating secrets via the LLM-as-proxy technique documented
+      by Invariant Labs and Cyata.
+    references:
+      - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+      - https://cyata.ai/blog/whispering-secrets-loudly-inside-mcps-quiet-crisis-of-credential-exposure/
+      - https://atlas.mitre.org/techniques/AML.T0086
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.credential_access
+      - attack.t1552
+      - attack.atlas.t0086
+      - owasp.llm02
+    logsource:
+      category: file_event
+    detection:
+      selection_mcp_processes:
+        ParentImage|endswith:
+          - '/node'
+          - '/npx'
+          - '/python'
+          - '/python3'
+          - '/uvx'
+          - '/uv'
+          - '\node.exe'
+          - '\python.exe'
+        ParentCommandLine|contains:
+          - 'mcp'
+          - '@modelcontextprotocol'
+          - 'mcp-server'
+          - 'fastmcp'
+      selection_credential_targets:
+        TargetFilename|contains:
+          - '/.ssh/id_rsa'
+          - '/.ssh/id_ed25519'
+          - '/.ssh/id_ecdsa'
+          - '/.ssh/known_hosts'
+          - '/.aws/credentials'
+          - '/.aws/config'
+          - '/.config/gh/hosts.yml'
+          - '/.netrc'
+          - '/.kube/config'
+          - '/.docker/config.json'
+          - '/.npmrc'
+          - '/.pypirc'
+          - '\.aws\credentials'
+          - '\.ssh\id_rsa'
+          - 'Cookies-journal'
+          - 'Login Data'
+          - 'Keychains/login.keychain-db'
+      selection_dotenv:
+        TargetFilename|endswith:
+          - '/.env'
+          - '/.env.local'
+          - '/.env.production'
+          - '/.env.secrets'
+      condition: selection_mcp_processes and (selection_credential_targets or selection_dotenv)
+    fields:
+      - User
+      - Image
+      - ParentImage
+      - ParentCommandLine
+      - TargetFilename
+    falsepositives:
+      - Legitimate MCP servers designed to read .env files (verify by name and source)
+      - SSH MCP servers reading known_hosts (rare but possible)
+      - AWS/cloud-management MCP servers with documented credential access
+    level: critical
+query_type: sigma
+severity: critical
+techniques:
+    - T1552
+tags:
+    - attack.credential_access
+    - attack.t1552
+    - attack.atlas.t0086
+    - owasp.llm02
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+    - https://cyata.ai/blog/whispering-secrets-loudly-inside-mcps-quiet-crisis-of-credential-exposure/
+    - https://atlas.mitre.org/techniques/AML.T0086
+data_sources:
+    - file_event
+file: entries/sigma/2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 02-mcp-attacks/mcp_credential_access.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: mcp_attack
+upstream_id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

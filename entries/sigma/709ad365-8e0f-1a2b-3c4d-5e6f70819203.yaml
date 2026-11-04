@@ -1,0 +1,82 @@
+id: 709ad365-8e0f-1a2b-3c4d-5e6f70819203
+name: M365 Copilot Accessing Sensitivity-Labeled Content
+description: |
+    Detects Microsoft 365 Copilot or AIAppInteraction events where the
+    accessed resource has a sensitivity label. Independent defense-in-
+    depth against Copilot bypassing DLP / sensitivity-label enforcement
+    (Microsoft incident CW1226324, January-February 2026).
+
+    Log source: Microsoft Purview Unified Audit Log. Ingest via any SIEM
+    with an Office 365 Management Activity API connector. This rule is
+    log-source-agnostic — map the field names to your connector's schema.
+query: |
+    title: M365 Copilot Accessing Sensitivity-Labeled Content
+    id: 709ad365-8e0f-1a2b-3c4d-5e6f70819203
+    status: experimental
+    description: |
+      Detects Microsoft 365 Copilot or AIAppInteraction events where the
+      accessed resource has a sensitivity label. Independent defense-in-
+      depth against Copilot bypassing DLP / sensitivity-label enforcement
+      (Microsoft incident CW1226324, January-February 2026).
+
+      Log source: Microsoft Purview Unified Audit Log. Ingest via any SIEM
+      with an Office 365 Management Activity API connector. This rule is
+      log-source-agnostic — map the field names to your connector's schema.
+    references:
+      - https://atlas.mitre.org/techniques/AML.T0086
+      - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+      - https://learn.microsoft.com/en-us/purview/audit-copilot
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.collection
+      - attack.exfiltration
+      - attack.atlas.t0086
+      - owasp.llm02
+    logsource:
+      product: m365
+      service: audit
+    detection:
+      selection_operation:
+        Operation:
+          - 'CopilotInteraction'
+          - 'AIAppInteraction'
+      selection_labeled:
+        AccessedResources|contains: 'SensitivityLabelId'
+      condition: selection_operation and selection_labeled
+    fields:
+      - UserId
+      - ClientIP
+      - AppHost
+      - AccessedResources
+      - RecordType
+    falsepositives:
+      - Legitimate Copilot use on labeled content by authorized users —
+        tune with an allowlist of (UserId, LabelId) pairs
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.collection
+    - attack.exfiltration
+    - attack.atlas.t0086
+    - owasp.llm02
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0086
+    - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+    - https://learn.microsoft.com/en-us/purview/audit-copilot
+data_sources:
+    - m365
+    - audit
+file: entries/sigma/709ad365-8e0f-1a2b-3c4d-5e6f70819203.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 05-copilot-assistant-abuse/m365_copilot_sensitive_label_access.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: copilot_assistant_abuse
+upstream_id: 709ad365-8e0f-1a2b-3c4d-5e6f70819203
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

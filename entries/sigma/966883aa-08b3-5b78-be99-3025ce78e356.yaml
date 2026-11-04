@@ -1,0 +1,76 @@
+id: 966883aa-08b3-5b78-be99-3025ce78e356
+name: AI Agent Credential File Accessed by Unexpected Process
+description: |
+    Detects access to plaintext credential files belonging to AI agents. These files
+    hold live OAuth tokens and API keys and are protected only by filesystem
+    permissions, which makes them an easy and increasingly common target for
+    infostealers. The owning agent reading its own credentials is normal; anything
+    else reading them is not.
+query: |
+    title: AI Agent Credential File Accessed by Unexpected Process
+    id: 966883aa-08b3-5b78-be99-3025ce78e356
+    status: experimental
+    description: |
+      Detects access to plaintext credential files belonging to AI agents. These files
+      hold live OAuth tokens and API keys and are protected only by filesystem
+      permissions, which makes them an easy and increasingly common target for
+      infostealers. The owning agent reading its own credentials is normal; anything
+      else reading them is not.
+    author: AI DFIR Toolkit contributors
+    date: 2026-08-11
+    tags:
+        - attack.credential_access
+        - attack.t1552.001
+        - attack.atlas.t0083
+        - attack.atlas.t0055
+    logsource:
+        category: file_access
+    detection:
+        selection:
+            TargetFilename|contains:
+                - '.claude/.credentials.json'
+                - '.claude.json'
+                - '.codex/auth.json'
+                - '.gemini/oauth_creds.json'
+                - '.aider/oauth-keys.env'
+                - '.config/goose/secrets.yaml'
+                - '.continue/config.yaml'
+                - '.codeium/'
+        filter_owner:
+            Image|endswith:
+                - '/claude'
+                - '/codex'
+                - '/gemini'
+                - '/aider'
+                - '/goose'
+                - '\Claude.exe'
+                - '\Code.exe'
+                - '\Cursor.exe'
+        condition: selection and not filter_owner
+    falsepositives:
+        - Backup agents and endpoint security products enumerating the home directory
+        - Developer-run scripts and dotfile managers
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1552.001
+tags:
+    - attack.credential_access
+    - attack.t1552.001
+    - attack.atlas.t0083
+    - attack.atlas.t0055
+date: "2026-08-11"
+author: AI DFIR Toolkit contributors
+data_sources:
+    - file_access
+file: entries/sigma/966883aa-08b3-5b78-be99-3025ce78e356.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: artifacts/detections/sigma/ai_agent_credential_file_access.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: ai_agent_endpoint
+upstream_id: 966883aa-08b3-5b78-be99-3025ce78e356
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 85

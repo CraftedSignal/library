@@ -1,0 +1,83 @@
+id: 9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258
+name: Mass Data Collection via Agent Tool Invocation
+description: |
+    Detects an agent chaining tool calls into bulk collection/exfiltration - MITRE ATLAS AML.T0086
+    (Exfiltration via AI Agent Tool Invocation, added in the Oct 2025 Zenity Labs technique set). The
+    signature is archive/dump/upload tooling invoked repeatedly by an agent session rather than
+    interactively, matching the GTG-1002 final phase in which the model categorized and staged stolen data
+    by intelligence value.
+query: |
+    title: Mass Data Collection via Agent Tool Invocation
+    name: agent_tool_chain_mass_exfil_base
+    id: 9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258
+    status: experimental
+    description: |
+        Detects an agent chaining tool calls into bulk collection/exfiltration - MITRE ATLAS AML.T0086
+        (Exfiltration via AI Agent Tool Invocation, added in the Oct 2025 Zenity Labs technique set). The
+        signature is archive/dump/upload tooling invoked repeatedly by an agent session rather than
+        interactively, matching the GTG-1002 final phase in which the model categorized and staged stolen data
+        by intelligence value.
+    references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+        - https://www.anthropic.com/news/disrupting-AI-espionage
+    author: Raymond DePalma (@depalmar)
+    date: 2026-08-12
+    tags:
+        - attack.exfiltration
+        - attack.t1041
+        - attack.collection
+        - attack.t1560
+        - atlas.aml-t0086
+    logsource:
+        product: mcp
+        service: tool_invocation
+    detection:
+        selection:
+            event_type: 'tool_invocation'
+        selection_collect:
+            tool_input|contains:
+                - 'tar -cz'
+                - 'zip -r'
+                - '7z a'
+                - 'mysqldump'
+                - 'pg_dump'
+                - 'rclone'
+                - 'aws s3 cp'
+                - 'aws s3 sync'
+                - 'gsutil cp'
+                - 'curl -T'
+                - '--upload-file'
+        timeframe: 10m
+        condition: selection and selection_collect
+    falsepositives:
+        - Backup automation and legitimate data-migration agents. Allowlist known backup service accounts.
+    level: high
+query_type: sigma
+severity: high
+techniques:
+    - T1041
+    - T1560
+tags:
+    - attack.exfiltration
+    - attack.t1041
+    - attack.collection
+    - attack.t1560
+    - atlas.aml-t0086
+date: "2026-08-12"
+author: Raymond DePalma (@depalmar)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0086
+    - https://www.anthropic.com/news/disrupting-AI-espionage
+data_sources:
+    - mcp
+    - tool_invocation
+file: entries/sigma/9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 08-agentic-orchestration/agentic_orchestration_behavior.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: agentic_orchestration
+upstream_id: 9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

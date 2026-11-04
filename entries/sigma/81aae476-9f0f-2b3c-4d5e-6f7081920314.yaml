@@ -1,0 +1,69 @@
+id: 81aae476-9f0f-2b3c-4d5e-6f7081920314
+name: M365 Copilot Accessing Email Sent Items / Drafts
+description: |
+    Detects Copilot interactions that access Sent Items, Drafts, or
+    Outbox folders. Mirrors the CW1226324 access pattern where Copilot
+    silently read emails protected by sensitivity labels.
+query: |
+    title: M365 Copilot Accessing Email Sent Items / Drafts
+    id: 81aae476-9f0f-2b3c-4d5e-6f7081920314
+    status: experimental
+    description: |
+      Detects Copilot interactions that access Sent Items, Drafts, or
+      Outbox folders. Mirrors the CW1226324 access pattern where Copilot
+      silently read emails protected by sensitivity labels.
+    references:
+      - https://atlas.mitre.org/techniques/AML.T0086
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.collection
+      - attack.atlas.t0086
+      - owasp.llm02
+    logsource:
+      product: m365
+      service: audit
+    detection:
+      selection_operation:
+        Operation:
+          - 'CopilotInteraction'
+          - 'AIAppInteraction'
+      selection_app:
+        AppHost|contains: 'Outlook'
+      selection_sensitive_folder:
+        AccessedResources|contains:
+          - '/SentItems/'
+          - '/Drafts/'
+          - '/Outbox/'
+      condition: all of selection_*
+    fields:
+      - UserId
+      - ClientIP
+      - AppHost
+      - AccessedResources
+    falsepositives:
+      - Legitimate "help me finish this draft" or "summarize my sent mail" flows
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.collection
+    - attack.atlas.t0086
+    - owasp.llm02
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0086
+data_sources:
+    - m365
+    - audit
+file: entries/sigma/81aae476-9f0f-2b3c-4d5e-6f7081920314.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 05-copilot-assistant-abuse/m365_copilot_sensitive_label_access.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: copilot_assistant_abuse
+upstream_id: 81aae476-9f0f-2b3c-4d5e-6f7081920314
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

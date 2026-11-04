@@ -55111,6 +55111,39 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 091011a2-b3c4-d5e6-f708-091011a2b3c4
+      name: Claude Code Session History Accessed by Unexpected Process
+      description: |
+        Detects reads of Claude Code session JSONL files by processes other
+        than Claude itself. Session files at ~/.claude/projects/{slug}/session-*.jsonl
+        contain full conversation transcripts, tool invocations, file reads,
+        and agentic action logs — making them high-value forensic artifacts
+        AND exfiltration targets for credential or IP theft.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1005
+      tags:
+        - attack.collection
+        - attack.t1005
+        - attack.atlas.t0086
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://inventivehq.com/knowledge-base/claude/where-configuration-files-are-stored
+        - https://code.claude.com/docs/en/security
+      data_sources:
+        - file_event
+      file: entries/sigma/091011a2-b3c4-d5e6-f708-091011a2b3c4.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/claude_session_jsonl_unexpected_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: 091011a2-b3c4-d5e6-f708-091011a2b3c4
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 09122c93-bb76-409a-bdf7-e2a796e8a3de
       name: Permissions changed on a Group Policy (GPO)
       description: Detects scenarios where an attacker will attempt to take control over a group policy.
@@ -57222,6 +57255,35 @@ entries:
       upstream_status: experimental
       license: DRL-1.1
       quality_score: 95
+    - id: 0c8ca1e8-b669-54e0-b5e9-98a322e33dd0
+      name: AI Agent Registered for Autostart
+      description: |
+        Detects an AI agent or LLM runtime being registered to start automatically. This
+        matters more than ordinary autostart because an MCP host launching at login also
+        launches every MCP server in its configuration - so one Run key can start a chain
+        of child processes with inherited credentials.
+      query_type: sigma
+      severity: low
+      techniques:
+        - T1547.001
+      tags:
+        - attack.persistence
+        - attack.t1547.001
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - windows
+        - registry_set
+      file: entries/sigma/0c8ca1e8-b669-54e0-b5e9-98a322e33dd0.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_autostart_persistence.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 0c8ca1e8-b669-54e0-b5e9-98a322e33dd0
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: 0c92f2e6-f08f-4b73-9216-ecb0ca634689
       name: PUA - Potential PE Metadata Tamper Using Rcedit
       description: Detects the use of rcedit to potentially alter executable PE metadata properties, which could conceal efforts to rename system utilities for defense evasion.
@@ -57778,6 +57840,38 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 0d7e5a91-4b36-42cf-9e08-1a6f3b28c574
+      name: Agent Memory Store Written by Unexpected Process
+      description: |
+        Detects writes to agent long-term memory and checkpoint stores by a process other than the owning agent
+        runtime. Memory is a persistence surface: an instruction written here survives session resets, so direct
+        manipulation of the store is a way to install persistence without ever interacting with the model.
+        Covers LangGraph SQLite checkpointers, assistant memory exports, and agent state files.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1546
+      tags:
+        - attack.persistence
+        - attack.t1546
+        - atlas.aml-t0080
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0080
+        - https://www.microsoft.com/en-us/security/blog/2026/02/10/ai-recommendation-poisoning/
+      data_sources:
+        - file_event
+      file: entries/sigma/0d7e5a91-4b36-42cf-9e08-1a6f3b28c574.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 09-agent-memory-forensics/memory_poisoning.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agent_memory_forensics
+      upstream_id: 0d7e5a91-4b36-42cf-9e08-1a6f3b28c574
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 0d933542-1f1f-420d-97d4-21b2c3c492d9
       name: Kubernetes Unauthorized or Unauthenticated Access
       description: |
@@ -59430,6 +59524,44 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 1011a2b3-c4d5-e6f7-0809-1011a2b3c4d5
+      name: Large Browser POST to AI SaaS Endpoint (Possible Sensitive Data Paste)
+      description: |
+        Detects browser-initiated POST requests to AI SaaS chat endpoints
+        (ChatGPT, Claude.ai, Gemini, Perplexity, Copilot consumer) carrying
+        unusually large payloads. Models the Samsung 2023 incident pattern
+        where engineers pasted proprietary source code and meeting transcripts
+        into ChatGPT — which became part of training data.
+
+        Pair with browser proxy/SSL-inspection or EDR network telemetry. If
+        no decryption is in place, alert on connection size + frequency rather
+        than payload content.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1567.002
+      tags:
+        - attack.exfiltration
+        - attack.t1567.002
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.darkreading.com/vulnerabilities-threats/samsung-engineers-sensitive-data-chatgpt-warnings-ai-use-workplace
+        - https://techcrunch.com/2023/05/02/samsung-bans-use-of-generative-ai-tools-like-chatgpt-after-april-internal-data-leak/
+      data_sources:
+        - network_connection
+      file: entries/sigma/1011a2b3-c4d5-e6f7-0809-1011a2b3c4d5.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/chatgpt_paste_sensitive_data.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: 1011a2b3-c4d5-e6f7-0809-1011a2b3c4d5
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 1012f107-b8f1-4271-af30-5aed2de89b39
       name: Terminal Service Process Spawn
       description: Detects a process spawned by the terminal service server process (this could be an indicator for an exploitation of CVE-2019-0708)
@@ -60394,6 +60526,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 11a2b3c4-d5e6-f708-0910-11a2b3c4d5e6
+      name: Vector Database Bulk Retrieval / Exfiltration Pattern
+      description: |
+        Detects bulk extraction patterns from vector databases — high request
+        volume, high limit values, or high cardinality of accessed collections
+        from a single principal. Embedding inversion research (Princeton)
+        demonstrated 85%+ accuracy reconstructing original text from embeddings
+        for medical records — making bulk vector exfil functionally equivalent
+        to source data exfil.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.collection
+        - attack.exfiltration
+        - attack.atlas.t0024
+        - owasp.llm02
+        - owasp.llm08
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://dev.to/tiamatenity/vector-database-breaches-how-embeddings-expose-your-sensitive-data-21a9
+        - https://atlas.mitre.org/techniques/AML.T0024
+      data_sources:
+        - vector_db
+      file: entries/sigma/11a2b3c4-d5e6-f708-0910-11a2b3c4d5e6.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 06-rag-vector-db/vector_db_bulk_exfil.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: rag_vector_database
+      upstream_id: 11a2b3c4-d5e6-f708-0910-11a2b3c4d5e6
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 11b1ed55-154d-4e82-8ad7-83739298f720
       name: NTDS.DIT Creation By Uncommon Process
       description: Detects creation of a file named "ntds.dit" (Active Directory Database) by an uncommon process or a process located in a suspicious directory
@@ -60867,6 +61033,38 @@ entries:
       date: "2025-05-13"
       version: "2"
       file: entries/sigma/1299f41f-948f-46ae-9bac-426995ef9efd.yaml
+    - id: 12b3c4d5-e6f7-0809-1011-a2b3c4d5e6f7
+      name: ChromaDB SQLite Modified by Unexpected Process
+      description: |
+        Detects modifications to ChromaDB persistent SQLite store by processes
+        other than the ChromaDB server or its expected client libraries.
+        Direct SQLite manipulation can:
+          - Inject poisoned vectors / documents into the RAG corpus
+          - Modify embedding-to-source mappings (silent corpus poisoning)
+          - Tamper with collection-level metadata
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.persistence
+        - attack.atlas.t0020
+        - owasp.llm08
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://docs.trychroma.com/docs/cli/db
+        - https://atlas.mitre.org/techniques/AML.T0020
+      data_sources:
+        - file_event
+      file: entries/sigma/12b3c4d5-e6f7-0809-1011-a2b3c4d5e6f7.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 06-rag-vector-db/chroma_sqlite_unexpected_writer.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: rag_vector_database
+      upstream_id: 12b3c4d5-e6f7-0809-1011-a2b3c4d5e6f7
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 12b8e9f5-96b2-41e1-9a42-8c6779a5c184
       name: Potentially Suspicious Execution Of PDQDeployRunner
       description: Detects suspicious execution of "PDQDeployRunner" which is part of the PDQDeploy service stack that is responsible for executing commands and packages on a remote machines
@@ -65129,6 +65327,42 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809
+      name: MCP Configuration File Modified by Unexpected Process
+      description: |
+        Detects modifications to MCP configuration files by processes other
+        than the expected AI client applications (Claude Desktop, Claude Code,
+        Cursor, VS Code). MCP configs are high-value attack surfaces because
+        they specify which servers and credentials the LLM can invoke.
+        Unauthorized writes may indicate tool poisoning, rug-pull updates,
+        or persistence via malicious MCP server registration.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1546
+      tags:
+        - attack.persistence
+        - attack.t1546
+        - attack.atlas.t0010
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+        - https://www.cve.org/CVERecord?id=CVE-2025-59536
+        - https://research.checkpoint.com/2025/cursor-vulnerability-mcpoison/
+      data_sources:
+        - file_event
+      file: entries/sigma/1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 02-mcp-attacks/mcp_config_tampering.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: mcp_attack
+      upstream_id: 1a2b3c4d-5e6f-7081-92a3-b4c5d6e7f809
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 1a2d6c47-75b0-45bd-b133-2c0be75349fd
       name: Wdigest CredGuard Registry Modification
       description: |
@@ -65529,6 +65763,41 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 1a8f0d63-7b4c-4e29-9a51-3d6e0b2c7f94
+      name: PowerShell Invoking LLM Provider API (Runtime Command Generation)
+      description: |
+        Detects PowerShell process creation whose command line contains an LLM provider API host together with a
+        web-request cmdlet. Runtime AI-malware such as FRUITSHELL (PowerShell reverse shell with detection-bypass
+        prompts) and command-generation stealers (PROMPTSTEAL/LAMEHUG behavior ported to PowerShell) fetch attacker
+        prompts and/or generated commands from an LLM API and execute them, keeping malicious logic out of the binary.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1059.001
+      tags:
+        - attack.execution
+        - attack.t1059.001
+        - attack.command-and-control
+        - atlas.aml-t0096
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/threat-actor-usage-of-ai-tools
+        - https://firsthackersnews.com/google-discovers-promptflux-ai-malware-using-gemini-api/
+        - https://atlas.mitre.org/techniques/AML.T0096
+      data_sources:
+        - windows
+        - process_creation
+      file: entries/sigma/1a8f0d63-7b4c-4e29-9a51-3d6e0b2c7f94.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 07-runtime-ai-malware/powershell_llm_api_command_generation.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: runtime_ai_malware
+      upstream_id: 1a8f0d63-7b4c-4e29-9a51-3d6e0b2c7f94
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 1a9a04fd-02d1-465c-abad-d733fd409f9c
       name: Apache Spark Shell Command Injection - Weblogs
       description: Detects attempts to exploit an apache spark server via CVE-2014-6287 from a weblogs perspective
@@ -74788,6 +75057,41 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
+      name: MCP Server Process Accessing Credential Files
+      description: |
+        Detects MCP server processes (typically spawned via npx/uvx/python)
+        reading credential files such as SSH keys, AWS credentials, .env files,
+        or browser cookie databases. This pattern indicates a poisoned MCP
+        tool exfiltrating secrets via the LLM-as-proxy technique documented
+        by Invariant Labs and Cyata.
+      query_type: sigma
+      severity: critical
+      techniques:
+        - T1552
+      tags:
+        - attack.credential_access
+        - attack.t1552
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://invariantlabs.ai/blog/mcp-security-notification-tool-poisoning-attacks
+        - https://cyata.ai/blog/whispering-secrets-loudly-inside-mcps-quiet-crisis-of-credential-exposure/
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - file_event
+      file: entries/sigma/2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 02-mcp-attacks/mcp_credential_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: mcp_attack
+      upstream_id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 2b3d7db5-4915-470e-9ea4-4a960ed5100a
       name: SharePoint vulnerability CVE-2025-53770 - Successful exploitation via file creation
       description: https://msrc.microsoft.com/blog/2025/07/customer-guidance-for-sharepoint-vulnerability-cve-2025-53770/
@@ -74822,6 +75126,46 @@ entries:
         - ps_script
         - windows
       file: entries/sigma/2b4bac00-68cb-4633-aae6-a0b75e22ddf8.yaml
+    - id: 2b4d8e10-3f5a-6b7c-8d9e-0f1a2b3c4d5e
+      name: Azure OpenAI - Prompt Injection & Jailbreak Indicators
+      description: |
+        Detects prompt injection, jailbreak, system prompt extraction, and
+        token-based denial-of-service patterns in Azure OpenAI diagnostic logs.
+        Requires RequestResponseLog category enabled via Diagnostic Settings on
+        the Azure OpenAI resource; events ship to Log Analytics, Event Hub, or
+        Storage and can be ingested by any modern SIEM. Field names follow the
+        Azure Monitor / Log Analytics schema (PascalCase Category/ResourceProvider).
+        Matches the request payload (properties.request) only, so a model refusal
+        echoed back in properties.response does not cause a false positive.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.initial_access
+        - attack.atlas.t0051
+        - attack.atlas.t0054
+        - owasp.llm01
+        - owasp.llm07
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+        - https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/
+        - https://atlas.mitre.org/techniques/AML.T0051
+        - https://atlas.mitre.org/techniques/AML.T0054
+        - https://learn.microsoft.com/en-us/azure/ai-services/openai/how-to/monitor-openai
+      data_sources:
+        - azure
+        - openai
+      file: entries/sigma/2b4d8e10-3f5a-6b7c-8d9e-0f1a2b3c4d5e.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/azure_openai_injection.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: 2b4d8e10-3f5a-6b7c-8d9e-0f1a2b3c4d5e
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 2b5a766e-382e-4ea7-b069-a8f1c378c5a6
       name: PSexec application execution
       description: Detects scenarios where an attacker installs and executes PSexec.
@@ -75745,6 +76089,45 @@ entries:
       upstream_id: 2d79e371-2a27-42de-87a4-b4213fc72a6a
       upstream_status: experimental
       license: DRL-1.1
+      quality_score: 95
+    - id: 2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946
+      name: Agent Tool Invocation at Machine Tempo
+      description: |
+        Detects MCP/agent tool invocations occurring at a rate no human operator could drive. In the GTG-1002
+        campaign Anthropic disclosed (Nov 2025), Claude Code plugged into MCP servers executed 80-90% of the
+        tactical work and sustained request rates reported as "thousands of requests per second" across ~30
+        targets, with human operators intervening at only 4-6 decision points per campaign. Tempo is therefore
+        one of the few reliable discriminators between an analyst using an agent and an adversary orchestrating one.
+        This rule counts tool-invocation events per source in a short window; tune `count` to your baseline.
+        For the richer behavioural picture (phase progression, breadth, autonomy ratio, exfil data-flow), run
+        `analyze_agent_traces.py` in this directory over the collected session traces.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1059
+      tags:
+        - attack.execution
+        - attack.t1059
+        - atlas.aml-t0096
+        - atlas.aml-t0053
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://www.anthropic.com/news/disrupting-AI-espionage
+        - https://www.scworld.com/perspective/anthropics-ai-disclosure-what-we-know-and-what-were-watching-for
+        - https://atlas.mitre.org/techniques/AML.T0096
+      data_sources:
+        - mcp
+        - tool_invocation
+      file: entries/sigma/2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 08-agentic-orchestration/agentic_orchestration_behavior.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agentic_orchestration
+      upstream_id: 2d7f4c60-1b83-4e95-a7c2-5f80e3b1d946
+      upstream_status: experimental
+      license: Apache-2.0
       quality_score: 95
     - id: 2d87d610-d760-45ee-a7e6-7a6f2a65de00
       name: Mustang Panda Dropper
@@ -81473,6 +81856,35 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 377ca8f3-168a-5028-aee4-f7191ff60ba7
+      name: Large Model File Written to Endpoint
+      description: |
+        Detects model weight files being written to an endpoint. On its own this is an
+        inventory signal for shadow AI rather than an intrusion alert, but it is worth
+        tracking: model files are multi-gigabyte, arrive from unvetted repositories, and
+        a runtime capable of loading them is usually accompanied by an unauthenticated
+        local API.
+      query_type: sigma
+      severity: low
+      techniques:
+        - T1105
+      tags:
+        - attack.command_and_control
+        - attack.t1105
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - file_event
+      file: entries/sigma/377ca8f3-168a-5028-aee4-f7191ff60ba7.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_model_file_written_to_endpoint.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 377ca8f3-168a-5028-aee4-f7191ff60ba7
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: 377f33a1-4b36-4ee1-acee-1dbe4b43cfbe
       name: Suspicious VSFTPD Error Messages
       description: Detects suspicious VSFTPD error messages that indicate a fatal or suspicious error that could be caused by exploiting attempts
@@ -84151,6 +84563,76 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 3c4d5e6f-7081-92a3-b4c5-d6e7f8091011
+      name: Claude Desktop Configuration File Modified
+      description: |
+        Detects modifications to claude_desktop_config.json which controls
+        MCP server registration for Anthropic's Claude Desktop client. Any
+        unexpected modification of this file may register a malicious MCP
+        server granting unsandboxed code execution on the host.
+
+        Multiple Windows install paths are covered including the documented
+        MSIX-vs-EXE inconsistency (GitHub anthropics/claude-code issue #26073).
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1546
+      tags:
+        - attack.persistence
+        - attack.t1546
+        - attack.atlas.t0010
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://github.com/anthropics/claude-code/issues/26073
+        - https://layerxsecurity.com/blog/claude-desktop-extensions-rce/
+        - https://www.cve.org/CVERecord?id=CVE-2025-53109
+        - https://www.cve.org/CVERecord?id=CVE-2025-53110
+      data_sources:
+        - file_event
+      file: entries/sigma/3c4d5e6f-7081-92a3-b4c5-d6e7f8091011.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 02-mcp-attacks/claude_desktop_config_modify.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: mcp_attack
+      upstream_id: 3c4d5e6f-7081-92a3-b4c5-d6e7f8091011
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
+    - id: 3c5e9f21-4a6b-7c8d-9e0f-1a2b3c4d5e6f
+      name: AWS Bedrock - Excessive Token Consumption
+      description: |
+        Detects abnormally high token consumption on AWS Bedrock model
+        invocations, indicating cost-based denial of service (LLM06), model
+        extraction attempts, or runaway agentic loops. Requires Bedrock model
+        invocation logging enabled (CloudWatch log group /aws/bedrock with
+        schemaType=ModelInvocationLog) — logging is OFF by default.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.impact
+        - attack.atlas.t0029
+        - owasp.llm10
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://genai.owasp.org/llmrisk/llm10-unbounded-consumption/
+        - https://atlas.mitre.org/techniques/AML.T0029
+        - https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+      data_sources:
+        - aws
+        - bedrock
+      file: entries/sigma/3c5e9f21-4a6b-7c8d-9e0f-1a2b3c4d5e6f.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/bedrock_high_token_usage.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: 3c5e9f21-4a6b-7c8d-9e0f-1a2b3c4d5e6f
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 3c6f5e4a-8d0b-6abc-d9e2-4f7a6b8c9d0e
       name: TanStack Supply-Chain Attack Execution Indicators - Linux
       description: |
@@ -85386,6 +85868,39 @@ entries:
         - kql
       version: "1"
       file: entries/kql/3f0fca28-e54e-427b-9866-e07f8846a1b3.yaml
+    - id: 3f1ea561-4da2-5dbb-adff-cabad3d44937
+      name: AI Agent MCP Configuration Created or Modified
+      description: |
+        Detects creation or modification of a Model Context Protocol (MCP) configuration
+        file. An MCP config is simultaneously a persistence mechanism and an execution
+        primitive: each entry names a command and arguments that the host application
+        launches as a child process, with inherited environment, every time it starts.
+        Legitimate modification is common on developer endpoints, so this is most useful
+        as an inventory and change-tracking signal, or scoped to non-developer estates.
+      query_type: sigma
+      severity: low
+      techniques:
+        - T1543
+      tags:
+        - attack.persistence
+        - attack.t1543
+        - attack.execution
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      references:
+        - https://github.com/depalmar/ai-dfir-toolkit/blob/main/artifacts/docs/MCP.md
+      data_sources:
+        - file_event
+      file: entries/sigma/3f1ea561-4da2-5dbb-adff-cabad3d44937.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_mcp_config_modification.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 3f1ea561-4da2-5dbb-adff-cabad3d44937
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 3f2c93c7-7b2a-4d58-bb8d-6f39422d8148
       name: CVE-2024-49113 Exploitation Attempt - LDAP Nightmare
       description: |
@@ -87819,6 +88334,37 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 431474e9-d24d-508c-9cb4-b89e62f8d656
+      name: Browser Automation Agent Capturing Session State
+      description: |
+        Detects browser automation agents invoked with flags that read or persist cookies
+        and local storage. Serialized session state is functionally equivalent to a stolen
+        authenticated session and bypasses MFA, so this is a credential-access signal even
+        though no password is involved.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1539
+        - T1185
+      tags:
+        - attack.credential_access
+        - attack.t1539
+        - attack.collection
+        - attack.t1185
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - process_creation
+      file: entries/sigma/431474e9-d24d-508c-9cb4-b89e62f8d656.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/browser_agent_session_state_capture.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 431474e9-d24d-508c-9cb4-b89e62f8d656
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: 431a1fdb-4799-4f3b-91c3-a683b003fc49
       name: New Kernel Driver Via SC.EXE
       description: Detects creation of a new service (kernel driver) with the type "kernel"
@@ -93433,6 +93979,71 @@ entries:
         - kql
       version: "1"
       file: entries/kql/4d553847-8a97-49b1-b535-dcc4ebaf65aa.yaml
+    - id: 4d5e6f70-8192-a3b4-c5d6-e7f8091011a2
+      name: HuggingFace Token Exposure / Leak
+      description: |
+        Detects exposure of HuggingFace API tokens (hf_*) in logs, command
+        lines, network requests, or files. Lasso Security found ~1,700
+        exposed HF tokens in 2024 granting access to 600+ accounts including
+        Google, Meta, and Microsoft. Token exposure is a precursor to model
+        registry compromise and namespace hijacking.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1552.001
+      tags:
+        - attack.credential_access
+        - attack.t1552.001
+        - attack.atlas.t0086
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.lasso.security/blog/huggingface-vulnerable-to-account-takeover
+        - https://huggingface.co/docs/hub/security-tokens
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - process_creation
+      file: entries/sigma/4d5e6f70-8192-a3b4-c5d6-e7f8091011a2.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/huggingface_token_exposure.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 4d5e6f70-8192-a3b4-c5d6-e7f8091011a2
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
+    - id: 4d6fa032-5b7c-8d9e-0f1a-2b3c4d5e6f70
+      name: AWS Bedrock - Injection Patterns in Invocation Logs
+      description: |
+        Detects known prompt injection, jailbreak, and system prompt extraction
+        strings in captured Bedrock prompt content.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.initial_access
+        - attack.atlas.t0051
+        - attack.atlas.t0054
+        - owasp.llm01
+        - owasp.llm07
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0051
+        - https://atlas.mitre.org/techniques/AML.T0054
+      data_sources:
+        - aws
+        - bedrock
+      file: entries/sigma/4d6fa032-5b7c-8d9e-0f1a-2b3c4d5e6f70.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/bedrock_high_token_usage.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: 4d6fa032-5b7c-8d9e-0f1a-2b3c4d5e6f70
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 4d78a000-ab52-4564-88a5-7ab5242b20c7
       name: Change to Authentication Method
       description: Change to authentication method could be an indicator of an attacker adding an auth method to the account so they can have continued access.
@@ -93776,6 +94387,52 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40
+      name: SesameOp - OpenAI Assistants API Abused as C2 Relay
+      description: |
+        Detects the SesameOp backdoor pattern, in which the OpenAI Assistants API is abused as a storage/relay
+        channel for command and control rather than for model inference. Microsoft DART discovered SesameOp in
+        July 2025 in an environment where the actor had persisted for months: a heavily obfuscated .NET loader
+        (Netapi64.dll) delivered the OpenAIAgent.Netapi64 implant, which polls the Assistants list and reads the
+        `description` field for one of three verbs - SLEEP, Payload, or Result - taking the encrypted, compressed
+        command body from the `instructions` field and returning output as a new message with description "Result".
+        Because the traffic terminates at a trusted provider, it blends with legitimate AI usage.
+        Detection keys on non-inference Assistants-API endpoints being reached by a process with no business
+        calling them, and on the documented loader artifacts / AppDomainManager injection.
+        NOTE: OpenAI deprecates the Assistants API in August 2026 in favour of the Responses API; expect this
+        tradecraft to migrate. Extend `selection_api` to Responses-API paths as your estate adopts them.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1071.001
+        - T1102
+        - T1574.014
+      tags:
+        - attack.command-and-control
+        - attack.t1071.001
+        - attack.t1102
+        - attack.defense-evasion
+        - attack.t1574.014
+        - atlas.aml-t0096
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/
+        - https://thehackernews.com/2025/11/microsoft-detects-sesameop-backdoor.html
+        - https://www.infosecurity-magazine.com/news/openai-assistants-api-sesameop/
+        - https://atlas.mitre.org/techniques/AML.T0096
+      data_sources:
+        - proxy
+      file: entries/sigma/4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 08-agentic-orchestration/sesameop_assistants_api_c2.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agentic_orchestration
+      upstream_id: 4e2c8b71-9d05-4a36-bf18-6c3a7e1d9b40
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 4e2ed651-1906-4a59-a78a-18220fca1b22
       name: PUA - NirCmd Execution
       description: Detects the use of NirCmd tool for command execution, which could be the result of legitimate administrative activity
@@ -103221,6 +103878,36 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 5e6f7081-92a3-b4c5-d6e7-f8091011a2b3
+      name: HuggingFace Token File Read by Unexpected Process
+      description: |
+        Detects reads of the HuggingFace token file (~/.cache/huggingface/token)
+        by processes other than huggingface_hub Python clients or the official
+        CLI. Indicates credential theft via infostealer or compromised process.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1552.001
+      tags:
+        - attack.credential_access
+        - attack.t1552.001
+        - attack.atlas.t0086
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.lasso.security/blog/huggingface-vulnerable-to-account-takeover
+      data_sources:
+        - file_event
+      file: entries/sigma/5e6f7081-92a3-b4c5-d6e7-f8091011a2b3.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/huggingface_token_exposure.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 5e6f7081-92a3-b4c5-d6e7-f8091011a2b3
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 5e75627f-e9da-4522-a076-4dbc47611a03
       name: 'Threat Hunt: PowerShell-Based Active Directory Reconnaissance'
       description: |-
@@ -103269,6 +103956,51 @@ entries:
         - kql
       version: "1"
       file: entries/kql/5e7f12fb-949b-433e-8e59-edbeeb88d78e.yaml
+    - id: 5e7fb143-6c8d-9e0f-1a2b-3c4d5e6f7081
+      name: Model File Written by Untrusted Process (hash-baseline pre-filter)
+      description: |
+        Flags creation or modification of model files by processes outside the
+        trusted ML toolchain. Pure Sigma cannot compare a file's SHA-256 against
+        an approved-model baseline, so this rule is a pre-filter: pair it with a
+        backend lookup/enrich step that drops events whose hash IS already in the
+        baseline. What remains surfaces unauthorized model substitution,
+        supply-chain tampering, or undeclared model updates that bypass review.
+
+        Prerequisites:
+          1. File integrity monitoring collects SHA-256 of every model file
+             (Sysmon EID 15 File Stream, auditd fanotify, Wazuh FIM,
+             OSQuery file_events table, or EDR equivalent).
+          2. Maintain an approved-hash allowlist in your SIEM as a lookup:
+             columns: model_name, sha256, version, approved_date.
+          3. This rule flags any HIGH-signal file event; tune the lookup
+             correlation in your backend (e.g. an Elastic enrich processor
+             or equivalent SIEM lookup).
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.persistence
+        - attack.initial_access
+        - attack.atlas.t0010
+        - attack.atlas.t0018
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0010
+        - https://atlas.mitre.org/techniques/AML.T0018
+        - https://genai.owasp.org/llmrisk/llm03-supply-chain/
+      data_sources:
+        - file_event
+      file: entries/sigma/5e7fb143-6c8d-9e0f-1a2b-3c4d5e6f7081.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/model_file_hash_mismatch.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 5e7fb143-6c8d-9e0f-1a2b-3c4d5e6f7081
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 5e83b817-d160-43bb-840e-c9779a7d2836
       name: DefenderXDR - Devman Ransomware Detection
       description: 'KQL Query from file: DefenderXDR - Devman Ransomware Detection'
@@ -110162,6 +110894,38 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9
+      name: Agent Instruction File Modified (Persistence via Agent Context)
+      description: |
+        Detects modification of the instruction and rules files that agentic coding tools load into context on
+        every session (CLAUDE.md, AGENTS.md, MEMORY.md, .cursorrules, .windsurfrules, .clinerules, GEMINI.md).
+        These files are re-read at each invocation, so an attacker-controlled line persists across sessions,
+        process restarts and conversation resets. This is the file-backed form of MITRE ATLAS AML.T0080
+        (AI Agent Context Poisoning) and is the mechanism behind Rules-File-Backdoor style attacks.
+        Modification is normal in active development, so alert quality depends on WHO wrote the file: a write
+        by a non-interactive process, a background agent, or an unexpected user is the signal.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.persistence
+        - atlas.aml-t0080
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0080
+        - https://zenity.io/blog/current-events/zenity-labs-and-mitre-atlas-collaborate-to-advances-ai-agent-security-with-the-first-release-of
+      data_sources:
+        - file_event
+      file: entries/sigma/6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 09-agent-memory-forensics/memory_poisoning.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agent_memory_forensics
+      upstream_id: 6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 6b4bdceb-c2ba-4278-878c-9e12e6675e7c
       name: MDE KQL to detect UAC bypass of Fickle Stealer
       description: 'KQL Query from file: MDE KQL to detect UAC bypass of Fickle Stealer'
@@ -112513,6 +113277,43 @@ entries:
         - process_creation
         - windows
       file: entries/sigma/6f6c6188-8dfc-47e4-8370-2c4c6d808598.yaml
+    - id: 6f708192-a3b4-c5d6-e7f8-091011a2b3c4
+      name: MLflow Tracking Server - Suspicious API Activity
+      description: |
+        Detects suspicious MLflow REST API activity in application logs:
+          - Unauthenticated access to write endpoints
+          - Bulk model downloads (potential model theft)
+          - Artifact location modifications pointing to attacker-controlled storage
+          - Path traversal patterns in artifact requests (CVE-2023-6831, CVE-2024-2928)
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1190
+      tags:
+        - attack.initial_access
+        - attack.t1190
+        - attack.atlas.t0011
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.cve.org/CVERecord?id=CVE-2023-6831
+        - https://www.cve.org/CVERecord?id=CVE-2024-0520
+        - https://www.cve.org/CVERecord?id=CVE-2024-2928
+        - https://www.cve.org/CVERecord?id=CVE-2024-37059
+      data_sources:
+        - mlflow
+        - tracking
+      file: entries/sigma/6f708192-a3b4-c5d6-e7f8-091011a2b3c4.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/mlflow_unauth_api_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 6f708192-a3b4-c5d6-e7f8-091011a2b3c4
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 6f7e1c10-2dc9-4312-adb6-9574ff09a5c8
       name: Cisco Duo Successful MFA Authentication Via Bypass Code
       description: |
@@ -112542,6 +113343,35 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 6f80c254-7d9e-0f1a-2b3c-4d5e6f708192
+      name: Model File Appearing in Non-Standard Location
+      description: |
+        Detects model weight files created outside expected model-storage
+        locations. Attackers stage poisoned models in unusual paths
+        (home directories, /tmp, Downloads) before loading them into
+        inference pipelines.
+      query_type: sigma
+      severity: low
+      tags:
+        - attack.persistence
+        - attack.atlas.t0010
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0010.003
+      data_sources:
+        - file_event
+      file: entries/sigma/6f80c254-7d9e-0f1a-2b3c-4d5e6f708192.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/model_file_hash_mismatch.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 6f80c254-7d9e-0f1a-2b3c-4d5e6f708192
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 6f8b3439-a203-45dc-a88b-abf57ea15ccf
       name: HackTool - CrackMapExec PowerShell Obfuscation
       description: The CrachMapExec pentesting framework implements a PowerShell obfuscation with some static strings detected by this rule.
@@ -113133,6 +113963,41 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 7081a2b3-c4d5-e6f7-0809-1011a2b3c4d5
+      name: ML Library Typosquatting / Dependency Confusion Install
+      description: |
+        Detects pip/conda/npm install commands targeting known typosquatted
+        or dependency-confusion ML packages. Pattern includes the historical
+        torchtriton incident (PyTorch dependency confusion, Dec 2022),
+        fake Alibaba AI packages (May 2024), and other attacks targeting
+        developers/CI/CD systems.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1195.002
+      tags:
+        - attack.initial_access
+        - attack.t1195.002
+        - attack.atlas.t0010
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://thehackernews.com/2023/01/pytorch-machine-learning-framework.html
+        - https://thehackernews.com/2025/06/malicious-pypi-npm-and-ruby-packages.html
+        - https://atlas.mitre.org/techniques/AML.T0010.002
+      data_sources:
+        - process_creation
+      file: entries/sigma/7081a2b3-c4d5-e6f7-0809-1011a2b3c4d5.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/pip_install_typosquat.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 7081a2b3-c4d5-e6f7-0809-1011a2b3c4d5
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 7090401f-ffe6-4429-9ac3-128a0b9a9980
       name: Detecting Mamba 2FA phishing-as-a-service
       description: 'KQL Query from file: Detecting Mamba 2FA phishing-as-a-service'
@@ -113209,6 +114074,43 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 709ad365-8e0f-1a2b-3c4d-5e6f70819203
+      name: M365 Copilot Accessing Sensitivity-Labeled Content
+      description: |
+        Detects Microsoft 365 Copilot or AIAppInteraction events where the
+        accessed resource has a sensitivity label. Independent defense-in-
+        depth against Copilot bypassing DLP / sensitivity-label enforcement
+        (Microsoft incident CW1226324, January-February 2026).
+
+        Log source: Microsoft Purview Unified Audit Log. Ingest via any SIEM
+        with an Office 365 Management Activity API connector. This rule is
+        log-source-agnostic — map the field names to your connector's schema.
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.collection
+        - attack.exfiltration
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+        - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+        - https://learn.microsoft.com/en-us/purview/audit-copilot
+      data_sources:
+        - m365
+        - audit
+      file: entries/sigma/709ad365-8e0f-1a2b-3c4d-5e6f70819203.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_sensitive_label_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: 709ad365-8e0f-1a2b-3c4d-5e6f70819203
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 70ad0861-d1fe-491c-a45f-fa48148a300d
       name: File Download via CertOC.EXE
       description: Detects when a user downloads a file by using CertOC.exe
@@ -114520,6 +115422,35 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 90
+    - id: 730c1d85-5fde-54dc-95bd-cd6d725124a6
+      name: AI Agent Process Spawning Command Interpreter
+      description: |
+        Detects an AI coding agent or MCP host launching a command interpreter. Agents
+        running shell commands is expected behaviour, so the value here is not the event
+        itself but the baseline: alert on agents that should not be executing commands in
+        your environment, on hosts outside the developer estate, or on service accounts.
+        Pair with the LOLBAS variant of this rule for higher fidelity.
+      query_type: sigma
+      severity: low
+      techniques:
+        - T1059
+      tags:
+        - attack.execution
+        - attack.t1059
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - process_creation
+      file: entries/sigma/730c1d85-5fde-54dc-95bd-cd6d725124a6.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_spawning_shell.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 730c1d85-5fde-54dc-95bd-cd6d725124a6
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: 730fc21b-eaff-474b-ad23-90fd265d4988
       name: Psexec Execution
       description: Detects user accept agreement execution in psexec commandline
@@ -115730,6 +116661,37 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 75256f76-d771-5d2e-a4f4-fe4b3fd9cbc3
+      name: Local LLM Runtime Listening on Non-Loopback Address
+      description: |
+        Detects a local LLM runtime binding its API to a non-loopback address, which
+        exposes an inference endpoint that in most of these runtimes has no authentication
+        at all. Researchers catalogued roughly 175,000 internet-exposed Ollama hosts in
+        January 2026, with nearly half advertising tool-calling - meaning remote agentic
+        execution, not merely free inference. Treat any hit as a finding.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1133
+      tags:
+        - attack.initial_access
+        - attack.t1133
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      references:
+        - https://github.com/depalmar/ai-dfir-toolkit/blob/main/artifacts/catalog/ollama.yml
+      data_sources:
+        - network_connection
+      file: entries/sigma/75256f76-d771-5d2e-a4f4-fe4b3fd9cbc3.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/local_llm_listener_non_loopback.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 75256f76-d771-5d2e-a4f4-fe4b3fd9cbc3
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 7530b96f-ad8e-431d-a04d-ac85cc461fdc
       name: Custom File Open Handler Executes PowerShell
       description: Detects the abuse of custom file open handler, executing powershell
@@ -121659,6 +122621,43 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 7f1e6b2a-0c94-4b7e-9d3a-2f6c1a0e5b41
+      name: Script Interpreter Resolving LLM Provider API Endpoint
+      description: |
+        Detects a script host / LOLBin resolving a large-language-model provider API endpoint at runtime.
+        Runtime LLM-malware ("just-in-time code creation", e.g. PROMPTFLUX, PROMPTSTEAL/LAMEHUG, FRUITSHELL,
+        PROMPTLOCK) calls an LLM API during execution to generate obfuscated code or OS commands. A DNS query
+        to generativelanguage.googleapis.com / api-inference.huggingface.co / api.anthropic.com / api.openai.com
+        from wscript, cscript, mshta, rundll32, regsvr32 (and, with tuning, powershell/python/node) is anomalous
+        on most endpoints and is the earliest network-visible signal of this class.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1071.001
+      tags:
+        - attack.command-and-control
+        - attack.t1071.001
+        - atlas.aml-t0096
+        - atlas.aml-t0086
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/threat-actor-usage-of-ai-tools
+        - https://thehackernews.com/2025/11/google-uncovers-promptflux-malware-that.html
+        - https://atlas.mitre.org/techniques/AML.T0096
+      data_sources:
+        - windows
+        - dns_query
+      file: entries/sigma/7f1e6b2a-0c94-4b7e-9d3a-2f6c1a0e5b41.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 07-runtime-ai-malware/script_interpreter_llm_api_dns.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: runtime_ai_malware
+      upstream_id: 7f1e6b2a-0c94-4b7e-9d3a-2f6c1a0e5b41
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 7f2376f9-42ee-4dfc-9360-fecff9a88fc8
       name: BitLockerTogo.EXE Execution
       description: |
@@ -123189,6 +124188,37 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 8192a3b4-c5d6-e7f8-0910-11a2b3c4d5e6
+      name: HuggingFace Cache Modified by Unexpected Process
+      description: |
+        Detects modifications to ~/.cache/huggingface/hub/ contents by
+        processes other than the huggingface_hub library or transformers.
+        Unauthorized modification could indicate model substitution, weight
+        tampering, or persistence by replacing trusted cached models with
+        poisoned versions.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.persistence
+        - attack.atlas.t0010
+        - owasp.llm03
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://huggingface.co/docs/huggingface_hub/main/en/guides/manage-cache
+        - https://atlas.mitre.org/techniques/AML.T0010.003
+      data_sources:
+        - file_event
+      file: entries/sigma/8192a3b4-c5d6-e7f8-0910-11a2b3c4d5e6.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 03-model-supply-chain/huggingface_cache_unexpected_writer.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: model_supply_chain
+      upstream_id: 8192a3b4-c5d6-e7f8-0910-11a2b3c4d5e6
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 81a0ecb5-0a41-4ba1-b2ba-c944eb92bfa2
       name: Add Insecure Download Source To Winget
       description: |
@@ -123219,6 +124249,35 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 81aae476-9f0f-2b3c-4d5e-6f7081920314
+      name: M365 Copilot Accessing Email Sent Items / Drafts
+      description: |
+        Detects Copilot interactions that access Sent Items, Drafts, or
+        Outbox folders. Mirrors the CW1226324 access pattern where Copilot
+        silently read emails protected by sensitivity labels.
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.collection
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - m365
+        - audit
+      file: entries/sigma/81aae476-9f0f-2b3c-4d5e-6f7081920314.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_sensitive_label_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: 81aae476-9f0f-2b3c-4d5e-6f7081920314
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 81b1c040-e5bf-4dd1-9962-63e05c886ebb
       name: Powershell encoded command observed
       description: 'SPL Query from file: Powershell encoded command observed'
@@ -128662,6 +129721,39 @@ entries:
         - kql
       version: "1"
       file: entries/kql/8b16aee6-ba13-48d7-833b-f464de824008.yaml
+    - id: 8b16f4a9-3c72-4e08-95d1-2f7b0c6ae315
+      name: SesameOp Loader Artifacts (Netapi64 / AppDomainManager Injection)
+      description: |
+        Host-side companion to the SesameOp network detection: the Netapi64.dll loader, the OpenAIAgent.Netapi64
+        implant, and the .NET AppDomainManager injection into Microsoft Visual Studio utilities that Microsoft DART
+        documented as the persistence/defense-evasion mechanism.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1574.014
+      tags:
+        - attack.defense-evasion
+        - attack.t1574.014
+        - attack.persistence
+        - atlas.aml-t0096
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://www.microsoft.com/en-us/security/blog/2025/11/03/sesameop-novel-backdoor-uses-openai-assistants-api-for-command-and-control/
+        - https://securityonline.info/sesameop-backdoor-hijacks-openai-assistants-api-for-covert-c2-and-espionage/
+      data_sources:
+        - windows
+        - file_event
+      file: entries/sigma/8b16f4a9-3c72-4e08-95d1-2f7b0c6ae315.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 08-agentic-orchestration/sesameop_assistants_api_c2.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agentic_orchestration
+      upstream_id: 8b16f4a9-3c72-4e08-95d1-2f7b0c6ae315
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 8b244735-5833-4517-a45b-28d8c63924c0
       name: Potential CVE-2023-2283 Exploitation
       description: Detects potential exploitation attempt of CVE-2023-2283 an authentication bypass in libSSH. The exploitation method causes an error message stating that keys for curve25519 could not be generated. It is an error message that is a sign of an exploitation attempt. It is not a sign of a successful exploitation.
@@ -132381,6 +133473,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 92a3b4c5-d6e7-f809-1011-a2b3c4d5e6f7
+      name: ShadowRay Process Masquerading - Cryptominer as Kernel Worker
+      description: |
+        Detects process masquerading patterns documented in the ShadowRay 2.0
+        campaign. Attackers rename XMRig cryptominer binaries to look like
+        kernel worker threads (kworker/X:Y), DNS filter daemons, or hidden
+        Python interpreters to evade casual review and Ray's own metrics.
+      query_type: sigma
+      severity: critical
+      techniques:
+        - T1036.005
+      tags:
+        - attack.defense_evasion
+        - attack.t1036.005
+        - attack.atlas.t0011
+        - attack.atlas.t0029
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.oligo.security/blog/shadowray-2-0-attackers-turn-ai-against-itself-in-global-campaign-that-hijacks-ai-into-self-propagating-botnet
+        - https://attack.mitre.org/campaigns/C0045/
+      data_sources:
+        - linux
+        - process_creation
+      file: entries/sigma/92a3b4c5-d6e7-f809-1011-a2b3c4d5e6f7.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 04-ai-infrastructure/shadowray_process_masquerading.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_infrastructure
+      upstream_id: 92a3b4c5-d6e7-f809-1011-a2b3c4d5e6f7
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 92a974db-ab84-457f-9ec0-55db83d7a825
       name: Potential AMSI Bypass Using NULL Bits
       description: Detects usage of special strings/null bits in order to potentially bypass AMSI functionalities
@@ -132459,6 +133585,34 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 92bbf587-a010-3c4d-5e6f-708192031425
+      name: M365 Copilot Activity from Unmanaged Device
+      description: |
+        Detects Copilot interactions from devices flagged as non-compliant
+        or unmanaged. Catches BYOD or compromised-endpoint access to Copilot
+        after enterprise AI permissions have been granted.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.initial_access
+        - attack.atlas.t0086
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - m365
+        - audit
+      file: entries/sigma/92bbf587-a010-3c4d-5e6f-708192031425.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_sensitive_label_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: 92bbf587-a010-3c4d-5e6f-708192031425
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 92c47795-0ace-4a4e-87b3-52ba876e779e
       name: Global Admin Entra Cookie with Chrome ZeroDay
       description: 'KQL Query from file: Global Admin Entra Cookie with Chrome ZeroDay'
@@ -134684,6 +135838,37 @@ entries:
         - spl
       version: "1"
       file: entries/spl/96637a90-bcc9-4d34-8e10-1444bc14fb26.yaml
+    - id: 966883aa-08b3-5b78-be99-3025ce78e356
+      name: AI Agent Credential File Accessed by Unexpected Process
+      description: |
+        Detects access to plaintext credential files belonging to AI agents. These files
+        hold live OAuth tokens and API keys and are protected only by filesystem
+        permissions, which makes them an easy and increasingly common target for
+        infostealers. The owning agent reading its own credentials is normal; anything
+        else reading them is not.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1552.001
+      tags:
+        - attack.credential_access
+        - attack.t1552.001
+        - attack.atlas.t0083
+        - attack.atlas.t0055
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - file_access
+      file: entries/sigma/966883aa-08b3-5b78-be99-3025ce78e356.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_credential_file_access.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: 966883aa-08b3-5b78-be99-3025ce78e356
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: 966dc741-e3a9-49fa-b967-1de075e9f74f
       name: Malicious Office Macro with Suspicious Child Process Chain
       description: Adversaries often use malicious macros embedded in Office documents (Word, Excel) to execute payloads often spawning PowerShell, cmd, or LOLBins. This rule detects macro-triggered process chains indicative of weaponized documents.
@@ -138594,6 +139779,43 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: 9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258
+      name: Mass Data Collection via Agent Tool Invocation
+      description: |
+        Detects an agent chaining tool calls into bulk collection/exfiltration - MITRE ATLAS AML.T0086
+        (Exfiltration via AI Agent Tool Invocation, added in the Oct 2025 Zenity Labs technique set). The
+        signature is archive/dump/upload tooling invoked repeatedly by an agent session rather than
+        interactively, matching the GTG-1002 final phase in which the model categorized and staged stolen data
+        by intelligence value.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1041
+        - T1560
+      tags:
+        - attack.exfiltration
+        - attack.t1041
+        - attack.collection
+        - attack.t1560
+        - atlas.aml-t0086
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+        - https://www.anthropic.com/news/disrupting-AI-espionage
+      data_sources:
+        - mcp
+        - tool_invocation
+      file: entries/sigma/9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 08-agentic-orchestration/agentic_orchestration_behavior.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agentic_orchestration
+      upstream_id: 9c05a3e8-7f41-4bd2-8e63-1a94c7f0b258
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: 9c0b36dd-2908-4b21-9d9e-32b0ef73ed26
       name: UNC3944 | VMware - Large File Transfer to or from ESXi Host
       description: Detects large data transfers over SSH/SCP (port 22) to or from an ESXi host. This activity is highly suspicious and could indicate an attacker delivering a ransomware payload to the hypervisor or exfiltrating sensitive data (like VMDK files).
@@ -142458,6 +143680,39 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: a1f3c8e0-1b2c-4d5e-9a6b-1c2d3e4f5a6b
+      name: LLM Prompt Injection - Known Trigger Phrases
+      description: |
+        Detects common prompt injection trigger phrases in LLM input fields.
+        Covers direct injection patterns ("ignore previous instructions"),
+        role override attempts ("you are now"), and instruction boundary
+        manipulation ("===END===", "</system>").
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.initial_access
+        - attack.atlas.t0051
+        - owasp.llm01
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://genai.owasp.org/llmrisk/llm01-prompt-injection/
+        - https://atlas.mitre.org/techniques/AML.T0051
+        - https://github.com/leondz/garak
+      data_sources:
+        - llm
+        - application
+        - inference
+      file: entries/sigma/a1f3c8e0-1b2c-4d5e-9a6b-1c2d3e4f5a6b.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/prompt_injection_keywords.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: a1f3c8e0-1b2c-4d5e-9a6b-1c2d3e4f5a6b
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: a20391f8-76fb-437b-abc0-dba2df1952c6
       name: Visual Studio NodejsTools PressAnyKey Arbitrary Binary Execution
       description: Detects child processes of Microsoft.NodejsTools.PressAnyKey.exe that can be used to execute any other binary
@@ -143467,6 +144722,42 @@ entries:
         - process_creation
         - windows
       file: entries/sigma/a3b40f53-17f7-457e-b834-3be950ce235c.yaml
+    - id: a3b4c5d6-e7f8-0910-11a2-b3c4d5e6f708
+      name: GPU Sustained High Utilization by Non-ML Process
+      description: |
+        Detects GPU usage by processes that are not recognized ML training/
+        inference workloads. Pattern matches cryptominer behaviour (sustained
+        high utilization, often capped at 60-100% to avoid detection) and
+        unauthorized model exfiltration via long-running inference.
+
+        Requires GPU telemetry from DCGM exporter, nvidia-smi pmon output
+        shipped via Telegraf/Fluent Bit, or equivalent.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1496
+      tags:
+        - attack.impact
+        - attack.t1496
+        - attack.atlas.t0029
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.oligo.security/blog/shadowray-2-0-attackers-turn-ai-against-itself-in-global-campaign-that-hijacks-ai-into-self-propagating-botnet
+        - https://attack.mitre.org/campaigns/C0045/
+      data_sources:
+        - nvidia
+        - gpu_telemetry
+      file: entries/sigma/a3b4c5d6-e7f8-0910-11a2-b3c4d5e6f708.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 04-ai-infrastructure/gpu_unexpected_high_utilization.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_infrastructure
+      upstream_id: a3b4c5d6-e7f8-0910-11a2-b3c4d5e6f708
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: a3b5e3e9-1b49-4119-8b8e-0344a01f21ee
       name: Data Compressed
       description: An adversary may compress data (e.g., sensitive documents) that is collected prior to exfiltration in order to make it portable and minimize the amount of data sent over the network.
@@ -143546,6 +144837,40 @@ entries:
         - kql
       version: "1"
       file: entries/kql/a3c65449-4308-4b88-bb85-0a8ef9f2d67b.yaml
+    - id: a3cd0698-b121-4d5e-6f70-819203142536
+      name: M365 Copilot - User Activity (first-time-burst baseline pre-filter)
+      description: |
+        Selects Copilot/AI-app interaction events so a backend can baseline
+        per-user volume and flag previously-inactive users who suddenly generate
+        high-volume activity (account takeover or new insider-threat patterns).
+
+        NOT a standalone alert: on its own this matches every Copilot interaction.
+        Pure Sigma cannot compare against a 30-day per-user baseline, so pair it
+        with a backend aggregation/enrich step (e.g. count by UserId over 24h vs a
+        30-day baseline). Deploy as a correlation feed, not a direct detection.
+      query_type: sigma
+      severity: low
+      tags:
+        - attack.collection
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - m365
+        - audit
+      file: entries/sigma/a3cd0698-b121-4d5e-6f70-819203142536.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_anomalous_aggregation.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: a3cd0698-b121-4d5e-6f70-819203142536
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: a3e09e90-2ec3-42b1-8a9c-2bfb110b2b42
       name: TAG-140 DRAT V2 Initial Execution via MSHTA
       description: Detects the execution of mshta.exe to fetch and run remote scripts, a technique used by TAG-140 for initial access and loading the BroaderAspect loader and DRAT V2. This activity is often initiated via social engineering lures.
@@ -146477,6 +147802,40 @@ entries:
       references:
         - https://www.welivesecurity.com/en/eset-research/update-winrar-tools-now-romcom-and-others-exploiting-zero-day-vulnerability/
       file: entries/kql/a91aeeed-71ab-4df3-ae66-b45d0d15a5d2.yaml
+    - id: a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3
+      name: Memory Poisoning Indicator Written to Agent Memory
+      description: |
+        Content-based detection for poisoning instructions being committed to agent memory, for platforms that
+        log memory-write operations (assistant memory APIs, agent frameworks emitting OpenTelemetry gen_ai spans,
+        or MCP memory servers). Matches the spAIware pattern - a stored instruction directing the agent to append
+        a markdown image beacon carrying conversation content to every future response - along with secrecy
+        directives and standing credential-collection instructions.
+        Where memory writes are not logged, use 09-agent-memory/analyze_agent_memory.py against the store on disk.
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.persistence
+        - attack.exfiltration
+        - atlas.aml-t0080
+        - atlas.aml-t0086
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0080
+        - https://embracethered.com/blog/posts/2024/chatgpt-hacking-memories/
+      data_sources:
+        - agent
+        - memory_write
+      file: entries/sigma/a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 09-agent-memory-forensics/memory_poisoning.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: agent_memory_forensics
+      upstream_id: a92f3c6d-58b1-4e70-83da-4f0c9e51b6a3
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: a93a96cd-0e53-44c5-bbc0-7bfe3944aa2e
       name: Lumma Stealer ClickFix Command Execution Detection
       description: KQL Query
@@ -152411,6 +153770,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: b2e4d9f1-2c3d-5e6f-0b7c-2d3e4f5a6b7c
+      name: LLM Jailbreak - Known Persona Patterns (DAN/STAN/AIM/etc.)
+      description: |
+        Detects attempts to invoke well-known jailbreak personas designed to
+        bypass LLM safety guardrails. These persona prompts have been
+        catalogued in public jailbreak repositories and are commonly
+        copy-pasted by users attempting to elicit restricted content.
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.defense_evasion
+        - attack.atlas.t0054
+        - owasp.llm01
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.jailbreakchat.com/
+        - https://github.com/elder-plinius/L1B3RT4S
+        - https://atlas.mitre.org/techniques/AML.T0054
+        - https://arxiv.org/abs/2308.03825
+      data_sources:
+        - llm
+        - application
+        - inference
+      file: entries/sigma/b2e4d9f1-2c3d-5e6f-0b7c-2d3e4f5a6b7c.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/jailbreak_personas.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: b2e4d9f1-2c3d-5e6f-0b7c-2d3e4f5a6b7c
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: b2e60816-96b2-45bd-ba91-b63578c03ef6
       name: SNAKE Malware Service Persistence
       description: Detects the creation of a service named "WerFaultSvc" which seems to be used by the SNAKE malware as a persistence mechanism as described by CISA in their report
@@ -152770,6 +154163,43 @@ entries:
         - windows
         - security
       file: entries/sigma/b3b029be-626f-4362-a679-6187b0821f5c.yaml
+    - id: b3c9d417-5a2e-4f80-8c1b-9e7d2a4f6c08
+      name: PROMPTFLUX Runtime Artifacts (Thinking Robot Log / Startup Self-Copy)
+      description: |
+        Detects host artifacts specific to the PROMPTFLUX VBScript dropper: creation of the "Thinking Robot"
+        response log in %TEMP% and/or a script (.vbs/.js/.wsf) written to the user Startup folder for persistence.
+        PROMPTFLUX logs Gemini API responses to %TEMP%\thinking_robot_log.txt and writes regenerated,
+        self-obfuscated copies of itself to the Startup folder (and copies to removable drives / mapped shares).
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1547.001
+        - T1027
+      tags:
+        - attack.persistence
+        - attack.t1547.001
+        - attack.defense-evasion
+        - attack.t1027
+        - atlas.aml-t0096
+      date: "2026-08-12"
+      author: Raymond DePalma (@depalmar)
+      references:
+        - https://thehackernews.com/2025/11/google-uncovers-promptflux-malware-that.html
+        - https://www.cybersecurity-help.cz/blog/5059.html
+        - https://cloud.google.com/blog/topics/threat-intelligence/threat-actor-usage-of-ai-tools
+      data_sources:
+        - windows
+        - file_event
+      file: entries/sigma/b3c9d417-5a2e-4f80-8c1b-9e7d2a4f6c08.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 07-runtime-ai-malware/promptflux_artifacts_fileevent.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: runtime_ai_malware
+      upstream_id: b3c9d417-5a2e-4f80-8c1b-9e7d2a4f6c08
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: b3ce9b23-d5fc-40b1-8cce-1462a3e1a349
       name: Kerberos key list attack for credential dumping
       description: Detects scenarios where an attacker attempts to forge a special Kerberos service ticket in order to extract credentials from Read Only Domain Controllers (RODC).
@@ -153375,6 +154805,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: b4c5d6e7-f809-1011-a2b3-c4d5e6f70809
+      name: SSH authorized_keys File Modified by AI/ML Process
+      description: |
+        Detects modifications to ~/.ssh/authorized_keys initiated by ML/AI
+        workload processes. ShadowRay attackers inject SSH keys for persistence
+        on compromised Ray clusters and AI inference hosts. Any modification
+        by a non-administrative process or by an LLM/agent process is
+        high-confidence malicious.
+      query_type: sigma
+      severity: critical
+      techniques:
+        - T1098.004
+      tags:
+        - attack.persistence
+        - attack.t1098.004
+        - attack.atlas.t0011
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.oligo.security/blog/shadowray-2-0-attackers-turn-ai-against-itself-in-global-campaign-that-hijacks-ai-into-self-propagating-botnet
+        - https://attack.mitre.org/techniques/T1098/004/
+      data_sources:
+        - linux
+        - file_event
+      file: entries/sigma/b4c5d6e7-f809-1011-a2b3-c4d5e6f70809.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 04-ai-infrastructure/ssh_authorized_keys_injection.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_infrastructure
+      upstream_id: b4c5d6e7-f809-1011-a2b3-c4d5e6f70809
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: b4c8da4a-1c12-46b0-8a2b-0a8521d03442
       name: Restricted Software Access By SRP
       description: Detects restricted access to applications by the Software Restriction Policies (SRP) policy
@@ -153444,6 +154908,38 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: b4de1709-c232-5e6f-7081-920314253647
+      name: M365 Copilot - Cross-Site Aggregation in Short Window
+      description: |
+        Detects Copilot sessions touching 5+ distinct SharePoint/OneDrive
+        sites within a 15-minute window by the same user. Pattern of bulk
+        information aggregation — what Microsoft Purview calls the "Copilot
+        as privilege multiplier" risk.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.collection
+        - attack.atlas.t0024
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+        - https://atlas.mitre.org/techniques/AML.T0024
+      data_sources:
+        - m365
+        - audit
+      file: entries/sigma/b4de1709-c232-5e6f-7081-920314253647.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_anomalous_aggregation.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: b4de1709-c232-5e6f-7081-920314253647
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: b4e66639-500f-4b8b-ac0e-886abcbd2112
       name: Defender Antivirus Disabled or Tamper Attempt Detected
       description: |
@@ -157423,6 +158919,50 @@ entries:
       upstream_status: experimental
       license: DRL-1.1
       quality_score: 95
+    - id: bb0847db-e7dc-5690-ab79-68764f5a1f8c
+      name: AI Coding CLI Invoked With Permission Bypass by a Script or Package Manager
+      description: |
+        Detects an AI coding CLI started with its approval-bypass flag by a runtime,
+        package manager or script interpreter, not by a person at a terminal. The
+        s1ngularity compromise of the Nx build system (August 2025) did exactly this
+        from an npm postinstall script. It looked for Claude Code, Gemini CLI and Amazon
+        Q on the host and ran each with the flag that suppresses tool approval
+        (--dangerously-skip-permissions, --yolo, --trust-all-tools). It then prompted
+        them to inventory secrets into /tmp/inventory.txt. The malware carried no
+        scanner of its own; the developer's agent was the scanner. A human running
+        these flags interactively is normal on some estates. The parent process is
+        what separates the two.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1059
+        - T1552.001
+      tags:
+        - attack.execution
+        - attack.t1059
+        - attack.credential_access
+        - attack.t1552.001
+        - attack.atlas.t0053
+        - attack.atlas.t0098
+        - owasp.asi05
+        - owasp.asi02
+      date: "2026-09-30"
+      author: AI DFIR Toolkit contributors
+      references:
+        - https://github.com/nrwl/nx/security/advisories/GHSA-cxm3-wv7p-598c
+        - https://github.com/depalmar/ai-dfir-toolkit/blob/main/artifacts/case-studies/airt-cs-0015.yml
+      data_sources:
+        - process_creation
+      file: entries/sigma/bb0847db-e7dc-5690-ab79-68764f5a1f8c.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_cli_permission_bypass_invocation.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: bb0847db-e7dc-5690-ab79-68764f5a1f8c
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: bb09dd3e-2b78-4819-8e35-a7c1b874e449
       name: HackTool - Inveigh Execution Artefacts
       description: Detects the presence and execution of Inveigh via dropped artefacts
@@ -160577,6 +162117,36 @@ entries:
       upstream_status: experimental
       license: DRL-1.1
       quality_score: 95
+    - id: c12c0a89-09c0-5487-b9cd-f698b18cc114
+      name: MCP Server Fetching Remote Code at Launch
+      description: |
+        Detects an MCP host launching a server via a package runner pinned to a floating
+        version. Because the package is fetched at every launch, a compromise upstream
+        reaches the endpoint on the next application start with no user action. The
+        postmark-mcp incident - a backdoored npm package that BCC'd every processed email
+        to an attacker - is the documented case for why pinned versions are a control
+        rather than hygiene.
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1195.002
+      tags:
+        - attack.initial_access
+        - attack.t1195.002
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - process_creation
+      file: entries/sigma/c12c0a89-09c0-5487-b9cd-f698b18cc114.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/mcp_server_remote_code_fetch.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: c12c0a89-09c0-5487-b9cd-f698b18cc114
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: c1303007-77d6-4bc0-8997-863b6f2b7104
       name: Firewall rule any/any created
       description: Detects scenarios where a firewall rule any/any is added to allow any incoming or outgoing traffic.
@@ -162021,6 +163591,39 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: c3f5ea02-3d4e-6f70-1c8d-3e4f5a6b7c8d
+      name: LLM System Prompt Extraction Attempt
+      description: |
+        Detects attempts to extract or leak the system prompt of an LLM
+        application. System prompts often contain operational logic,
+        proprietary instructions, embedded credentials, or context that
+        attackers leverage for further exploitation (LLM08:2026).
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.discovery
+        - attack.atlas.t0054
+        - owasp.llm07
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://genai.owasp.org/llmrisk/llm072025-system-prompt-leakage/
+        - https://atlas.mitre.org/techniques/AML.T0054
+        - https://github.com/jujumilk3/leaked-system-prompts
+      data_sources:
+        - llm
+        - application
+        - inference
+      file: entries/sigma/c3f5ea02-3d4e-6f70-1c8d-3e4f5a6b7c8d.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/system_prompt_extraction.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: c3f5ea02-3d4e-6f70-1c8d-3e4f5a6b7c8d
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: c4042d54-110d-45dd-a0e1-05c47822c937
       name: Python Spawning Pretty TTY Via PTY Module
       description: |
@@ -163126,6 +164729,42 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: c5d6e7f8-0910-11a2-b3c4-d5e6f708091a
+      name: NVIDIA Container Toolkit Escape Pattern (CVE-2024-0132 / CVE-2025-23266)
+      description: |
+        Detects patterns associated with NVIDIA Container Toolkit container
+        escape vulnerabilities affecting GPU-enabled containers:
+          - CVE-2024-0132 (CVSS 9.0) - Symlink escape via custom mounts
+          - CVE-2025-23266 "NVIDIAScape" (CVSS 9.0) - 3-line Dockerfile escape
+          - CVE-2025-23359 (CVSS 9.0) - CVE-2024-0132 patch bypass
+        Affects ~35%+ of cloud environments using NVIDIA GPUs.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1611
+      tags:
+        - attack.privilege_escalation
+        - attack.t1611
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.cve.org/CVERecord?id=CVE-2024-0132
+        - https://www.cve.org/CVERecord?id=CVE-2025-23266
+        - https://www.cve.org/CVERecord?id=CVE-2025-23359
+        - https://www.csoonline.com/article/3541912/a-critical-nvidia-container-toolkit-bug-can-allow-a-complete-host-takeover.html
+      data_sources:
+        - linux
+        - process_creation
+      file: entries/sigma/c5d6e7f8-0910-11a2-b3c4-d5e6f708091a.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 04-ai-infrastructure/nvidia_container_escape.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_infrastructure
+      upstream_id: c5d6e7f8-0910-11a2-b3c4-d5e6f708091a
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: c5db15a5-7146-489e-b680-e23818033786
       name: Microsoft Defender ZAP (Zero-Hour Auto Purge) — Post-Delivery Email Remediation
       description: This rule detects and correlates Microsoft Defender's Zero-hour Auto Purge (ZAP) actions on emails. It joins original email delivery events with subsequent ZAP actions (Malware ZAP or Phish ZAP) to calculate the dwell time between an email's delivery and its removal. This helps in understanding how long a malicious or phishing email was present in a user's inbox before being remediated, which is crucial for incident response and assessing potential user interaction with the threat.
@@ -163141,6 +164780,40 @@ entries:
       author: KillBillKill98
       version: "1"
       file: entries/kql/c5db15a5-7146-489e-b680-e23818033786.yaml
+    - id: c5ef281a-d343-6f70-8192-031425364758
+      name: M365 Copilot - Bulk-Extraction Prompt Keywords
+      description: |
+        Detects Copilot prompts containing bulk-extraction keywords such as
+        "list all", "summarize all", "export everything", "all emails
+        containing". These patterns indicate intent to aggregate large volumes
+        of organizational content — the Copilot-as-exfiltration-tool pattern.
+
+        Prompt content is only available in DSPM for AI activity-explorer
+        events (not the standard Unified Audit Log). Requires E5 Compliance
+        licensing and DSPM for AI enabled.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.collection
+        - attack.atlas.t0086
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0086
+      data_sources:
+        - m365
+        - dspm_ai
+      file: entries/sigma/c5ef281a-d343-6f70-8192-031425364758.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/m365_copilot_anomalous_aggregation.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: c5ef281a-d343-6f70-8192-031425364758
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: c5f37810-a85f-4186-81e9-33f23abb4141
       name: Access To Chromium Browsers Sensitive Files By Uncommon Applications
       description: |
@@ -167374,6 +169047,48 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: cd43df78-2afd-585d-b6e5-74548a881311
+      name: Claude Code Settings or Hooks File Created or Modified
+      description: |
+        Detects a write to a Claude Code settings file. The file carries hooks: shell
+        commands the agent runs automatically on lifecycle events such as a session
+        start or a tool call. A hook fires with the developer's privileges every time
+        the agent is used, which makes it both a persistence mechanism and an
+        execution primitive. The repository-scoped copy travels with a clone. GTIG
+        reported in September 2026 that MIDNIGHT NEPTUNE (formerly UNC1069) poisoned
+        internal repository configurations and altered Claude CLI hooks, then deployed
+        the SOMBERMEME backdoor on developer interaction. It reported in the same
+        publication that UNC6780's DUSTMAKER drops files into .claude/ workspace
+        directories. Treat this as change tracking. Review a hooks block that appeared
+        or changed without a matching commit by the developer.
+      query_type: sigma
+      severity: low
+      techniques:
+        - T1546
+      tags:
+        - attack.persistence
+        - attack.t1546
+        - attack.execution
+        - attack.atlas.t0081
+        - owasp.asi04
+        - owasp.asi05
+      date: "2026-09-30"
+      author: AI DFIR Toolkit contributors
+      references:
+        - https://cloud.google.com/blog/topics/threat-intelligence/from-prompting-to-autonomy-the-evolution-of-adversarial-ai
+        - https://github.com/depalmar/ai-dfir-toolkit/blob/main/artifacts/catalog/claude-code.yml
+      data_sources:
+        - file_event
+      file: entries/sigma/cd43df78-2afd-585d-b6e5-74548a881311.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_hook_config_modification.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: cd43df78-2afd-585d-b6e5-74548a881311
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: cd479ccc-d8f0-4c66-ba7d-e06286f3f887
       name: Potential CVE-2021-26857 Exploitation Attempt
       description: Detects possible successful exploitation for vulnerability described in CVE-2021-26857 by looking for | abnormal subprocesses spawning by Exchange Server's Unified Messaging service
@@ -168464,6 +170179,36 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: cf0ad71d-8a3a-5c3c-9ad3-ee9a26db2a41
+      name: AI Agent Container Started with Docker Socket Mount
+      description: |
+        Detects an AI agent container started with the Docker socket bind-mounted.
+        Mounting /var/run/docker.sock grants control of the Docker daemon, which is
+        host-root-equivalent - so an agent that is prompt-injected, or an attacker who
+        reaches the container, escapes to the host. This appears in published deployment
+        instructions for agent platforms, so it is usually a misconfiguration inherited
+        from documentation rather than a deliberate choice.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1610
+      tags:
+        - attack.privilege_escalation
+        - attack.t1610
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - process_creation
+      file: entries/sigma/cf0ad71d-8a3a-5c3c-9ad3-ee9a26db2a41.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_docker_socket_mount.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: cf0ad71d-8a3a-5c3c-9ad3-ee9a26db2a41
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: cf0c254b-22f1-4b2b-8221-e137b3c0af94
       name: HackTool - Impersonate Execution
       description: Detects execution of the Impersonate tool. Which can be used to manipulate tokens on a Windows computers remotely (PsExec/WmiExec) or interactively
@@ -168972,6 +170717,38 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: d04282cc-7b2b-5f3f-b192-d81980a9f590
+      name: Langflow Code Validation Endpoint Exploitation Attempt
+      description: |
+        Detects requests to the Langflow endpoints associated with CVE-2025-3248
+        (unauthenticated RCE, CVSS 9.8, CISA KEV) and CVE-2026-5027 (path traversal to
+        arbitrary file write). CVE-2025-3248 was mass-exploited to deploy the Flodrix
+        botnet, with operators enumerating exposed instances via Shodan and FOFA first.
+        Because exploitation frequently predated patching, run this retrospectively.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1190
+      tags:
+        - attack.initial_access
+        - attack.t1190
+        - attack.execution
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      references:
+        - https://www.trendmicro.com/en_us/research/25/f/langflow-vulnerability-flodric-botnet.html
+      data_sources:
+        - webserver
+      file: entries/sigma/d04282cc-7b2b-5f3f-b192-d81980a9f590.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/langflow_rce_exploitation_attempt.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: d04282cc-7b2b-5f3f-b192-d81980a9f590
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: d047726b-c71c-4048-a99b-2e2f50dc107d
       name: Kavremover Dropped Binary LOLBIN Usage
       description: Detects the execution of a signed binary dropped by Kaspersky Lab Products Remover (kavremover) which can be abused as a LOLBIN to execute arbitrary commands and binaries.
@@ -171281,6 +173058,42 @@ entries:
       references:
         - https://www.wiz.io/blog/exposed-jdwp-exploited-in-the-wild
       file: entries/kql/d4a19448-a886-4bdf-8a38-94f83c957d7f.yaml
+    - id: d4a6fb13-4e5f-7a81-2d9e-4f5a6b7c8d9e
+      name: LLM Output Contains External Markdown Image (Exfiltration Channel)
+      description: |
+        Detects LLM responses containing markdown image tags pointing to
+        external domains. This pattern is used in zero-click data exfiltration
+        attacks (CamoLeak / EchoLeak), where the LLM is induced via prompt
+        injection to render an image with sensitive data URL-encoded in the
+        query string. The victim's client fetches the image and silently
+        exfiltrates the data.
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.exfiltration
+        - attack.atlas.t0024
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.blackfog.com/camoleak-how-github-copilot-became-an-exfiltration-channel/
+        - https://www.cve.org/CVERecord?id=CVE-2025-32711
+        - https://www.cve.org/CVERecord?id=CVE-2025-59145
+        - https://atlas.mitre.org/techniques/AML.T0024
+      data_sources:
+        - llm
+        - application
+        - inference
+      file: entries/sigma/d4a6fb13-4e5f-7a81-2d9e-4f5a6b7c8d9e.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/markdown_image_exfil.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: d4a6fb13-4e5f-7a81-2d9e-4f5a6b7c8d9e
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: d4c4a24b-dd51-4dc9-8d68-1ea0799f6965
       name: BitLocker feature configuration (Reg via command)
       description: Detects scenarios where an attacker configures BitLocker for ransomware purposes.
@@ -172070,6 +173883,40 @@ entries:
         - kql
       version: "1"
       file: entries/kql/d60631b0-e383-4c8a-b587-7cfa39917920.yaml
+    - id: d60f392b-e454-708f-9203-142536475869
+      name: Vector Database Port Accessed by Non-Application Process
+      description: |
+        Detects network connections to common vector database ports
+        (ChromaDB 8000, Weaviate 8080, Qdrant 6333/6334, Milvus 19530,
+        pgvector 5432) initiated by processes that are not recognized ML
+        application runtimes. Catches unauthorized vector DB access from
+        compromised endpoints or misused service accounts.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.collection
+        - attack.exfiltration
+        - attack.atlas.t0024
+        - owasp.llm02
+        - owasp.llm08
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0020
+        - https://atlas.mitre.org/techniques/AML.T0024
+        - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+      data_sources:
+        - network_connection
+      file: entries/sigma/d60f392b-e454-708f-9203-142536475869.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 06-rag-vector-db/vector_db_query_anomaly.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: rag_vector_database
+      upstream_id: d60f392b-e454-708f-9203-142536475869
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: d6266bf5-935e-4661-b477-78772735a7cb
       name: CVE-2020-0688 Exploitation via Eventlog
       description: Detects the exploitation of Microsoft Exchange vulnerability as described in CVE-2020-0688
@@ -172531,6 +174378,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: d6e7f809-1011-a2b3-c4d5-e6f70809101a
+      name: GitHub Copilot YOLO Mode Enabled in VS Code Settings
+      description: |
+        Detects modification of .vscode/settings.json to enable
+        "chat.tools.autoApprove" or other auto-approve settings that allow
+        Copilot agents to execute terminal commands without user confirmation.
+        This was the exploitation pattern in CVE-2025-53773 (GitHub Copilot
+        RCE via prompt injection in repository code comments).
+      query_type: sigma
+      severity: medium
+      techniques:
+        - T1059
+      tags:
+        - attack.execution
+        - attack.t1059
+        - attack.atlas.t0011
+        - owasp.llm06
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.cve.org/CVERecord?id=CVE-2025-53773
+        - https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents
+      data_sources:
+        - file_event
+      file: entries/sigma/d6e7f809-1011-a2b3-c4d5-e6f70809101a.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/github_copilot_yolo_mode_enabled.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: d6e7f809-1011-a2b3-c4d5-e6f70809101a
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: d707716d-cfbb-4f0f-bc7c-f65437077e0c
       name: 'Threat Hunt: Event Log Manipulation Attempts'
       description: This KQL query hunts for suspicious activities in Microsoft Defender for Endpoint that may indicate attempts to disable or manipulate Windows Event Logging, such as clearing logs, stopping the Event Log service, or modifying audit policies. It targets processes and commands associated with MITRE ATT&CK technique T1562.002 to identify potential defense evasion tactics.
@@ -181075,6 +182956,39 @@ entries:
       references:
         - https://x.com/Ryan_Riordz/status/1933619810362937830
       file: entries/kql/e693656d-5d1d-49c6-803a-2cfa7e5c9aa2.yaml
+    - id: e696a823-c1b3-5c18-ae2d-3575b0647270
+      name: AI Agent Process Spawning LOLBAS Binary
+      description: |
+        Detects an AI agent or MCP server launching a living-off-the-land binary commonly
+        used for download, execution, or defence evasion. Unlike a plain shell, these
+        binaries are rarely part of a legitimate coding workflow, which makes this a
+        materially higher-fidelity signal. An audit of MCP marketplace agents found agents
+        wired to invoke exactly these chains through signed Microsoft binaries.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1059
+        - T1218
+      tags:
+        - attack.execution
+        - attack.t1059
+        - attack.defense_evasion
+        - attack.t1218
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - windows
+        - process_creation
+      file: entries/sigma/e696a823-c1b3-5c18-ae2d-3575b0647270.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_agent_spawning_lolbin.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: e696a823-c1b3-5c18-ae2d-3575b0647270
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: e69dc3a5-a5ab-4925-959d-e1d44a213d4d
       name: UNIT42 - Abuse Microsoft OneNote files on the rise
       description: KQL Query
@@ -181395,6 +183309,45 @@ entries:
       upstream_id: e700ff14-1bff-4d1d-9438-738dff5f0466
       upstream_status: experimental
       license: DRL-1.1
+      quality_score: 95
+    - id: e710a43c-f565-8190-a314-253647586970
+      name: Vector Database Ingestion of Document Containing Prompt Injection
+      description: |
+        Detects documents with prompt-injection markers being ingested into
+        a vector database. Pairs with the YARA rule rag_document_hidden_text
+        in the same category — this rule catches the pattern when documents
+        are processed through an application-layer ingestion pipeline that
+        logs document content.
+
+        Requires application-level RAG ingestion logs shipped to the SIEM.
+        Adjust the logsource and field mappings to match your ingestion
+        framework (LangChain, LlamaIndex, Haystack, custom).
+      query_type: sigma
+      severity: high
+      tags:
+        - attack.initial_access
+        - attack.atlas.t0020
+        - attack.atlas.t0051
+        - owasp.llm01
+        - owasp.llm08
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://atlas.mitre.org/techniques/AML.T0020
+        - https://atlas.mitre.org/techniques/AML.T0051.001
+        - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+      data_sources:
+        - rag_pipeline
+        - ingestion
+      file: entries/sigma/e710a43c-f565-8190-a314-253647586970.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 06-rag-vector-db/vector_db_query_anomaly.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: rag_vector_database
+      upstream_id: e710a43c-f565-8190-a314-253647586970
+      upstream_status: experimental
+      license: Apache-2.0
       quality_score: 95
     - id: e710a880-1f18-4417-b6a0-b5afdf7e3023
       name: Atomic MacOS Stealer - Persistence Indicators
@@ -181974,6 +183927,37 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: e7f80910-11a2-b3c4-d5e6-f70809101ab2
+      name: GitHub Copilot Agent Auto-Approve Setting Present in Repo
+      description: |
+        YARA-style content match for chat.tools.autoApprove and related
+        YOLO-mode toggles inside committed repository settings.json files.
+        Indicates either intentional auto-approve (high risk) or supply-chain
+        injection of dangerous defaults into a shared codebase.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1059
+      tags:
+        - attack.execution
+        - attack.t1059
+        - attack.atlas.t0010
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://www.cve.org/CVERecord?id=CVE-2025-53773
+      data_sources:
+        - file_event
+      file: entries/sigma/e7f80910-11a2-b3c4-d5e6-f70809101ab2.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/github_copilot_yolo_mode_enabled.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: e7f80910-11a2-b3c4-d5e6-f70809101ab2
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: e80273e1-9faf-40bc-bd85-dbaff104c4e9
       name: ESXi System Information Discovery Via ESXCLI
       description: Detects execution of the "esxcli" command with the "system" flag in order to retrieve information about the different component of the system. Such as accounts, modules, NTP, etc.
@@ -186039,6 +188023,37 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: ef016b0c-7ce2-5366-925c-0337657af9f8
+      name: AI Inference Endpoint Redirection via Environment Variable
+      description: |
+        Detects modification of the environment variables that control which inference
+        endpoint an AI agent talks to. Changing one of these silently routes every prompt,
+        every file the agent reads, and every credential in its context to an
+        attacker-controlled proxy, while the agent continues to appear to work normally.
+        There is no user-visible symptom, which is what makes it worth alerting on.
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1071.001
+      tags:
+        - attack.command_and_control
+        - attack.t1071.001
+        - attack.collection
+      date: "2026-08-11"
+      author: AI DFIR Toolkit contributors
+      data_sources:
+        - windows
+        - registry_set
+      file: entries/sigma/ef016b0c-7ce2-5366-925c-0337657af9f8.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: artifacts/detections/sigma/ai_inference_endpoint_redirection.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: ai_agent_endpoint
+      upstream_id: ef016b0c-7ce2-5366-925c-0337657af9f8
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 85
     - id: ef094918-a0da-4edc-9ef1-e118b9983633
       name: Event log clear attempt (wmi)
       description: Detects scenarios where an attacker attempts to clear the event logs.
@@ -190469,6 +192484,40 @@ entries:
       upstream_status: test
       license: DRL-1.1
       quality_score: 100
+    - id: f6c8bd35-6a7b-9ca3-4f10-6b7c8d9e0f10
+      name: LLM Response Contains Long Base64/Hex String (Possible Exfiltration)
+      description: |
+        Detects LLM responses containing long Base64 or hexadecimal strings,
+        which may indicate exfiltration of sensitive data via encoding,
+        attempts to smuggle binary payloads, or model output of cached
+        training data. Combined with markdown image exfil rules, this catches
+        multi-stage exfiltration channels.
+      query_type: sigma
+      severity: medium
+      tags:
+        - attack.exfiltration
+        - attack.atlas.t0024
+        - owasp.llm02
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://genai.owasp.org/llmrisk/llm02-sensitive-information-disclosure/
+        - https://atlas.mitre.org/techniques/AML.T0024
+        - https://embracethered.com/blog/posts/2024/exploring-llm-data-exfiltration/
+      data_sources:
+        - llm
+        - application
+        - inference
+      file: entries/sigma/f6c8bd35-6a7b-9ca3-4f10-6b7c8d9e0f10.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 01-llm-prompt-injection/llm_response_base64_exfil.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: llm_prompt_injection
+      upstream_id: f6c8bd35-6a7b-9ca3-4f10-6b7c8d9e0f10
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: f6cbde65-a34b-47bc-866d-bdb7dfd045bc
       name: Unauthorized Agentic Access To Entra
       description: 'This detection detect non corporate devices running agentic AI programs attempting '
@@ -191215,6 +193264,43 @@ entries:
         - windows
         - powershell
       file: entries/sigma/f7fa10a3-cbf6-415b-9570-b24f5a1c051d.yaml
+    - id: f8091011-a2b3-c4d5-e6f7-08091011a2b3
+      name: Cursor IDE Settings Database Modified by Unexpected Process
+      description: |
+        Detects modifications to the Cursor IDE state database (state.vscdb).
+        This SQLite file controls auto-run mode, allow lists, file deletion
+        protection, and other security-relevant Cursor settings. Tampering
+        by non-Cursor processes may indicate persistent backdoor deployment
+        via the Check Point Research MCPoison technique (silent post-approval
+        config mutation) or malicious npm packages (sw-cur, aiide-cur).
+      query_type: sigma
+      severity: high
+      techniques:
+        - T1546
+      tags:
+        - attack.persistence
+        - attack.t1546
+        - attack.atlas.t0010
+        - owasp.llm06
+      date: "2026-04-15"
+      author: Raymond DePalma (ai-dfir-toolkit)
+      references:
+        - https://research.checkpoint.com/2025/cursor-vulnerability-mcpoison/
+        - https://www.securityweek.com/malicious-npm-packages-target-cursor-ais-macos-users/
+        - https://www.cve.org/CVERecord?id=CVE-2025-54135
+        - https://www.backslash.security/blog/cursor-ide-security-best-practices
+      data_sources:
+        - file_event
+      file: entries/sigma/f8091011-a2b3-c4d5-e6f7-08091011a2b3.yaml
+      source: depalmar-ai-dfir-toolkit
+      source_repository: https://github.com/depalmar/ai-dfir-toolkit
+      source_path: 05-copilot-assistant-abuse/cursor_settings_db_modification.yml
+      source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+      source_category: copilot_assistant_abuse
+      upstream_id: f8091011-a2b3-c4d5-e6f7-08091011a2b3
+      upstream_status: experimental
+      license: Apache-2.0
+      quality_score: 95
     - id: f8103686-e3e8-46f3-be72-65f7fcb4aa53
       name: AWS Console GetSigninToken Potential Abuse
       description: |

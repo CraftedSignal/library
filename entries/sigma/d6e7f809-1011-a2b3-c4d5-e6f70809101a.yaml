@@ -1,0 +1,81 @@
+id: d6e7f809-1011-a2b3-c4d5-e6f70809101a
+name: GitHub Copilot YOLO Mode Enabled in VS Code Settings
+description: |
+    Detects modification of .vscode/settings.json to enable
+    "chat.tools.autoApprove" or other auto-approve settings that allow
+    Copilot agents to execute terminal commands without user confirmation.
+    This was the exploitation pattern in CVE-2025-53773 (GitHub Copilot
+    RCE via prompt injection in repository code comments).
+query: |
+    title: GitHub Copilot YOLO Mode Enabled in VS Code Settings
+    id: d6e7f809-1011-a2b3-c4d5-e6f70809101a
+    status: experimental
+    description: |
+      Detects modification of .vscode/settings.json to enable
+      "chat.tools.autoApprove" or other auto-approve settings that allow
+      Copilot agents to execute terminal commands without user confirmation.
+      This was the exploitation pattern in CVE-2025-53773 (GitHub Copilot
+      RCE via prompt injection in repository code comments).
+    references:
+      - https://www.cve.org/CVERecord?id=CVE-2025-53773
+      - https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.execution
+      - attack.t1059
+      - attack.atlas.t0011
+      - owasp.llm06
+    logsource:
+      category: file_event
+    detection:
+      selection_settings_file:
+        TargetFilename|endswith:
+          - '/.vscode/settings.json'
+          - '\.vscode\settings.json'
+          - '/.vscode/tasks.json'
+          - '\.vscode\tasks.json'
+      selection_yolo_keywords:
+        Image|endswith:
+          - '/Code.exe'
+          - '/Code'
+          - '/cursor'
+          - '\Cursor.exe'
+          - '/code-insiders'
+      condition: selection_settings_file and selection_yolo_keywords
+    fields:
+      - User
+      - Image
+      - TargetFilename
+      - CommandLine
+    falsepositives:
+      - Developer intentionally enabling YOLO mode in trusted projects
+      - Project templates that include .vscode/settings.json
+      - VS Code user setting being synced via Settings Sync
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1059
+tags:
+    - attack.execution
+    - attack.t1059
+    - attack.atlas.t0011
+    - owasp.llm06
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://www.cve.org/CVERecord?id=CVE-2025-53773
+    - https://www.pillar.security/blog/new-vulnerability-in-github-copilot-and-cursor-how-hackers-can-weaponize-code-agents
+data_sources:
+    - file_event
+file: entries/sigma/d6e7f809-1011-a2b3-c4d5-e6f70809101a.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 05-copilot-assistant-abuse/github_copilot_yolo_mode_enabled.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: copilot_assistant_abuse
+upstream_id: d6e7f809-1011-a2b3-c4d5-e6f70809101a
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

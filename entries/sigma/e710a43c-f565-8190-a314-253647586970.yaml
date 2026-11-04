@@ -1,0 +1,92 @@
+id: e710a43c-f565-8190-a314-253647586970
+name: Vector Database Ingestion of Document Containing Prompt Injection
+description: |
+    Detects documents with prompt-injection markers being ingested into
+    a vector database. Pairs with the YARA rule rag_document_hidden_text
+    in the same category — this rule catches the pattern when documents
+    are processed through an application-layer ingestion pipeline that
+    logs document content.
+
+    Requires application-level RAG ingestion logs shipped to the SIEM.
+    Adjust the logsource and field mappings to match your ingestion
+    framework (LangChain, LlamaIndex, Haystack, custom).
+query: |
+    title: Vector Database Ingestion of Document Containing Prompt Injection
+    id: e710a43c-f565-8190-a314-253647586970
+    status: experimental
+    description: |
+      Detects documents with prompt-injection markers being ingested into
+      a vector database. Pairs with the YARA rule rag_document_hidden_text
+      in the same category — this rule catches the pattern when documents
+      are processed through an application-layer ingestion pipeline that
+      logs document content.
+
+      Requires application-level RAG ingestion logs shipped to the SIEM.
+      Adjust the logsource and field mappings to match your ingestion
+      framework (LangChain, LlamaIndex, Haystack, custom).
+    references:
+      - https://atlas.mitre.org/techniques/AML.T0020
+      - https://atlas.mitre.org/techniques/AML.T0051.001
+      - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.initial_access
+      - attack.atlas.t0020
+      - attack.atlas.t0051
+      - owasp.llm01
+      - owasp.llm08
+    logsource:
+      product: rag_pipeline
+      service: ingestion
+    detection:
+      selection_injection:
+        doc_text|contains:
+          - 'ignore previous instructions'
+          - 'ignore all previous'
+          - 'you are now'
+          - '<IMPORTANT>'
+          - 'system prompt:'
+          - 'execute the following'
+          - 'send the contents to'
+          - 'do not mention this'
+          - 'exfiltrate'
+      condition: selection_injection
+    fields:
+      - source_ip
+      - api_key_id
+      - document_id
+      - document_source
+      - collection_name
+      - doc_text
+    falsepositives:
+      - Security training materials legitimately containing these strings
+      - Documentation about prompt injection being indexed for internal reference
+    level: high
+query_type: sigma
+severity: high
+tags:
+    - attack.initial_access
+    - attack.atlas.t0020
+    - attack.atlas.t0051
+    - owasp.llm01
+    - owasp.llm08
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0020
+    - https://atlas.mitre.org/techniques/AML.T0051.001
+    - https://genai.owasp.org/llmrisk/llm08-vector-and-embedding-weaknesses/
+data_sources:
+    - rag_pipeline
+    - ingestion
+file: entries/sigma/e710a43c-f565-8190-a314-253647586970.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 06-rag-vector-db/vector_db_query_anomaly.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: rag_vector_database
+upstream_id: e710a43c-f565-8190-a314-253647586970
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

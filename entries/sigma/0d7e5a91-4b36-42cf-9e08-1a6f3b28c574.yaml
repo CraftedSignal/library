@@ -1,0 +1,76 @@
+id: 0d7e5a91-4b36-42cf-9e08-1a6f3b28c574
+name: Agent Memory Store Written by Unexpected Process
+description: |
+    Detects writes to agent long-term memory and checkpoint stores by a process other than the owning agent
+    runtime. Memory is a persistence surface: an instruction written here survives session resets, so direct
+    manipulation of the store is a way to install persistence without ever interacting with the model.
+    Covers LangGraph SQLite checkpointers, assistant memory exports, and agent state files.
+query: |
+    title: Agent Memory Store Written by Unexpected Process
+    name: agent_memory_store_write
+    id: 0d7e5a91-4b36-42cf-9e08-1a6f3b28c574
+    status: experimental
+    description: |
+        Detects writes to agent long-term memory and checkpoint stores by a process other than the owning agent
+        runtime. Memory is a persistence surface: an instruction written here survives session resets, so direct
+        manipulation of the store is a way to install persistence without ever interacting with the model.
+        Covers LangGraph SQLite checkpointers, assistant memory exports, and agent state files.
+    references:
+        - https://atlas.mitre.org/techniques/AML.T0080
+        - https://www.microsoft.com/en-us/security/blog/2026/02/10/ai-recommendation-poisoning/
+    author: Raymond DePalma (@depalmar)
+    date: 2026-08-12
+    tags:
+        - attack.persistence
+        - attack.t1546
+        - atlas.aml-t0080
+    logsource:
+        category: file_event
+    detection:
+        selection_store:
+            TargetFilename|contains:
+                - 'checkpoints.sqlite'
+                - 'checkpoints.db'
+                - 'langgraph'
+                - 'agent_state'
+                - 'memory.json'
+                - 'memories.json'
+                - 'memory.jsonl'
+        filter_runtime:
+            # Allowlist the legitimate agent runtimes that own these stores.
+            Image|endswith:
+                - '\python.exe'
+                - '\node.exe'
+                - '/python3'
+                - '/node'
+                - '/uv'
+        condition: selection_store and not filter_runtime
+    falsepositives:
+        - Backup, sync, and indexing agents touching the store directory.
+        - Container or venv paths where the runtime binary differs from the allowlist - extend filter_runtime.
+    level: medium
+query_type: sigma
+severity: medium
+techniques:
+    - T1546
+tags:
+    - attack.persistence
+    - attack.t1546
+    - atlas.aml-t0080
+date: "2026-08-12"
+author: Raymond DePalma (@depalmar)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0080
+    - https://www.microsoft.com/en-us/security/blog/2026/02/10/ai-recommendation-poisoning/
+data_sources:
+    - file_event
+file: entries/sigma/0d7e5a91-4b36-42cf-9e08-1a6f3b28c574.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 09-agent-memory-forensics/memory_poisoning.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: agent_memory_forensics
+upstream_id: 0d7e5a91-4b36-42cf-9e08-1a6f3b28c574
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95

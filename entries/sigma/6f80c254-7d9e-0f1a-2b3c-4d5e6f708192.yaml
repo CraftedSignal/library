@@ -1,0 +1,81 @@
+id: 6f80c254-7d9e-0f1a-2b3c-4d5e6f708192
+name: Model File Appearing in Non-Standard Location
+description: |
+    Detects model weight files created outside expected model-storage
+    locations. Attackers stage poisoned models in unusual paths
+    (home directories, /tmp, Downloads) before loading them into
+    inference pipelines.
+query: |
+    title: Model File Appearing in Non-Standard Location
+    id: 6f80c254-7d9e-0f1a-2b3c-4d5e6f708192
+    status: experimental
+    description: |
+      Detects model weight files created outside expected model-storage
+      locations. Attackers stage poisoned models in unusual paths
+      (home directories, /tmp, Downloads) before loading them into
+      inference pipelines.
+    references:
+      - https://atlas.mitre.org/techniques/AML.T0010.003
+    author: Raymond DePalma (ai-dfir-toolkit)
+    date: 2026-04-15
+    tags:
+      - attack.persistence
+      - attack.atlas.t0010
+      - owasp.llm03
+    logsource:
+      category: file_event
+    detection:
+      selection_extension:
+        TargetFilename|endswith:
+          - '.pt'
+          - '.pth'
+          - '.bin'
+          - '.safetensors'
+          - '.pkl'
+          - '.joblib'
+      filter_standard_locations:
+        TargetFilename|contains:
+          - '/models/'
+          - '/checkpoints/'
+          - '/.cache/huggingface/'
+          - '/mlruns/'
+          - '/mlartifacts/'
+          - '/wandb/'
+          - '/usr/share/'
+          - '/site-packages/'
+          - '/opt/'
+          - '\models\'
+          - '\checkpoints\'
+          - '\.cache\huggingface\'
+      condition: selection_extension and not filter_standard_locations
+    fields:
+      - User
+      - Image
+      - TargetFilename
+      - Hashes
+    falsepositives:
+      - ML engineers experimenting with models in working directories
+      - Jupyter notebooks downloading models to notebook-relative paths
+    level: low
+query_type: sigma
+severity: low
+tags:
+    - attack.persistence
+    - attack.atlas.t0010
+    - owasp.llm03
+date: "2026-04-15"
+author: Raymond DePalma (ai-dfir-toolkit)
+references:
+    - https://atlas.mitre.org/techniques/AML.T0010.003
+data_sources:
+    - file_event
+file: entries/sigma/6f80c254-7d9e-0f1a-2b3c-4d5e6f708192.yaml
+source: depalmar-ai-dfir-toolkit
+source_repository: https://github.com/depalmar/ai-dfir-toolkit
+source_path: 03-model-supply-chain/model_file_hash_mismatch.yml
+source_commit: 3f2a94d3febe12dbe65b97b3b9a5562cafaec394
+source_category: model_supply_chain
+upstream_id: 6f80c254-7d9e-0f1a-2b3c-4d5e6f708192
+upstream_status: experimental
+license: Apache-2.0
+quality_score: 95
