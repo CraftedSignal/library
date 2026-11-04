@@ -92,6 +92,131 @@ tags:
 	}
 }
 
+func TestCollectRulesImportsEverySigmaDocument(t *testing.T) {
+	dir := t.TempDir()
+	raw := `title: First rule
+id: 11111111-1111-1111-1111-111111111111
+status: experimental
+author: Example
+references:
+  - https://example.invalid/first
+logsource:
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: /first
+  condition: selection
+falsepositives:
+  - Administrative activity
+level: high
+---
+title: Second rule
+id: 22222222-2222-2222-2222-222222222222
+status: experimental
+author: Example
+references:
+  - https://example.invalid/second
+logsource:
+  category: process_creation
+detection:
+  selection:
+    Image|endswith: /second
+  condition: selection
+falsepositives:
+  - Administrative activity
+level: high
+`
+	if err := os.WriteFile(filepath.Join(dir, "rules.yml"), []byte(raw), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	source := upstreamSource{
+		Name:       "multi-document-source",
+		Repository: "https://example.invalid/multi-document-source",
+		License:    "Apache-2.0",
+		Trees:      map[string]string{".": "detection"},
+	}
+	entries, rejections, byCategory, err := collectRules(dir, "abc123", source)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d, want both Sigma documents", len(entries))
+	}
+	if len(rejections) != 0 {
+		t.Fatalf("rejections = %#v, want none", rejections)
+	}
+	if byCategory["detection"] != 2 {
+		t.Fatalf("byCategory = %v, want detection=2", byCategory)
+	}
+	if entries[0].ID != "11111111-1111-1111-1111-111111111111" || entries[1].ID != "22222222-2222-2222-2222-222222222222" {
+		t.Fatalf("entry IDs = %q, %q", entries[0].ID, entries[1].ID)
+	}
+	if strings.Contains(entries[0].Query, "Second rule") || strings.Contains(entries[1].Query, "First rule") {
+		t.Fatal("each library entry must contain only its own Sigma document")
+	}
+}
+
+func TestAIDFIRToolkitSourceCollectsOnlySigmaRuleTrees(t *testing.T) {
+	dir := t.TempDir()
+	for _, tree := range []string{
+		"01-llm-prompt-injection",
+		"02-mcp-attacks",
+		"03-model-supply-chain",
+		"04-ai-infrastructure",
+		"05-copilot-assistant-abuse",
+		"06-rag-vector-db",
+		"07-runtime-ai-malware",
+		"08-agentic-orchestration",
+		"09-agent-memory-forensics",
+		"artifacts/detections/sigma",
+		"artifacts/catalog",
+	} {
+		if err := os.MkdirAll(filepath.Join(dir, tree), 0755); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	writeRule := func(path, id, title string) {
+		t.Helper()
+		raw := "title: " + title + "\n" +
+			"id: " + id + "\n" +
+			"status: experimental\n" +
+			"author: AI DFIR Toolkit contributors\n" +
+			"references:\n  - https://example.invalid/reference\n" +
+			"logsource:\n  category: process_creation\n" +
+			"detection:\n  selection:\n    Image|endswith: /agent\n  condition: selection\n" +
+			"level: high\n"
+		if err := os.WriteFile(filepath.Join(dir, filepath.FromSlash(path)), []byte(raw), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	writeRule("02-mcp-attacks/mcp.yml", "11111111-1111-1111-1111-111111111111", "MCP rule")
+	writeRule("artifacts/detections/sigma/endpoint.yml", "22222222-2222-2222-2222-222222222222", "Endpoint rule")
+	if err := os.WriteFile(filepath.Join(dir, "artifacts", "catalog", "not-a-rule.yml"), []byte("name: Catalog entry\n"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	entries, rejections, byCategory, err := collectRules(dir, "abc123", aiDFIRToolkitSource)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("entries = %d, want 2 Sigma rules", len(entries))
+	}
+	if len(rejections) != 0 {
+		t.Fatalf("rejections = %#v, want unrelated YAML excluded", rejections)
+	}
+	if byCategory["mcp_attack"] != 1 || byCategory["ai_agent_endpoint"] != 1 {
+		t.Fatalf("byCategory = %v", byCategory)
+	}
+	for _, entry := range entries {
+		if entry.Source != "depalmar-ai-dfir-toolkit" || entry.SourceRepository != "https://github.com/depalmar/ai-dfir-toolkit" || entry.License != "Apache-2.0" {
+			t.Fatalf("source provenance = %#v", entry)
+		}
+	}
+}
+
 func TestQualityScoreRejectsStructurallyIncompleteRules(t *testing.T) {
 	_, reasons := qualityScore(sigmaRule{Title: "Incomplete"}, "detection")
 	if len(reasons) == 0 {
@@ -252,8 +377,45 @@ func TestMergeLibraryPrefersSigmaHQForDuplicateID(t *testing.T) {
 	}
 }
 
+func TestMergeLibraryUsesCuratedSourcePriority(t *testing.T) {
+	for _, test := range []struct {
+		name   string
+		first  upstreamSource
+		second upstreamSource
+		winner upstreamSource
+	}{
+		{name: "SigmaHQ over AI DFIR Toolkit", first: aiDFIRToolkitSource, second: sigmaHQSource, winner: sigmaHQSource},
+		{name: "AI DFIR Toolkit over Huntress", first: huntressSource, second: aiDFIRToolkitSource, winner: aiDFIRToolkitSource},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := writeYAML(filepath.Join(dir, "library.index.yaml"), libraryIndex{}); err != nil {
+				t.Fatal(err)
+			}
+			incoming := []libraryEntry{
+				{ID: "same-id", Name: test.first.Name, QueryType: "sigma", Query: "title: first\n", Source: test.first.Name},
+				{ID: "same-id", Name: test.second.Name, QueryType: "sigma", Query: "title: second\n", Source: test.second.Name},
+			}
+			imported, err := mergeLibrary(dir, map[string]bool{
+				test.first.Name:  true,
+				test.second.Name: true,
+			}, incoming)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if imported[test.winner.Name] != 1 {
+				t.Fatalf("imported = %v, want %s winner", imported, test.winner.Name)
+			}
+			index := readLibraryIndex(t, filepath.Join(dir, "library.index.yaml"))
+			if len(index.Entries) != 1 || index.Entries[0].Source != test.winner.Name {
+				t.Fatalf("entries = %#v, want %s winner", index.Entries, test.winner.Name)
+			}
+		})
+	}
+}
+
 func TestMergeLibraryPrefersCraftedSignalForDuplicateID(t *testing.T) {
-	for _, incomingSource := range []upstreamSource{sigmaHQSource, huntressSource} {
+	for _, incomingSource := range []upstreamSource{sigmaHQSource, aiDFIRToolkitSource, huntressSource} {
 		t.Run(incomingSource.Name, func(t *testing.T) {
 			dir := t.TempDir()
 			entriesDir := filepath.Join(dir, "entries", "sigma")

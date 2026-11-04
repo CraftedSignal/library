@@ -41,9 +41,28 @@ var huntressSource = upstreamSource{
 	Trees:      map[string]string{".": "threat_intel"},
 }
 
+var aiDFIRToolkitSource = upstreamSource{
+	Name:       "depalmar-ai-dfir-toolkit",
+	Repository: "https://github.com/depalmar/ai-dfir-toolkit",
+	License:    "Apache-2.0",
+	Trees: map[string]string{
+		"01-llm-prompt-injection":    "llm_prompt_injection",
+		"02-mcp-attacks":             "mcp_attack",
+		"03-model-supply-chain":      "model_supply_chain",
+		"04-ai-infrastructure":       "ai_infrastructure",
+		"05-copilot-assistant-abuse": "copilot_assistant_abuse",
+		"06-rag-vector-db":           "rag_vector_database",
+		"07-runtime-ai-malware":      "runtime_ai_malware",
+		"08-agentic-orchestration":   "agentic_orchestration",
+		"09-agent-memory-forensics":  "agent_memory_forensics",
+		"artifacts/detections/sigma": "ai_agent_endpoint",
+	},
+}
+
 const craftedSignalSource = "craftedsignal"
 
 var sigmaIDPattern = regexp.MustCompile(`(?i)^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`)
+var yamlDocumentSeparator = regexp.MustCompile(`(?m)^[\t ]*---[\t ]*(?:#.*)?\r?\n`)
 
 type sigmaRule struct {
 	Title          string         `yaml:"title"`
@@ -125,6 +144,7 @@ func main() {
 	outputDir := flag.String("output-dir", ".", "CraftedSignal library repository root")
 	sigmaDir := flag.String("sigma-dir", "", "SigmaHQ/sigma checkout root")
 	huntressDir := flag.String("huntress-dir", "", "huntresslabs/threat-intel checkout root")
+	aiDFIRToolkitDir := flag.String("ai-dfir-toolkit-dir", "", "depalmar/ai-dfir-toolkit checkout root")
 	flag.Parse()
 
 	var batches []sourceBatch
@@ -142,8 +162,15 @@ func main() {
 		}
 		batches = append(batches, batch)
 	}
+	if strings.TrimSpace(*aiDFIRToolkitDir) != "" {
+		batch, err := collectSourceBatch(*aiDFIRToolkitDir, aiDFIRToolkitSource, "ai-dfir-toolkit.sync.yaml")
+		if err != nil {
+			log.Fatalf("collect AI DFIR Toolkit rules: %v", err)
+		}
+		batches = append(batches, batch)
+	}
 	if len(batches) == 0 {
-		log.Fatal("at least one of --sigma-dir or --huntress-dir is required")
+		log.Fatal("at least one source checkout directory is required")
 	}
 	if err := mergeAndWriteManifests(*outputDir, batches, time.Now().UTC()); err != nil {
 		log.Fatalf("sync Sigma upstreams: %v", err)
@@ -236,19 +263,21 @@ func collectRules(root, commit string, source upstreamSource) ([]libraryEntry, [
 			if err != nil {
 				return err
 			}
-			var rule sigmaRule
-			if err := yaml.Unmarshal(raw, &rule); err != nil {
-				rejections = append(rejections, rejection{Path: relativePath(root, path), Reasons: []string{"invalid_yaml"}})
-				return nil
+			for _, document := range splitYAMLDocuments(string(raw)) {
+				var rule sigmaRule
+				if err := yaml.Unmarshal([]byte(document), &rule); err != nil {
+					rejections = append(rejections, rejection{Path: relativePath(root, path), Reasons: []string{"invalid_yaml"}})
+					continue
+				}
+				score, reasons := qualityScore(rule, category)
+				if len(reasons) > 0 {
+					rejections = append(rejections, rejection{Path: relativePath(root, path), Title: rule.Title, ID: rule.ID, Score: score, Reasons: reasons})
+					continue
+				}
+				entry := convertSigmaRule(rule, document, relativePath(root, path), commit, category, score, source)
+				entries = append(entries, entry)
+				byCategory[category]++
 			}
-			score, reasons := qualityScore(rule, category)
-			if len(reasons) > 0 {
-				rejections = append(rejections, rejection{Path: relativePath(root, path), Title: rule.Title, ID: rule.ID, Score: score, Reasons: reasons})
-				return nil
-			}
-			entry := convertSigmaRule(rule, string(raw), relativePath(root, path), commit, category, score, source)
-			entries = append(entries, entry)
-			byCategory[category]++
 			return nil
 		})
 		if err != nil {
@@ -259,6 +288,23 @@ func collectRules(root, commit string, source upstreamSource) ([]libraryEntry, [
 	sort.Slice(entries, func(i, j int) bool { return entries[i].ID < entries[j].ID })
 	sort.Slice(rejections, func(i, j int) bool { return rejections[i].Path < rejections[j].Path })
 	return entries, rejections, byCategory, nil
+}
+
+func splitYAMLDocuments(raw string) []string {
+	documents := yamlDocumentSeparator.Split(raw, -1)
+	if len(documents) == 1 {
+		return documents
+	}
+	filtered := documents[:0]
+	for _, document := range documents {
+		if strings.TrimSpace(document) != "" {
+			filtered = append(filtered, document)
+		}
+	}
+	if len(filtered) == 0 {
+		return []string{raw}
+	}
+	return filtered
 }
 
 func qualityScore(rule sigmaRule, category string) (int, []string) {
@@ -452,6 +498,8 @@ func sourcePriority(source string) int {
 		return 300
 	case sigmaHQSource.Name:
 		return 200
+	case aiDFIRToolkitSource.Name:
+		return 150
 	case huntressSource.Name:
 		return 100
 	default:
