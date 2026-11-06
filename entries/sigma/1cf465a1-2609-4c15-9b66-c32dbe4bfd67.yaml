@@ -17,7 +17,7 @@ query: |
         - https://lolbas-project.github.io/#/download
     author: Swachchhanda Shrawan Poudel (Nextron Systems)
     date: 2025-12-10
-    modified: 2026-10-14
+    modified: 2026-10-26
     tags:
         - attack.stealth
         - attack.t1218
@@ -83,6 +83,22 @@ query: |
         filter_optional_dell_techhub_copy:
             Image|endswith: '\esentutl.exe'
             TargetFilename|startswith: 'C:\ProgramData\Dell\DTP\DB\SRUDBData\'
+        filter_optional_expand_system_dpx_scratch:
+            # expand.exe run as SYSTEM by services (e.g. the Waves MaxxAudio driver service unpacking MaxxAudio_Data.cab) writes its own "<hex>$dpx$.tmp" scratch files into the Windows Temp folder
+            Image|endswith: '\expand.exe'
+            User|contains: # covers many language settings
+                - 'AUTHORI'
+                - 'AUTORI'
+            TargetFilename|startswith: 'C:\Windows\Temp\'
+            TargetFilename|endswith: '$dpx$.tmp'
+        filter_optional_certutil_rootcas_sst:
+            # "certutil -generateSSTFromWU" run as SYSTEM (e.g. by EDR agents refreshing the trusted root list) writes RootCAs.sst into a SystemTemp subfolder
+            Image|endswith: '\certutil.exe'
+            User|contains: # covers many language settings
+                - 'AUTHORI'
+                - 'AUTORI'
+            TargetFilename|startswith: 'C:\Windows\SystemTemp\'
+            TargetFilename|endswith: '\RootCAs.sst'
         condition: all of selection_* and not 1 of filter_optional_*
     falsepositives:
         - Unknown
@@ -109,7 +125,7 @@ file: entries/sigma/1cf465a1-2609-4c15-9b66-c32dbe4bfd67.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/windows/file/file_event/file_event_win_susp_legitimate_app_dropping_in_uncommon_location.yml
-source_commit: 52f81d60d5ea122e49a34b2289ea0c2a7bb0b113
+source_commit: 53423dac8742ef6a44fb73f23f049e84594a66ce
 source_category: detection
 upstream_id: 1cf465a1-2609-4c15-9b66-c32dbe4bfd67
 upstream_status: experimental
