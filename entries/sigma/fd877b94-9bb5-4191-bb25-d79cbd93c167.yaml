@@ -19,7 +19,7 @@ query: |
         - https://github.com/redcanaryco/atomic-red-team/blob/f339e7da7d05f6057fdfcdd3742bfcf365fee2a9/atomics/T1003.002/T1003.002.md#atomic-test-1---registry-dump-of-sam-creds-and-secrets
     author: Teymur Kheirkhabarov, Endgame, JHasenbusch, Daniil Yugoslavskiy, oscd.community, frack113
     date: 2019-10-22
-    modified: 2023-12-13
+    modified: 2026-11-13
     tags:
         - attack.credential-access
         - attack.t1003.002
@@ -39,24 +39,9 @@ query: |
                 - ' export '
                 - ' ˢave '
                 - ' eˣport '
-        selection_cli_hklm:
-            CommandLine|contains:
-                - 'hklm'
-                - 'hk˪m'
-                - 'hkey_local_machine'
-                - 'hkey_˪ocal_machine'
-                - 'hkey_loca˪_machine'
-                - 'hkey_˪oca˪_machine'
         selection_cli_hive:
-            CommandLine|contains:
-                - '\system'
-                - '\sam'
-                - '\security'
-                - '\ˢystem'
-                - '\syˢtem'
-                - '\ˢyˢtem'
-                - '\ˢam'
-                - '\ˢecurity'
+            # The hive must directly follow the HKLM root. A bare '\system' also matches the reg.exe path itself (C:\Windows\System32\reg.exe) and C:\Windows\SystemTemp.
+            CommandLine|re|i: '(hk[l˪]m|hkey_[l˪]oca[l˪]_machine)"?\\[sˢ](y[sˢ]tem|am|ecurity)(\\|"|\s|$)'
         condition: all of selection_*
     falsepositives:
         - Dumping hives for legitimate purpouse i.e. backup or forensic investigation
@@ -89,7 +74,7 @@ file: entries/sigma/fd877b94-9bb5-4191-bb25-d79cbd93c167.yaml
 source: sigmahq
 source_repository: https://github.com/SigmaHQ/sigma
 source_path: rules/windows/process_creation/proc_creation_win_reg_dumping_sensitive_hives.yml
-source_commit: 28a18e0f9b1f4712d88c466ac148990eba85e417
+source_commit: 54967d64e6dda2b4daa81f47f7a8bf1f591b68a0
 source_category: detection
 upstream_id: fd877b94-9bb5-4191-bb25-d79cbd93c167
 upstream_status: test
