@@ -8,8 +8,12 @@ concurrency:
   group: sync-upstream
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   sync:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     defaults:
@@ -18,7 +22,8 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          token: ${{ secrets.GH_PAT }}
+          ref: main
+          persist-credentials: false
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           repository: SigmaHQ/sigma
@@ -71,7 +76,8 @@ jobs:
             echo "Refresh token rotated"
           fi
 
-      - uses: stefanzweifel/git-auto-commit-action@4a55954c782fc1ea30b9056cd3e7a2b40ca8887d
-        with:
-          commit_message: 'sync: update community detections'
-          file_pattern: 'entries library.index.yaml sigmahq.sync.yaml huntress.sync.yaml ai-dfir-toolkit.sync.yaml'
+      - name: Publish mirror update PR
+        working-directory: .
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: bash .github/scripts/publish-mirror.sh
