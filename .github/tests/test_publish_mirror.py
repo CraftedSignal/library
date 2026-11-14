@@ -43,9 +43,16 @@ with open(os.environ['TEST_GH_CALLS'], 'a') as log:
     log.write(' '.join(args) + '\\n')
 if args[:2] == ['pr', 'list']:
     print(os.environ.get('TEST_EXISTING_PR', ''))
+elif args[:2] == ['pr', 'edit'] and os.environ.get('TEST_REPOSITORY_SCOPE_ONLY') == '1':
+    sys.exit('GraphQL: organization fields require read:org; token has only repo scope')
 elif args[:2] in [['pr', 'create'], ['pr', 'edit']]:
     body = pathlib.Path(args[args.index('--body-file') + 1]).read_text()
     pathlib.Path(os.environ['TEST_PR_BODY']).write_text(body)
+elif args[:3] == ['api', '--method', 'PATCH']:
+    assert args[3] == 'repos/CraftedSignal/library/pulls/42', args
+    field = args[args.index('--field') + 1]
+    assert field.startswith('body=@'), field
+    pathlib.Path(os.environ['TEST_PR_BODY']).write_text(pathlib.Path(field[len('body=@'):]).read_text())
 else:
     sys.exit('unexpected GitHub operation')
 """)
@@ -118,6 +125,17 @@ else:
         self.assertIn("outside generated mirror paths", result.stderr)
         self.assertFalse(self.calls.exists())
         self.assertNotEqual(self.git("--git-dir=" + str(self.remote), "show-ref", "--verify", BRANCH, check=False).returncode, 0)
+
+    def test_existing_pr_body_update_requires_only_repository_scope(self):
+        (self.work / "entries/detection.yaml").write_text("revision: 2\n")
+        self.env["TEST_EXISTING_PR"] = "42"
+        self.env["TEST_REPOSITORY_SCOPE_ONLY"] = "1"
+        self.publish()
+        calls = self.calls.read_text()
+        self.assertIn("api --method PATCH repos/CraftedSignal/library/pulls/42 --field body=@", calls)
+        self.assertNotIn("pr edit", calls)
+        self.assertIn(self.base, (self.root / "pr-body.txt").read_text())
+        self.assertEqual(self.remote_git("rev-parse", "refs/heads/main").strip(), self.base)
 
     def test_unchanged_snapshot_does_not_create_branch_or_pr(self):
         self.publish()
