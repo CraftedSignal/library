@@ -84,6 +84,8 @@ if [ -z "$pr" ]; then
   gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "$branch" \
     --title 'sync: update community detections' --body-file "$body_file"
 else
-  gh pr edit "$pr" --repo "$GITHUB_REPOSITORY" --body-file "$body_file"
+  # gh pr edit also queries organization/team metadata and requires read:org.
+  # Updating only the body through REST keeps the token scoped to this repo.
+  gh api --method PATCH "repos/$GITHUB_REPOSITORY/pulls/$pr" --field "body=@$body_file" --silent
   echo "Updated existing mirror PR #$pr"
 fi
