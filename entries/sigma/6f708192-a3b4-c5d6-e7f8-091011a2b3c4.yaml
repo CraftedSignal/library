@@ -1,21 +1,39 @@
 id: 6f708192-a3b4-c5d6-e7f8-091011a2b3c4
 name: MLflow Tracking Server - Suspicious API Activity
 description: |
-    Detects suspicious MLflow REST API activity in application logs:
-      - Unauthenticated access to write endpoints
-      - Bulk model downloads (potential model theft)
+    Detects suspicious MLflow REST API activity in the tracking server's
+    access log:
+      - A write request accepted with no authenticated user
       - Artifact location modifications pointing to attacker-controlled storage
       - Path traversal patterns in artifact requests (CVE-2023-6831, CVE-2024-2928)
+    Bulk artifact download is the correlation rule further down this file.
+
+    The unauthenticated-write branch needs a log that records who was
+    authenticated. MLflow's own server log does not; the field comes from the
+    basic-auth app or, more often, from the reverse proxy in front of the
+    server. Where no such field exists that branch cannot match, and the rule
+    reports only traversal and artifact-location changes. Earlier versions of
+    this rule claimed to detect unauthenticated access and tested nothing of
+    the kind.
 query: |
     title: MLflow Tracking Server - Suspicious API Activity
     id: 6f708192-a3b4-c5d6-e7f8-091011a2b3c4
     status: experimental
     description: |
-      Detects suspicious MLflow REST API activity in application logs:
-        - Unauthenticated access to write endpoints
-        - Bulk model downloads (potential model theft)
+      Detects suspicious MLflow REST API activity in the tracking server's
+      access log:
+        - A write request accepted with no authenticated user
         - Artifact location modifications pointing to attacker-controlled storage
         - Path traversal patterns in artifact requests (CVE-2023-6831, CVE-2024-2928)
+      Bulk artifact download is the correlation rule further down this file.
+
+      The unauthenticated-write branch needs a log that records who was
+      authenticated. MLflow's own server log does not; the field comes from the
+      basic-auth app or, more often, from the reverse proxy in front of the
+      server. Where no such field exists that branch cannot match, and the rule
+      reports only traversal and artifact-location changes. Earlier versions of
+      this rule claimed to detect unauthenticated access and tested nothing of
+      the kind.
     references:
       - https://www.cve.org/CVERecord?id=CVE-2023-6831
       - https://www.cve.org/CVERecord?id=CVE-2024-0520
@@ -23,6 +41,7 @@ query: |
       - https://www.cve.org/CVERecord?id=CVE-2024-37059
     author: Raymond DePalma (ai-dfir-toolkit)
     date: 2026-04-15
+    modified: 2026-11-17
     tags:
       - attack.initial_access
       - attack.t1190
@@ -31,6 +50,7 @@ query: |
     logsource:
       product: mlflow
       service: tracking
+      definition: 'HTTP access log of the MLflow tracking server or the proxy in front of it, normalised to: source_ip, request_method, request_uri, request_body, response_status, user_agent, remote_user. remote_user is the authenticated identity and is "-" or empty when no credentials were presented.'
     detection:
       selection_endpoint:
         request_uri|contains:
@@ -41,20 +61,28 @@ query: |
         request_uri|re: '(\.\./|%2e%2e%2f|%2e%2e/|\.\.\\|%2e%2e%5c|#\.\.)'
       selection_external_artifact:
         request_body|re: 'artifact_location["\s:]+["\s]*(s3|gs|azure|http)://[^/]+\.(amazonaws|googleapis|azure|ngrok|trycloudflare)\.'
-      selection_bulk_download:
-        request_uri|contains: '/get-artifact'
-        rate_per_minute|gte: 100
-      condition: selection_endpoint and (selection_traversal or selection_external_artifact or selection_bulk_download)
+      selection_unauth_write:
+        request_method:
+          - 'POST'
+          - 'PATCH'
+          - 'DELETE'
+        remote_user:
+          - '-'
+          - ''
+        response_status: 200
+      condition: selection_endpoint and (selection_traversal or selection_external_artifact or selection_unauth_write)
     fields:
       - source_ip
+      - remote_user
       - user_agent
+      - request_method
       - request_uri
       - request_body
       - response_status
     falsepositives:
       - Legitimate ML platform engineers performing maintenance
       - Authorized model migration to new artifact store
-      - Backup/replication workflows
+      - A tracking server deliberately run without authentication on an isolated network, where every write matches the unauthenticated branch
     level: high
 query_type: sigma
 severity: high
@@ -79,7 +107,7 @@ file: entries/sigma/6f708192-a3b4-c5d6-e7f8-091011a2b3c4.yaml
 source: depalmar-ai-dfir-toolkit
 source_repository: https://github.com/depalmar/ai-dfir-toolkit
 source_path: 03-model-supply-chain/mlflow_unauth_api_access.yml
-source_commit: 4697272a94c056cadbd4740e8ec717cff683052d
+source_commit: 8962d6f499cc1df6d67d4f92ee9f0455f634a462
 source_category: model_supply_chain
 upstream_id: 6f708192-a3b4-c5d6-e7f8-091011a2b3c4
 upstream_status: experimental

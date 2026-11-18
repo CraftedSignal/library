@@ -2,7 +2,7 @@ id: 6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9
 name: Agent Instruction File Modified (Persistence via Agent Context)
 description: |
     Detects modification of the instruction and rules files that agentic coding tools load into context on
-    every session (CLAUDE.md, AGENTS.md, MEMORY.md, .cursorrules, .windsurfrules, .clinerules, GEMINI.md).
+    every session (CLAUDE.md, AGENTS.md, MEMORY.md, .cursorrules, .cursor/rules/, .windsurfrules, .clinerules, GEMINI.md).
     These files are re-read at each invocation, so an attacker-controlled line persists across sessions,
     process restarts and conversation resets. This is the file-backed form of MITRE ATLAS AML.T0080
     (AI Agent Context Poisoning) and is the mechanism behind Rules-File-Backdoor style attacks.
@@ -15,7 +15,7 @@ query: |
     status: experimental
     description: |
         Detects modification of the instruction and rules files that agentic coding tools load into context on
-        every session (CLAUDE.md, AGENTS.md, MEMORY.md, .cursorrules, .windsurfrules, .clinerules, GEMINI.md).
+        every session (CLAUDE.md, AGENTS.md, MEMORY.md, .cursorrules, .cursor/rules/, .windsurfrules, .clinerules, GEMINI.md).
         These files are re-read at each invocation, so an attacker-controlled line persists across sessions,
         process restarts and conversation resets. This is the file-backed form of MITRE ATLAS AML.T0080
         (AI Agent Context Poisoning) and is the mechanism behind Rules-File-Backdoor style attacks.
@@ -48,6 +48,12 @@ query: |
                 - '/MEMORY.md'
                 - '/.cursorrules'
                 - '/.windsurfrules'
+        # Cursor's current rules location is a directory of .md and .mdc files, one
+        # rule per file, so it is matched by path and not by file name.
+        selection_rules_dir:
+            TargetFilename|contains:
+                - '\.cursor\rules\'
+                - '/.cursor/rules/'
         filter_editors:
             # Interactive edits by a developer are expected; tune to your estate.
             Image|endswith:
@@ -58,10 +64,11 @@ query: |
                 - '/vim'
                 - '/nvim'
                 - '/emacs'
-        condition: selection_name and not filter_editors
+        condition: (selection_name or selection_rules_dir) and not filter_editors
     falsepositives:
         - Legitimate repository updates via git checkout, pull, or merge - correlate with VCS activity.
         - Project scaffolding tools that generate agent instruction files.
+        - A developer editing rules inside Cursor. The write comes from the same process as an agent's edit, so it cannot be filtered by image.
     level: medium
 query_type: sigma
 severity: medium
@@ -79,7 +86,7 @@ file: entries/sigma/6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9.yaml
 source: depalmar-ai-dfir-toolkit
 source_repository: https://github.com/depalmar/ai-dfir-toolkit
 source_path: 09-agent-memory-forensics/memory_poisoning.yml
-source_commit: 4697272a94c056cadbd4740e8ec717cff683052d
+source_commit: 8962d6f499cc1df6d67d4f92ee9f0455f634a462
 source_category: agent_memory_forensics
 upstream_id: 6b41c07e-9a2d-4f83-b5e1-3c8d70a4f2b9
 upstream_status: experimental
