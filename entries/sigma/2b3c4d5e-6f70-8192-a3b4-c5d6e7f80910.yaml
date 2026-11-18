@@ -28,9 +28,30 @@ query: |
       - attack.atlas.t0086
       - owasp.llm02
     logsource:
-      category: file_event
+      # file_access, not file_event: the behaviour is a read, and file_event is
+      # file creation. Needs telemetry that records reads with the reading
+      # process - EDR file-access events or auditd/eBPF open() auditing. Sysmon
+      # alone does not produce it.
+      category: file_access
     detection:
-      selection_mcp_processes:
+      # The MCP server process itself opens the file...
+      selection_mcp_process:
+        Image|endswith:
+          - '/node'
+          - '/npx'
+          - '/python'
+          - '/python3'
+          - '/uvx'
+          - '/uv'
+          - '\node.exe'
+          - '\python.exe'
+        CommandLine|contains:
+          - 'mcp'
+          - '@modelcontextprotocol'
+          - 'mcp-server'
+          - 'fastmcp'
+      # ...or a child it spawned does (a tool that shells out to cat or type).
+      selection_mcp_child:
         ParentImage|endswith:
           - '/node'
           - '/npx'
@@ -70,10 +91,11 @@ query: |
           - '/.env.local'
           - '/.env.production'
           - '/.env.secrets'
-      condition: selection_mcp_processes and (selection_credential_targets or selection_dotenv)
+      condition: (selection_mcp_process or selection_mcp_child) and (selection_credential_targets or selection_dotenv)
     fields:
       - User
       - Image
+      - CommandLine
       - ParentImage
       - ParentCommandLine
       - TargetFilename
@@ -98,12 +120,12 @@ references:
     - https://cyata.ai/blog/whispering-secrets-loudly-inside-mcps-quiet-crisis-of-credential-exposure/
     - https://atlas.mitre.org/techniques/AML.T0086
 data_sources:
-    - file_event
+    - file_access
 file: entries/sigma/2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910.yaml
 source: depalmar-ai-dfir-toolkit
 source_repository: https://github.com/depalmar/ai-dfir-toolkit
 source_path: 02-mcp-attacks/mcp_credential_access.yml
-source_commit: 4697272a94c056cadbd4740e8ec717cff683052d
+source_commit: 8962d6f499cc1df6d67d4f92ee9f0455f634a462
 source_category: mcp_attack
 upstream_id: 2b3c4d5e-6f70-8192-a3b4-c5d6e7f80910
 upstream_status: experimental

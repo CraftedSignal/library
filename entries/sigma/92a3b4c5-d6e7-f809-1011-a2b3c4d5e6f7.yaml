@@ -19,6 +19,7 @@ query: |
       - https://attack.mitre.org/campaigns/C0045/
     author: Raymond DePalma (ai-dfir-toolkit)
     date: 2026-04-15
+    modified: 2026-11-17
     tags:
       - attack.defense_evasion
       - attack.t1036.005
@@ -40,6 +41,19 @@ query: |
           - '/.python3.10'
           - '/.systemd'
           - '/.kthreadd'
+      # A real kernel thread is never started by execve, so it never produces a
+      # process-creation event. Any such event whose first argument is a kernel
+      # thread name is a user process that set the name itself. This is the
+      # "named like a kworker, with arguments" check the guide describes; the
+      # selections around it need a miner argument or a listed path.
+      selection_kthread_argv0:
+        CommandLine|startswith:
+          - 'kworker/'
+          - '[kworker/'
+          - 'kthreadd'
+          - '[kthreadd'
+          - 'ksoftirqd/'
+          - '[ksoftirqd/'
       selection_kthread_with_args:
         Image|contains: 'kworker'
         CommandLine|contains:
@@ -75,7 +89,7 @@ query: |
       - ParentImage
       - ParentCommandLine
     falsepositives:
-      - Legitimate kernel threads (no command-line arguments — true kthreads have empty cmdline)
+      - None expected for the kernel-thread selections. Real kernel threads are not created by execve and do not appear in process-creation telemetry
       - Custom-named Python virtual environments matching .pythonX.Y pattern (rare)
     level: critical
 query_type: sigma
@@ -99,7 +113,7 @@ file: entries/sigma/92a3b4c5-d6e7-f809-1011-a2b3c4d5e6f7.yaml
 source: depalmar-ai-dfir-toolkit
 source_repository: https://github.com/depalmar/ai-dfir-toolkit
 source_path: 04-ai-infrastructure/shadowray_process_masquerading.yml
-source_commit: 4697272a94c056cadbd4740e8ec717cff683052d
+source_commit: 8962d6f499cc1df6d67d4f92ee9f0455f634a462
 source_category: ai_infrastructure
 upstream_id: 92a3b4c5-d6e7-f809-1011-a2b3c4d5e6f7
 upstream_status: experimental
