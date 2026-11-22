@@ -8,7 +8,6 @@ import (
 	"slices"
 	"strings"
 	"testing"
-	"time"
 
 	"gopkg.in/yaml.v3"
 )
@@ -538,8 +537,7 @@ func TestMergeAndWriteManifestsReportsImportedAndDuplicateCounts(t *testing.T) {
 			manifestPath: "huntress.sync.yaml",
 		},
 	}
-	syncedAt := time.Date(2026, time.October, 21, 12, 0, 0, 0, time.UTC)
-	if err := mergeAndWriteManifests(dir, batches, syncedAt); err != nil {
+	if err := mergeAndWriteManifests(dir, batches); err != nil {
 		t.Fatal(err)
 	}
 
@@ -554,8 +552,38 @@ func TestMergeAndWriteManifestsReportsImportedAndDuplicateCounts(t *testing.T) {
 	if huntressManifest.Accepted != 2 || huntressManifest.Imported != 1 || huntressManifest.Rejected != 1 || huntressManifest.DuplicatesSkipped != 1 {
 		t.Fatalf("Huntress counts = %#v", huntressManifest)
 	}
-	if huntressManifest.SyncedAt != "2026-10-21T12:00:00Z" {
-		t.Fatalf("synced_at = %q", huntressManifest.SyncedAt)
+}
+
+func TestMergeAndWriteManifestsProducesStableManifestForUnchangedSnapshot(t *testing.T) {
+	dir := t.TempDir()
+	if err := writeYAML(filepath.Join(dir, "library.index.yaml"), libraryIndex{}); err != nil {
+		t.Fatal(err)
+	}
+	batch := sourceBatch{
+		source:       sigmaHQSource,
+		commit:       "unchanged-commit",
+		entries:      []libraryEntry{{ID: "stable-id", Name: "Stable rule", QueryType: "sigma", Query: "title: Stable rule\n", Source: sigmaHQSource.Name}},
+		byCategory:   map[string]int{"detection": 1},
+		manifestPath: "sigmahq.sync.yaml",
+	}
+	if err := mergeAndWriteManifests(dir, []sourceBatch{batch}); err != nil {
+		t.Fatal(err)
+	}
+	manifestPath := filepath.Join(dir, batch.manifestPath)
+	firstManifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if err := mergeAndWriteManifests(dir, []sourceBatch{batch}); err != nil {
+		t.Fatal(err)
+	}
+	secondManifest, err := os.ReadFile(manifestPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(secondManifest) != string(firstManifest) {
+		t.Fatalf("unchanged snapshot rewrote manifest:\nfirst:\n%s\nsecond:\n%s", firstManifest, secondManifest)
 	}
 }
 

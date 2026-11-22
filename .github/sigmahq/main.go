@@ -122,7 +122,6 @@ type rejection struct {
 type syncManifest struct {
 	SourceRepository  string         `yaml:"source_repository"`
 	SourceCommit      string         `yaml:"source_commit"`
-	SyncedAt          string         `yaml:"synced_at"`
 	Accepted          int            `yaml:"accepted"`
 	Imported          int            `yaml:"imported"`
 	Rejected          int            `yaml:"rejected"`
@@ -172,7 +171,7 @@ func main() {
 	if len(batches) == 0 {
 		log.Fatal("at least one source checkout directory is required")
 	}
-	if err := mergeAndWriteManifests(*outputDir, batches, time.Now().UTC()); err != nil {
+	if err := mergeAndWriteManifests(*outputDir, batches); err != nil {
 		log.Fatalf("sync Sigma upstreams: %v", err)
 	}
 	for _, batch := range batches {
@@ -199,7 +198,7 @@ func collectSourceBatch(root string, source upstreamSource, manifestPath string)
 	}, nil
 }
 
-func mergeAndWriteManifests(outputDir string, batches []sourceBatch, syncedAt time.Time) error {
+func mergeAndWriteManifests(outputDir string, batches []sourceBatch) error {
 	refreshedSources := make(map[string]bool, len(batches))
 	var entries []libraryEntry
 	for _, batch := range batches {
@@ -214,7 +213,6 @@ func mergeAndWriteManifests(outputDir string, batches []sourceBatch, syncedAt ti
 		manifest := syncManifest{
 			SourceRepository:  batch.source.Repository,
 			SourceCommit:      batch.commit,
-			SyncedAt:          syncedAt.Format(time.RFC3339),
 			Accepted:          len(batch.entries),
 			Imported:          imported[batch.source.Name],
 			Rejected:          len(batch.rejections),
