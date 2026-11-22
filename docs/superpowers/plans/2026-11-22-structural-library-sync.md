@@ -107,4 +107,3 @@ Expected: no reachable vulnerabilities.
 - [ ] **Step 4: Review the final diff against the spec**
 
 Confirm no generated entries, quality rules, or publisher behavior changed.
-

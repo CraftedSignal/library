@@ -39,4 +39,3 @@ Make scheduled library generation deterministic and honest: a run with no materi
 - Two identical generator runs produce byte-identical sync manifests.
 - A no-op scheduled run leaves the generated Git tree equal to `main`, so the publisher exits without a branch or PR update.
 - A detections.ai refresh error makes the sync job fail and prevents publication.
-
