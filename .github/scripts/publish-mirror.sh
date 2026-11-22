@@ -32,13 +32,9 @@ else
   fi
 fi
 
-changed=true
 if git diff --quiet "$base_sha" "$tree"; then
-  changed=false
-  if [ -z "$previous" ]; then
-    echo "No generated mirror changes to publish"
-    exit 0
-  fi
+  echo "No generated mirror changes to publish"
+  exit 0
 fi
 
 if [ -z "$previous" ] || [ "$(git rev-parse "$previous^{tree}")" != "$tree" ]; then
@@ -60,11 +56,6 @@ EOF
   # GH_PAT causes PR/synchronize events to run CI. A concurrent branch update
   # rejects this ordinary push rather than overwriting someone else's commit.
   git -c credential.helper='!gh auth git-credential' push origin "$commit:$branch_ref"
-fi
-
-if [ "$changed" = false ]; then
-  echo "Automation branch matches main; no new PR is needed"
-  exit 0
 fi
 
 pr=$(gh pr list --repo "$GITHUB_REPOSITORY" --state open --base main --head "$branch" --json number --jq '.[0].number // empty')

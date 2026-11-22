@@ -4,7 +4,7 @@
 
 **Goal:** Make library generation deterministic and prevent failed source refreshes from publishing partial snapshots.
 
-**Architecture:** Remove wall-clock state from generated sync manifests so the existing tree comparison can correctly identify no-op runs. Let detections.ai refresh failures propagate through GitHub Actions, preserving the workflow's atomic publication boundary.
+**Architecture:** Remove wall-clock state from generated sync manifests so the tree comparison can correctly identify no-op runs, and make the publisher exit before branch reconciliation whenever that comparison is clean. Let detections.ai refresh failures propagate through GitHub Actions, preserving the workflow's atomic publication boundary.
 
 **Tech Stack:** Go, Python unittest, Bash, GitHub Actions YAML
 
@@ -23,7 +23,7 @@
 - A changed upstream commit must still change the manifest through `source_commit`.
 - Missing manifests must still be created with counts, categories, and rejections.
 - A detections.ai failure must leave publication success-gated while token cleanup remains eligible.
-- Existing publisher behavior for a truly unchanged tree must remain intact.
+- A truly unchanged generated tree must never advance an existing automation branch.
 
 ---
 
@@ -77,7 +77,37 @@ Delete `continue-on-error: true` from the detections.ai refresh step. Retain `if
 
 Run the available workflow linter, then inspect the diff to confirm refresh precedes generation/publication and only token rotation has unconditional execution.
 
-### Task 3: Full verification
+### Task 3: True no-op publication
+
+**Files:**
+- Modify: `.github/scripts/publish-mirror.sh`
+- Modify: `.github/tests/test_publish_mirror.py`
+
+**Interfaces:**
+- Consumes: the generated tree and reviewed `main` tree.
+- Produces: an immediate successful exit when those trees match, regardless of automation-branch state.
+
+- [ ] **Step 1: Write the failing regression test**
+
+Create a pending automation snapshot, restore the generated files to `main`, rerun the publisher, and assert the remote branch and GitHub calls are unchanged.
+
+- [ ] **Step 2: Run the focused test and verify RED**
+
+Run: `python3 .github/tests/test_publish_mirror.py`
+
+Expected: FAIL because the existing branch advances to a new commit.
+
+- [ ] **Step 3: Exit before branch reconciliation on a clean tree**
+
+When `git diff --quiet "$base_sha" "$tree"` succeeds, report the no-op and exit without creating a commit or updating the branch.
+
+- [ ] **Step 4: Run the focused publisher tests**
+
+Run: `python3 .github/tests/test_publish_mirror.py`
+
+Expected: 7 tests, PASS.
+
+### Task 4: Full verification
 
 **Files:**
 - Verify all modified files.
@@ -90,7 +120,7 @@ Run the available workflow linter, then inspect the diff to confirm refresh prec
 
 Run: `python3 -m unittest discover -s .github/tests -p 'test_*.py'`
 
-Expected: 6 tests, PASS.
+Expected: 7 tests, PASS.
 
 - [ ] **Step 2: Run Go test, race, and vet in both modules**
 
@@ -106,4 +136,4 @@ Expected: no reachable vulnerabilities.
 
 - [ ] **Step 4: Review the final diff against the spec**
 
-Confirm no generated entries, quality rules, or publisher behavior changed.
+Confirm no generated entries or quality rules changed, and publisher changes are limited to the clean-tree early exit.

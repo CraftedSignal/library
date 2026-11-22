@@ -142,6 +142,19 @@ else:
         self.assertFalse(self.calls.exists())
         self.assertNotEqual(self.git("--git-dir=" + str(self.remote), "show-ref", "--verify", BRANCH, check=False).returncode, 0)
 
+    def test_unchanged_snapshot_does_not_advance_existing_automation_branch(self):
+        (self.work / "entries/detection.yaml").write_text("revision: 2\n")
+        self.publish()
+        previous = self.remote_git("rev-parse", BRANCH).strip()
+        calls = self.calls.read_text()
+
+        self.git("reset", "--hard", self.base)
+        result = self.publish()
+
+        self.assertIn("No generated mirror changes to publish", result.stdout)
+        self.assertEqual(self.remote_git("rev-parse", BRANCH).strip(), previous)
+        self.assertEqual(self.calls.read_text(), calls)
+
     def test_concurrent_automation_branch_change_is_not_overwritten(self):
         (self.work / "entries/detection.yaml").write_text("revision: 2\n")
         self.publish()

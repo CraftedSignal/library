@@ -16,7 +16,7 @@ Make scheduled library generation deterministic and honest: a run with no materi
 
 - Replace or reverse-engineer the removed detections.ai API contract.
 - Change source quality gates, precedence, or generated library entry content.
-- Redesign the automation branch or pull-request publisher.
+- Redesign the automation branch or pull-request lifecycle beyond enforcing a true no-op exit.
 
 ## Constraints
 
@@ -32,7 +32,7 @@ Make scheduled library generation deterministic and honest: a run with no materi
 
 ## Design
 
-`mergeAndWriteManifests` will no longer accept a wall-clock argument or emit `synced_at`. Existing generated manifests will drop that field once. Re-running the same batches must produce identical manifest bytes. The scheduled workflow will remove `continue-on-error` from the detections.ai refresh. The existing `if: always()` token-rotation cleanup remains, while normal GitHub Actions success gating prevents the curated merge and publication steps from running after a failed community refresh.
+`mergeAndWriteManifests` will no longer accept a wall-clock argument or emit `synced_at`. Existing generated manifests will drop that field once. Re-running the same batches must produce identical manifest bytes. The publisher will exit before reconciling an existing automation branch whenever the generated tree equals `main`, ensuring a true no-op cannot create a commit. The scheduled workflow will remove `continue-on-error` from the detections.ai refresh. The existing `if: always()` token-rotation cleanup remains, while normal GitHub Actions success gating prevents the curated merge and publication steps from running after a failed community refresh.
 
 ## Success Criteria
 
